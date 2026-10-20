@@ -48,6 +48,7 @@ import { raw } from 'express'
 import { access } from '../authentication/access.js'
 import { ArticleImports } from '../datanorm/imports.js'
 import { deadlineRules } from '../deadlines/routes.js'
+import { accountMessages } from '../mail/account-messages.js'
 import { mailServersOfBusinesses } from '../mail/server-settings.js'
 import { invitationMailing } from '../notifications/invitation-mail.js'
 import { pushRules } from '../notifications/push.js'
@@ -218,6 +219,9 @@ export class ApiModule implements NestModule {
       setupCode,
       invitationMailing: invitationMailing(database, mail),
       instanceSettings: options.instance?.settings,
+      // The words of the mails to an account, for the area of the instance:
+      // it tells whoever owns a business of a new mail server in them.
+      accountMessages,
     })
     // The key the ways into a site are sealed with (#286), the one of the mail
     // context where none is handed in on its own.

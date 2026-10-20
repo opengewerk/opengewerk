@@ -1,6 +1,7 @@
 import type { Provider, Type } from '@nestjs/common'
 
 import { AUTHENTICATION, SETUP_CODE } from '../api/handed-in.js'
+import { ACCOUNT_MESSAGES, type AccountMessages } from '../instance/account-mail.js'
 import { INSTANCE_SETTINGS, InstanceController } from '../instance/instance.controller.js'
 import { LegalTextsController } from '../instance/legal-texts.controller.js'
 import type { InstanceSettingsCache } from '../instance/settings.js'
@@ -48,6 +49,15 @@ export interface AuthenticationParts {
    */
   readonly instanceSettings?: InstanceSettingsCache | null | undefined
   /**
+   * The words of the application for the mails to an account
+   * (`account-mail.ts`), the same it hands the authentication. The area of
+   * the instance tells whoever leads a tenant in them of a change of the mail
+   * server of the instance (opengewerk-haustechnik#360). Not optional, so that
+   * no application leaves them out by accident: one that sends no mail says
+   * null, and then only the log of every tenant is told.
+   */
+  readonly accountMessages: AccountMessages | null
+  /**
    * Whether the legal texts of the instance are handed out to anybody
    * (opengewerk-haustechnik#129). Left out, they are wherever the
    * authentication is handed in, and on a closed instance not. A preview,
@@ -75,6 +85,7 @@ export function authenticationParts(parts: AuthenticationParts): {
     setupCode = null,
     invitationMailing = null,
     instanceSettings = null,
+    accountMessages,
     legalTexts = authentication !== undefined,
   } = parts
 
@@ -99,6 +110,7 @@ export function authenticationParts(parts: AuthenticationParts): {
       { provide: ACCESS_RULES, useValue: access },
       { provide: INVITATION_MAILING, useValue: invitationMailing },
       { provide: INSTANCE_SETTINGS, useValue: instanceSettings },
+      { provide: ACCOUNT_MESSAGES, useValue: accountMessages },
       ...(authentication
         ? [
             { provide: AUTHENTICATION, useValue: authentication },

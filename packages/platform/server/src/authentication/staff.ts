@@ -5,6 +5,7 @@ import { uuidv7 } from 'uuidv7'
 import type { Database, StraddlingTransaction, TenantTransaction } from '../database/database.js'
 import { authAccounts, authSessions, authUsers, memberships } from '../schema.js'
 import type { Authentication } from './authentication.js'
+import { recordPasswordReset } from './password-resets.js'
 
 /** What better-auth hands out once it has read its own configuration. */
 export type AuthenticationContext = Awaited<Authentication['$context']>
@@ -183,6 +184,10 @@ export async function accountExists(database: Database, email: string): Promise<
  * was: whoever needs one still needs it after this, and so does anybody who
  * set one up.
  *
+ * Into the log of every tenant of the account as well, as a reset through a
+ * link is (`password-resets.ts`): whoever leads a tenant sees every new
+ * password, whichever way it came (opengewerk-haustechnik#360).
+ *
  * Says whether there was such an account, and does nothing when there was not.
  */
 export async function replacePassword(
@@ -194,7 +199,7 @@ export async function replacePassword(
   const email = person.email.trim().toLowerCase()
   const hashed = await context.password.hash(person.password)
 
-  return database.forInstance(async (tx) => {
+  const replaced = await database.forInstance(async (tx) => {
     const [user] = await tx
       .select({ id: authUsers.id })
       .from(authUsers)
@@ -202,7 +207,7 @@ export async function replacePassword(
       .limit(1)
 
     if (!user) {
-      return false
+      return null
     }
 
     const changed = await tx
@@ -226,6 +231,14 @@ export async function replacePassword(
 
     await tx.delete(authSessions).where(eq(authSessions.userId, user.id))
 
-    return true
+    return user.id
   })
+
+  if (replaced === null) {
+    return false
+  }
+
+  await recordPasswordReset(database, replaced)
+
+  return true
 }

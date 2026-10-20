@@ -143,6 +143,7 @@ const ownCodes: ReadonlySet<string> = new Set([
   'PASSKEY_NAME_INVALID',
   'PASSKEY_WITHOUT_SESSION',
   'PASSKEY_NOT_RECORDED',
+  'PASSWORD_RECENTLY_RESET',
 ])
 
 /**

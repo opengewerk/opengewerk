@@ -144,6 +144,15 @@ export function instanceMailServerInput(body: unknown): MailConnectionInput {
   }
 }
 
+/** The server the instance sends through, by its name and the address it sends from, or null while there is none. */
+export async function namedInstanceMailServer(
+  database: Database,
+): Promise<{ readonly host: string; readonly fromAddress: string } | null> {
+  const kept = serverOf(await database.forInstance((tx) => rowOf(tx)))
+
+  return kept ? { host: kept.host, fromAddress: kept.fromAddress } : null
+}
+
 /** The mail server of the instance as its settings show it, or null while there is none. */
 export async function readInstanceMailServer(
   database: Database,

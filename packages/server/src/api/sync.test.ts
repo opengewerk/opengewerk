@@ -282,6 +282,10 @@ describe('the tables', () => {
       name === 'push_outbox' ||
       name === 'member_passkeys' ||
       name === 'account_corrections' ||
+      // A new password and a new mail server of the instance, as a business
+      // learns of them (opengewerk-haustechnik#360), in its log and nowhere else.
+      name === 'password_resets' ||
+      name === 'account_mail_server_changes' ||
       name === 'tenant_roles' ||
       name === 'site_access_deliveries' ||
       name === 'supplier_articles' ||

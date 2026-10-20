@@ -218,6 +218,87 @@ export const accountCorrections = pgTable(
 )
 
 /**
+ * A new password for somebody who works in this tenant, chosen through the
+ * link in a mail or set on the command line of the server
+ * (opengewerk-haustechnik#360).
+ *
+ * The password belongs to the account and lives in `auth_accounts`, on the
+ * instance, where no audit trigger can reach it. But a new password opens
+ * this tenant as much as the old one did, and the link to it goes out
+ * through the mail server of the instance, which whoever runs the instance
+ * sets up. So whoever leads the tenant should see every one: a row per reset
+ * and tenant the account works in, and the audit trigger puts it into the
+ * log, the same way `member_passkeys` brings a passkey there. When, and
+ * whose; never the link and never its token, which are spent by then anyway.
+ *
+ * Written once and never changed or removed. The newest row of an account
+ * is also how long it waits before it may set up a second factor or a
+ * passkey (`password-resets.ts`).
+ */
+export const passwordResets = pgTable(
+  'password_resets',
+  {
+    id: primaryId<'password-reset'>(),
+    ...tenantColumn,
+    userId: text('user_id').notNull(),
+    resetAt: timestamp('reset_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.userId],
+      foreignColumns: [memberships.tenantId, memberships.userId],
+      name: 'password_resets_person_works_here',
+    }).onDelete('cascade'),
+    index('password_resets_person_idx').on(table.tenantId, table.userId, table.resetAt),
+  ],
+)
+
+/**
+ * A change of the mail server of the instance, as every tenant on it learns
+ * of it (opengewerk-haustechnik#360).
+ *
+ * The mails to an account go out through that server alone, the link to a new
+ * password among them (`account-mail.ts`), and whoever sets it up could read
+ * them there. Setting it up is for whoever runs the instance and nobody else,
+ * but it is not a change a tenant should only hear of afterwards: one row in
+ * every tenant on the instance, written with the change, and the audit
+ * trigger puts it into the log, where whoever runs the instance cannot take
+ * it out again. What the server was and what it is now, by its name and the
+ * address it sends from; a pair of nulls on one side is a server set up for
+ * the first time or one removed. Never the login or its password.
+ *
+ * Written once and never changed or removed, like a correction of an account.
+ */
+export const accountMailServerChanges = pgTable(
+  'account_mail_server_changes',
+  {
+    id: primaryId<'account-mail-server-change'>(),
+    ...tenantColumn,
+    hostBefore: text('host_before'),
+    fromBefore: text('from_before'),
+    hostAfter: text('host_after'),
+    fromAfter: text('from_after'),
+    changedAt: timestamp('changed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    tenantIsolation(table.tenantId),
+    check(
+      'account_mail_server_changes_before_in_a_pair',
+      sql`(${table.hostBefore} is null) = (${table.fromBefore} is null)`,
+    ),
+    check(
+      'account_mail_server_changes_after_in_a_pair',
+      sql`(${table.hostAfter} is null) = (${table.fromAfter} is null)`,
+    ),
+    check(
+      'account_mail_server_changes_names_a_server',
+      sql`${table.hostBefore} is not null or ${table.hostAfter} is not null`,
+    ),
+  ],
+)
+
+/**
  * An offer of a way into this tenant, handed over as a link.
  *
  * A tenant bound table like any other, so the audit trigger watches it: who

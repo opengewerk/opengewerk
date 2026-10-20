@@ -17,7 +17,9 @@ import { InstanceSettingsScreen } from './settings.js'
  * (opengewerk-haustechnik#81), as the board "Instanz: Einstellungen" draws
  * it: what goes to an account goes out through it. The card says so in the
  * words of the application, sends what was typed and the password only
- * where one was typed, and asks before it removes anything.
+ * where one was typed, and asks before it removes anything. Saving and
+ * removing send nothing before the confirmation with the password
+ * (opengewerk-haustechnik#360).
  */
 
 let server: StandIn
@@ -58,6 +60,22 @@ function sent(method: string, path: string): unknown[] {
     .map((call) => call.body)
 }
 
+/** The confirmation under the card, once a change waits for it. */
+async function confirmation() {
+  return within(await screen.findByRole('region', { name: 'Mailserver der Instanz bestätigen' }))
+}
+
+/** Confirms with the password of the account, and sends nothing of the mail server before. */
+async function confirm(user: ReturnType<typeof userEvent.setup>) {
+  const confirming = await confirmation()
+
+  expect(sent('PUT', '/instance/mail-server')).toEqual([])
+  expect(sent('DELETE', '/instance/mail-server')).toEqual([])
+
+  await user.type(confirming.getByLabelText('Passwort'), 'ein-ordentlich-langes-passwort')
+  await user.click(confirming.getByRole('button', { name: 'Weiter' }))
+}
+
 beforeEach(() => {
   server = standInServer()
   signedIn(server, [aTenant({ name: 'Probewerk Nord' })])
@@ -67,6 +85,7 @@ beforeEach(() => {
     backupTime: '02:30',
     takenOverAt: null,
   })
+  server.answer('POST', '/api/auth/reconfirm', { reconfirmedUntil: '2026-10-20T10:10:00.000Z' })
 })
 
 afterEach(() => {
@@ -106,12 +125,16 @@ describe('the mail server of the instance among its settings', () => {
     await user.type(within(card).getByLabelText('Absenderadresse'), 'instanz@example.de')
     server.answer('GET', '/instance/mail-server', { sends: true, server: kept })
     await user.click(within(card).getByRole('button', { name: 'Speichern' }))
+    await confirm(user)
 
     expect(
       await screen.findByText(
         'Gespeichert. Die Verbindung zum Mailserver funktioniert, die Anmeldung wurde angenommen.',
       ),
     ).toBeTruthy()
+    expect(sent('POST', '/api/auth/reconfirm')).toEqual([
+      { password: 'ein-ordentlich-langes-passwort' },
+    ])
     expect(sent('PUT', '/instance/mail-server')).toEqual([
       {
         host: 'smtp.example.de',
@@ -146,6 +169,7 @@ describe('the mail server of the instance among its settings', () => {
     await user.clear(from)
     await user.type(from, 'konten@example.de')
     await user.click(within(card).getByRole('button', { name: 'Speichern' }))
+    await confirm(user)
 
     expect((await screen.findByRole('alert')).textContent).toBe(
       'Gespeichert, aber der Mailserver lässt sich gerade nicht erreichen: Der Mailserver antwortet nicht.',
@@ -159,6 +183,24 @@ describe('the mail server of the instance among its settings', () => {
         fromAddress: 'konten@example.de',
       },
     ])
+  })
+
+  it('saves nothing where the confirmation is called off', async () => {
+    server.answer('GET', '/instance/mail-server', { sends: true, server: kept })
+
+    const user = await settings()
+    const card = await form()
+
+    await user.click(within(card).getByRole('button', { name: 'Speichern' }))
+    await user.click((await confirmation()).getByRole('button', { name: 'Abbrechen' }))
+
+    expect(screen.queryByRole('region', { name: 'Mailserver der Instanz bestätigen' })).toBeNull()
+    expect(within(card).getByRole('button', { name: 'Speichern' })).toHaveProperty(
+      'disabled',
+      false,
+    )
+    expect(sent('POST', '/api/auth/reconfirm')).toEqual([])
+    expect(sent('PUT', '/instance/mail-server')).toEqual([])
   })
 
   it('tries a connection without saving it, and says what the mail server said', async () => {
@@ -206,6 +248,7 @@ describe('the mail server of the instance among its settings', () => {
 
     server.answer('GET', '/instance/mail-server', { sends: true, server: null })
     await user.click(within(question).getByRole('button', { name: 'Entfernen' }))
+    await confirm(user)
 
     expect(await screen.findByText('Der Mailserver ist entfernt, samt Anmeldung.')).toBeTruthy()
     expect(sent('DELETE', '/instance/mail-server')).toHaveLength(1)

@@ -50,6 +50,7 @@ import { probeDatabase, probeMigrations } from '../database/probe-database.js'
 import { probeMade } from '../database/probe-schema.js'
 import type { TestDatabase } from '../database/test-database.js'
 import type { InstanceSettingsCache } from '../instance/settings.js'
+import type { AccountMessages } from '../instance/account-mail.js'
 import { MAIL, type MailContext } from '../mail/context.js'
 import type { MadeByTheApplication } from '../migration/guards.js'
 import { memberships } from '../schema.js'
@@ -301,6 +302,8 @@ export interface ProbeModuleOptions {
   readonly instanceSettings?: InstanceSettingsCache | null
   /** What the routes around mail need. Left out, this instance sends no mail. */
   readonly mail?: MailContext | null
+  /** The words of the mails to an account. Left out, nobody is told by mail of a new mail server. */
+  readonly accountMessages?: AccountMessages | null
   /** The version the health check names; left out, it names none, as in a checkout. */
   readonly version?: string | null
   /** What this application keeps beside a membership. Left out, nothing. */
@@ -327,6 +330,7 @@ export class ProbeModule {
       setupCode: options.setupCode,
       invitationMailing: options.invitationMailing,
       instanceSettings: options.instanceSettings,
+      accountMessages: options.accountMessages ?? null,
     })
 
     return {
@@ -382,6 +386,8 @@ export interface ProbeInstanceOptions extends Pick<
   readonly instanceSettings?: InstanceSettingsCache | null
   /** What the routes around mail need. Left out, this instance sends no mail. */
   readonly mail?: MailContext | null
+  /** The words of the mails to an account. Left out, nobody is told by mail of a new mail server. */
+  readonly accountMessages?: AccountMessages | null
   /** What this application keeps beside a membership. Left out, nothing. */
   readonly additions?: MembershipAdditions
   /** The roles given only up to a last day. Left out, none. */
@@ -434,6 +440,7 @@ export async function probeInstance(
     invitationMailing = null,
     instanceSettings = null,
     mail = null,
+    accountMessages = null,
     additions,
     endingRoles,
     trustedOrigins = [probeOrigin],
@@ -464,6 +471,7 @@ export async function probeInstance(
               invitationMailing,
               instanceSettings,
               mail,
+              accountMessages,
               ...(additions ? { additions } : {}),
               ...(endingRoles ? { endingRoles } : {}),
             },
@@ -523,6 +531,11 @@ export interface ProbeVisitors {
   signIn(email: string, password?: string): Promise<string>
   /** Signs in and chooses a tenant, which is where work actually starts. */
   workIn(email: string, tenantId: TenantId, password?: string): Promise<string>
+  /**
+   * Confirms again on a session, with the password and the code from the
+   * app where the account has one (`reconfirmation.ts`).
+   */
+  reconfirm(email: string, cookies: string, password?: string): Promise<void>
 }
 
 /**
@@ -580,6 +593,13 @@ export function probeVisitors(instance: ProbeInstance, password: string): ProbeV
       await instance.chooseTenant(cookies, tenantId)
 
       return cookies
+    },
+    async reconfirm(email, cookies, secret = password) {
+      const totpUri = secondFactors.get(email)
+
+      await post('/reconfirm', cookies)
+        .send({ password: secret, ...(totpUri ? { code: await currentCode(totpUri) } : {}) })
+        .expect(200)
     },
   }
 }
