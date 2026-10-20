@@ -23,6 +23,7 @@ import type { AccessRules } from './access.js'
 import { type PasskeyNotice, type PasswordResetMail, passwordResetLifetime } from './notices.js'
 import { markUsed, recordAdded, recordWithdrawn } from './passkeys.js'
 import { shortestPassword } from './password.js'
+import { recordPasswordReset, waitingAfterReset, waitsAfterReset } from './password-resets.js'
 import {
   claimReconfirmation,
   reconfirmation,
@@ -103,6 +104,13 @@ const registering: ReadonlySet<string> = new Set([
   '/passkey/generate-register-options',
   '/passkey/verify-registration',
 ])
+
+/**
+ * Where a second factor of any kind is set up: the app, and a passkey by both
+ * routes that register one. Each waits a day after a reset of the password
+ * (`password-resets.ts`).
+ */
+const settingUpASecondFactor: ReadonlySet<string> = new Set(['/two-factor/enable', ...registering])
 
 /** Where a sign in with a passkey happens, the one route that makes a passkey session. */
 const passkeySignIn = '/passkey/verify-authentication'
@@ -297,6 +305,15 @@ export function createAuthentication({
           },
         )
       },
+      // Into the log of every tenant of the account, once the new password is
+      // set (opengewerk-haustechnik#360). Whoever runs the instance sets up the
+      // mail server the link went out through; whoever leads a tenant sees here
+      // that a link was used, when and for whom, and never the link. Awaited:
+      // should it fail, the route answers with an error rather than with a
+      // reset the log does not know of.
+      onPasswordReset: async ({ user }) => {
+        await recordPasswordReset(database, user.id)
+      },
     },
     session: {
       // The cookie lives as long as the longest session, and the row decides
@@ -402,9 +419,12 @@ export function createAuthentication({
        * The registration itself also has to name the passkey and may not ask
        * for a session of its own: the plugin could make one, and a session
        * that begins with a registration is a sign in nobody confirmed.
+       *
+       * Setting up the app and adding a passkey both wait a day after a reset
+       * of the password, which this hook asks first.
        */
       before: createAuthMiddleware(async (ctx) => {
-        if (!registering.has(ctx.path)) {
+        if (!settingUpASecondFactor.has(ctx.path)) {
           return
         }
 
@@ -412,6 +432,20 @@ export function createAuthentication({
 
         if (!found) {
           // The plugin answers this itself, with a 401.
+          return
+        }
+
+        // A day after a reset of the password, before anything else is asked
+        // (opengewerk-haustechnik#360): whoever chose the new password does not
+        // give the account a second factor of their own at once.
+        if (await waitsAfterReset(database, found.user.id)) {
+          throw new APIError('FORBIDDEN', {
+            code: 'PASSWORD_RECENTLY_RESET',
+            message: waitingAfterReset,
+          })
+        }
+
+        if (!registering.has(ctx.path)) {
           return
         }
 
