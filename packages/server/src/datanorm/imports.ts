@@ -24,8 +24,10 @@ import {
   Database,
   everyTenant,
   FILE_STORE,
+  type FilePlace,
   type FileStorage,
   isUniqueViolation,
+  mayNameFile,
   newId,
   StoredFileDamagedError,
   StoredFileMissingError,
@@ -54,6 +56,20 @@ import { ZipRefused } from './zip.js'
  * nothing is; a takeover that breaks off leaves the articles as they were and
  * says so in the row of the import.
  */
+
+/**
+ * An import in reach names the file already: a delivery read once may be read
+ * again by whoever sees that import, without storing it a second time.
+ */
+const namedByAnImport: FilePlace = async (tx, sha256) => {
+  const [named] = await tx
+    .select({ id: articleImports.id })
+    .from(articleImports)
+    .where(sql`${articleImports.files} @> ${JSON.stringify([{ sha256 }])}::jsonb`)
+    .limit(1)
+
+  return named !== undefined
+}
 
 /** Who starts an import, and in whose business. */
 export interface Importer {
@@ -265,6 +281,16 @@ export class ArticleImports {
             ),
           )
         const sizes = new Map(stored.map((file) => [file.sha256, file.sizeBytes]))
+
+        // A file somebody else stored, which no import in reach names, is
+        // answered like one that was never stored: an import reads the
+        // delivery and keeps it, and a hash is no proof of having it.
+        for (const file of requested) {
+          if (sizes.has(file.sha256) && !(await mayNameFile(tx, file.sha256, [namedByAnImport]))) {
+            sizes.delete(file.sha256)
+          }
+        }
+
         const missing = requested.find((file) => !sizes.has(file.sha256))
 
         if (missing) {

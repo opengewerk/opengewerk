@@ -655,6 +655,16 @@ const crossings: readonly {
                     ${other.fileHash})`,
   },
   {
+    // Who stored a file, naming a file of the other business: an insert as
+    // the person of the request, the way `fileRowFor` writes it, since the
+    // policy of the table takes no other.
+    key: 'file_uploads_file_in_tenant',
+    write: (own, other) =>
+      sql`insert into file_uploads (tenant_id, sha256, user_id)
+            select ${own.tenant}, ${other.fileHash}, ${own.user}
+              from (select set_config('app.user_id', ${own.user}, true)) as acting`,
+  },
+  {
     // Inserts, since an entry is written once; the person comes from the
     // request as it would for a device.
     key: 'time_entries_job_in_tenant',

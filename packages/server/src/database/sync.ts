@@ -14,6 +14,7 @@ import {
 } from '@opengewerk/domain'
 import {
   attachmentVersionFiles,
+  attachmentVersionPlace,
   contactWithoutParent,
   serverSync,
   type SyncCheck,
@@ -220,11 +221,17 @@ const timeEntry: Check = async ({ tx, operation, values }) => {
 /**
  * A version of an attachment names its file by business and hash, a key the
  * reference check below does not read. Its own question: is the file there,
- * uploaded ahead of the version, and is the size the one it has. Asked by the
- * foundation, where the versions of a file are kept
- * (opengewerk-haustechnik#97).
+ * uploaded ahead of the version by the person sending it, or named by a
+ * version of a file still in the records, which whoever may read the records
+ * opens anyway; and is the size the one it has. Asked by the foundation,
+ * where the versions of a file are kept (opengewerk-haustechnik#97).
  */
-const versionFile: Check = attachmentVersionFiles()
+const versionFile: Check = attachmentVersionFiles([
+  attachmentVersionPlace({
+    attachments: schema.attachments,
+    attachmentVersions: schema.attachmentVersions,
+  }),
+])
 
 /**
  * A parent that is gone, or that belongs to another business, is a conflict
