@@ -67,7 +67,8 @@ function ConflictFrame({
 }: {
   readonly kind: string
   readonly title: string
-  readonly reason: string
+  /** Why it is a conflict; none for one whose record the person no longer sees (#697). */
+  readonly reason: string | null
   readonly children: ReactNode
 }) {
   const heading = useId()
@@ -84,12 +85,32 @@ function ConflictFrame({
         <h2 id={heading} className="text-[16px] font-bold text-conflict [overflow-wrap:anywhere]">
           {title}
         </h2>
-        <p className="mt-[3px] text-[14px] text-conflict-ink">{reason}</p>
+        {reason === null ? null : (
+          <p className="mt-[3px] text-[14px] text-conflict-ink">{reason}</p>
+        )}
       </div>
       <div className="flex flex-col gap-3 px-4 py-3.5">{children}</div>
     </section>
   )
 }
+
+/**
+ * A conflict whose record the person no longer sees (#697): since #696 the
+ * server sends it without fields and values, so that it can be closed and
+ * says no more than that it is there. Without a word the empty card looked
+ * like a fault of the screen.
+ */
+function withheld(conflict: SyncConflict): boolean {
+  return (
+    conflict.fields.length === 0 &&
+    Object.keys(conflict.wanted).length === 0 &&
+    Object.keys(conflict.seen).length === 0 &&
+    Object.keys(conflict.found).length === 0
+  )
+}
+
+const withheldText =
+  'Diesen Datensatz sehen Sie nicht mehr, deshalb wurde Ihre Änderung nicht übernommen.'
 
 /** The name of a field at the head of its row, as a row header. */
 function FieldName({ children }: { readonly children: string }) {
@@ -226,6 +247,60 @@ function ConflictCard({
     } finally {
       setWorking(false)
     }
+  }
+
+  if (withheld(conflict)) {
+    const recorded = `Erfasst ${moment(conflict.recordedAt)} ${madeOn(conflict, client.deviceId)}.`
+
+    if (entry === 'office') {
+      return (
+        <ConflictFrame
+          kind={words.entityLabel(conflict.entity)}
+          title="Nicht mehr sichtbar"
+          reason={null}
+        >
+          <p className="text-[14px] leading-[1.5] text-ink">{withheldText}</p>
+          <p className="text-[13px] text-ink-faint">{recorded}</p>
+          {trouble ? (
+            <p role="alert" className="text-body font-semibold text-conflict">
+              {trouble}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button tone="primary" disabled={working} onClick={() => void decide(false)}>
+              Schließen
+            </Button>
+          </div>
+        </ConflictFrame>
+      )
+    }
+
+    return (
+      <SiteConflictFrame
+        kind={words.entityLabel(conflict.entity)}
+        title="Nicht mehr sichtbar"
+        reason={null}
+      >
+        <p className="text-[17px] leading-[1.45]">{withheldText}</p>
+        <p className="numeric text-[14px] text-ink-faint">{recorded}</p>
+        {trouble ? (
+          <p role="alert" className="text-[16px] font-semibold text-conflict">
+            {trouble}
+          </p>
+        ) : null}
+        <div className="mt-1.5 flex flex-col gap-2">
+          <Button
+            tone="dark"
+            wide
+            height={56}
+            disabled={working}
+            onClick={() => void decide(false)}
+          >
+            Schließen
+          </Button>
+        </div>
+      </SiteConflictFrame>
+    )
   }
 
   const buttons = (
@@ -477,7 +552,8 @@ function ConflictCard({
 export function DecisionFrame(props: {
   readonly kind: string
   readonly title: string
-  readonly reason: string
+  /** Why it is a conflict; none for one whose record the person no longer sees (#697). */
+  readonly reason: string | null
   readonly children: ReactNode
 }) {
   const Frame = useEntry() === 'office' ? ConflictFrame : SiteConflictFrame
@@ -530,7 +606,8 @@ function SiteConflictFrame({
 }: {
   readonly kind: string
   readonly title: string
-  readonly reason: string
+  /** Why it is a conflict; none for one whose record the person no longer sees (#697). */
+  readonly reason: string | null
   readonly children: ReactNode
 }) {
   const heading = useId()
@@ -548,7 +625,9 @@ function SiteConflictFrame({
         >
           {title}
         </h2>
-        <p className="mt-1 text-[16px] leading-[1.4] text-conflict-ink">{reason}</p>
+        {reason === null ? null : (
+          <p className="mt-1 text-[16px] leading-[1.4] text-conflict-ink">{reason}</p>
+        )}
       </div>
       <div className="flex flex-col gap-2 px-3.5 py-3">{children}</div>
     </section>

@@ -430,6 +430,54 @@ describe('a conflict in the office', () => {
   })
 })
 
+/**
+ * A conflict whose record the person no longer sees (#697): the server sends
+ * it without fields and values (#696). The card says why it is empty, names no
+ * version, offers only to close it and sends nothing for it, in both entries.
+ */
+describe('a conflict whose record the person no longer sees', () => {
+  const hidden = () => conflict({ recordId: 'n-9', fields: [], wanted: {}, seen: {}, found: {} })
+
+  it.each([
+    ['in the office', inOffice],
+    ['on site', onSite],
+  ] as const)('says why it is empty %s, and only closes it', async (_where, shown) => {
+    server.open = [hidden()]
+
+    const started = await client()
+
+    shown(started)
+
+    expect(screen.getByRole('heading', { name: 'Nicht mehr sichtbar' })).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Diesen Datensatz sehen Sie nicht mehr, deshalb wurde Ihre Änderung nicht übernommen.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/Bitte neu ansehen/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Fassung vom Gerät übernehmen' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Stand im System behalten' })).toBeNull()
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Schließen' }))
+    await started.synchronise()
+
+    expect(server.operations()).toEqual([])
+    expect(server.patched).toEqual([])
+    expect(server.resolved).toEqual(['k-1'])
+  })
+
+  it('is told from a conflict that has values, which keeps its versions', async () => {
+    server.open = [conflict()]
+
+    const started = await client({ notes: [note] })
+
+    inOffice(started)
+
+    expect(screen.queryByRole('heading', { name: 'Nicht mehr sichtbar' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Stand im System behalten' })).toBeTruthy()
+  })
+})
+
 describe('the other way out of a conflict', () => {
   it('shows the fields the application chooses, says what the way does and offers it in place of the version of the device', async () => {
     server.open = [aboutTheLetter()]
