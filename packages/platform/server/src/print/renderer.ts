@@ -18,6 +18,40 @@ import { refusePlaceholder } from '../configuration.js'
 /** What a caller gets instead of a PDF, phrased for whoever reads the log. */
 export class RendererUnavailableError extends Error {}
 
+/**
+ * What a printed page may load: nothing but what it carries itself
+ * (opengewerk/opengewerk#686, found in the security review
+ * opengewerk-haustechnik#360). Every template embeds its images and fonts as
+ * `data:` and its styles inline, and escapes every value; should a value slip
+ * past that, the page still cannot fetch, frame, send a form or run a script.
+ * `base-uri` and `form-action` are not covered by `default-src`.
+ */
+export const printPolicy =
+  "default-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; " +
+  "base-uri 'none'; form-action 'none'"
+
+/**
+ * The page with the policy as the first thing in its head, where Chromium
+ * reads it before anything the page asks for. A page without a head gets it
+ * right after its doctype or at its start, which the parser puts into the
+ * head it makes. Every page is printed through here, so no template can be
+ * left without it.
+ */
+export function withPrintPolicy(html: string): string {
+  const meta = `<meta http-equiv="Content-Security-Policy" content="${printPolicy}">`
+  const head = /<head(?:\s[^>]*)?>/i.exec(html)
+
+  if (head !== null) {
+    const end = head.index + head[0].length
+
+    return html.slice(0, end) + meta + html.slice(end)
+  }
+
+  const doctype = /^\s*<!doctype[^>]*>/i.exec(html)
+
+  return doctype === null ? meta + html : doctype[0] + meta + html.slice(doctype[0].length)
+}
+
 /** The four margins of a page, as CSS lengths: `20mm`. */
 export interface PageMargin {
   readonly top: string
@@ -126,7 +160,7 @@ export async function renderPdf(
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        html,
+        html: withPrintPolicy(html),
         options: {
           ...(options.size === undefined
             ? { format: options.format ?? 'A4' }
