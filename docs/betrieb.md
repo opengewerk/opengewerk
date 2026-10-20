@@ -79,7 +79,7 @@ auch dann laufen muss, wenn die Anwendung es nicht tut.
 
 Danach läuft eine migrierte Instanz auf `127.0.0.1:23700`, und
 `curl http://127.0.0.1:23700/health` antwortet mit
-`{"status":"bereit","database":true,"version":"0.5.0"}`, aus einem Checkout mit
+`{"status":"bereit","database":true,"version":"0.6.0"}`, aus einem Checkout mit
 `"version":null`. Dieselbe Fassung steht im Fuß der Anmeldung (#259). Im
 Browser steht dort die Oberfläche: `/` für das Büro, `/m` für die Baustelle.
 

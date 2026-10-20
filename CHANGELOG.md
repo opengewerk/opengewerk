@@ -7,6 +7,32 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-20
+
+Die sechste Fassung schließt acht Sicherheitslücken, die eine Prüfung vor der nächsten Fassung von
+OpenGewerk Haustechnik im gemeinsamen Fundament gefunden hat; die Advisories erscheinen mit ihr. Am
+schwersten wog, dass die Anmeldung den Körper einer Anfrage ohne Grenze las, bevor irgendetwas
+geprüft war. Dazu kommen der zweite Faktor an der Sitzung statt am Konto, eine Grenze für das
+Ablegen von Dateien, kein HTTP-Cache für Antworten der Anwendung, Grenzen nach der Adresse hinter
+dem Reverse Proxy, Konflikte des Abgleichs, die Gerät und Person gehören, und eine Sicherung, die
+nur fertig und verschlüsselt auf das Ziel kommt und nur eigene Archive zurückspielt. Die Dienste
+laufen gehärtet, der Renderer in einem eigenen Netz, und das Paket nennt jedes Abbild mit Digest und
+prüft seine Signatur vor dem Start.
+
+Das meiste, was seit 0.5.0 sonst dazukam, sind Bausteine des Fundaments für OpenGewerk Haustechnik.
+In der Handwerkersoftware zeigt das Änderungsprotokoll geänderte Werte, ein Ansprechpartner hat eine
+zweite Nummer, und eine neue Fassung wird von selbst übernommen.
+
+Aktualisiert wird wie bei jeder Fassung, vorher gesichert; die Migrationen `0069_contacts_kept` bis
+`0087_purge_attachments` laufen von selbst. Danach:
+
+- Wer die Instanz betreibt, trägt unter „Instanz verwalten“, „Einstellungen“ den Mailserver der
+  Instanz ein. Über ihn gehen jetzt der Link zu einem neuen Passwort und der Hinweis auf einen neuen
+  Passkey, und bis er eingetragen ist, geht keines von beiden hinaus.
+- Wer nur mit dem Passwort auf einem Konto mit Authenticator-App angemeldet war, meldet sich neu an.
+- Sicherungen von vor dem Update spielt `restore.sh` nur mit `--skip-origin-check` zurück. Wer
+  verschlüsselt sichert, löscht auf dem Ziel jedes Archiv `.tar.gz` ohne Gegenstück `.age`.
+
 ### Hinzugefügt
 
 - Eine Anwendung, die ihre Fristen an Orten hält, die nicht jeder sieht, sagt dem Fundament, wer eine Frist dort
@@ -463,6 +489,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Release-Seite nimmt den Abschnitt einer Fassung bis 120.000 Zeichen, bisher 110.000; GitHub nimmt 125.000, und
+  Hinweis und Anleitung darunter brauchen weniger als 2.500. Warum: 0.6.0 hatte mit seiner Einleitung rund 111.000
+  Zeichen, und die Seite hätte sonst nur auf den CHANGELOG verwiesen.
 - Die README hält nur noch das Wichtigste: was OpenGewerk ist, den Stand, den Schnellstart, wo die Dokumentation
   steht, Hilfe und Lizenz. Betrieb, Entwicklung sowie Funktionsumfang und Stand stehen unverändert in
   `docs/betrieb.md`, `docs/entwicklung.md` und `docs/funktionsumfang.md`; Meldungen, Kommentare, die Seite der
