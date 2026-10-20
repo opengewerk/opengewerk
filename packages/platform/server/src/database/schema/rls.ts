@@ -247,6 +247,24 @@ export function readableByTheOwner() {
 }
 
 /**
+ * The person of the transaction and nobody else: a row of theirs is all the
+ * application reads and all it adds. Restrictive, so that the isolation of the
+ * tenant beside it still holds, and nothing for a transaction without a
+ * person, whose setting is empty and compares as null.
+ */
+export function heldByThePersonAsking(userId: PgColumn) {
+  const theirs = sql`${userId} = nullif(current_setting('app.user_id', true), '')`
+
+  return pgPolicy('held_by_the_person_asking', {
+    as: 'restrictive',
+    for: 'all',
+    to: applicationRole,
+    using: theirs,
+    withCheck: theirs,
+  })
+}
+
+/**
  * The policies of the redactions of the log (ADR 0013): the application reads
  * and adds them for its tenant, as everywhere, and the restrictive one narrows
  * adding to whoever leads the tenant: a role of their membership that leads,

@@ -429,10 +429,15 @@ export interface OutsideTheLog {
  * `deadline_runs` is out because it is a heartbeat: the deadline engine writes
  * it after every pass, once a minute, and in the log it would bury every
  * change a person made under its own.
+ *
+ * `file_uploads` is out because each person sees their own rows of it and
+ * nobody else's: in the log, whoever reads it would see who stored which
+ * file after all. The row of the file itself is in the log, with the person
+ * who stored it first.
  */
 export const foundationOutsideTheLog: OutsideTheLog = {
   prefixes: ['sync_', 'auth_', 'instance_'],
-  tables: ['audit_chains', 'audit_entries', 'deadline_runs'],
+  tables: ['audit_chains', 'audit_entries', 'deadline_runs', 'file_uploads'],
 }
 
 /** Which tables the audit trigger watches, held against which it should. */
