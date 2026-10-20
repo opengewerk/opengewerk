@@ -23,19 +23,18 @@ if [ -z "${OPENGEWERK_OWNER_PASSWORD:-}" ] || [ -z "${OPENGEWERK_APP_PASSWORD:-}
 	exit 1
 fi
 
-# The passwords go in as psql variables rather than as text in the statement.
-# One with a quote in it would otherwise either break the script or create
-# something other than what was meant.
+# The passwords go in as psql variables rather than as text in the statement,
+# and psql writes each as a literal of its own, quotes doubled, through
+# :'name' (#688). Put between quotes by hand, as here until then, one with a
+# quote in it would either break the script or create something other than
+# what was meant. test-roles.sh creates the roles with such passwords.
 psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
 	--set ON_ERROR_STOP=1 \
 	--set owner_password="$OPENGEWERK_OWNER_PASSWORD" \
 	--set app_password="$OPENGEWERK_APP_PASSWORD" \
 	--set db_name="$POSTGRES_DB" <<'SQL'
-\set quoted_owner_password '''' :owner_password ''''
-\set quoted_app_password '''' :app_password ''''
-
-CREATE ROLE opengewerk_owner LOGIN PASSWORD :quoted_owner_password CREATEROLE;
-CREATE ROLE opengewerk_app LOGIN PASSWORD :quoted_app_password;
+CREATE ROLE opengewerk_owner LOGIN PASSWORD :'owner_password' CREATEROLE;
+CREATE ROLE opengewerk_app LOGIN PASSWORD :'app_password';
 
 -- The owner creates the tables, so the schema belongs to it. Since PostgreSQL
 -- 15 nobody but the owner may create in public anyway, which is exactly right
