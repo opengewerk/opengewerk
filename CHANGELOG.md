@@ -1037,6 +1037,25 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   keine App und kein Passkey einrichten, damit eine fremde Rücksetzung auffallen kann, bevor ein
   zweiter Faktor sie festigt. Die Handwerkersoftware bekommt beide Tabellen mit der Migration
   `0084_password_resets_and_mail_server_changes`.
+- Zurückspielen und Prüfen nehmen nur noch ein Archiv, das diese Instanz geschrieben hat, und die
+  Sicherung legt auf dem Ziel nur noch das fertige, verschlüsselte Archiv ab (gefunden in der
+  Sicherheitsprüfung, `opengewerk-haustechnik#360`). Bisher prüfte `restore.sh` ein Archiv nur
+  gegen das Manifest im Archiv selbst, und `backup.sh` legte die Sicherung unverschlüsselt auf das
+  Ziel, bevor age lief, und ließ sie dort, wenn age scheiterte. Jetzt hält jede Sicherung Name und
+  SHA-256 ihres Archivs in `archives.sha256` im Volume `backup-status` fest, auf der Instanz und
+  nicht auf dem Ziel, dazu in `last.json`; die Prüfsumme kommt aus dem Strom im Container, nicht
+  von der Datei auf dem Ziel. `restore.sh` und `verify.sh` lehnen ein Archiv ab, das
+  dort nicht mit derselben Prüfsumme steht, und bei gesetztem `BACKUP_AGE_RECIPIENT` jedes
+  unverschlüsselte, bevor sie etwas entschlüsseln. Geprüft und gelesen wird dabei eine Kopie im
+  Container, nicht die Datei auf dem Ziel. Für eine neue Maschine ohne das Verzeichnis gibt es
+  `--skip-origin-check`, das README sagt, wann. Dump und Dateispeicher entstehen im Container mit
+  `umask 077`, gepackt und verschlüsselt wird in einem Strom in eine verborgene Datei, die erst am
+  Ende ihren Namen bekommt, und bei einem Fehler bleibt auf dem Ziel nichts und im Verzeichnis kein
+  Eintrag; das Verzeichnis wird unter einer Sperre geschrieben. Die Archive sind nur noch für ihren
+  Besitzer lesbar. Den Dump spielt `opengewerk_owner`
+  zurück statt des Superusers, der Dienst `backup` bekommt dafür `OPENGEWERK_OWNER_PASSWORD`, und
+  die Köpfe der Audit-Ketten müssen eine UUID und eine Zahl sein, bevor sie in eine Abfrage gehen.
+  Sicherungen von vor dem Update stehen nicht im Verzeichnis und spielt nur der Schalter zurück.
 
 ## [0.5.0] - 2026-10-04
 

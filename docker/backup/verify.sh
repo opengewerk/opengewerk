@@ -17,8 +17,16 @@
 # changed after the backup was taken.
 #
 # Nothing is written, and the application keeps running while this runs.
+#
+# Held against heads somebody else put on the target, a rewritten log would
+# pass, so the archive has to be one this instance wrote, as for restore.sh;
+# --skip-origin-check is for a new machine without the record, see
+# archive-checks.sh.
 
 set -eu
+
+# The copy of the archive and what is unpacked from it hold every tenant.
+umask 077
 
 : "${POSTGRES_HOST:=postgres}"
 : "${POSTGRES_DB:=opengewerk}"
@@ -27,7 +35,31 @@ set -eu
 # The names of the archives, in one place for backup, restore and verify.
 . "$(dirname "$0")/names.sh"
 
-wanted="${1:-latest}"
+# Where an archive comes from and what its chains hold.
+. "$(dirname "$0")/archive-checks.sh"
+
+wanted=''
+trusted=false
+
+for argument in "$@"; do
+	case "$argument" in
+	--skip-origin-check) trusted=true ;;
+	-*)
+		echo "Unbekannte Option ${argument}. Es gibt nur --skip-origin-check." >&2
+		exit 1
+		;;
+	*)
+		if [ -n "$wanted" ]; then
+			echo "Geprüft wird gegen eine Sicherung je Lauf, genannt waren mehrere." >&2
+			exit 1
+		fi
+
+		wanted=$argument
+		;;
+	esac
+done
+
+: "${wanted:=latest}"
 
 if [ -z "${PGPASSWORD:-}" ]; then
 	echo "PGPASSWORD fehlt." >&2
@@ -65,10 +97,21 @@ fi
 echo "Sicherung: $(basename "$archive")"
 
 work=$(mktemp -d)
+held=$(mktemp -d)
 cleanup() {
-	rm -rf "$work"
+	rm -rf "$work" "$held"
 }
 trap cleanup EXIT
+
+# Read from the target once, and only the copy is checked and read, as in
+# restore.sh: a file checked on the target could be another one by the time
+# it is read.
+copy="${held}/archive"
+cp "$archive" "$copy"
+
+if ! check_origin "$copy" "$(basename "$archive")" "$trusted"; then
+	refuse_origin "Es wird nichts geprüft."
+fi
 
 # Only the chain file is needed. The database dump stays packed, which is why
 # this takes a second on an archive that takes minutes to restore.
@@ -80,13 +123,19 @@ case "$archive" in
 		exit 1
 	fi
 
-	age --decrypt --identity "$BACKUP_AGE_IDENTITY" --output "${work}/archive.tar.gz" "$archive"
+	age --decrypt --identity "$BACKUP_AGE_IDENTITY" --output "${work}/archive.tar.gz" "$copy"
 	tar --extract --gzip --file "${work}/archive.tar.gz" --directory "$work" ./audit-chains.tsv
 	;;
 *)
-	tar --extract --gzip --file "$archive" --directory "$work" ./audit-chains.tsv
+	tar --extract --gzip --file "$copy" --directory "$work" ./audit-chains.tsv
 	;;
 esac
+
+if ! check_chains "${work}/audit-chains.tsv"; then
+	echo "In audit-chains.tsv steht eine Zeile, die kein Kopf einer Kette ist: je Zeile gehören" >&2
+	echo "dorthin ein Mandant als UUID und eine Zahl. Es wird nichts geprüft." >&2
+	exit 1
+fi
 
 checked=0
 problems=0

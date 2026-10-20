@@ -172,6 +172,28 @@ restart_app() {
   fail 'Die Anwendung wird nach dem Neustart nicht gesund.'
 }
 
+# A restore that has to be turned away before anything is decrypted and
+# before the application is locked out: it fails, says why in the words
+# given, and its output in $temp/<name>.txt shows neither. The arguments are
+# those of "compose run" after the key.
+refused_restore() {
+  out="$temp/$1.txt"
+  sentence=$2
+  shift 2
+
+  if compose --profile backup run --rm -v "$temp/identity.txt:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt "$@" > "$out" 2>&1; then
+    cat "$out"
+    fail "Zurückgespielt, obwohl abzulehnen war: $*"
+  fi
+
+  cat "$out"
+  grep -q "$sentence" "$out" || fail "Abgelehnt, aber ohne \"${sentence}\": $*"
+
+  if grep -q -e 'entschlüsselt' -e 'ausgesperrt' "$out"; then
+    fail "Abgelehnt erst nach der Entschlüsselung oder dem Aussperren: $*"
+  fi
+}
+
 # The two tenants the seeds create, under the same ids in every application.
 first_tenant='01931c00-0000-7000-8000-000000000001'
 second_tenant='01931c00-0000-7000-8000-000000000002'
@@ -521,6 +543,27 @@ snapshot)
   ;;
 
 backup)
+  # A backup that age does not finish leaves nothing on the target and nothing
+  # in the record of the backups (opengewerk-haustechnik#360): neither the
+  # parts in the clear nor half an archive. This age refuses the recipient,
+  # the way it refuses a key copied with a typo, while tar has begun to pack.
+  listing() {
+    compose --profile backup run --rm --entrypoint sh backup -c 'ls -A "$BACKUP_PATH" "$BACKUP_STATUS_PATH"; cat "$BACKUP_STATUS_PATH/archives.sha256" 2> /dev/null || true' | tr -d '\r'
+  }
+
+  before=$(listing)
+
+  if compose --profile backup run --rm -e BACKUP_AGE_RECIPIENT=age1nothing backup backup.sh > "$temp/failed-backup.txt" 2>&1; then
+    cat "$temp/failed-backup.txt"
+    fail 'Die Sicherung lief mit einem Empfänger durch, den age ablehnt.'
+  fi
+
+  cat "$temp/failed-backup.txt"
+  after=$(listing)
+  [ "$before" = "$after" ] ||
+    fail "Nach der gescheiterten Sicherung liegt etwas auf dem Ziel oder im Verzeichnis. Vorher: ${before} Nachher: ${after}"
+  echo 'Die gescheiterte Sicherung hat nichts hinterlassen.'
+
   compose --profile backup run --rm backup backup.sh
   ;;
 
@@ -530,6 +573,19 @@ record)
   compose exec -T app sh -c 'cat "$BACKUP_STATUS_PATH/last.json"' | tee "$temp/last.json"
   grep -q '"finishedEpoch"' "$temp/last.json"
   grep -q '"encrypted": true' "$temp/last.json"
+
+  # And the name and SHA-256 of the archive, in the record restore.sh holds
+  # every archive to (opengewerk-haustechnik#360), the same in last.json, and
+  # the SHA-256 the one of the file on the target.
+  archive=$(sed -n 's/.*"archive": "\([^"]*\)".*/\1/p' "$temp/last.json" | tr -d '\r')
+  [ -n "$archive" ] || fail 'In last.json steht kein Archiv.'
+  line=$(compose --profile backup run --rm --entrypoint sh backup -c 'grep "  $1\$" "$BACKUP_STATUS_PATH/archives.sha256"' sh "$archive" | tr -d '\r')
+  [ -n "$line" ] || fail "Das Archiv ${archive} steht nicht im Verzeichnis der Sicherungen."
+  grep -q "\"sha256\": \"${line%% *}\"" "$temp/last.json" ||
+    fail 'In last.json steht eine andere Prüfsumme als im Verzeichnis der Sicherungen.'
+  compose --profile backup run --rm --entrypoint sh backup -c 'cd "$BACKUP_PATH" && printf "%s\n" "$1" | sha256sum -c -' sh "$line" ||
+    fail 'Die Prüfsumme im Verzeichnis ist nicht die des Archivs auf dem Ziel.'
+
   # What the application makes of it, on its route (opengewerk-haustechnik#127).
   after_record
   ;;
@@ -538,7 +594,9 @@ lose-data)
   # Every profile (#566): a profile named on the command line stands in place
   # of the one the .env switches on, and "down" with the profile of the backup
   # alone left the renderer running, on a network that could not be removed
-  # under it. The step stops the whole stack, and says so if it did not.
+  # under it. The step stops the whole stack, and says so if it did not. The
+  # record of the backups stays, as it does where the disk of the data is
+  # lost and the machine is not; a new machine is the step new-machine.
   compose --profile '*' down --remove-orphans
   left=$(compose --profile '*' ps --all --quiet)
   [ -z "$left" ] || fail "Vom Stapel sind Container geblieben: ${left}"
@@ -551,7 +609,15 @@ lose-data)
   ;;
 
 restore)
-  compose --profile backup run --rm -v "$temp/identity.txt:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt backup restore.sh latest
+  # Through the record of the backups, which the instance kept.
+  if ! compose --profile backup run --rm -v "$temp/identity.txt:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt backup restore.sh latest > "$temp/restore.txt" 2>&1; then
+    cat "$temp/restore.txt"
+    fail 'Das Rückspielen ist gescheitert.'
+  fi
+
+  cat "$temp/restore.txt"
+  grep -q 'Herkunft geprüft' "$temp/restore.txt" ||
+    fail 'Zurückgespielt wurde, ohne die Herkunft der Sicherung zu prüfen.'
   ;;
 
 compare)
@@ -576,19 +642,59 @@ compare)
   after_restore
   ;;
 
+new-machine)
+  # A new machine after a lost one has the target and the key, and no record
+  # of the backups: its volume was on the machine that is gone
+  # (opengewerk-haustechnik#360). The restore is pointed at an empty place for
+  # it here. Without --skip-origin-check nothing is restored; with it the
+  # archive is, through the checks behind the record, and the instance holds
+  # what it held before the backup.
+  refused_restore no-record 'kein Verzeichnis der Sicherungen' -e BACKUP_STATUS_PATH=/tmp/new-machine backup restore.sh latest
+
+  if ! compose --profile backup run --rm -v "$temp/identity.txt:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt -e BACKUP_STATUS_PATH=/tmp/new-machine backup restore.sh --skip-origin-check latest > "$temp/skipped.txt" 2>&1; then
+    cat "$temp/skipped.txt"
+    fail 'Mit --skip-origin-check ließ sich die Sicherung nicht zurückspielen.'
+  fi
+
+  cat "$temp/skipped.txt"
+  snapshot new-machine
+  diff "$temp/before.txt" "$temp/new-machine.txt"
+  diff "$temp/before-chains.txt" "$temp/new-machine-chains.txt"
+  diff "$temp/before-files.txt" "$temp/new-machine-files.txt"
+  restart_app
+  echo 'Ohne Verzeichnis abgelehnt, mit --skip-origin-check derselbe Bestand wie vor der Sicherung.'
+  ;;
+
 corrupt)
   # A restore that half succeeds is worse than one that never starts, so a
-  # damaged archive is turned away before anything touches the database. Two
-  # kinds of damage, because they are caught in two places.
+  # damaged or foreign archive is turned away before anything touches the
+  # database. Three kinds, because they are caught in different places.
   #
-  # The first is a stretch overwritten in the middle of the newest archive,
-  # which is encrypted in this run. That one never reaches the manifest: age
-  # authenticates what it decrypts and stops there. With the checksums of the
-  # manifest taken out of restore.sh, this half was as green as with them
-  # (opengewerk-haustechnik#31), so it says where the restore ended.
-  compose --profile backup run --rm --entrypoint sh backup -c '. /usr/local/bin/names.sh && file=$(find "$BACKUP_PATH" -maxdepth 1 -name "$archives" | sort | tail -n 1) && size=$(stat -c %s "$file") && dd if=/dev/urandom of="$file" bs=1 seek=$((size / 2)) count=64 conv=notrunc 2>/dev/null && echo "Byte in $file verändert."'
+  # The first is an archive somebody put on the target beside the others,
+  # with a later time in its name (opengewerk-haustechnik#360): a copy of the
+  # newest, encrypted, whole and with a manifest that fits, and "latest"
+  # finds it first. Only the record of the backups on the instance tells it
+  # from one this instance wrote.
+  planted=$(compose --profile backup run --rm --entrypoint sh backup -c '. /usr/local/bin/names.sh && file=$(find "$BACKUP_PATH" -maxdepth 1 -name "$archives" | sort | tail -n 1) && planted="${BACKUP_PREFIX}-2099-01-01T000000Z.tar.gz.age" && cp "$file" "$BACKUP_PATH/$planted" && echo "$planted"' | tr -d '\r' | tail -n 1)
+  [ -n "$planted" ] || fail 'Die Sicherung ließ sich nicht unterschieben.'
+  refused_restore planted 'steht nicht im Verzeichnis' backup restore.sh latest
+  grep -q "Sicherung: ${planted}" "$temp/planted.txt" ||
+    fail 'Abgelehnt wurde eine andere als die untergeschobene Sicherung.'
+  compose --profile backup run --rm --entrypoint sh backup -c 'rm -f "$BACKUP_PATH/$1"' sh "$planted"
+  echo 'Die untergeschobene Sicherung wurde vom Verzeichnis abgelehnt.'
 
-  if compose --profile backup run --rm -v "$temp/identity.txt:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt backup restore.sh latest > "$temp/corrupt.txt" 2>&1; then
+  # The second is a stretch overwritten in the middle of the newest archive,
+  # which is encrypted in this run. The record knows its SHA-256 and turns it
+  # away before it is decrypted. On a new machine, without the record, age is
+  # what notices: it authenticates what it decrypts and stops there, before
+  # the manifest. With the checksums of the manifest taken out of restore.sh,
+  # that half was as green as with them (opengewerk-haustechnik#31), so it
+  # says where the restore ended.
+  compose --profile backup run --rm --entrypoint sh backup -c '. /usr/local/bin/names.sh && file=$(find "$BACKUP_PATH" -maxdepth 1 -name "$archives" | sort | tail -n 1) && size=$(stat -c %s "$file") && dd if=/dev/urandom of="$file" bs=1 seek=$((size / 2)) count=64 conv=notrunc 2>/dev/null && echo "Byte in $file verändert."'
+  refused_restore damaged 'weicht vom Verzeichnis ab' backup restore.sh latest
+  echo 'Die beschädigte Sicherung wurde vom Verzeichnis abgelehnt.'
+
+  if compose --profile backup run --rm -v "$temp/identity.txt:/key.txt:ro" -e BACKUP_AGE_IDENTITY=/key.txt backup restore.sh --skip-origin-check latest > "$temp/corrupt.txt" 2>&1; then
     cat "$temp/corrupt.txt"
     fail 'Die beschädigte Sicherung wurde angenommen. Das ist der Fehler.'
   fi
@@ -601,22 +707,31 @@ corrupt)
     fail 'Die beschädigte Sicherung kam an der Entschlüsselung vorbei.'
   fi
 
-  echo 'Die beschädigte Sicherung wurde bei der Entschlüsselung abgelehnt.'
+  echo 'Ohne Verzeichnis wurde die beschädigte Sicherung bei der Entschlüsselung abgelehnt.'
 
-  # The second is an archive that unpacks cleanly and does not hold what the
-  # backup wrote, which only the manifest can notice. Changing a byte of an
-  # unencrypted archive would not show that either: gzip carries a checksum
-  # of its own, and tar stops on it. So a backup is taken without encryption,
-  # unpacked, its dump given one byte more and packed again. It is named
-  # outright, which takes the question whether a named archive is one of this
-  # application through the shell of the image as well.
+  # The third is an archive in the clear, where the installation encrypts. A
+  # backup is taken without encryption, and although the record holds it, it
+  # is turned away (opengewerk-haustechnik#360).
+  #
+  # Then it is what only the manifest can notice: an archive that unpacks
+  # cleanly and does not hold what the backup wrote. Changing a byte of an
+  # unencrypted archive would not show that: gzip carries a checksum of its
+  # own, and tar stops on it. So the archive is unpacked, its dump given one
+  # byte more and packed again, and taken with --skip-origin-check, as on a
+  # new machine. It is named outright, which takes the question whether a
+  # named archive is one of this application through the shell of the image
+  # as well.
   compose --profile backup run --rm -e BACKUP_AGE_RECIPIENT= backup backup.sh
+  plain=$(compose --profile backup run --rm --entrypoint sh backup -c '. /usr/local/bin/names.sh && file=$(find "$BACKUP_PATH" -maxdepth 1 -name "$archives" ! -name "*.age" | sort | tail -n 1) && [ -n "$file" ] && basename "$file"' | tr -d '\r' | tail -n 1)
+  [ -n "$plain" ] || fail 'Die unverschlüsselte Sicherung fehlt.'
+  refused_restore plain 'ist unverschlüsselt, diese Installation verschlüsselt' backup restore.sh "$plain"
+  echo 'Die unverschlüsselte Sicherung wurde abgelehnt.'
 
   repacked=$(compose --profile backup run --rm --entrypoint sh backup -c '. /usr/local/bin/names.sh && file=$(find "$BACKUP_PATH" -maxdepth 1 -name "$archives" ! -name "*.age" | sort | tail -n 1) && [ -n "$file" ] && work=$(mktemp -d) && tar --extract --gzip --file "$file" --directory "$work" && printf x >> "$work/database.dump" && tar --create --gzip --file "$file" --directory "$work" . && basename "$file"' | tr -d '\r' | tail -n 1)
   [ -n "$repacked" ] || fail 'Die unverschlüsselte Sicherung ließ sich nicht neu packen.'
   echo "database.dump in ${repacked} verändert und neu gepackt."
 
-  if compose --profile backup run --rm backup restore.sh "$repacked" > "$temp/repacked.txt" 2>&1; then
+  if compose --profile backup run --rm backup restore.sh --skip-origin-check "$repacked" > "$temp/repacked.txt" 2>&1; then
     cat "$temp/repacked.txt"
     fail 'Die veränderte Sicherung wurde angenommen. Das ist der Fehler.'
   fi

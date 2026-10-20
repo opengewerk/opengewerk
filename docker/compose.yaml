@@ -227,9 +227,16 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_DB: opengewerk
       PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in der .env-Datei}
+      # restore.sh plays the dump back as the owner of the tables and not as
+      # the superuser, so that a dump can do no more than a migration could
+      # (opengewerk-haustechnik#360). The superuser above locks the
+      # application out and reads every tenant for the checks.
+      OPENGEWERK_OWNER_PASSWORD: ${OPENGEWERK_OWNER_PASSWORD:?OPENGEWERK_OWNER_PASSWORD fehlt in der .env-Datei}
       STORAGE_PATH: /var/lib/opengewerk/storage
       BACKUP_PATH: /var/lib/opengewerk/backups
-      # Where each backup records when it finished, for the office (#130).
+      # Where each backup records when it finished, for the office (#130), and
+      # the name and SHA-256 of every archive it wrote, which restore.sh and
+      # verify.sh hold an archive to. On the instance, never on the target.
       BACKUP_STATUS_PATH: /var/lib/opengewerk/backup-status
       # How many generations to keep. 14 daily runs is a fortnight, which is
       # long enough to notice that something went wrong before the last good
