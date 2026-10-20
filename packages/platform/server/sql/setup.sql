@@ -121,6 +121,23 @@ AS $$
 	SELECT id FROM public.tenants ORDER BY id
 $$;--> statement-breakpoint
 
+-- Which of some files any tenant still holds (opengewerk/opengewerk#657).
+--
+-- The store of files is one for the instance, and a file lies in it once,
+-- whoever stored it. The run that takes out what no row names any more works
+-- for every tenant and acts for no person, and asks this for the names it found
+-- in the store. The process reads those names on the disk anyway, so the
+-- answer tells it nothing about a tenant it could not see there; which tenant
+-- holds a file it does not say. No route calls it.
+CREATE FUNCTION "files_held"(candidates text[]) RETURNS SETOF text
+	LANGUAGE sql
+	STABLE
+	SECURITY DEFINER
+	SET search_path = pg_catalog, public
+AS $$
+	SELECT DISTINCT f.sha256 FROM public.files f WHERE f.sha256 = ANY (candidates)
+$$;--> statement-breakpoint
+
 -- What keeps a tenant led and no membership naming a role that is gone
 -- (opengewerk/opengewerk-haustechnik#346). A tenant changes and removes its
 -- roles, and the routes of an application decide which; whatever they decide,
@@ -173,7 +190,9 @@ REVOKE EXECUTE ON FUNCTION "instance_is_empty"() FROM PUBLIC;--> statement-break
 REVOKE EXECUTE ON FUNCTION "create_first_tenant"(text) FROM PUBLIC;--> statement-breakpoint
 REVOKE EXECUTE ON FUNCTION "invitation_for"(text) FROM PUBLIC;--> statement-breakpoint
 REVOKE EXECUTE ON FUNCTION "every_tenant"() FROM PUBLIC;--> statement-breakpoint
+REVOKE EXECUTE ON FUNCTION "files_held"(text[]) FROM PUBLIC;--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION "instance_is_empty"() TO "opengewerk_app";--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION "create_first_tenant"(text) TO "opengewerk_app";--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION "invitation_for"(text) TO "opengewerk_app";--> statement-breakpoint
-GRANT EXECUTE ON FUNCTION "every_tenant"() TO "opengewerk_app";
+GRANT EXECUTE ON FUNCTION "every_tenant"() TO "opengewerk_app";--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "files_held"(text[]) TO "opengewerk_app";

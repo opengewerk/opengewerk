@@ -245,6 +245,8 @@ export const foundationDefinerFunctions: Readonly<Record<string, string>> = {
   'create_tenant(company text)':
     'a further tenant, the only other way one is created; the server decides who may ask',
   'every_tenant()': 'the jobs in the background work for every tenant and act for no person',
+  'files_held(candidates text[])':
+    'the sweep of the shared store asks for names it found on the disk and acts for no tenant',
   'instance_is_empty()': 'asked before anybody is signed in, when no membership opens a tenant',
   'invitation_for(hash text)':
     'a redemption arrives without a session, and only the token names the tenant',

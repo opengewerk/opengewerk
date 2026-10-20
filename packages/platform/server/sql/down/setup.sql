@@ -2,6 +2,7 @@
 -- created through it stay: this undoes the way in, not what somebody did with
 -- it.
 DROP FUNCTION IF EXISTS "every_tenant"();--> statement-breakpoint
+DROP FUNCTION IF EXISTS "files_held"(text[]);--> statement-breakpoint
 -- The trigger on the roles goes wherever it hangs, not wherever a list claims
 -- it does: the catalogue is asked, as in `attachments.sql`. Then its function.
 DO $$

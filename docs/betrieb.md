@@ -468,6 +468,13 @@ wird, eine Zeile im Dump und keine Datei im Archiv: eine zurückgespielte
 Rechnung, die auf nichts zeigt. Andersherum ist der schlimmste Fall eine Datei,
 auf die niemand verweist, und die kostet Plattenplatz und sonst nichts.
 
+**Eine Datei, auf die niemand mehr verweist, geht nach einem Tag** (#657). Einmal
+am Tag nimmt die Anwendung die Bytes jeder Datei aus dem Speicher, die kein
+Betrieb mehr hält und die seit einem Tag niemand abgelegt hat, dazu Reste
+abgebrochener Schreibvorgänge. Eine Sicherung, die eine solche Datei noch
+enthält, bringt sie beim Zurückspielen mit ihrer Zeile zurück; eine ohne Zeile
+geht am nächsten Tag wieder. Eine geschlossene Instanz räumt nicht auf.
+
 **Die Sicherung meldet sich als Superuser an**, nicht als Eigentümer der
 Tabellen. Row-Level Security ist auf jeder Tabelle mit `FORCE` gesetzt und gilt
 damit auch für den Eigentümer; ein Dump unter dieser Rolle käme entweder mit

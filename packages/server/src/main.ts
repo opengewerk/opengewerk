@@ -21,6 +21,7 @@ import {
   SecretKey,
   smtpTransport,
   startupLine,
+  startFileSweep,
   stopOnSignals,
   takeOverFromEnvironment,
   vapidKeysFrom,
@@ -196,11 +197,13 @@ async function start(): Promise<void> {
   let mailWorker: { readonly stop: () => Promise<void> } | null = null
   let deadlineWorker: { readonly stop: () => Promise<void> } | null = null
   let pushWorker: { readonly stop: () => Promise<void> } | null = null
+  let fileSweep: { readonly stop: () => Promise<void> } | null = null
 
   stopOnSignals(opengewerk.name, [
     () => mailWorker?.stop(),
     () => deadlineWorker?.stop(),
     () => pushWorker?.stop(),
+    () => fileSweep?.stop(),
     stopInstanceSettings,
     () => application.close(),
     () => database.close(),
@@ -242,6 +245,9 @@ async function start(): Promise<void> {
   // business can send one (#283).
   if (!configuration.closed) {
     deadlineWorker = startDeadlineWorker({ database })
+    // The bytes of a file no business holds any more go out of the store,
+    // once a day (#657). Not on a closed instance, which writes nothing.
+    fileSweep = startFileSweep(database, output.files)
   }
 
   if (push) {

@@ -117,6 +117,7 @@ describe('the foundation, built from its building blocks alone', () => {
       'create_first_tenant',
       'create_tenant',
       'every_tenant',
+      'files_held',
       'instance_change_stays',
       'instance_is_empty',
       'invitation_for',
@@ -267,7 +268,7 @@ describe('the foundation, built from its building blocks alone', () => {
     const reading = await readDefinerFunctions(admin, { 'long_gone()': 'of an earlier day' })
 
     expect(reading.unexplained).toEqual(Object.keys(foundationDefinerFunctions).sort())
-    expect(reading.unexplained).toHaveLength(11)
+    expect(reading.unexplained).toHaveLength(12)
     expect(reading.stale).toEqual(['long_gone()'])
   })
 
