@@ -28,7 +28,7 @@ import { Gate, GateText, GateWaiting, InstanceLegalTexts, InstanceVersion } from
 import { InvitationScreen } from './invitation.js'
 import { LegalScreen } from './legal.js'
 import { PasswordResetScreen } from './password-reset.js'
-import { SecondFactorSetupScreen, SetupScreen } from './setup.js'
+import { SecondFactorSetupScreen, SecondFactorSignInAgainScreen, SetupScreen } from './setup.js'
 import { SecondFactorScreen, SignInScreen, TenantScreen } from './sign-in.js'
 
 /**
@@ -429,12 +429,18 @@ function ChooseTenant({
    *
    * Asked of the session, as the server asks it (opengewerk-haustechnik#360):
    * a sign in with the code or with a passkey (#167) goes straight on to the
-   * choice, one with the password alone does not.
+   * choice, one with the password alone does not. An account that has the app
+   * already is not set up a second time, which better-auth refuses; it signs
+   * in again, with the code (opengewerk/opengewerk#691).
    */
   const needed = tenants.data.some((tenant) => tenant.secondFactor)
 
   if (needed && !hasSecondFactor(account)) {
-    return <SecondFactorSetupScreen onDone={onDone} />
+    return account.twoFactorEnabled ? (
+      <SecondFactorSignInAgainScreen onDone={onDone} />
+    ) : (
+      <SecondFactorSetupScreen onDone={onDone} />
+    )
   }
 
   return (
