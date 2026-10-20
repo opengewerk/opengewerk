@@ -4,6 +4,7 @@
 --
 -- Run as the superuser, like every rollback.
 DROP TRIGGER IF EXISTS "files_go_with_their_document" ON "files";--> statement-breakpoint
+DROP TRIGGER IF EXISTS "attachment_versions_take_their_files" ON "attachment_versions";--> statement-breakpoint
 DROP TRIGGER IF EXISTS "audit_changes_unless_purged" ON "attachment_versions";--> statement-breakpoint
 DROP TRIGGER IF EXISTS "audit_changes" ON "attachment_versions";--> statement-breakpoint
 CREATE TRIGGER "audit_changes" AFTER INSERT OR UPDATE OR DELETE ON "attachment_versions"
@@ -12,9 +13,10 @@ DROP TRIGGER IF EXISTS "audit_changes_unless_purged" ON "attachments";--> statem
 DROP TRIGGER IF EXISTS "audit_changes" ON "attachments";--> statement-breakpoint
 CREATE TRIGGER "audit_changes" AFTER INSERT OR UPDATE OR DELETE ON "attachments"
 	FOR EACH ROW EXECUTE FUNCTION "record_change"();--> statement-breakpoint
-REVOKE DELETE ON "files" FROM "opengewerk_app";--> statement-breakpoint
 REVOKE DELETE ON "attachment_versions" FROM "opengewerk_app";--> statement-breakpoint
+DROP POLICY IF EXISTS "deletable_by_the_owner" ON "files";--> statement-breakpoint
 DROP FUNCTION IF EXISTS "purge_attachment"(uuid, text);--> statement-breakpoint
+DROP FUNCTION IF EXISTS "version_takes_its_files"();--> statement-breakpoint
 DROP FUNCTION IF EXISTS "file_goes_with_its_document"();--> statement-breakpoint
 CREATE OR REPLACE FUNCTION "attachment_version_stays_as_written"() RETURNS trigger
 	LANGUAGE plpgsql

@@ -159,7 +159,9 @@ describe('the files in the records of a tenant, where an application keeps them'
 
   it('have versions that are read and inserted, and deleted only with their document, with who stored one and the bolt', () => {
     // DELETE is granted, and the bolt lets a deletion through only while the
-    // document goes for good on the way an application opens (#658).
+    // document goes for good on the way an application opens (#658). The
+    // trigger after it takes the files of the version, which the application
+    // itself may not delete.
     expect(guardStatements(attachmentVersionsGuard)).toEqual([
       'ALTER TABLE "attachment_versions" FORCE ROW LEVEL SECURITY;',
       'GRANT SELECT, INSERT, DELETE ON "attachment_versions" TO "opengewerk_app";',
@@ -171,6 +173,8 @@ describe('the files in the records of a tenant, where an application keeps them'
         '\tFOR EACH ROW EXECUTE FUNCTION "stamp_sync_columns"();',
       'CREATE TRIGGER "attachment_versions_record_uploader" BEFORE INSERT ON "attachment_versions"\n' +
         '\tFOR EACH ROW EXECUTE FUNCTION "record_attachment_uploader"();',
+      'CREATE TRIGGER "attachment_versions_take_their_files" AFTER DELETE ON "attachment_versions"\n' +
+        '\tFOR EACH ROW EXECUTE FUNCTION "version_takes_its_files"();',
       'CREATE TRIGGER "attachment_versions_stay_as_written" BEFORE UPDATE OR DELETE ON "attachment_versions"\n' +
         '\tFOR EACH ROW EXECUTE FUNCTION "attachment_version_stays_as_written"();',
     ])
@@ -205,7 +209,7 @@ describe('the tables of the foundation', () => {
     }
   })
 
-  it('let nothing that names a tenant be deleted by the application, its roles, its mail server and a file aside', () => {
+  it('let nothing that names a tenant be deleted by the application, its roles and its mail server aside', () => {
     // Who was let in, by whom and what became of it is part of the record. A
     // person is blocked and an invitation called back, both changes the log
     // keeps; a row that can be removed is a record with a hole in it. A role
@@ -213,7 +217,7 @@ describe('the tables of the foundation', () => {
     // tenant made is removed again (opengewerk/opengewerk-haustechnik#346),
     // a mail server is set up and removed again, and the log keeps both. A
     // file goes only with the last version of a document that goes for good,
-    // which its bolt holds it to (#658).
+    // taken by the trigger of the version and not by the application (#658).
     const ofATenant = foundationGuards.filter(
       (guard) => !guard.table.startsWith('auth_') && !guard.table.startsWith('instance_'),
     )
@@ -221,7 +225,7 @@ describe('the tables of the foundation', () => {
     expect(ofATenant).toHaveLength(20)
     expect(
       ofATenant.filter((guard) => guard.grants.includes('delete')).map((guard) => guard.table),
-    ).toEqual(['tenant_roles', 'files', 'mail_settings'])
+    ).toEqual(['tenant_roles', 'mail_settings'])
   })
 
   it('let the application name and take away who runs the instance, change its settings, and no more', () => {

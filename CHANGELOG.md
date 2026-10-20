@@ -9,14 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
-- Ein Dokument und seine Dateien lassen sich nach Ablauf einer Aufbewahrung endgültig löschen (#658), auf dem einen
-  Weg, den eine Anwendung dafür öffnet: `purge_attachment(dokument, titel)` löscht die Fassungen, lässt das Dokument
-  als gelöschte Hülle mit dem gegebenen Titel stehen, damit ein Gerät davon erfährt, und löscht die Zeile jeder Datei
-  in `files`, auf die danach kein Schlüssel mehr zeigt, mit dem Eintrag, wer sie abgelegt hat. Wann, entscheidet die
-  Anwendung mit `application_attachment_may_go`; ohne sie geht nichts, und die Riegel lehnen jedes andere Löschen
-  einer Fassung oder einer Datei ab, auch für den Eigentümer der Tabellen. Das Änderungsprotokoll schreibt dabei
-  nichts ab. Diese Anwendung öffnet den Weg nicht; Migration `0087_purge_attachments`. Warum: die Haustechnik markierte
-  ein Dokument nach Ablauf der Aufbewahrung nur als entfernt, und Titel, Dateinamen und Dateien blieben.
+- Ein Dokument und seine Dateien lassen sich nach Ablauf einer Aufbewahrung endgültig löschen (#658), auf dem einen Weg,
+  den eine Anwendung dafür öffnet: `purge_attachment(dokument, titel)` löscht die Fassungen, lässt das Dokument als
+  gelöschte Hülle mit dem gegebenen Titel stehen, damit ein Gerät davon erfährt. Die Zeile jeder Datei in `files`, auf
+  die danach kein Schlüssel mehr zeigt, nimmt ein Trigger der Fassung mit, samt dem Eintrag, wer sie abgelegt hat; die
+  Anwendung selbst darf in `files` nicht löschen, eine Datei geht nur mit der Fassung, die sie nennt. Wann, entscheidet
+  die Anwendung mit `application_attachment_may_go`; ohne sie geht nichts, und die Riegel lehnen jedes andere Löschen
+  einer Fassung oder einer Datei ab, auch für den Eigentümer der Tabellen. Das Änderungsprotokoll schreibt dabei nichts
+  ab. Diese Anwendung öffnet den Weg nicht; Migration `0087_purge_attachments`. Warum: die Haustechnik markierte ein
+  Dokument nach Ablauf der Aufbewahrung nur als entfernt, und Titel, Dateinamen und Dateien blieben.
 
 - Der Dateispeicher räumt sich auf (#657): einmal am Tag nimmt ein Lauf die Bytes jeder Datei heraus, die kein
   Betrieb mehr hält und die älter als ein Tag ist, dazu liegengebliebene Reste abgebrochener Schreibvorgänge. Welche

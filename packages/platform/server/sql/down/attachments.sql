@@ -15,7 +15,7 @@ BEGIN
 		 WHERE n.nspname = 'public'
 		   AND NOT t.tgisinternal
 		   AND (p.proname IN ('record_attachment_uploader', 'attachment_version_stays_as_written',
-		                      'file_goes_with_its_document')
+		                      'file_goes_with_its_document', 'version_takes_its_files')
 		        OR t.tgname = 'audit_changes_unless_purged')
 	LOOP
 		EXECUTE format('DROP TRIGGER IF EXISTS %I ON %I', hung.tgname, hung.relname);
@@ -23,6 +23,7 @@ BEGIN
 END
 $$;--> statement-breakpoint
 DROP FUNCTION IF EXISTS "purge_attachment"(uuid, text);--> statement-breakpoint
+DROP FUNCTION IF EXISTS "version_takes_its_files"();--> statement-breakpoint
 DROP FUNCTION IF EXISTS "file_goes_with_its_document"();--> statement-breakpoint
 DROP FUNCTION IF EXISTS "attachment_version_stays_as_written"();--> statement-breakpoint
 DROP FUNCTION IF EXISTS "attachment_purging"(uuid);--> statement-breakpoint

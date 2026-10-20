@@ -1,5 +1,5 @@
 {
-  "id": "00798720-1ed6-4556-bb95-761a94a6b3e2",
+  "id": "337505f7-b67c-4dc1-b323-af6b3e78596f",
   "prevId": "1cc94bc2-cf05-497a-b6fb-fc0915e95aed",
   "version": "7",
   "dialect": "postgresql",
@@ -1601,6 +1601,15 @@
           "name": "readable_by_the_owner",
           "as": "PERMISSIVE",
           "for": "SELECT",
+          "to": [
+            "current_user"
+          ],
+          "using": "true"
+        },
+        "deletable_by_the_owner": {
+          "name": "deletable_by_the_owner",
+          "as": "PERMISSIVE",
+          "for": "DELETE",
           "to": [
             "current_user"
           ],

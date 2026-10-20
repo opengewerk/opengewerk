@@ -23,6 +23,7 @@ let customer: string
 const sha = (text: string) => createHash('sha256').update(text).digest('hex')
 const onlyHere = sha('Schaltplan Fassung 1')
 const sharedWithAnother = sha('Schaltplan Fassung 2')
+const ofNoDocument = sha('gerade hochgeladen')
 
 async function one(statement: string, values: unknown[]): Promise<string> {
   const { rows } = await admin.query<{ id: string }>(`${statement} returning id`, values)
@@ -84,7 +85,7 @@ beforeEach(async () => {
     [tenant],
   )
 
-  for (const hash of [onlyHere, sharedWithAnother]) {
+  for (const hash of [onlyHere, sharedWithAnother, ofNoDocument]) {
     await admin.query(
       `insert into files (tenant_id, sha256, size_bytes, media_type) values ($1, $2, 1, 'application/pdf')
        on conflict do nothing`,
@@ -148,7 +149,7 @@ describe('a document going for good (#658)', () => {
 
     expect(shell).toEqual([{ title: 'Gelöscht nach Ablauf der Aufbewahrung', marked: true }])
     expect(versions).toEqual([{ attachment: other, file_name: 'foto.pdf' }])
-    expect(files).toEqual([{ sha256: sharedWithAnother }])
+    expect(files).toEqual([ofNoDocument, sharedWithAnother].sort().map((sha256) => ({ sha256 })))
     expect(uploads).toEqual([])
     expect(after[0]?.count).toBe(before[0]?.count)
     expect(after[0]?.copied).toBe(0)
@@ -182,7 +183,7 @@ describe('a document going for good (#658)', () => {
     ).rejects.toMatchObject(refusal('weder geändert noch gelöscht'))
     await expect(
       asTheApplication(sql`delete from files where sha256 = ${onlyHere}`, document),
-    ).rejects.toMatchObject(refusal('Eine Datei geht nur mit dem Dokument'))
+    ).rejects.toMatchObject(refusal('permission denied for table files'))
 
     // Whoever owns the tables, or more.
     await expect(
@@ -191,5 +192,45 @@ describe('a document going for good (#658)', () => {
     await expect(admin.query('delete from files where tenant_id = $1', [tenant])).rejects.toThrow(
       'Eine Datei geht nur mit dem Dokument',
     )
+  })
+
+  it('takes no file but those of its versions, while it goes and whoever asks', async () => {
+    const { document } = await planted()
+
+    // The application, with the way open and the document named as going:
+    // a file of no document, only just stored, is not its to delete.
+    await expect(
+      database.forTenant({ tenantId: tenant, userId: 'u-lead' }, async (tx) => {
+        await tx.execute(sql`select set_config('test.may_go', ${document}, true)`)
+        await tx.execute(sql`select set_config('app.purging_attachment', ${document}, true)`)
+
+        return tx.execute(sql`delete from files where sha256 = ${ofNoDocument}`)
+      }),
+    ).rejects.toMatchObject(refusal('permission denied for table files'))
+
+    // Whoever owns the tables, in the same state, and with a file the
+    // document does name: only the trigger of a version takes one.
+    const owner = await admin.connect()
+
+    try {
+      await owner.query('begin')
+      await owner.query(`select set_config('test.may_go', $1, true)`, [document])
+      await owner.query(`select set_config('app.purging_attachment', $1, true)`, [document])
+
+      for (const hash of [ofNoDocument, onlyHere]) {
+        await owner.query('savepoint probe')
+        await expect(
+          owner.query('delete from files where tenant_id = $1 and sha256 = $2', [tenant, hash]),
+        ).rejects.toThrow('Eine Datei geht nur mit dem Dokument')
+        await owner.query('rollback to savepoint probe')
+      }
+    } finally {
+      await owner.query('rollback')
+      owner.release()
+    }
+
+    const { rows } = await admin.query('select sha256 from files where tenant_id = $1', [tenant])
+
+    expect(rows).toHaveLength(3)
   })
 })

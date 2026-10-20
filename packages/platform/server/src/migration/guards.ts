@@ -62,6 +62,7 @@ export const triggerMoments = [
   'AFTER INSERT',
   'BEFORE UPDATE OR DELETE',
   'BEFORE DELETE',
+  'AFTER DELETE',
 ] as const
 
 /** A trigger of a table that is its own, beside the log and the stamp of the sync. */
@@ -281,10 +282,13 @@ export const foundationGuards: readonly TableGuard[] = [
   },
   // A file of a tenant goes only with the last version that named it, on the
   // way an application opens for a document (#658), and only while nothing
-  // else names it; the trigger refuses every other deletion.
+  // else names it. The application has no DELETE: the trigger of the version
+  // takes the file as the owner of the tables (`version_takes_its_files`),
+  // and the trigger here refuses every deletion but that one, the owner's
+  // included.
   {
     table: 'files',
-    grants: ['select', 'insert', 'delete'],
+    grants: ['select', 'insert'],
     audited: true,
     synced: false,
     triggers: [
@@ -469,6 +473,11 @@ export const attachmentVersionsGuard: TableGuard = {
       name: 'attachment_versions_record_uploader',
       fires: 'BEFORE INSERT',
       calls: 'record_attachment_uploader',
+    },
+    {
+      name: 'attachment_versions_take_their_files',
+      fires: 'AFTER DELETE',
+      calls: 'version_takes_its_files',
     },
     {
       name: 'attachment_versions_stay_as_written',

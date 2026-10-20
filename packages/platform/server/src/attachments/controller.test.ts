@@ -594,13 +594,15 @@ describe('a version in the database', () => {
         ),
       ),
     ).toBe(insufficientPrivilege)
+    // Deleting is granted for a document that goes for good (#658), and the
+    // trigger refuses it here, where nothing opened the way.
     expect(
       await codeOf(
         inTenant('lena', (tx) =>
           tx.delete(probeAttachmentVersions).where(eq(probeAttachmentVersions.id, id as never)),
         ),
       ),
-    ).toBe(insufficientPrivilege)
+    ).toBe('OG001')
 
     // The owner walks past the grants and is stopped by the trigger.
     expect(

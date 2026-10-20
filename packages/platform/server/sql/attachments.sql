@@ -9,7 +9,8 @@
 -- signature, and every deletion but one: a document that goes for good on the
 -- way an application opens for it (opengewerk/opengewerk#658), at the end of a
 -- retention. Then the file of a version goes as well, the row of the tenant in
--- `files`, once nothing else names it.
+-- `files`, once nothing else names it: taken by the trigger of the version,
+-- since the application role may not delete in `files` at all.
 --
 -- Everything that reads a table of the records is plpgsql: these functions
 -- stand in every database the blocks build, also in one without such tables.
@@ -81,17 +82,19 @@ BEGIN
 END;
 $$;--> statement-breakpoint
 
--- A file of a tenant goes only while a document goes for good, with the last
--- version that named it (#658); whether anything else still names it, the
--- keys onto `files` decide, also in areas the person who asks does not see.
+-- A file of a tenant goes only with a version of a document that goes for
+-- good (#658), taken by `version_takes_its_files` and named by it while it
+-- does; whether anything else still names it, the keys onto `files` decide,
+-- also in areas the person who asks does not see. The application role has
+-- no DELETE here, and the owner of the table is held to the same: a setting
+-- that names the document is not enough, the file has to be the one the
+-- version is taking.
 CREATE FUNCTION "file_goes_with_its_document"() RETURNS trigger
 	LANGUAGE plpgsql
 	SET search_path = pg_catalog, public
 AS $$
-DECLARE
-	purging text := nullif(current_setting('app.purging_attachment', true), '');
 BEGIN
-	IF purging IS NOT NULL AND public.attachment_purging(purging::uuid) THEN
+	IF coalesce(current_setting('app.taking_file', true), '') = old.tenant_id::text || '/' || old.sha256 THEN
 		RETURN old;
 	END IF;
 
@@ -100,13 +103,55 @@ BEGIN
 END;
 $$;--> statement-breakpoint
 
+-- The files of a version that went with its document (#658), after the
+-- deletion: its file and its preview, each once no key names it any more.
+-- Only a deletion the lock of the version let through gets here, and that is
+-- one while its document goes for good; the setting is asked once more, not
+-- the application, whose answer is for the person who asks.
+--
+-- It runs as the owner of the tables, because the application role may not
+-- delete in `files`: a file goes with the version that names it and never
+-- because somebody names it. The lock of `files` lets exactly this file
+-- through, and the log of `files` writes that it went.
+CREATE FUNCTION "version_takes_its_files"() RETURNS trigger
+	LANGUAGE plpgsql
+	SECURITY DEFINER
+	SET search_path = pg_catalog, public
+AS $$
+DECLARE
+	hash text;
+BEGIN
+	IF coalesce(current_setting('app.purging_attachment', true), '') <> old.attachment_id::text THEN
+		RETURN NULL;
+	END IF;
+
+	FOREACH hash IN ARRAY ARRAY[old.sha256, old.preview_sha256] LOOP
+		CONTINUE WHEN hash IS NULL;
+
+		PERFORM set_config('app.taking_file', old.tenant_id::text || '/' || hash, true);
+
+		BEGIN
+			DELETE FROM public.files WHERE tenant_id = old.tenant_id AND sha256 = hash;
+		EXCEPTION WHEN foreign_key_violation OR restrict_violation THEN
+			-- Another record still names the file, and it stays.
+			NULL;
+		END;
+	END LOOP;
+
+	PERFORM set_config('app.taking_file', '', true);
+
+	RETURN NULL;
+END;
+$$;--> statement-breakpoint
+
 -- Lets a document go for good (#658), on the way the application opens for it
 -- (`application_attachment_may_go`) and nowhere else: its versions go, and so
 -- does the file of each version in `files` once nothing else names it, who
--- stored it with it; the document stays as a row marked as deleted under the
--- title the application gives, so that a device that was offline learns that
--- it is gone. Run as whoever asks, in their transaction: what the policies
--- show is what goes. Says how many files went.
+-- stored it with it, by the trigger of the version; the document stays as a
+-- row marked as deleted under the title the application gives, so that a
+-- device that was offline learns that it is gone. Run as whoever asks, in
+-- their transaction: what the policies show is what goes. Says how many files
+-- went.
 CREATE FUNCTION "purge_attachment"(p_attachment uuid, p_title text) RETURNS integer
 	LANGUAGE plpgsql
 	SET search_path = pg_catalog, public
@@ -114,9 +159,8 @@ AS $$
 DECLARE
 	tenant uuid;
 	named text[];
-	hash text;
 	before text := current_setting('app.purging_attachment', true);
-	gone integer := 0;
+	left_over integer;
 BEGIN
 	IF NOT public.attachment_may_go(p_attachment) THEN
 		RAISE EXCEPTION 'Ein Dokument wird nur auf dem Weg endgültig gelöscht, den die Anwendung dafür öffnet.'
@@ -142,21 +186,10 @@ BEGIN
 	EXECUTE 'UPDATE public.attachments SET title = $2, deleted_at = coalesce(deleted_at, now()) WHERE id = $1'
 	  USING p_attachment, p_title;
 
-	FOREACH hash IN ARRAY named LOOP
-		BEGIN
-			DELETE FROM public.files WHERE tenant_id = tenant AND sha256 = hash;
-
-			IF FOUND THEN
-				gone := gone + 1;
-			END IF;
-		EXCEPTION WHEN foreign_key_violation OR restrict_violation THEN
-			-- Another record still names the file, and it stays.
-			NULL;
-		END;
-	END LOOP;
+	SELECT count(*) INTO left_over FROM public.files WHERE tenant_id = tenant AND sha256 = ANY (named);
 
 	PERFORM set_config('app.purging_attachment', coalesce(before, ''), true);
 
-	RETURN gone;
+	RETURN cardinality(named) - left_over;
 END;
 $$;
