@@ -7,6 +7,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Geändert
+
+- Der Renderer für PDFs läuft auf `browserless/chromium` 2.57.1, im Stapel, im Job der E-Rechnung und im
+  Befehl für die Entwicklung mit demselben Digest. Die Fassung bringt Node 24.22 und schließt eine Verbindung
+  über WebSocket nach einer Zeitüberschreitung sauber; der Job prüft, dass er denselben Renderer nutzt wie der
+  Betrieb, deshalb ziehen alle drei Stellen gemeinsam nach.
+
 ## [0.6.0] - 2026-10-20
 
 Die sechste Fassung schließt acht Sicherheitslücken, die eine Prüfung vor der nächsten Fassung von
