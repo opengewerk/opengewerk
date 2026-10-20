@@ -58,11 +58,14 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=$name" \
 cp "$templates/nginx.conf" "$templates/apache.conf" "$work/"
 
 # Everything goes into the container on its standard input, as a tar stream,
-# so that nothing depends on how a folder of the host is mounted.
+# so that nothing depends on how a folder of the host is mounted. The image is
+# pulled first and on its own: what docker run prints while pulling would land
+# in the output that is read below.
 run() {
   image=$1
   script=$2
-  tar -C "$work" -cf - . | docker run -i --rm "$image" sh -c "$script" 2>&1
+  docker pull -q "$image" > /dev/null
+  tar -C "$work" -cf - . | docker run -i --rm --pull never "$image" sh -c "$script" 2>&1
 }
 
 for image in $nginx_images; do
