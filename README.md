@@ -1009,8 +1009,10 @@ weiterkopiert, tut das als root.
 
 **Jede Sicherung steht in einem Verzeichnis auf der Instanz.** Name und SHA-256
 ihres Archivs kommen in `archives.sha256` im Volume `backup-status`, das nur die
-Dienste der Sicherung beschreiben und das nie auf dem Ziel liegt. Gegen dieses
-Verzeichnis prüfen Zurückspielen und Prüfen jedes Archiv, siehe unten. Es behält
+Dienste der Sicherung beschreiben und das nie auf dem Ziel liegt. Die Prüfsumme
+entsteht im Container an dem Strom, der auf das Ziel geht, und wird nicht von
+dort zurückgelesen: was dort inzwischen liegt, könnte ein anderes Archiv sein.
+Gegen dieses Verzeichnis prüfen Zurückspielen und Prüfen jedes Archiv, siehe unten. Es behält
 auch Archive, die die Aufbewahrung vom Ziel genommen hat, damit ein ausgelagertes
 und zurückgeholtes Archiv prüfbar bleibt; eine Zeile sind rund hundert Bytes.
 

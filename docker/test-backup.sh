@@ -74,7 +74,10 @@ FAKE
 # a little of what it reads and fails. SWAP_FROM and SWAP_ONTO replace a file
 # on the target with another before it decrypts, the way somebody who writes
 # there could between the check of an archive and its reading; tar does the
-# same before it unpacks.
+# same before it unpacks. AGE_SWAPS does it on the way in: age encrypts,
+# keeps what it wrote in AGE_KEPT, and then puts AGE_SWAPS in place of the
+# hidden file on the target, the way somebody who writes there could between
+# the writing of an archive and its record.
 cat > "$work/bin/age" <<FAKE
 #!/bin/sh
 if [ -n "\${SWAP_FROM:-}" ] && [ "\$1" = --decrypt ]; then
@@ -87,6 +90,14 @@ fi
 if [ "\${AGE_FAILS:-}" = halfway ]; then
   head -c 100
   exit 1
+fi
+if [ -n "\${AGE_SWAPS:-}" ]; then
+  $real_age "\$@" | tee "\$AGE_KEPT"
+  for hidden in "\$BACKUP_PATH"/."\$BACKUP_PREFIX"-*; do
+    cp "\$AGE_SWAPS" "\$hidden.swap"
+    mv "\$hidden.swap" "\$hidden"
+  done
+  exit 0
 fi
 exec $real_age "\$@"
 FAKE
@@ -531,6 +542,28 @@ taken env POSTGRES_DB=opengewerk BACKUP_AGE_RECIPIENT="$recipient" BACKUP_AGE_ID
 grep -qx "Sicherung: $streamed" "$work/out"
 grep -q '^pg_restore ' "$CALLS"
 check 'Verzeichnis: Name und Prüfsumme der Sicherung auf der Instanz, das Rückspielen nimmt sie'
+
+# The checksum in the record is the one of the bytes this backup wrote, taken
+# on their way to the target, and never read back from there. Here the hidden
+# file on the target is replaced after the writing and before the record, by
+# an archive of somebody else, whole and encrypted to the same key: the record
+# keeps the checksum and the size of the own bytes, and the archive that lies
+# on the target is turned away.
+"$real_age" --recipient "$recipient" --output "$work/foreign.age" "$pristine"
+POSTGRES_DB=opengewerk BACKUP_KEEP=0 BACKUP_PREFIX=swapped BACKUP_AGE_RECIPIENT="$recipient" \
+  AGE_SWAPS="$work/foreign.age" AGE_KEPT="$work/own-bytes" sh "$work/bin/backup.sh" > "$work/out" 2>&1 || {
+  cat "$work/out"
+  exit 1
+}
+swapped=$(sed -n 's|^Fertig: .*/\([^/ ]*\) (.*|\1|p' "$work/out")
+cmp -s "$work/foreign.age" "$work/backups/$swapped"
+own=$(sha256sum "$work/own-bytes" | cut -d' ' -f1)
+grep -qx "$own  $swapped" "$work/status/archives.sha256"
+grep -q "\"sha256\": \"$own\"" "$work/status/last.json"
+grep -q "\"bytes\": $(stat -c %s "$work/own-bytes")," "$work/status/last.json"
+refused 'weicht vom Verzeichnis ab' env POSTGRES_DB=opengewerk BACKUP_PREFIX=swapped \
+  BACKUP_AGE_RECIPIENT="$recipient" BACKUP_AGE_IDENTITY="$work/key.txt" sh "$work/bin/restore.sh" latest
+check 'Verzeichnis: eingetragen wird die Prüfsumme der eigenen Bytes, ein danach getauschtes Archiv wird abgelehnt'
 
 # What is checked is what is read: the archive is copied from the target once,
 # and replaced there after the check, before age or tar read it, the restore

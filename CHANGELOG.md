@@ -1015,7 +1015,8 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   gegen das Manifest im Archiv selbst, und `backup.sh` legte die Sicherung unverschlüsselt auf das
   Ziel, bevor age lief, und ließ sie dort, wenn age scheiterte. Jetzt hält jede Sicherung Name und
   SHA-256 ihres Archivs in `archives.sha256` im Volume `backup-status` fest, auf der Instanz und
-  nicht auf dem Ziel, dazu in `last.json`. `restore.sh` und `verify.sh` lehnen ein Archiv ab, das
+  nicht auf dem Ziel, dazu in `last.json`; die Prüfsumme kommt aus dem Strom im Container, nicht
+  von der Datei auf dem Ziel. `restore.sh` und `verify.sh` lehnen ein Archiv ab, das
   dort nicht mit derselben Prüfsumme steht, und bei gesetztem `BACKUP_AGE_RECIPIENT` jedes
   unverschlüsselte, bevor sie etwas entschlüsseln. Geprüft und gelesen wird dabei eine Kopie im
   Container, nicht die Datei auf dem Ziel. Für eine neue Maschine ohne das Verzeichnis gibt es

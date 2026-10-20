@@ -121,12 +121,23 @@ partial=''
 renamed=false
 recorded=false
 
+# Where the checksum and the size of the archive are taken on its way to the
+# target, see step 5. A folder of its own, beside the parts and not among
+# them, since the parts folder is what is packed.
+measured=''
+hasher=''
+counter=''
+
 # Anything that fails before the record is written leaves nothing behind on
 # the target, neither a half archive nor a whole one nobody recorded: a backup
 # directory holding a file that looks like a backup and is none is worse than
 # one holding nothing. A signal ends the script through the same way out.
 cleanup() {
-	rm -rf "$work"
+	for reader in $hasher $counter; do
+		kill "$reader" 2>/dev/null || true
+	done
+
+	rm -rf "$work" "$measured"
 	rm -f "$partial"
 
 	if [ "$renamed" = true ] && [ "$recorded" = false ]; then
@@ -194,23 +205,49 @@ JSON
 # --- 5. Pack, and encrypt when a key is there ------------------------------
 # In one stream into the hidden file: the packed archive in the clear exists
 # nowhere, not on the target and not here.
+#
+# The checksum that goes into the record, and the size, are taken of that
+# stream inside this container, through tee, on its way to the target, and
+# never read back from there (opengewerk-haustechnik#360). Read back, they
+# would be the ones of whatever lies on the target by then, and whoever writes
+# there could have put an archive of their own in place of the hidden file
+# and have it recorded as one this instance wrote. Two named pipes, since sh
+# has no process substitution; their readers run beside the stream.
+measured=$(mktemp -d)
+mkfifo "${measured}/hash" "${measured}/count"
+sha256sum <"${measured}/hash" >"${measured}/hash.out" &
+hasher=$!
+wc -c <"${measured}/count" >"${measured}/count.out" &
+counter=$!
+
 if [ -n "${BACKUP_AGE_RECIPIENT:-}" ]; then
 	# A public key encrypts, and only the private key decrypts. The machine
 	# making backups therefore cannot read its own older ones, which is the
 	# point: whoever takes over the server does not get the archive with it.
 	echo "  Sicherung wird gepackt und verschlüsselt."
 	tar --create --gzip --file - --directory "$work" . |
-		age --recipient "$BACKUP_AGE_RECIPIENT" >"$partial"
+		age --recipient "$BACKUP_AGE_RECIPIENT" |
+		tee "${measured}/hash" "${measured}/count" >"$partial"
 else
 	echo "  WARNUNG: BACKUP_AGE_RECIPIENT ist nicht gesetzt, die Sicherung liegt"
 	echo "  unverschlüsselt. Sie enthält Kundendaten und Belege."
-	tar --create --gzip --file - --directory "$work" . >"$partial"
+	tar --create --gzip --file - --directory "$work" . |
+		tee "${measured}/hash" "${measured}/count" >"$partial"
 fi
 
-# Read back from the target, so that the checksum is the one of what landed
-# there.
-archive_hash=$(sha256sum "$partial" | cut -d' ' -f1)
-archive_bytes=$(stat -c %s "$partial")
+wait "$hasher"
+wait "$counter"
+hasher=''
+counter=''
+archive_hash=$(cut -d' ' -f1 "${measured}/hash.out")
+archive_bytes=$(tr -d ' ' <"${measured}/count.out")
+
+case "$archive_hash" in
+'' | *[!0-9a-f]*)
+	echo "Die Prüfsumme der Sicherung ließ sich nicht bilden." >&2
+	exit 1
+	;;
+esac
 
 # A second backup in the same second would take the name of the first, and
 # when it failed after that, the first with it.
