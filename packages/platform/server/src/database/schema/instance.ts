@@ -16,7 +16,7 @@ import { auditOperation } from './audit.js'
 import { authUsers } from './authentication.js'
 import { primaryId, timestamps } from './columns.js'
 import { mailSecurity } from './mail-settings.js'
-import { outsideAnyTenant, writtenByTriggerOutsideAnyTenant } from './rls.js'
+import { outsideAnyTenant, readableByTheOwner, writtenByTriggerOutsideAnyTenant } from './rls.js'
 
 /**
  * What belongs to the instance and to no tenant (#188): who runs it, what
@@ -44,7 +44,10 @@ export const instanceOperators = pgTable(
       .references(() => authUsers.id, { onDelete: 'cascade' }),
     ...timestamps,
   },
-  () => [outsideAnyTenant()],
+  // The second one is for a function that runs as the owner of the tables and
+  // lists, for whoever runs the instance, only the invitations one of them
+  // sent (`tenants_with_leads`, opengewerk-haustechnik#474).
+  () => [outsideAnyTenant(), readableByTheOwner()],
 )
 
 /**

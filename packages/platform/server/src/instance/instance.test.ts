@@ -772,6 +772,35 @@ describe('a further tenant', () => {
     expect((await tenantsAsSeen()).find((tenant) => tenant.id === south)?.invitedLeads).toEqual([])
   })
 
+  /**
+   * An invitation the lead of a tenant sends came about in the tenant, and
+   * whoever runs the instance reads nothing of that
+   * (opengewerk-haustechnik#474): the list names only those that somebody who
+   * runs the instance sent. Otto leads the north and does not run the
+   * instance, Lea does both.
+   */
+  it('lists only the invitations to lead that somebody who runs the instance sent', async () => {
+    const invite = (by: string, email: string) =>
+      admin.query(
+        `insert into invitations (tenant_id, email, name, roles, token_hash, invited_by, expires_at)
+         values ($1, $2, 'Eingeladen', '{lead}', $3, $4, now() + interval '1 day')`,
+        [north, email, hashToken(email), by],
+      )
+
+    await invite(idOf(otto), 'von-otto@nord.example.de')
+    await invite(idOf(lea), 'von-lea@nord.example.de')
+
+    try {
+      expect((await tenantsAsSeen()).find((tenant) => tenant.id === north)?.invitedLeads).toEqual([
+        'von-lea@nord.example.de',
+      ])
+    } finally {
+      await admin.query(`delete from invitations where tenant_id = $1 and email like 'von-%'`, [
+        north,
+      ])
+    }
+  })
+
   it('stands in the log of the instance with the way it came in and who brought it', async () => {
     const page = await log()
     const created = page.changes.filter(
