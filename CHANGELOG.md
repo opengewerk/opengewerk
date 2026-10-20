@@ -7,12 +7,25 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Geändert
+
+- Der Renderer für PDFs läuft auf `browserless/chromium` 2.57.1, im Stapel, im Job der E-Rechnung und im
+  Befehl für die Entwicklung mit demselben Digest. Die Fassung bringt Node 24.22 und schließt eine Verbindung
+  über WebSocket nach einer Zeitüberschreitung sauber; der Job prüft, dass er denselben Renderer nutzt wie der
+  Betrieb, deshalb ziehen alle drei Stellen gemeinsam nach.
+
 ### Behoben
 
 - Die Prüfung der Breiten wartet nach dem Laden einer Seite höchstens zehn Sekunden auf ein ruhiges Netz und
   misst ohne Service Worker. Sie war gelegentlich rot an einer Seite, die niemand angefasst hatte, weil das
   Vorladen der Anwendung oder die Suche nach einer neuen Fassung das Netz länger als 30 Sekunden beschäftigte
   (opengewerk/opengewerk-haustechnik#492); ob eine Seite steht, entscheidet weiter, ob ihr Inhalt gezeichnet ist.
+
+### Sicherheit
+
+- Vite 8.3.3 in beiden Oberflächen, mit der Sperrdatei. Die Fassung bringt `launch-editor` 2.14.2, das unter
+  Windows `%` in Argumenten nicht maskierte (Dependabot-Alerts 1 und 2); betroffen war nur der Server für die
+  Entwicklung, nicht das gebaute Paket.
 
 ## [0.6.0] - 2026-10-20
 
