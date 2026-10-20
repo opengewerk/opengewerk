@@ -70,6 +70,16 @@ async function start(): Promise<void> {
     )
   }
 
+  // The name of the role is checked with the configuration; what the role can
+  // do only the database knows (#685).
+  const roleProblem = await database.roleProblem()
+
+  if (roleProblem !== null) {
+    await database.close()
+
+    throw new ConfigurationError(roleProblem)
+  }
+
   // The first trusted origin is the address the instance is reached at, the
   // one a link in a message has to point to.
   const origin = configuration.trustedOrigins[0] ?? ''
