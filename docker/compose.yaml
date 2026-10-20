@@ -249,6 +249,12 @@ services:
     tmpfs:
       - /tmp
     environment:
+      # Chromium keeps its settings, its cache and the database of its crash
+      # handler below the home directory of the image, and that is read-only
+      # here: without these two it does not start at all
+      # ("chrome_crashpad_handler: --database is required"). In /tmp instead.
+      XDG_CONFIG_HOME: /tmp/.config
+      XDG_CACHE_HOME: /tmp/.cache
       # The service wants a token, even on its own network. It sits in the
       # .env file and reaches the application as RENDERER_TOKEN.
       TOKEN: ${RENDERER_TOKEN:?RENDERER_TOKEN fehlt in der .env-Datei}
