@@ -464,7 +464,13 @@ const drawnWithin = 10_000
  * of its own rather than a page that passes because it is empty.
  */
 async function open(page, address, path) {
-  await page.goto(address + path, { waitUntil: 'networkidle', timeout: 30_000 })
+  // Loaded, and then a quiet network where it comes within ten seconds, but
+  // not as the condition (opengewerk-haustechnik#492): a request of the
+  // application that keeps the network busy for half a minute, an update the
+  // shell looks for or a list that asks again, made the whole check red at
+  // a page nobody had changed. Whether the screen stands is what decides.
+  await page.goto(address + path, { waitUntil: 'load', timeout: 30_000 })
+  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined)
 
   const drawn = await page.waitForFunction(stands, null, { timeout: drawnWithin }).then(
     () => true,
@@ -841,6 +847,14 @@ export function fileFor(report, kind, width, theme) {
 }
 
 /**
+ * How every context of the check is opened: without the service worker. It
+ * fetches the whole application ahead and asks for a new version while a page
+ * is measured, which is traffic the measuring waits on and nothing it
+ * measures (opengewerk-haustechnik#492); a page looks the same without it.
+ */
+const measuring = { serviceWorkers: 'block' }
+
+/**
  * A page of the browser that measures in one theme, in a context of its own,
  * so that pages measuring at once share neither what one of them stored nor
  * a process of the browser. The choice is made the way a person makes it, as
@@ -848,7 +862,7 @@ export function fileFor(report, kind, width, theme) {
  * under the key `components/theme.ts` keeps it under.
  */
 async function laneIn(browser, theme, themeKey) {
-  const context = await browser.newContext()
+  const context = await browser.newContext(measuring)
 
   if (theme === 'dark') {
     await context.addInitScript((key) => {
@@ -1242,7 +1256,7 @@ export async function checkWidths({
   const seenOnce = []
 
   try {
-    const kinds = await walk(await browser.newContext(), {
+    const kinds = await walk(await browser.newContext(measuring), {
       address,
       entries,
       scannedOnly,
