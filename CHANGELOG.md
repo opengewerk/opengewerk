@@ -438,6 +438,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die README hält nur noch das Wichtigste: was OpenGewerk ist, den Stand, den Schnellstart, wo die Dokumentation
+  steht, Hilfe und Lizenz. Betrieb, Entwicklung sowie Funktionsumfang und Stand stehen unverändert in
+  `docs/betrieb.md`, `docs/entwicklung.md` und `docs/funktionsumfang.md`; Meldungen, Kommentare, die Seite der
+  Sicherung im Büro und die Beschreibung auf Docker Hub verweisen dorthin. Warum: mit 1463 Zeilen stand die
+  Installation erst nach 560 Zeilen über den Bau.
 - Die Dienste in `docker/compose.yaml` laufen gehärtet (#688, gefunden in der Sicherheitsprüfung
   opengewerk-haustechnik#360). Jeder gibt alle Capabilities von root ab (`cap_drop: [ALL]`) und kann über ein
   setuid-Programm keine gewinnen (`no-new-privileges`); Anwendung, Migration, Renderer und Datenbank laufen mit
