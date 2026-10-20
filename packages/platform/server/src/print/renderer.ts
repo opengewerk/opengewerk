@@ -18,6 +18,67 @@ import { refusePlaceholder } from '../configuration.js'
 /** What a caller gets instead of a PDF, phrased for whoever reads the log. */
 export class RendererUnavailableError extends Error {}
 
+/**
+ * What a printed page may load: nothing but what it carries itself
+ * (opengewerk/opengewerk#686, found in the security review
+ * opengewerk-haustechnik#360). Every template embeds its images and fonts as
+ * `data:` and its styles inline, and escapes every value; should a value slip
+ * past that, the page still cannot fetch, frame, send a form or run a script.
+ * `base-uri` and `form-action` are not covered by `default-src`.
+ */
+export const printPolicy =
+  "default-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; " +
+  "base-uri 'none'; form-action 'none'"
+
+/**
+ * The page with the policy as the first thing in its head, where Chromium
+ * reads it before anything the page asks for. A page without a head gets it
+ * right after its doctype or at its start, which the parser puts into the
+ * head it makes. Every page is printed through here, so no template can be
+ * left without it.
+ */
+export function withPrintPolicy(html: string): string {
+  const meta = `<meta http-equiv="Content-Security-Policy" content="${printPolicy}">`
+  const end = endOfHead(html)
+
+  if (end !== null) {
+    return html.slice(0, end) + meta + html.slice(end)
+  }
+
+  const doctype = /^\s*<!doctype[^>]*>/i.exec(html)
+
+  return doctype === null ? meta + html : doctype[0] + meta + html.slice(doctype[0].length)
+}
+
+/**
+ * Where the opening tag of the head ends, `<head>` or `<head ...>` and never
+ * `<header>`, or null. Searched and not matched with a pattern: a pattern with
+ * a run of anything up to ">" goes back over a page full of "<head" again and
+ * again, and a page is as long as its embedded images.
+ */
+function endOfHead(html: string): number | null {
+  const lower = html.toLowerCase()
+
+  for (let at = lower.indexOf('<head'); at !== -1; at = lower.indexOf('<head', at + 5)) {
+    const next = lower.charAt(at + 5)
+
+    if (
+      next === '>' ||
+      next === ' ' ||
+      next === '\t' ||
+      next === '\n' ||
+      next === '\r' ||
+      next === '\f'
+    ) {
+      const close = lower.indexOf('>', at + 5)
+
+      return close === -1 ? null : close + 1
+    }
+  }
+
+  return null
+}
+
 /** The four margins of a page, as CSS lengths: `20mm`. */
 export interface PageMargin {
   readonly top: string
@@ -126,7 +187,7 @@ export async function renderPdf(
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        html,
+        html: withPrintPolicy(html),
         options: {
           ...(options.size === undefined
             ? { format: options.format ?? 'A4' }

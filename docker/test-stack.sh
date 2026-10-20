@@ -264,7 +264,9 @@ hardening)
 import json
 import sys
 
-services = json.load(open(sys.argv[1], encoding="utf-8"))["services"]
+configuration = json.load(open(sys.argv[1], encoding="utf-8"))
+services = configuration["services"]
+networks = configuration.get("networks") or {}
 writable = {"backup", "backup-schedule"}
 problems = []
 
@@ -294,10 +296,43 @@ if not limit:
 if "--max-old-space-size" not in heap:
     problems.append("Der Heap von app endet nicht unter der Speichergrenze (--max-old-space-size).")
 
+# The renderer in a network of its own with the application and nothing
+# else, and that network internal (#686).
+renderer = services.get("renderer")
+if renderer is not None:
+    on = sorted((renderer.get("networks") or {"default": None}).keys())
+    beside = sorted(
+        name
+        for name, service in services.items()
+        if name != "renderer"
+        and set((service.get("networks") or {"default": None}).keys()) & set(on)
+    )
+    internal = bool(on) and all((networks.get(name) or {}).get("internal") is True for name in on)
+    print(
+        f"renderer: im Netz {', '.join(on)}, dort außerdem {', '.join(beside) or 'niemand'}, "
+        + ("intern" if internal else "nach außen offen")
+    )
+    if beside != ["app"]:
+        problems.append("renderer teilt sein Netz mit mehr als app, oder nicht mit app (networks).")
+    if not internal:
+        problems.append("Das Netz von renderer reicht nach außen (internal: true).")
+
 if not services or problems:
     print("\n".join(problems or ["Kein Dienst gefunden."]))
     sys.exit(1)
 PYTHON
+  ;;
+
+print-network)
+  # In the running stack (#686): the renderer finds the application by its
+  # name and not the database. Asked with the node of the image, which is
+  # what the service itself runs on.
+  compose exec -T renderer node -e '
+    const dns = require("node:dns")
+    dns.lookup("app", (application) => dns.lookup("postgres", (database) => {
+      console.log(`app ${application ? "nicht gefunden" : "gefunden"}, postgres ${database ? "nicht gefunden" : "gefunden"}`)
+      process.exit(!application && database ? 0 : 1)
+    }))' || fail 'Der Renderer erreicht mehr als die Anwendung, oder die Anwendung nicht.'
   ;;
 
 start)

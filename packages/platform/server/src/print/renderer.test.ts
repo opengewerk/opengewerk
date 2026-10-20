@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { readRendererConfiguration, renderPdf, RendererUnavailableError } from './renderer.js'
+import {
+  printPolicy,
+  readRendererConfiguration,
+  renderPdf,
+  RendererUnavailableError,
+  withPrintPolicy,
+} from './renderer.js'
 
 /**
  * The renderer is the one service an instance may run without, so the
@@ -10,6 +16,13 @@ import { readRendererConfiguration, renderPdf, RendererUnavailableError } from '
  */
 
 const configured = { url: 'http://renderer:3000', token: 'geheim' }
+
+/** The policy as every printed page carries it (#686). */
+const policyTag =
+  '<meta http-equiv="Content-Security-Policy" content="' +
+  "default-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; " +
+  "base-uri 'none'; form-action 'none'" +
+  '">'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -87,7 +100,7 @@ describe('the renderer', () => {
     // reads; it never leaves the docker network.
     expect(endpoint.toString()).toBe('http://renderer:3000/pdf?token=geheim')
     expect(JSON.parse(String(request.body))).toEqual({
-      html: '<h1>Rechnung 2026-0001</h1>',
+      html: `${policyTag}<h1>Rechnung 2026-0001</h1>`,
       options: { format: 'A5', printBackground: true },
     })
   })
@@ -106,7 +119,7 @@ describe('the renderer', () => {
     // Without the empty header Chromium fills the space above every page with
     // the date and the title of the document, which nobody asked for.
     expect(JSON.parse(String(request.body))).toEqual({
-      html: '<p>Rechnung</p>',
+      html: `${policyTag}<p>Rechnung</p>`,
       options: {
         format: 'A4',
         printBackground: true,
@@ -132,5 +145,42 @@ describe('the renderer', () => {
     await expect(renderPdf('<p>dauert</p>', configured, { timeoutMs: 10 })).rejects.toThrow(
       RendererUnavailableError,
     )
+  })
+})
+
+/**
+ * What a printed page may load (#686): nothing from anywhere, images and fonts
+ * only from the page itself, styles inline, and no script at all. The policy
+ * stands first in the head of every page the renderer is handed, so that a
+ * value that slipped past the escaping of a template could still reach nothing.
+ */
+describe('the policy of a printed page', () => {
+  it('lets a page load nothing but its own images, fonts and styles', () => {
+    expect(printPolicy).toBe(
+      "default-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; " +
+        "base-uri 'none'; form-action 'none'",
+    )
+  })
+
+  it('stands first in the head, before anything the page asks for', () => {
+    expect(
+      withPrintPolicy(
+        '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Beleg</title></head>' +
+          '<body><header>Kopf</header></body></html>',
+      ),
+    ).toBe(
+      `<!doctype html><html lang="de"><head>${policyTag}<meta charset="utf-8"><title>Beleg</title></head>` +
+        '<body><header>Kopf</header></body></html>',
+    )
+    expect(withPrintPolicy('<html><head lang="de"><title>x</title></head></html>')).toBe(
+      `<html><head lang="de">${policyTag}<title>x</title></head></html>`,
+    )
+  })
+
+  it('stands at the start of a page without a head, and never in a header', () => {
+    expect(withPrintPolicy('<!doctype html><header>Kopf</header>')).toBe(
+      `<!doctype html>${policyTag}<header>Kopf</header>`,
+    )
+    expect(withPrintPolicy('<p>Etikett</p>')).toBe(`${policyTag}<p>Etikett</p>`)
   })
 })

@@ -956,6 +956,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Sicherheit
 
+- Jede Seite, die der Renderer druckt, trägt eine Content-Security-Policy, die nur Eingebettetes zulässt, und der
+  Renderer hängt in einem eigenen, internen Netz nur mit der Anwendung (#686, gefunden in der Sicherheitsprüfung
+  opengewerk-haustechnik#360). `renderPdf` setzt die Richtlinie (`printPolicy`, `withPrintPolicy`) als Erstes in den
+  Kopf jeder Seite: Bilder und Schriften nur als `data:`, Stile inline, kein Skript, kein Abruf, kein Formular. In
+  `docker/compose.yaml` hängt der Renderer nur im Netz `printing`; `test-stack.sh hardening` und `print-network`
+  prüfen das. Warum: die Maskierung der Vorlagen war bisher die einzige Barriere, und der Renderer erreichte im
+  Netz von Compose auch die Datenbank.
+
 - Der Workflow "Release" behält den Token mit Schreibrecht nicht mehr in `.git/config` (`persist-credentials: false`,
   #644). Warum: kein Schritt danach spricht mit git, und der Token lag sonst während des ganzen Baus der Abbilder auf
   der Platte; die Haustechnik hält es schon so.
