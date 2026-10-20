@@ -35,6 +35,7 @@ real_age=$(command -v age) || {
 }
 real_tar=$(command -v tar)
 real_date=$(command -v date)
+real_cp=$(command -v cp)
 
 mkdir -p "$work/bin" "$work/storage" "$work/backups" "$work/status" "$work/tmp"
 cp "$source_dir/backup/backup.sh" "$source_dir/backup/restore.sh" \
@@ -81,6 +82,7 @@ if [ -n "\${SWAP_FROM:-}" ] && [ "\$1" = --decrypt ]; then
 fi
 if [ -n "\${AGE_SAW:-}" ]; then
   ls -A "\$BACKUP_PATH" > "\$AGE_SAW"
+  find "\$TMPDIR" -type f -exec stat -c %a {} + | sort -u > "\$AGE_SAW.parts"
 fi
 if [ "\${AGE_FAILS:-}" = halfway ]; then
   head -c 100
@@ -117,8 +119,19 @@ if [ -n "\${FIXED_STAMP:-}" ] && [ "\$*" = '-u +%Y-%m-%dT%H%M%SZ' ]; then
 fi
 exec $real_date "\$@"
 FAKE
+#
+# cp as it is, unless CP_SERVES is set: then a copy of CP_FROM gets what
+# CP_SERVES holds, as if the target held another file at the moment it is
+# copied and the archive again right after.
+cat > "$work/bin/cp" <<FAKE
+#!/bin/sh
+if [ -n "\${CP_SERVES:-}" ] && [ "\$1" = "\${CP_FROM:-}" ]; then
+  exec $real_cp "\$CP_SERVES" "\$2"
+fi
+exec $real_cp "\$@"
+FAKE
 chmod +x "$work/bin/pg_dump" "$work/bin/psql" "$work/bin/pg_restore" "$work/bin/age" "$work/bin/tar" \
-  "$work/bin/date"
+  "$work/bin/date" "$work/bin/cp"
 
 PATH="$work/bin:$PATH"
 PGPASSWORD=probe
@@ -475,7 +488,8 @@ check 'Audit-Ketten: eine Zeile, die kein Kopf ist, wird abgelehnt, bevor sie in
 # prefix of its own, so that "latest" of the checks above stays where it was.
 # What lay on the target while age encrypted is written down by the stand-in:
 # the archives from before and the hidden file it encrypts into, never a
-# packed archive or a dump in the clear.
+# packed archive or a dump in the clear. And the parts in the container, which
+# are readable by their owner alone.
 export BACKUP_PREFIX=streamed
 ls -A "$work/backups" > "$work/before"
 cp "$work/status/archives.sha256" "$work/record-before"
@@ -498,6 +512,7 @@ ls -A "$work/backups" | grep -vxF -f "$work/before" > "$work/new" || true
 test "$(cat "$work/new")" = "$streamed"
 test "$(stat -c %a "$work/backups/$streamed")" = 600
 test "$(stat -c %a "$work/backups/$named")" = 600
+test "$(cat "$work/saw.parts")" = 600
 test -z "$(ls -A "$work/tmp")"
 check 'Strom: auf dem Ziel liegt nur die verschlüsselte Datei, nur für ihren Besitzer lesbar, die Teile sind weg'
 
@@ -537,6 +552,15 @@ for script in restore.sh verify.sh; do
   cmp -s "$work/swap" "$work/backups/$ours"
   [ "$script" = verify.sh ] || grep -q '^pg_restore ' "$CALLS"
   cp "$pristine" "$work/backups/$ours"
+done
+
+# And the checksum is the one of the copy: when the target held another file
+# at the moment it was copied, the copy is turned away, though the archive is
+# back on the target by the time anybody looks.
+for script in restore.sh verify.sh; do
+  refused 'weicht vom Verzeichnis ab' env POSTGRES_DB=opengewerk BACKUP_AGE_RECIPIENT="$recipient" \
+    BACKUP_AGE_IDENTITY="$work/key.txt" CP_SERVES="$work/swap" CP_FROM="$work/backups/$streamed" \
+    sh "$work/bin/$script" latest
 done
 check 'Herkunft: geprüft und gelesen wird dieselbe Kopie, ein danach getauschtes Archiv bleibt ungelesen'
 
