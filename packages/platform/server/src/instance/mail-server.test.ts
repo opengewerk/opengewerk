@@ -1,7 +1,7 @@
 import { ServiceUnavailableException } from '@nestjs/common'
 import type { InstanceMailServerState, TenantId } from '@opengewerk/platform-domain'
 import type { Pool } from 'pg'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import {
   probeAccess,
@@ -15,6 +15,7 @@ import {
 } from '../authentication/probe-application.js'
 import { addStaffMember } from '../authentication/staff.js'
 import { Database } from '../database/database.js'
+import { newId } from '../database/identifier.js'
 import type { MailContext } from '../mail/context.js'
 import { type FakeSmtpServer, fakeSmtpServer } from '../mail/test-smtp.js'
 import { smtpTransport } from '../mail/transport.js'
@@ -32,11 +33,14 @@ import {
  * through HTTP, with people who really signed in and a mail server that
  * really answers.
  *
- * What it holds: only whoever runs the instance reads it and sets it; the
- * password is sealed where it is kept, handed to nobody, and never in the
- * log of the instance, sealed or not; a password kept goes to the server and
- * the login it was typed in for; and a mail to an account goes out through
- * this server and, without it, not at all.
+ * What it holds: only whoever runs the instance reads it and sets it, and
+ * sets it only after confirming again; every change stands in the log of
+ * every tenant and is told to whoever leads one through the server of before
+ * (opengewerk-haustechnik#360); the password is sealed where it is kept,
+ * handed to nobody, and never in the log of the instance, sealed or not; a
+ * password kept goes to the server and the login it was typed in for; and a
+ * mail to an account goes out through this server and, without it, not at
+ * all.
  *
  * The tests build on each other, in the order they stand: an instance has
  * one row of settings.
@@ -50,6 +54,15 @@ const mailPassword = 'postfach-der-instanz-4711'
 const lea = { email: 'lea@nord.example.de', name: 'Lea Leitung' }
 /** Leads the first tenant, and runs nothing. */
 const otto = { email: 'otto@nord.example.de', name: 'Otto Zweitleitung' }
+/** Leads the second tenant, and never signs in. */
+const sue = { email: 'sue@sued.example.de', name: 'Sue Südleitung' }
+/** Works in the second tenant without leading it. */
+const mia = { email: 'mia@sued.example.de', name: 'Mia Mitglied' }
+const south = { id: newId<'tenant'>(), name: 'Mandant Süd' }
+
+/** Unconfirmed, a change of the mail server gets this. */
+const unconfirmed =
+  'Der Mailserver der Instanz ändert sich erst nach der Bestätigung mit Passwort und Code.'
 
 const key = SecretKey.from('m'.repeat(64))
 
@@ -63,6 +76,10 @@ const messages: AccountMessages = {
   passkeyAdded: ({ name, passkey, link }) => ({
     subject: 'Ein neuer Passkey',
     body: `Hallo ${name}, angelegt wurde „${passkey}“. Ihre Passkeys: ${link}`,
+  }),
+  mailServerChanged: ({ name, host, link }) => ({
+    subject: 'Ein neuer Mailserver der Instanz',
+    body: `Hallo ${name}, Mails an ein Konto gehen jetzt über ${host ?? 'keinen Server'}. ${link}`,
   }),
 }
 
@@ -98,6 +115,44 @@ function send(
 }
 
 const message = (answer: { body: unknown }) => (answer.body as { message: string }).message
+
+/**
+ * A change of the mail server, after confirming again on the session as the
+ * route asks, and the answer it should get.
+ */
+function change(method: 'put' | 'delete', person: { email: string }, body?: object) {
+  return {
+    async expect(status: number) {
+      await visitors.reconfirm(person.email, as(person))
+
+      return send(method, '/instance/mail-server', person, body).expect(status)
+    },
+  }
+}
+
+/** The changes of the mail server as the tenants keep them, the oldest first. */
+async function changesIn(): Promise<
+  {
+    tenant_id: string
+    host_before: string | null
+    from_before: string | null
+    host_after: string | null
+    from_after: string | null
+  }[]
+> {
+  const { rows } = await admin.query<{
+    tenant_id: string
+    host_before: string | null
+    from_before: string | null
+    host_after: string | null
+    from_after: string | null
+  }>(
+    `select tenant_id, host_before, from_before, host_after, from_after
+       from account_mail_server_changes order by changed_at, id`,
+  )
+
+  return rows
+}
 
 /** The settings somebody types in for the mail server of the test. */
 function typed(over: object = {}) {
@@ -172,6 +227,19 @@ beforeAll(async () => {
     tenantId: tenants[0]?.id as TenantId,
     roles: ['lead'],
   })
+  await foundation.tenants(admin, [south])
+  await addStaffMember(instance.authentication, instance.database, {
+    ...sue,
+    password,
+    tenantId: south.id,
+    roles: ['lead'],
+  })
+  await addStaffMember(instance.authentication, instance.database, {
+    ...mia,
+    password,
+    tenantId: south.id,
+    roles: ['member'],
+  })
 
   await visitors.setUpSecondFactor(lea.email)
   await visitors.setUpSecondFactor(otto.email)
@@ -208,6 +276,33 @@ describe('who reaches the mail server of the instance', () => {
   })
 })
 
+describe('changing the mail server of the instance without confirming again', () => {
+  it('is refused, and nothing is kept, sent or written into a tenant', async () => {
+    for (const [method, body] of [
+      ['put', typed()],
+      ['delete', undefined],
+    ] as const) {
+      const refused = await send(method, '/instance/mail-server', lea, body).expect(403)
+
+      expect(message(refused)).toBe(unconfirmed)
+    }
+
+    expect(await state()).toEqual({ sends: true, server: null })
+    expect(await changesIn()).toEqual([])
+    expect(smtp.received).toEqual([])
+  })
+
+  it('takes one confirmation for one change, and a change refused spends it as well', async () => {
+    await change('put', lea, typed({ password: 'falsch-geraten' })).expect(422)
+
+    const refused = await send('put', '/instance/mail-server', lea, typed()).expect(403)
+
+    expect(message(refused)).toBe(unconfirmed)
+    expect(await state()).toEqual({ sends: true, server: null })
+    expect(await changesIn()).toEqual([])
+  })
+})
+
 describe('setting the mail server of the instance up', () => {
   it('refuses what can be named before a server is asked, with the field it is in', async () => {
     for (const [wrong, sentence] of [
@@ -219,7 +314,7 @@ describe('setting the mail server of the instance up', () => {
       [{ username: null }, 'Ein Passwort gehört zu einem Benutzernamen.'],
       [{ password: undefined }, 'Zum Benutzernamen fehlt das Passwort.'],
     ] as const) {
-      const refused = await send('put', '/instance/mail-server', lea, typed(wrong)).expect(400)
+      const refused = await change('put', lea, typed(wrong)).expect(400)
 
       expect(message(refused)).toContain(sentence)
     }
@@ -228,12 +323,7 @@ describe('setting the mail server of the instance up', () => {
   })
 
   it('refuses a login the mail server does not take, and keeps nothing', async () => {
-    const refused = await send(
-      'put',
-      '/instance/mail-server',
-      lea,
-      typed({ password: 'falsch-geraten' }),
-    ).expect(422)
+    const refused = await change('put', lea, typed({ password: 'falsch-geraten' })).expect(422)
 
     expect(message(refused)).toContain('Nicht gespeichert.')
     expect(message(refused)).toContain('lehnt die Anmeldung ab')
@@ -241,7 +331,7 @@ describe('setting the mail server of the instance up', () => {
   })
 
   it('keeps a server that takes the login, and hands the password to nobody', async () => {
-    const saved = await send('put', '/instance/mail-server', lea, typed()).expect(200)
+    const saved = await change('put', lea, typed()).expect(200)
 
     expect(saved.body).toEqual({
       server: {
@@ -263,6 +353,50 @@ describe('setting the mail server of the instance up', () => {
       (saved.body as { server: unknown }).server,
     )
     expect(JSON.stringify(read.body)).not.toContain(mailPassword)
+  })
+
+  it('writes it into the log of every tenant, by its server and address, as whoever set it up and without the login', async () => {
+    const { rows: people } = await admin.query<{ id: string }>(
+      'select id from auth_users where email = $1',
+      [lea.email],
+    )
+    const { rows: tenants } = await admin.query<{ id: string }>(
+      'select id from tenants order by id',
+    )
+
+    expect(tenants).toHaveLength(2)
+    expect(
+      [...(await changesIn())].sort((left, right) => left.tenant_id.localeCompare(right.tenant_id)),
+    ).toEqual(
+      tenants.map((tenant) => ({
+        tenant_id: tenant.id,
+        host_before: null,
+        from_before: null,
+        host_after: '127.0.0.1',
+        from_after: 'instanz@nord.example.de',
+      })),
+    )
+
+    const { rows: entries } = await admin.query<{
+      tenant_id: string
+      user_id: string | null
+      reason: string | null
+      new_value: string | null
+    }>(
+      `select tenant_id, user_id, reason, new_value from audit_entries
+        where table_name = 'account_mail_server_changes' and operation = 'insert'`,
+    )
+
+    expect(new Set(entries.map((entry) => entry.tenant_id))).toEqual(
+      new Set(tenants.map((tenant) => tenant.id)),
+    )
+    expect(
+      new Set(entries.map((entry) => `${String(entry.user_id)} ${String(entry.reason)}`)),
+    ).toEqual(new Set([`${people[0]?.id ?? ''} instance.mail-server`]))
+    // Neither the login nor its password, sealed or not.
+    expect(entries.map((entry) => entry.new_value)).not.toContain('instanz')
+    expect(JSON.stringify(entries)).not.toContain(mailPassword)
+    expect(JSON.stringify(entries)).not.toContain('v1:')
   })
 
   it('keeps the password sealed, for this purpose and under this key alone', async () => {
@@ -321,9 +455,8 @@ describe('setting the mail server of the instance up', () => {
 describe('changing the mail server of the instance', () => {
   it('keeps the password where none is typed, for the same server and the same login', async () => {
     const before = String((await kept())['mail_server_password'])
-    const saved = await send(
+    const saved = await change(
       'put',
-      '/instance/mail-server',
       lea,
       typed({ password: undefined, fromAddress: 'konten@nord.example.de' }),
     ).expect(200)
@@ -335,6 +468,25 @@ describe('changing the mail server of the instance', () => {
     expect((await kept())['mail_server_password']).toBe(before)
   })
 
+  it('writes a new address into every tenant, and the same server saved again into none', async () => {
+    const after = (await changesIn()).slice(-2)
+
+    expect(after.map((row) => [row.from_before, row.from_after])).toEqual([
+      ['instanz@nord.example.de', 'konten@nord.example.de'],
+      ['instanz@nord.example.de', 'konten@nord.example.de'],
+    ])
+
+    const before = (await changesIn()).length
+
+    await change(
+      'put',
+      lea,
+      typed({ password: undefined, fromAddress: 'konten@nord.example.de' }),
+    ).expect(200)
+
+    expect(await changesIn()).toHaveLength(before)
+  })
+
   it('sends the kept password to no other server and under no other login', async () => {
     const elsewhere = await fakeSmtpServer()
 
@@ -344,12 +496,9 @@ describe('changing the mail server of the instance', () => {
         { username: 'jemand-anders', password: undefined },
       ]) {
         for (const path of ['/instance/mail-server', '/instance/mail-server/check'] as const) {
-          const refused = await send(
-            path.endsWith('check') ? 'post' : 'put',
-            path,
-            lea,
-            typed(moved),
-          ).expect(400)
+          const refused = path.endsWith('check')
+            ? await send('post', path, lea, typed(moved)).expect(400)
+            : await change('put', lea, typed(moved)).expect(400)
 
           expect(message(refused)).toContain(
             'Das gespeicherte Passwort geht nur an den Server und den Benutzernamen',
@@ -437,18 +586,13 @@ describe('a mail to an account', () => {
     })
 
     try {
-      await send(
-        'put',
-        '/instance/mail-server',
-        lea,
-        typed({ host: '127.0.0.1', port: strict.port }),
-      ).expect(200)
+      await change('put', lea, typed({ host: '127.0.0.1', port: strict.port })).expect(200)
 
       const { passkeyNotice } = accountMails(database, mail, messages)
 
       await expect(passkeyNotice(otherwise, { id: 'passkey-2', name: 'Telefon' })).rejects.toThrow()
     } finally {
-      await send('put', '/instance/mail-server', lea, typed()).expect(200)
+      await change('put', lea, typed()).expect(200)
       await strict.close()
     }
   })
@@ -473,7 +617,7 @@ describe('a mail to an account', () => {
 
 describe('removing the mail server of the instance', () => {
   it('takes the login with it, and after it no mail goes to an account', async () => {
-    await send('delete', '/instance/mail-server', lea).expect(200)
+    await change('delete', lea).expect(200)
 
     expect(await state()).toEqual({ sends: true, server: null })
     expect(Object.values(await kept())).toEqual([null, null, null, null, null, null, null])
@@ -491,9 +635,112 @@ describe('removing the mail server of the instance', () => {
   })
 
   it('says so where there is none to remove', async () => {
-    const refused = await send('delete', '/instance/mail-server', lea).expect(404)
+    const refused = await change('delete', lea).expect(404)
 
     expect(message(refused)).toBe('Die Instanz hat keinen Mailserver, der sich entfernen ließe.')
+  })
+})
+
+/**
+ * Whoever leads a tenant hears of a change by mail, through the server of
+ * before. On an instance of its own over the same database, the only one here
+ * that is handed the words of the application: its mails go out after the
+ * answer, and the tests above count the mails of the server in between.
+ */
+describe('whoever leads a tenant, told of a change of the mail server', () => {
+  let told: ProbeInstance
+  let other: FakeSmtpServer
+
+  const leads = [lea.email, otto.email, sue.email]
+
+  /** The mails a server got for whoever leads, in the order they came. */
+  const toLeads = (server: FakeSmtpServer) =>
+    server.received.filter((mail) => mail.to.some((to) => [...leads, mia.email].includes(to)))
+
+  function changeOn(method: 'put' | 'delete', body?: object) {
+    return {
+      async expect(status: number) {
+        await visitors.reconfirm(lea.email, as(lea))
+
+        return told
+          .http()
+          [method]('/instance/mail-server')
+          .set('cookie', as(lea))
+          .set('origin', origin)
+          .send(body ?? {})
+          .expect(status)
+      },
+    }
+  }
+
+  beforeAll(async () => {
+    told = await probeInstance(foundation.kit.applicationDatabaseUrl(), {
+      mail,
+      accountMessages: messages,
+    })
+    other = await fakeSmtpServer({ credentials: { user: 'instanz', password: mailPassword } })
+  })
+
+  afterAll(async () => {
+    await told.close()
+    await other.close()
+  })
+
+  it('are told through the server of before, each once, and nothing through the new one', async () => {
+    // The first server: there is none before it, and so nobody to be told through.
+    await changeOn('put', typed()).expect(200)
+
+    const before = toLeads(smtp).length
+
+    await changeOn('put', typed({ port: other.port, fromAddress: 'neu@nord.example.de' })).expect(
+      200,
+    )
+    await vi.waitFor(
+      () => {
+        expect(toLeads(smtp).length).toBe(before + leads.length)
+      },
+      { timeout: 10_000 },
+    )
+
+    const mails = toLeads(smtp).slice(before)
+
+    expect(mails.flatMap((mail) => mail.to).sort()).toEqual([...leads].sort())
+    expect(new Set(mails.map((mail) => mail.from))).toEqual(new Set(['instanz@nord.example.de']))
+    expect(mails[0]?.data).toContain('Subject: Ein neuer Mailserver der Instanz')
+    expect(toLeads(other)).toEqual([])
+  })
+
+  it('are told of a removal through the server that goes, and every tenant keeps it', async () => {
+    const before = toLeads(other).length
+
+    await changeOn('delete').expect(200)
+    await vi.waitFor(
+      () => {
+        expect(toLeads(other).length).toBe(before + leads.length)
+      },
+      { timeout: 10_000 },
+    )
+
+    expect(
+      toLeads(other)
+        .slice(before)
+        .flatMap((mail) => mail.to)
+        .sort(),
+    ).toEqual([...leads].sort())
+    expect((await changesIn()).slice(-2)).toEqual([
+      expect.objectContaining({
+        host_before: '127.0.0.1',
+        from_before: 'neu@nord.example.de',
+        host_after: null,
+        from_after: null,
+      }),
+      expect.objectContaining({
+        host_before: '127.0.0.1',
+        from_before: 'neu@nord.example.de',
+        host_after: null,
+        from_after: null,
+      }),
+    ])
   })
 })
 
@@ -521,7 +768,7 @@ describe('trying the mail server of the instance over and over', () => {
     expect(tries).toBeLessThanOrEqual(30)
     expect(message(refused ?? { body: {} })).toContain('In ein paar Minuten geht es wieder.')
     // Saving counts against the same allowance.
-    await send('put', '/instance/mail-server', lea, typed()).expect(429)
+    await change('put', lea, typed()).expect(429)
   })
 })
 

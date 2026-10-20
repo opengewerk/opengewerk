@@ -211,7 +211,7 @@ const instance = {
     mailOwnServer: 'Ein Betrieb verschickt seine E-Mails über seinen eigenen Mailserver.',
     mailNoWayIn: 'So greift kein Betrieb über die Instanz in das Netz dahinter.',
     accountMail:
-      'Über diesen Mailserver gehen die E-Mails an ein Konto: der Link zu einem neuen Passwort und der Hinweis auf einen neuen Passkey. Ein Konto gehört der Instanz und keinem Betrieb, deshalb gehen diese E-Mails nie über den Mailserver eines Betriebs.',
+      'Über diesen Mailserver gehen die E-Mails an ein Konto: der Link zu einem neuen Passwort und der Hinweis auf einen neuen Passkey. Ein Konto gehört der Instanz und keinem Betrieb, deshalb gehen diese E-Mails nie über den Mailserver eines Betriebs. Jede Änderung hier steht im Änderungsprotokoll jedes Betriebs, und die Inhaber aller Betriebe bekommen eine E-Mail darüber, noch über den Mailserver von vorher.',
     accountMailMissing: (
       <>
         Es ist kein Mailserver eingerichtet. Wer sein Passwort vergessen hat, bekommt keinen Link;

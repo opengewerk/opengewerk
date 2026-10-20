@@ -14,6 +14,7 @@ import { Confirm } from '../components/confirm.js'
 import { Field, SelectField } from '../components/field.js'
 import { Panel } from '../components/panel.js'
 import { date } from '../format.js'
+import { Reconfirmation } from '../office/passkeys.js'
 import { SettingsText } from '../office/settings.js'
 import {
   checkInstanceMailServer,
@@ -85,6 +86,12 @@ function saidOfSaving(saved: {
  * the mail server of no tenant, because an account belongs to the instance.
  * Why that is so, and what is missing without it, the application says in its
  * word for a tenant.
+ *
+ * Saving and removing it ask for the confirmation with the password and the
+ * code from the app first, as changing one's own address does
+ * (opengewerk-haustechnik#360): whoever sets this server up could read the
+ * links to new passwords there. That every tenant learns of a change is the
+ * server's.
  */
 export function InstanceMailServer() {
   const sentences = useInstanceSentences().settings
@@ -171,6 +178,8 @@ function MailServerForm({
   const [password, setPassword] = useState('')
   const [fromAddress, setFromAddress] = useState(stored?.fromAddress ?? '')
   const [asking, setAsking] = useState(false)
+  // Which change waits for the confirmation with the password, if one does.
+  const [confirming, setConfirming] = useState<'save' | 'remove' | null>(null)
 
   function input(): InstanceMailServerInput {
     return {
@@ -220,143 +229,173 @@ function MailServerForm({
       onSaid({ tone: 'alert', text: saidWhy(error, 'Der Mailserver ließ sich nicht entfernen.') })
     },
   })
-  const working = save.isPending || check.isPending || remove.isPending
+  const working = save.isPending || check.isPending || remove.isPending || confirming !== null
 
   return (
-    <form
-      noValidate
-      className="flex flex-col gap-3"
-      onSubmit={(event) => {
-        event.preventDefault()
-        onSaid(null)
-        save.mutate()
-      }}
-    >
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_minmax(0,0.8fr)]">
-        <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-          <Field
-            label="Server"
-            name="host"
-            autoComplete="off"
-            value={host}
-            onChange={(event) => {
-              setHost(event.target.value)
+    <div className="flex flex-col gap-3">
+      <form
+        noValidate
+        className="flex flex-col gap-3"
+        onSubmit={(event) => {
+          event.preventDefault()
+          onSaid(null)
+          setConfirming('save')
+        }}
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.3fr)_minmax(0,0.8fr)]">
+          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+            <Field
+              label="Server"
+              name="host"
+              autoComplete="off"
+              value={host}
+              onChange={(event) => {
+                setHost(event.target.value)
+              }}
+            />
+          </div>
+          <SelectField
+            label="Verschlüsselung"
+            value={security}
+            options={smtpSecurities.map((value) => ({ value, label: securityLabels[value] }))}
+            onChange={(value) => {
+              // A port that was only the one that went with the old choice
+              // follows the new one, instead of staying 587 under TLS.
+              if (port === String(defaultSmtpPorts[security])) {
+                setPort('')
+              }
+
+              setSecurity(value as SmtpSecurity)
             }}
           />
+          <Field
+            label="Port"
+            name="port"
+            inputMode="numeric"
+            numeric
+            value={port}
+            placeholder={String(defaultSmtpPorts[security])}
+            onChange={(event) => {
+              setPort(event.target.value)
+            }}
+            hint="Leer für den Port der Verschlüsselung."
+          />
         </div>
-        <SelectField
-          label="Verschlüsselung"
-          value={security}
-          options={smtpSecurities.map((value) => ({ value, label: securityLabels[value] }))}
-          onChange={(value) => {
-            // A port that was only the one that went with the old choice
-            // follows the new one, instead of staying 587 under TLS.
-            if (port === String(defaultSmtpPorts[security])) {
-              setPort('')
-            }
-
-            setSecurity(value as SmtpSecurity)
-          }}
-        />
-        <Field
-          label="Port"
-          name="port"
-          inputMode="numeric"
-          numeric
-          value={port}
-          placeholder={String(defaultSmtpPorts[security])}
-          onChange={(event) => {
-            setPort(event.target.value)
-          }}
-          hint="Leer für den Port der Verschlüsselung."
-        />
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <Field
-          label="Benutzername"
-          name="username"
-          autoComplete="off"
-          value={username}
-          onChange={(event) => {
-            setUsername(event.target.value)
-          }}
-        />
-        <Field
-          label="Passwort"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          value={password}
-          onChange={(event) => {
-            setPassword(event.target.value)
-          }}
-          {...(stored?.password === 'unreadable'
-            ? {
-                problem:
-                  'Das gespeicherte Passwort lässt sich nicht mehr lesen. Es muss neu eingegeben werden.',
-              }
-            : stored?.password === 'set' && stored.passwordSetAt
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Field
+            label="Benutzername"
+            name="username"
+            autoComplete="off"
+            value={username}
+            onChange={(event) => {
+              setUsername(event.target.value)
+            }}
+          />
+          <Field
+            label="Passwort"
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(event) => {
+              setPassword(event.target.value)
+            }}
+            {...(stored?.password === 'unreadable'
               ? {
-                  hint: `Gespeichert am ${date(stored.passwordSetAt)}. Leer lassen, um es zu behalten.`,
+                  problem:
+                    'Das gespeicherte Passwort lässt sich nicht mehr lesen. Es muss neu eingegeben werden.',
                 }
-              : {})}
-        />
-        <Field
-          label="Absenderadresse"
-          name="fromAddress"
-          type="email"
-          autoComplete="off"
-          value={fromAddress}
-          onChange={(event) => {
-            setFromAddress(event.target.value)
-          }}
-          hint="Davor steht der Name der Anwendung."
-        />
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" tone="primary" icon={Check} disabled={working}>
-          {save.isPending ? 'Wird geprüft' : 'Speichern'}
-        </Button>
-        <Button
-          type="button"
-          icon={RefreshCw}
-          disabled={working}
-          onClick={() => {
-            onSaid(null)
-            check.mutate()
-          }}
-        >
-          {check.isPending ? 'Wird geprüft' : 'Verbindung prüfen'}
-        </Button>
-        {stored ? (
+              : stored?.password === 'set' && stored.passwordSetAt
+                ? {
+                    hint: `Gespeichert am ${date(stored.passwordSetAt)}. Leer lassen, um es zu behalten.`,
+                  }
+                : {})}
+          />
+          <Field
+            label="Absenderadresse"
+            name="fromAddress"
+            type="email"
+            autoComplete="off"
+            value={fromAddress}
+            onChange={(event) => {
+              setFromAddress(event.target.value)
+            }}
+            hint="Davor steht der Name der Anwendung."
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" tone="primary" icon={Check} disabled={working}>
+            {save.isPending ? 'Wird geprüft' : 'Speichern'}
+          </Button>
           <Button
             type="button"
-            tone="danger"
+            icon={RefreshCw}
             disabled={working}
             onClick={() => {
               onSaid(null)
-              setAsking(true)
+              check.mutate()
             }}
           >
-            Mailserver entfernen
+            {check.isPending ? 'Wird geprüft' : 'Verbindung prüfen'}
           </Button>
-        ) : null}
-        <Confirm
-          open={asking}
-          title="Mailserver entfernen?"
-          confirm="Entfernen"
-          busy={remove.isPending}
-          onConfirm={() => {
-            remove.mutate()
-          }}
-          onCancel={() => {
-            setAsking(false)
-          }}
+          {stored ? (
+            <Button
+              type="button"
+              tone="danger"
+              disabled={working}
+              onClick={() => {
+                onSaid(null)
+                setAsking(true)
+              }}
+            >
+              Mailserver entfernen
+            </Button>
+          ) : null}
+          <span className="self-center text-[12px] text-ink-muted">
+            Mit erneuter Bestätigung durch Passwort und Code.
+          </span>
+          <Confirm
+            open={asking}
+            title="Mailserver entfernen?"
+            confirm="Entfernen"
+            busy={remove.isPending}
+            onConfirm={() => {
+              setAsking(false)
+              setConfirming('remove')
+            }}
+            onCancel={() => {
+              setAsking(false)
+            }}
+          >
+            Die Anmeldung beim Mailserver wird gelöscht. Danach geht keine E-Mail mehr an ein Konto,
+            auch kein Link zu einem neuen Passwort, bis wieder ein Mailserver eingetragen ist.
+          </Confirm>
+        </div>
+      </form>
+      {confirming ? (
+        <section
+          aria-label="Mailserver der Instanz bestätigen"
+          className="rounded-[5px] border border-line bg-surface-sunken p-3"
         >
-          Die Anmeldung beim Mailserver wird gelöscht. Danach geht keine E-Mail mehr an ein Konto,
-          auch kein Link zu einem neuen Passwort, bis wieder ein Mailserver eingetragen ist.
-        </Confirm>
-      </div>
-    </form>
+          <Reconfirmation
+            narrow
+            onConfirmed={() => {
+              const change = confirming
+
+              setConfirming(null)
+
+              if (change === 'save') {
+                save.mutate()
+              } else {
+                remove.mutate()
+              }
+            }}
+            onCancel={() => {
+              setConfirming(null)
+            }}
+          />
+        </section>
+      ) : null}
+    </div>
   )
 }

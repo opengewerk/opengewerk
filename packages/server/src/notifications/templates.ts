@@ -407,3 +407,57 @@ export function passkeyAddedMessage(facts: {
 
   return { subject: 'Ein neuer Passkey für OpenGewerk', body }
 }
+
+/**
+ * The mail about a new mail server of the instance
+ * (opengewerk-haustechnik#360), to whoever owns a business on it.
+ *
+ * The link to a new password goes out through that server, and whoever sets
+ * it up could read the links there. So the owner of every business learns of
+ * a change, through the server of before: what it is now, when, where the
+ * change stands in the log, and what to do if nobody announced it. It names
+ * no person and carries no link that does anything by itself.
+ */
+export function mailServerChangedMessage(facts: {
+  readonly name: string
+  readonly host: string | null
+  readonly fromAddress: string | null
+  readonly changedAt: Date
+  readonly link: string
+}): MessageText {
+  const when = new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Europe/Berlin',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(facts.changedAt)
+  const what =
+    facts.host === null
+      ? `Am ${when} Uhr wurde der Mailserver der Instanz entfernt. Bis wieder einer ` +
+        'eingetragen ist, bekommt niemand mehr einen Link zu einem neuen Passwort.'
+      : `Am ${when} Uhr wurde der Mailserver der Instanz geändert. E-Mails an einen Zugang, ` +
+        `darunter der Link zu einem neuen Passwort, gehen jetzt über ${facts.host}, ` +
+        `als Absender steht ${facts.fromAddress ?? facts.host} darin.`
+
+  const body = [
+    facts.name ? `Hallo ${facts.name},` : 'Hallo,',
+    '',
+    `${what} Diese Nachricht kommt noch über den Mailserver von vorher.`,
+    '',
+    'Die Änderung steht im Änderungsprotokoll Ihres Betriebs, ebenso jedes Passwort, das ' +
+      'jemand in Ihrem Betrieb zurücksetzt:',
+    '',
+    facts.link,
+    '',
+    'Wenn der Betreiber der Instanz Ihnen diese Änderung nicht angekündigt hat, fragen Sie ' +
+      'nach und sehen Sie im Änderungsprotokoll nach, ob ein Passwort zurückgesetzt wurde, ' +
+      'das niemand von Ihnen zurückgesetzt hat.',
+    '',
+    '-- ',
+    'OpenGewerk',
+  ].join('\n')
+
+  return { subject: 'Der Mailserver Ihrer OpenGewerk-Instanz wurde geändert', body }
+}

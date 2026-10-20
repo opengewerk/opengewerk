@@ -3,11 +3,13 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpException,
   HttpStatus,
   Inject,
+  NotFoundException,
   Optional,
   Param,
   Post,
@@ -31,23 +33,29 @@ import type {
 import { RequiresOperator, RequiresSession } from '../api/authorization.js'
 import { CurrentUser, type SignedInUser } from '../api/identity.js'
 import { ACCESS_RULES, type AccessRules } from '../authentication/access.js'
+import { claimReconfirmation } from '../authentication/reconfirmation.js'
 import { Database } from '../database/database.js'
 import { isUuid } from '../database/identifier.js'
 import { checkMailServer, type MailServerCheck } from '../mail/check.js'
 import type { MailConfiguration } from '../mail/configuration.js'
 import { MAIL, type MailContext } from '../mail/context.js'
+import type { MailConnection } from '../mail/server-settings.js'
+import { ACCOUNT_MESSAGES, type AccountMessages } from './account-mail.js'
 import { operatorAccess } from './access.js'
 import { checkedLegalTexts, readInstanceLegalTexts, saveLegalTexts } from './legal-texts.js'
 import { checkedMeasures, readInstanceMeasures, saveMeasures } from './measures.js'
 import { readInstanceLog } from './log.js'
 import {
   instanceMailConfigurationToTry,
+  instanceMailConnection,
   instanceMailServerInput,
+  namedInstanceMailServer,
   readInstanceMailServer,
   removeInstanceMailServer,
   sameInstanceMailConnection,
   saveInstanceMailServer,
 } from './mail-server.js'
+import { type MailServerNamed, recordMailServerChange, tellWhoLeads } from './mail-server-notice.js'
 import { appointOperator, listOperators, removeOperator } from './operators.js'
 import {
   checkedChange,
@@ -86,12 +94,25 @@ function field(body: unknown, name: string): unknown {
     : undefined
 }
 
+/** Why a change of the mail server of the instance is refused to a session that did not confirm again. */
+const mailServerUnconfirmed =
+  'Der Mailserver der Instanz ändert sich erst nach der Bestätigung mit Passwort und Code.'
+
 /**
  * The area of the instance (#188), for whoever runs it: the tenants on it
  * (#142), its settings, its legal texts, the accounts that run it and its log. Not the
  * workplace of any tenant; every route but the first asks for somebody who
- * runs the instance and has a second factor, and nothing here reads what is
- * in a tenant.
+ * runs the instance and has a second factor, and nothing here shows what is
+ * in a tenant beyond its name, the day it came, who leads it and how many
+ * work there.
+ *
+ * One setting reaches into every tenant all the same, the mail server of the
+ * instance: the link to a new password goes out through it, and whoever sets
+ * it up could read the links there (opengewerk-haustechnik#360). So it changes
+ * only after confirming again with the password and the code from the app,
+ * and every change goes into the log of every tenant and by mail, through the
+ * server of before, to whoever leads one (`mail-server-notice.ts`). Whoever
+ * runs the instance writes those rows and reads none of them.
  */
 @Controller('instance')
 export class InstanceController {
@@ -104,6 +125,9 @@ export class InstanceController {
     @Optional()
     @Inject(MAIL)
     private readonly mail?: MailContext | null,
+    @Optional()
+    @Inject(ACCOUNT_MESSAGES)
+    private readonly messages?: AccountMessages | null,
   ) {}
 
   /** When the mail server of the instance was last tried, the last ten minutes of it. In memory, like the tries of a tenant. */
@@ -140,6 +164,43 @@ export class InstanceController {
 
     recent.push(now)
     this.mailTries = recent
+  }
+
+  /**
+   * Takes the confirmation of the session for one change of the mail server,
+   * or refuses it. Spent before anything is asked of a server or saved, so a
+   * change that fails after it needs the password again, which is the side to
+   * err on, and a session that did not confirm reaches nothing at all.
+   */
+  private async reconfirmed(user: SignedInUser): Promise<void> {
+    if (!(await claimReconfirmation(this.database, user.sessionId))) {
+      throw new ForbiddenException(mailServerUnconfirmed)
+    }
+  }
+
+  /**
+   * Tells whoever leads a tenant of the change, through the connection of
+   * before. Not awaited: the answer does not wait for one mail per person, and
+   * a server of before that is down this minute would otherwise hold the
+   * change up. The log of every tenant has it already.
+   */
+  private tellWhoLeads(
+    previous: MailConnection | null,
+    after: MailServerNamed | null,
+    userId: string,
+  ): void {
+    if (!this.mail || !this.messages) {
+      return
+    }
+
+    void tellWhoLeads(this.database, this.mail, this.messages, previous, after, userId).catch(
+      (error: unknown) => {
+        console.error(
+          'Die Nachricht über den geänderten Mailserver der Instanz ging nicht hinaus.',
+          error,
+        )
+      },
+    )
   }
 
   private async tryMailServer(
@@ -198,6 +259,11 @@ export class InstanceController {
    * Saves the mail server of the instance, and asks it first. A connection
    * that is new is kept only when the server takes it; the one already kept
    * is saved whatever the server says this minute, with what it said.
+   *
+   * Only after confirming again (opengewerk-haustechnik#360), and a change is
+   * written into every tenant before it is saved and told to whoever leads
+   * one after: see the class. Saving the connection there is, from the same
+   * address, changes nothing and tells nobody.
    */
   @Put('mail-server')
   @RequiresOperator()
@@ -206,30 +272,62 @@ export class InstanceController {
     @Body() body: unknown,
   ): Promise<SavedInstanceMailServer> {
     const context = this.mailContext()
+
+    await this.reconfirmed(user)
+
     const input = instanceMailServerInput(body)
     const configuration = await instanceMailConfigurationToTry(this.database, context.key, input)
 
     this.mailTryAllowed()
 
     const check = await this.tryMailServer(context, configuration)
+    const same = await sameInstanceMailConnection(this.database, context.key, configuration)
 
-    if (
-      check.outcome !== 'ready' &&
-      !(await sameInstanceMailConnection(this.database, context.key, configuration))
-    ) {
+    if (check.outcome !== 'ready' && !same) {
       throw new UnprocessableEntityException(`Nicht gespeichert. ${check.reason}`)
     }
 
-    return {
-      server: await saveInstanceMailServer(this.database, user.userId, context.key, input),
-      check,
+    // What there was, read before anything changes: the server the tenants
+    // are told through, and what they are told it was.
+    const previous = await instanceMailConnection(this.database, context.key)
+    const before = await namedInstanceMailServer(this.database)
+    const after = { host: configuration.host, fromAddress: configuration.from }
+    const changed = !same || before?.fromAddress !== after.fromAddress
+
+    if (changed) {
+      await recordMailServerChange(this.database, user.userId, before, after)
     }
+
+    const server = await saveInstanceMailServer(this.database, user.userId, context.key, input)
+
+    if (changed) {
+      this.tellWhoLeads(previous, after, user.userId)
+    }
+
+    return { server, check }
   }
 
+  /**
+   * Removes the mail server of the instance, after confirming again, written
+   * into every tenant first and told to whoever leads one through the server
+   * that goes, as a change is.
+   */
   @Delete('mail-server')
   @RequiresOperator()
   async removeMailServer(@CurrentUser() user: SignedInUser): Promise<{ readonly removed: true }> {
+    await this.reconfirmed(user)
+
+    const before = await namedInstanceMailServer(this.database)
+
+    if (!before) {
+      throw new NotFoundException('Die Instanz hat keinen Mailserver, der sich entfernen ließe.')
+    }
+
+    const previous = this.mail ? await instanceMailConnection(this.database, this.mail.key) : null
+
+    await recordMailServerChange(this.database, user.userId, before, null)
     await removeInstanceMailServer(this.database, user.userId)
+    this.tellWhoLeads(previous, null, user.userId)
 
     return { removed: true }
   }
