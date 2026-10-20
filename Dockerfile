@@ -5,7 +5,10 @@
 # The image is the same for every installation; addresses, passwords and ports
 # arrive at runtime from the environment.
 
-FROM node:24-alpine AS build
+# Both stages on the image by its digest (#687): a tag names whatever was
+# pushed under it last. Dependabot moves the digest, in a pull request the
+# CI builds like any other.
+FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS build
 
 WORKDIR /build
 RUN corepack enable
@@ -42,7 +45,7 @@ RUN pnpm deploy --filter @opengewerk/server --prod /anwendung
 # The built interface goes in beside it, under the name the server looks for.
 RUN cp -r packages/web/dist /anwendung/interface
 
-FROM node:24-alpine AS runtime
+FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS runtime
 
 # tini as process 1. Node neither forwards a SIGTERM to child processes nor
 # reaps zombies, and both only show up in operation, when an update waits ten

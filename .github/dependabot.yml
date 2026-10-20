@@ -8,6 +8,17 @@ updates:
     schedule:
       interval: weekly
 
+  # The bases the images are built on, by their digest (#687): node for the
+  # application, the database image for the backup. The one in
+  # docker/backup has to move with the database in compose.yaml above;
+  # "test-stack.sh base-images" stays red until both name the same.
+  - package-ecosystem: docker
+    directories:
+      - /
+      - /docker/backup
+    schedule:
+      interval: weekly
+
   # The actions in the workflows. Those from outside GitHub are pinned to a
   # commit in release.yml (#155); a pin that nobody moves keeps its version
   # forever, and Dependabot moves the commit and the comment with the version.
