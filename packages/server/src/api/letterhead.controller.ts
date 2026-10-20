@@ -31,6 +31,7 @@ import {
   fileRowFor,
   type FileStorage,
   type TenantTransaction,
+  UploadLimits,
 } from '@opengewerk/platform-server'
 import { and, eq, ne } from 'drizzle-orm'
 import type { Request } from 'express'
@@ -155,6 +156,7 @@ export class LetterheadController {
   constructor(
     private readonly database: Database,
     @Inject(FILE_STORE) private readonly store: FileStorage,
+    private readonly limits: UploadLimits,
   ) {}
 
   /**
@@ -285,6 +287,10 @@ export class LetterheadController {
     if (mediaType === null) {
       throw new UnsupportedMediaTypeException('Das Logo muss ein PNG- oder JPEG-Bild sein.')
     }
+
+    // Within what an hour allows and the room the volume keeps, like every
+    // file somebody sends.
+    await this.limits.admit(identity, bytes.byteLength)
 
     // Into the store first, then the rows, for the same reason as with a PDF:
     // the other order could leave a row pointing at a file nobody wrote.
