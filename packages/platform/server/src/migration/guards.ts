@@ -36,6 +36,15 @@ export interface TableGuard {
    */
   readonly audited: boolean
   /**
+   * A condition over `old` under which the log writes nothing for a change or
+   * a deletion (opengewerk/opengewerk#658): a row that goes for good on the
+   * one way an application opens for it is not copied into the log on its
+   * way out. The log then hangs on the table as two triggers, one for what is
+   * inserted and one for the rest with this condition, as the evidence of
+   * opengewerk-haustechnik keeps it since #340.
+   */
+  readonly auditedUnless?: string
+  /**
    * Whether its rows travel to devices. Such a table carries the sync columns,
    * and this is the trigger that keeps them true.
    */
@@ -48,7 +57,12 @@ export interface TableGuard {
 }
 
 /** When a trigger of a table fires, as its statement says it. */
-export const triggerMoments = ['BEFORE INSERT', 'AFTER INSERT', 'BEFORE UPDATE OR DELETE'] as const
+export const triggerMoments = [
+  'BEFORE INSERT',
+  'AFTER INSERT',
+  'BEFORE UPDATE OR DELETE',
+  'BEFORE DELETE',
+] as const
 
 /** A trigger of a table that is its own, beside the log and the stamp of the sync. */
 export interface TableTrigger {
@@ -120,7 +134,14 @@ export function triggerStatements(guard: TableGuard): string[] {
   const table = quoted(guard.table)
   const statements: string[] = []
 
-  if (guard.audited) {
+  if (guard.audited && guard.auditedUnless !== undefined) {
+    statements.push(
+      `CREATE TRIGGER "audit_changes" AFTER INSERT ON ${table}\n` +
+        '\tFOR EACH ROW EXECUTE FUNCTION "record_change"();',
+      `CREATE TRIGGER "audit_changes_unless_purged" AFTER UPDATE OR DELETE ON ${table}\n` +
+        `\tFOR EACH ROW WHEN (NOT (${guard.auditedUnless})) EXECUTE FUNCTION "record_change"();`,
+    )
+  } else if (guard.audited) {
     statements.push(
       `CREATE TRIGGER "audit_changes" AFTER INSERT OR UPDATE OR DELETE ON ${table}\n` +
         '\tFOR EACH ROW EXECUTE FUNCTION "record_change"();',
@@ -258,7 +279,22 @@ export const foundationGuards: readonly TableGuard[] = [
       },
     ],
   },
-  { table: 'files', grants: ['select', 'insert'], audited: true, synced: false },
+  // A file of a tenant goes only with the last version that named it, on the
+  // way an application opens for a document (#658), and only while nothing
+  // else names it; the trigger refuses every other deletion.
+  {
+    table: 'files',
+    grants: ['select', 'insert', 'delete'],
+    audited: true,
+    synced: false,
+    triggers: [
+      {
+        name: 'files_go_with_their_document',
+        fires: 'BEFORE DELETE',
+        calls: 'file_goes_with_its_document',
+      },
+    ],
+  },
   // Who stored a file: added, and read by the person it names alone.
   { table: 'file_uploads', grants: ['select', 'insert'], audited: false, synced: false },
   { table: 'mail_settings', grants: everything, audited: true, synced: false },
@@ -404,6 +440,9 @@ export const attachmentsGuard: TableGuard = {
   table: 'attachments',
   grants: noDelete,
   audited: true,
+  // Taken back to a shell on the way an application opens (#658): the title
+  // it had is not copied into the log on its way out.
+  auditedUnless: 'public.attachment_purging(old.id)',
   synced: true,
 }
 
@@ -419,8 +458,11 @@ export const attachmentsGuard: TableGuard = {
  */
 export const attachmentVersionsGuard: TableGuard = {
   table: 'attachment_versions',
-  grants: ['select', 'insert'],
+  // Deleted only with their document, on the way an application opens for
+  // it (#658); the trigger below refuses every other deletion.
+  grants: ['select', 'insert', 'delete'],
   audited: true,
+  auditedUnless: 'public.attachment_purging(old.attachment_id)',
   synced: true,
   triggers: [
     {

@@ -143,22 +143,30 @@ describe('what guards a table', () => {
 
 describe('the files in the records of a tenant, where an application keeps them', () => {
   it('are marked and never removed, and travel and are watched like every record', () => {
+    // Watched in two halves (#658): what is changed or deleted while the
+    // document goes for good is not copied into the log.
     expect(guardStatements(attachmentsGuard)).toEqual([
       'ALTER TABLE "attachments" FORCE ROW LEVEL SECURITY;',
       'GRANT SELECT, INSERT, UPDATE ON "attachments" TO "opengewerk_app";',
-      'CREATE TRIGGER "audit_changes" AFTER INSERT OR UPDATE OR DELETE ON "attachments"\n' +
+      'CREATE TRIGGER "audit_changes" AFTER INSERT ON "attachments"\n' +
         '\tFOR EACH ROW EXECUTE FUNCTION "record_change"();',
+      'CREATE TRIGGER "audit_changes_unless_purged" AFTER UPDATE OR DELETE ON "attachments"\n' +
+        '\tFOR EACH ROW WHEN (NOT (public.attachment_purging(old.id))) EXECUTE FUNCTION "record_change"();',
       'CREATE TRIGGER "stamp_sync_columns" BEFORE INSERT OR UPDATE ON "attachments"\n' +
         '\tFOR EACH ROW EXECUTE FUNCTION "stamp_sync_columns"();',
     ])
   })
 
-  it('have versions that are read and inserted and nothing else, with who stored one and the bolt', () => {
+  it('have versions that are read and inserted, and deleted only with their document, with who stored one and the bolt', () => {
+    // DELETE is granted, and the bolt lets a deletion through only while the
+    // document goes for good on the way an application opens (#658).
     expect(guardStatements(attachmentVersionsGuard)).toEqual([
       'ALTER TABLE "attachment_versions" FORCE ROW LEVEL SECURITY;',
-      'GRANT SELECT, INSERT ON "attachment_versions" TO "opengewerk_app";',
-      'CREATE TRIGGER "audit_changes" AFTER INSERT OR UPDATE OR DELETE ON "attachment_versions"\n' +
+      'GRANT SELECT, INSERT, DELETE ON "attachment_versions" TO "opengewerk_app";',
+      'CREATE TRIGGER "audit_changes" AFTER INSERT ON "attachment_versions"\n' +
         '\tFOR EACH ROW EXECUTE FUNCTION "record_change"();',
+      'CREATE TRIGGER "audit_changes_unless_purged" AFTER UPDATE OR DELETE ON "attachment_versions"\n' +
+        '\tFOR EACH ROW WHEN (NOT (public.attachment_purging(old.attachment_id))) EXECUTE FUNCTION "record_change"();',
       'CREATE TRIGGER "stamp_sync_columns" BEFORE INSERT OR UPDATE ON "attachment_versions"\n' +
         '\tFOR EACH ROW EXECUTE FUNCTION "stamp_sync_columns"();',
       'CREATE TRIGGER "attachment_versions_record_uploader" BEFORE INSERT ON "attachment_versions"\n' +
@@ -197,13 +205,15 @@ describe('the tables of the foundation', () => {
     }
   })
 
-  it('let nothing that names a tenant be deleted by the application, its roles and its mail server aside', () => {
+  it('let nothing that names a tenant be deleted by the application, its roles, its mail server and a file aside', () => {
     // Who was let in, by whom and what became of it is part of the record. A
     // person is blocked and an invitation called back, both changes the log
     // keeps; a row that can be removed is a record with a hole in it. A role
     // and the mail server of a tenant are settings and no record: a role the
     // tenant made is removed again (opengewerk/opengewerk-haustechnik#346),
-    // a mail server is set up and removed again, and the log keeps both.
+    // a mail server is set up and removed again, and the log keeps both. A
+    // file goes only with the last version of a document that goes for good,
+    // which its bolt holds it to (#658).
     const ofATenant = foundationGuards.filter(
       (guard) => !guard.table.startsWith('auth_') && !guard.table.startsWith('instance_'),
     )
@@ -211,7 +221,7 @@ describe('the tables of the foundation', () => {
     expect(ofATenant).toHaveLength(20)
     expect(
       ofATenant.filter((guard) => guard.grants.includes('delete')).map((guard) => guard.table),
-    ).toEqual(['tenant_roles', 'mail_settings'])
+    ).toEqual(['tenant_roles', 'files', 'mail_settings'])
   })
 
   it('let the application name and take away who runs the instance, change its settings, and no more', () => {
