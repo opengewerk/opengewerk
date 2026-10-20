@@ -250,6 +250,56 @@ if not services or unbounded:
 PYTHON
   ;;
 
+hardening)
+  # What every service may do (#688): no capability of root but those it
+  # names in cap_add, no new privileges through a setuid binary, and a root
+  # file system nothing writes to. Two services are let off the last: backup
+  # and backup-schedule, which run the backup image of the foundation and
+  # write the parts of a backup inside it, and their compose.yaml says why.
+  # And the application has a memory limit, with a heap that ends below it.
+  # Read the way the limits of the logs are, so that a service added later
+  # cannot go without any of it.
+  compose --profile '*' config --no-interpolate --format json > "$temp/compose.json"
+  python3 - "$temp/compose.json" <<'PYTHON'
+import json
+import sys
+
+services = json.load(open(sys.argv[1], encoding="utf-8"))["services"]
+writable = {"backup", "backup-schedule"}
+problems = []
+
+for name, service in sorted(services.items()):
+    dropped = service.get("cap_drop") or []
+    added = service.get("cap_add") or []
+    no_new_privileges = "no-new-privileges:true" in (service.get("security_opt") or [])
+    read_only = service.get("read_only") is True
+    print(
+        f"{name}: gibt {', '.join(dropped) or 'nichts'} ab, behält {', '.join(added) or 'nichts'}, "
+        + ("ohne neue Rechte, " if no_new_privileges else "kann Rechte gewinnen, ")
+        + ("nur lesbar" if read_only else "beschreibbar")
+    )
+    if "ALL" not in dropped:
+        problems.append(f"{name} gibt nicht alle Capabilities ab (cap_drop: [ALL]).")
+    if not no_new_privileges:
+        problems.append(f"{name} kann über ein setuid-Programm Rechte gewinnen (no-new-privileges:true).")
+    if not read_only and name not in writable:
+        problems.append(f"{name} hat ein beschreibbares Dateisystem (read_only: true).")
+
+application = services.get("app") or {}
+limit = application.get("mem_limit")
+heap = str((application.get("environment") or {}).get("NODE_OPTIONS") or "")
+print(f"app: Speichergrenze {limit or 'keine'}, NODE_OPTIONS {heap or 'leer'}")
+if not limit:
+    problems.append("app hat keine Speichergrenze (mem_limit).")
+if "--max-old-space-size" not in heap:
+    problems.append("Der Heap von app endet nicht unter der Speichergrenze (--max-old-space-size).")
+
+if not services or problems:
+    print("\n".join(problems or ["Kein Dienst gefunden."]))
+    sys.exit(1)
+PYTHON
+  ;;
+
 start)
   # The way an installation starts, with the one command the README names:
   # setup.sh makes every secret and prints only their names, then the

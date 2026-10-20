@@ -438,6 +438,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Dienste in `docker/compose.yaml` laufen gehärtet (#688, gefunden in der Sicherheitsprüfung
+  opengewerk-haustechnik#360). Jeder gibt alle Capabilities von root ab (`cap_drop: [ALL]`) und kann über ein
+  setuid-Programm keine gewinnen (`no-new-privileges`); Anwendung, Migration, Renderer und Datenbank laufen mit
+  einem Dateisystem, in das nichts schreibt, die Datenbank von Anfang an als `postgres`. Die Sicherung bleibt root
+  mit beschreibbarem Dateisystem und behält `CHOWN`, `DAC_OVERRIDE` und `FOWNER`, der Zeitplan nur `DAC_OVERRIDE`,
+  der Grund steht jeweils an ihr. Die Anwendung hat eine Speichergrenze von 10 GB (`OPENGEWERK_MEMORY_LIMIT`), ihr
+  Heap endet bei drei Vierteln davon. `10-roles.sh` setzt die Passwörter mit `:'…'`, so dass auch eines mit
+  Anführungszeichen oder Doppelpunkt gilt. Zwei neue Schritte der CI prüfen beides (`test-stack.sh hardening`,
+  `test-roles.sh`). Warum: Ohne Grenze trifft ein voller Speicher womöglich die Datenbank, und ein Dienst, der
+  übernommen wird, soll so wenig dürfen wie möglich.
+
 - Eine neue Fassung kommt von selbst (für opengewerk-haustechnik#465, Nachtrag in ADR 0004): die Leiste „Eine neue
   Fassung liegt bereit.“ mit „Jetzt übernehmen“ (`UpdateBar`) ist aus Büro, Baustelle und dem Bereich der Instanz
   entfernt, mit `offerUpdate`, `subscribeToUpdates`, `updateWaiting` und `applyUpdate`. Eine Anwendung übergibt die

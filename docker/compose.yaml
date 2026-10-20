@@ -26,11 +26,35 @@ x-logging: &logging
     max-size: 10m
     max-file: '5'
 
+# What every service below may do beyond running its own program: nothing
+# (#688). No capability of root, not even those Docker grants by default, and
+# no way to gain one through a setuid binary. A service that needs one names
+# it in cap_add and says why. Beside it, at each service, a root file system
+# nothing can write to, wherever the service runs with one; where it does not,
+# the reason stands there. A new service takes the same line, and the CI
+# checks that none is without it.
+x-hardening: &hardening
+  cap_drop: [ALL]
+  security_opt: ['no-new-privileges:true']
+
 services:
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
     logging: *logging
+    <<: *hardening
+    # As the user the image runs PostgreSQL as, from the first command on. As
+    # root, the entrypoint of the image would first hand the data directory to
+    # that user and then change to it, and both take capabilities. The data
+    # directory has belonged to that user since the first start of every
+    # installation, and the files in postgres-init only have to be readable
+    # for it, as a checkout and the release kit leave them.
+    user: postgres
+    read_only: true
+    # What PostgreSQL writes outside its data directory: its socket with the
+    # lock beside it.
+    tmpfs:
+      - /var/run/postgresql
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in der .env-Datei}
@@ -86,6 +110,8 @@ services:
       dockerfile: Dockerfile
     image: ghcr.io/opengewerk/opengewerk:${OPENGEWERK_VERSION:-source}
     logging: *logging
+    <<: *hardening
+    read_only: true
     command: ['node', '--enable-source-maps', 'dist/migrate.js']
     environment:
       MIGRATION_DATABASE_URL: postgres://opengewerk_owner:${OPENGEWERK_OWNER_PASSWORD}@postgres:5432/opengewerk
@@ -101,7 +127,26 @@ services:
     image: ghcr.io/opengewerk/opengewerk:${OPENGEWERK_VERSION:-source}
     restart: unless-stopped
     logging: *logging
+    <<: *hardening
+    # It writes into the file store below and nowhere else.
+    read_only: true
+    # The most memory the application may take, swap included (#688). Past it,
+    # Docker ends the application and starts it again; without a limit, the
+    # kernel of a machine that runs out ends whichever process it picks, and
+    # that can be the database. The limit carries the largest work the
+    # application takes on: a DATANORM delivery at the limit of 400 MB, read
+    # for a supplier whose catalogue the instance holds already, measured at
+    # 7 GB on 20.10.2026. OPENGEWERK_MEMORY_LIMIT in the .env sets another,
+    # and the heap follows it, see NODE_OPTIONS below.
+    mem_limit: ${OPENGEWERK_MEMORY_LIMIT:-10g}
+    memswap_limit: ${OPENGEWERK_MEMORY_LIMIT:-10g}
     environment:
+      # Three quarters of the limit above for the heap, so that a heap that
+      # runs full ends in a message of its own before the container reaches
+      # the limit, and what Node keeps outside the heap, the bytes of files
+      # above all, has the rest. A percentage and no number, so that it
+      # follows the limit wherever the .env moves it.
+      NODE_OPTIONS: --max-old-space-size-percentage=75
       # opengewerk_app, never opengewerk_owner: for the owner of the tables
       # row level security applies only through FORCE. The application refuses
       # an address carrying the wrong role at startup.
@@ -195,7 +240,21 @@ services:
     restart: unless-stopped
     profiles: ['renderer']
     logging: *logging
+    <<: *hardening
+    # Chromium runs without its own sandbox in this image, so it needs neither
+    # a capability nor a setuid helper. What it and the service write, the
+    # lock of the virtual display and a profile per job, lies in /tmp and
+    # goes with every restart.
+    read_only: true
+    tmpfs:
+      - /tmp
     environment:
+      # Chromium keeps its settings, its cache and the database of its crash
+      # handler below the home directory of the image, and that is read-only
+      # here: without these two it does not start at all
+      # ("chrome_crashpad_handler: --database is required"). In /tmp instead.
+      XDG_CONFIG_HOME: /tmp/.config
+      XDG_CACHE_HOME: /tmp/.cache
       # The service wants a token, even on its own network. It sits in the
       # .env file and reaches the application as RENDERER_TOKEN.
       TOKEN: ${RENDERER_TOKEN:?RENDERER_TOKEN fehlt in der .env-Datei}
@@ -223,6 +282,20 @@ services:
     image: ghcr.io/opengewerk/backup:${OPENGEWERK_VERSION:-source}
     profiles: ['backup']
     logging: *logging
+    <<: *hardening
+    # As root, and with a writable root file system, both for a reason
+    # (#688). The archives, the record of the backups and a target of the
+    # operator's choosing belong to root, and a restore hands the file store
+    # back to the user of the application. A backup writes its parts inside
+    # the container before they are packed, a dump and a copy of the file
+    # store (backup.sh), and those can come to gigabytes: in a tmpfs they would
+    # lie in memory, in a volume they would outlive a killed run, while the
+    # writable layer goes with the container. Of the capabilities of root it
+    # keeps three: CHOWN for handing the restored files to the application,
+    # DAC_OVERRIDE for writing into the file store of that user and into a
+    # target such as a share that belongs to somebody else, FOWNER for setting
+    # the times and modes of what it restores there.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
     environment: &backup-environment
       POSTGRES_HOST: postgres
       POSTGRES_DB: opengewerk
@@ -269,6 +342,12 @@ services:
     image: ghcr.io/opengewerk/backup:${OPENGEWERK_VERSION:-source}
     restart: unless-stopped
     logging: *logging
+    <<: *hardening
+    # As root and with a writable root file system for the reasons at the
+    # service above. It only backs up and never restores, so of the
+    # capabilities it keeps DAC_OVERRIDE alone, for a target that belongs to
+    # somebody else.
+    cap_add: [DAC_OVERRIDE]
     command: ['schedule.sh']
     environment:
       <<: *backup-environment

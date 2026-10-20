@@ -640,6 +640,14 @@ jobs:
         working-directory: docker
         run: sh test-stack.sh log-limits
 
+      - name: Jeder Dienst gibt seine Rechte ab, die Anwendung hat eine Speichergrenze
+        working-directory: docker
+        run: sh test-stack.sh hardening
+
+      - name: Die Rollen nehmen jedes Passwort aus der .env
+        working-directory: docker
+        run: sh test-roles.sh
+
       - name: Stapel starten
         working-directory: docker
         run: sh test-stack.sh start

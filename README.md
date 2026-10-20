@@ -916,6 +916,31 @@ schrumpft der Bedarf auf ein Drittel. Für das Ziel aus ADR 0002, zwei Gigabyte
 für alles, ist damit reichlich Luft: Anwendung und Datenbank zusammen bleiben
 unter 120 MiB, nachgemessen mit `mem_limit` von 1 GB und 768 MB.
 
+Seit #688 hat die Anwendung in `docker/compose.yaml` eine solche Grenze,
+Auslagerung eingeschlossen, und ihr Heap endet bei drei Vierteln davon
+(`--max-old-space-size-percentage=75`). Läuft sie voll, beendet Docker die
+Anwendung und startet sie neu; ohne Grenze beendet der Kernel einer Maschine,
+der der Speicher ausgeht, irgendeinen Prozess, und das kann die Datenbank
+sein. Von Haus aus sind es 10 GB, weil die größte Arbeit der Anwendung so viel
+braucht: eine DATANORM-Lieferung an der Grenze von 400 MB für einen
+Lieferanten, dessen Katalog schon in der Instanz liegt, gemessen am 20.10.2026
+mit 7 GB. Auf einer kleineren Maschine gehört die Grenze unter ihren Speicher,
+mit Platz für Datenbank und Renderer, etwa für eine mit 4 GB in `docker/.env`:
+
+```bash
+OPENGEWERK_MEMORY_LIMIT=2g
+```
+
+Eine DATANORM-Lieferung dieser Größe lässt sich dann nicht mehr einlesen,
+kleinere schon. Der Heap folgt der Grenze von selbst.
+
+Jeder Dienst gibt außerdem alle Rechte von root ab, die Docker sonst lässt,
+und kann über ein setuid-Programm keine neuen gewinnen. Bis auf die Sicherung
+läuft jeder mit einem Dateisystem, in das nichts schreibt, und die Datenbank
+von Anfang an als ihr eigener Benutzer. Wo ein Dienst etwas davon behält,
+steht der Grund an ihm in `docker/compose.yaml`, und die CI prüft, dass keiner
+ohne diese Zeilen ist.
+
 Der Renderer ist der Grund, warum er ein eigener Container ist. Er kostet
 allein mehr Speicher als der Rest zusammen und fast vier Gigabyte auf der
 Platte, und beim ersten Start lädt `start.sh` dieses Abbild mit, was je nach
