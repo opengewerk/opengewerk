@@ -21,7 +21,8 @@ export interface AddressedRequest {
  * from inside some network, the address is therefore the last entry of
  * `X-Forwarded-For`: the one the proxy directly in front added itself, and the
  * one a client cannot write, because a proxy appends to what the client sent.
- * The README says how a proxy is told to append.
+ * The description of the operation (docs/betrieb.md) says how a proxy is
+ * told to append.
  *
  * Null when the connection comes from inside a network and nothing in front
  * names a client, or names something that is no address: the address of the
@@ -114,7 +115,7 @@ function reportUnknownAddress(): void {
     'Anfragen kommen ohne nutzbare Adresse an: Die Verbindung kommt aus dem eigenen Netz, ' +
       'und X-Forwarded-For fehlt oder nennt keine Adresse. Der Reverse Proxy muss den Header ' +
       'ergänzen, für nginx mit "proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;" ' +
-      '(README, Reverse Proxy). Bis dahin zählen alle diese Anfragen in einem gemeinsamen ' +
+      '(docs/betrieb.md, Reverse Proxy). Bis dahin zählen alle diese Anfragen in einem gemeinsamen ' +
       'Zähler, und wenige Fehlversuche sperren die Anmeldung für alle.',
   )
 }

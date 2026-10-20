@@ -45,7 +45,7 @@ names=$(sed -n 's#.*/etc/letsencrypt/live/\([^/]*\)/.*#\1#p' \
 name=$names
 
 # The application sets its security headers itself; a second one from the
-# proxy is wrong, not stricter (README, Reverse Proxy).
+# proxy is wrong, not stricter (docs/betrieb.md, Reverse Proxy).
 if grep -n 'add_header' "$templates/nginx.conf"; then
   fail 'nginx.conf setzt einen Header in der Antwort'
 fi

@@ -10,7 +10,7 @@
 # has "source" there and builds them. A version in the .env wins over both.
 #
 # Then the migration on its own, and only after it the containers. That is the
-# order the README explains under "Aktualisieren": `docker compose up -d`
+# order docs/betrieb.md explains under "Aktualisieren": `docker compose up -d`
 # alone replaces the running application before the migration has even
 # started, and a migration that fails leaves the instance standing still
 # instead of answering on the state before.
