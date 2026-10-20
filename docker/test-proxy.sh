@@ -12,9 +12,12 @@ set -eu
 source_dir=$(cd "$(dirname "$0")" && pwd)
 templates=$(cd "${1:-$source_dir/proxy}" && pwd)
 
-# The oldest are those of Ubuntu 22.04, the newest the current releases.
-nginx_images='nginx:1.18.0-alpine nginx:1.31.7-alpine'
-httpd_images='httpd:2.4.52-alpine httpd:2.4.69-alpine'
+# The oldest are those of Ubuntu 22.04, the newest the current releases, each
+# with the digest of its index, so that a tag pushed again changes nothing here.
+nginx_images='nginx:1.18.0-alpine@sha256:93baf2ec1bfefd04d29eb070900dd5d79b0f79863653453397e55a5b663a6cb1
+nginx:1.31.7-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d'
+httpd_images='httpd:2.4.52-alpine@sha256:c7b8040505e2e63eafc82d37148b687ff488bf6d25fc24c8bf01d71f5b457531
+httpd:2.4.69-alpine@sha256:3440c39d8d6f54fa9ad2549e5a60c19ddd435faadc29c1ad28aa795f71888889'
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
@@ -78,15 +81,15 @@ for image in $nginx_images; do
     nginx -t
   ') || {
     printf '%s\n' "$out"
-    fail "nginx -t mit $image"
+    fail "nginx -t mit ${image%@*}"
   }
   printf '%s\n' "$out"
   # A warning, a deprecated directive among them, fails as well: the next
   # release may refuse what this one only warns about.
   if printf '%s\n' "$out" | grep -q '\[warn\]'; then
-    fail "nginx -t mit $image warnt"
+    fail "nginx -t mit ${image%@*} warnt"
   fi
-  check "nginx -t mit $image"
+  check "nginx -t mit ${image%@*}"
 done
 
 for image in $httpd_images; do
@@ -103,13 +106,13 @@ for image in $httpd_images; do
     httpd -t
   ') || {
     printf '%s\n' "$out"
-    fail "httpd -t mit $image"
+    fail "httpd -t mit ${image%@*}"
   }
   printf '%s\n' "$out"
   # Anything besides the verdict is a warning about the template: the base
   # configuration above is quiet on its own.
   if [ "$out" != 'Syntax OK' ]; then
-    fail "httpd -t mit $image meldet mehr als Syntax OK"
+    fail "httpd -t mit ${image%@*} meldet mehr als Syntax OK"
   fi
-  check "httpd -t mit $image"
+  check "httpd -t mit ${image%@*}"
 done
