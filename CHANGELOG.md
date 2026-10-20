@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Eine Anwendung, die ihre Fristen an Orten hält, die nicht jeder sieht, sagt dem Fundament, wer eine Frist dort
+  bekommen darf (`MayAnswer`, im Lauf der Fristen und in den Regeln der Liste, opengewerk/opengewerk-haustechnik#473).
+  Die Erinnerung geht dann an die erste Person in der gewohnten Reihenfolge, die das darf, die Leitung eingeschlossen,
+  und an niemanden, wo es niemand darf; die Liste nennt dieselbe Person, und als Person einer Frist lehnt die Route
+  jemanden ab, der den Ort nicht sieht. Ohne die Frage bleibt alles, wie es war. Warum: die Erinnerung ging nach der
+  Mitgliedschaft und nannte einer Person ohne den Bereich Art, Tag und Kennung der Frist, gefunden in der
+  Sicherheitsprüfung der Haustechnik.
+
 - Ein Dokument und seine Dateien lassen sich nach Ablauf einer Aufbewahrung endgültig löschen (#658), auf dem einen Weg,
   den eine Anwendung dafür öffnet: `purge_attachment(dokument, titel)` löscht die Fassungen, lässt das Dokument als
   gelöschte Hülle mit dem gegebenen Titel stehen, damit ein Gerät davon erfährt. Die Zeile jeder Datei in `files`, auf

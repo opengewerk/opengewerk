@@ -507,6 +507,42 @@ describe('a reminder', () => {
     expect(noted.map((note) => note.responsible)).toEqual(['lena'])
   })
 
+  it('asks the application who may answer for it, and goes to the first who may, whoever leads included (opengewerk-haustechnik#473)', async () => {
+    await admin.query(
+      `insert into auth_users (id, name, email) values ('lars', 'Lars Leitung', 'lars@example.de')`,
+    )
+    await admin.query(
+      `insert into memberships (tenant_id, user_id, roles, created_at) values ($1, 'lars', '{lead}', '2030-02-01')`,
+      [north.id],
+    )
+    parcels
+      .get(north.id)
+      ?.set(parcelOne, { arrivedOn: '2037-03-02', takenInBy: 'tom', number: 'P-0042' })
+    parcels
+      .get(north.id)
+      ?.set(parcelTwo, { arrivedOn: '2037-03-02', takenInBy: 'tom', number: 'P-0043' })
+    const asked: (readonly [unknown, readonly string[]])[] = []
+    // The application sees P-0042 in a place only Lars sees, and P-0043 in one nobody does.
+    const inPlaces = engine({
+      mayAnswer: async (_tx, questions) =>
+        questions.map(({ deadline, userIds }) => {
+          asked.push([deadline.parcelNumber, userIds])
+
+          return new Set(deadline.parcelNumber === 'P-0042' ? ['lars'] : [])
+        }),
+    })
+
+    await runDeadlinesOf(inPlaces, north.id, at('2037-03-02'))
+    await runDeadlinesOf(inPlaces, north.id, at('2037-03-08', 8))
+
+    expect(noted.map((note) => [note.parcel, note.responsible]).sort()).toEqual([
+      ['P-0042', 'lars'],
+      ['P-0043', null],
+    ])
+    // The person of the source first, then whoever leads, the one longest in the tenant first.
+    expect(asked).toContainEqual(['P-0042', ['tom', 'lena', 'lars']])
+  })
+
   it('passes over somebody who is blocked', async () => {
     parcels
       .get(north.id)

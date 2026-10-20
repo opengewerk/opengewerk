@@ -103,6 +103,9 @@ const registry = deadlineRegistry<ProbeKind>(
 /** What followed a change, by the application, in order. */
 let followed: string[]
 
+/** The people the probe application keeps out of the place of every deadline (opengewerk-haustechnik#473). */
+let outside: ReadonlySet<string>
+
 const rules: DeadlineRules<ProbeKind, ProbeDeadlineColumns> = {
   table: probeDeadlines,
   registry,
@@ -117,6 +120,8 @@ const rules: DeadlineRules<ProbeKind, ProbeDeadlineColumns> = {
     parcel: (value) => (/^P-\d+$/.test(value) ? eq(probeDeadlines.parcelNumber, value) : null),
   },
   kindFields: (kind) => ({ countsIn: kind.intervalMonths ? 'months' : 'days' }),
+  mayAnswer: async (_tx, asked) =>
+    asked.map(({ userIds }) => new Set(userIds.filter((userId) => !outside.has(userId)))),
   afterResponsible: async (_tx, _tenantId, row) => {
     followed.push(`responsible ${row.sourceLabel} ${String(row.responsibleUserId)}`)
   },
@@ -126,7 +131,10 @@ const rules: DeadlineRules<ProbeKind, ProbeDeadlineColumns> = {
   afterReopen: async (_tx, row) => {
     followed.push(`reopen ${row.sourceLabel}`)
   },
-  sentences: { notAColleague: 'Diese Person arbeitet nicht im Mandanten oder ist gesperrt.' },
+  sentences: {
+    notAColleague: 'Diese Person arbeitet nicht im Mandanten oder ist gesperrt.',
+    outsideThePlace: 'Diese Person sieht den Ort dieser Frist nicht.',
+  },
   listAsTable: {
     name: 'Fristen',
     columns: ['Paket'],
@@ -287,6 +295,7 @@ beforeAll(async () => {
 }, 60_000)
 
 beforeEach(async () => {
+  outside = new Set()
   await foundation.empty()
   await foundation.tenants(admin, [north, south])
 
@@ -345,6 +354,29 @@ describe('the list of deadlines', () => {
       (await list('mia')).map((entry) => [entry.source.label, entry.responsible?.userId]),
     ).toEqual([['Haus Ost', 'lena']])
     expect((await list('sven')).map((entry) => entry.source.label)).toEqual(['Paket S-1'])
+  })
+
+  it('names only somebody the application lets answer for it, and nobody where nobody may (opengewerk-haustechnik#473)', async () => {
+    await aDeadline({ label: 'Paket P-1', dueOn: '2037-03-09' })
+    await aDeadline({ kind: 'door.check', label: 'Haus Ost', dueOn: '2037-04-01', natural: null })
+
+    outside = new Set(['mia'])
+
+    expect(
+      (await list('lena')).map((entry) => [entry.source.label, entry.responsible?.userId ?? null]),
+    ).toEqual([
+      ['Paket P-1', 'lena'],
+      ['Haus Ost', 'lena'],
+    ])
+
+    outside = new Set(['mia', 'lena'])
+
+    expect(
+      (await list('lena')).map((entry) => [entry.source.label, entry.responsible?.userId ?? null]),
+    ).toEqual([
+      ['Paket P-1', null],
+      ['Haus Ost', null],
+    ])
   })
 
   /**
@@ -736,6 +768,14 @@ describe('what a person decides about a deadline', () => {
     expect((await patch({ responsibleUserId: 'sven' }).expect(422)).body.message).toBe(
       'Diese Person arbeitet nicht im Mandanten oder ist gesperrt.',
     )
+
+    // Nor somebody who works here but may not answer for it (opengewerk-haustechnik#473).
+    outside = new Set(['lena'])
+
+    expect((await patch({ responsibleUserId: 'lena' }).expect(422)).body.message).toBe(
+      'Diese Person sieht den Ort dieser Frist nicht.',
+    )
+    expect((await list('mia'))[0]).toMatchObject({ ownResponsibleUserId: null })
     await patch({}).expect(400)
     await http()
       .patch(`/deadlines/${newId()}`)
