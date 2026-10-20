@@ -9,6 +9,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Vorlagen für den Reverse Proxy unter `docker/proxy/`, `apache.conf` für Apache 2.4 und `nginx.conf` für nginx, jede
+  für sich vollständig: die Weiterleitung von HTTP auf HTTPS, das Zertifikat unter dem Pfad, den certbot anlegt, der Proxy
+  auf `127.0.0.1:23700` mit Host, Protokoll und ergänztem `X-Forwarded-For`, die Grenzen je Pfad und 300 Sekunden für
+  lange Drucke, ohne Sicherheits-Header. Jede Zeile, die zur eigenen Instanz passen muss, trägt einen Kommentar. Die
+  Vorlagen liegen auch im Installationspaket, die CI prüft beide mit `nginx -t` und `httpd -t` in der ältesten Fassung,
+  die eine noch unterstützte Distribution mitbringt, und in der neuesten (`docker/test-proxy.sh`), und das README hat
+  dazu den Abschnitt „Reverse Proxy“. Die Zeilen für Apache, die bisher dort standen, begrenzten nichts: Apache wendet
+  `LimitRequestBody` auf eine Anfrage, die es mit `ProxyPass` weiterreicht, nicht an. Die Vorlage vergleicht deshalb
+  die Länge, die eine Anfrage angibt, mit mod_rewrite. Warum: wer installiert, musste sich den vHost bisher aus
+  einzelnen Zeilen im README zusammensetzen.
+
 - Ein Weg in die Ansicht für unterwegs im Kontomenü des Büros (für opengewerk-haustechnik#464): unter einem Strich
   zwischen „Instanz verwalten“ und „Abmelden“ steht der Satz `entry.goTo.site` der Anwendung mit einem Telefon und der
   Zeile „Große Knöpfe, auch ohne Netz“, auch im Bereich der Instanz; in der Handwerkersoftware heißt er „Zur

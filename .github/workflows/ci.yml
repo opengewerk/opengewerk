@@ -613,6 +613,13 @@ jobs:
         working-directory: docker
         run: sh test-start.sh
 
+      # The templates for a reverse proxy in docker/proxy, read the way nginx
+      # and Apache read them, each in the oldest release a supported
+      # distribution ships and in the newest.
+      - name: Vorlagen für den Reverse Proxy prüfen
+        working-directory: docker
+        run: sh test-proxy.sh
+
       # The names of the archives (opengewerk-haustechnik#14), with the backup
       # scripts and stand-ins for the tools of PostgreSQL: in a folder shared
       # with another application, each finds, keeps, restores and removes only
