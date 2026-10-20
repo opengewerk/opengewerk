@@ -151,6 +151,7 @@ export * from './files/controller.js'
 export * from './files/media-type.js'
 export * from './files/rows.js'
 export * from './files/store.js'
+export * from './files/upload-limits.js'
 export * from './files/zip.js'
 
 // The people to talk to at the records of an application: the routes they

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { access, mkdir, open, readFile, rename, rm } from 'node:fs/promises'
+import { access, mkdir, open, readFile, rename, rm, statfs } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import { sha256Pattern } from '@opengewerk/platform-domain'
@@ -24,6 +24,12 @@ export interface StoredBlob {
 export interface FileStorage {
   put(bytes: Uint8Array): Promise<StoredBlob>
   get(sha256: string): Promise<Uint8Array>
+  /**
+   * How many bytes are still free where the files lie, for the room the
+   * routes that take files keep (`UploadLimits`). A store that keeps nothing
+   * on a disk of this instance, the stand in of a test, has nothing to say.
+   */
+  freeBytes?(): Promise<number>
 }
 
 /**
@@ -110,6 +116,20 @@ export class FileStore implements FileStorage {
     }
 
     return blob
+  }
+
+  /**
+   * The bytes free on the volume the store lies on, as far as the server may
+   * use them: what the file system keeps back for its administrator is not
+   * counted. The directory is made first, so that a store nothing was put
+   * into yet can answer as well.
+   */
+  async freeBytes(): Promise<number> {
+    await mkdir(this.root, { recursive: true })
+
+    const volume = await statfs(this.root)
+
+    return volume.bavail * volume.bsize
   }
 
   /** The bytes stored under a hash, checked against it before they leave. */
