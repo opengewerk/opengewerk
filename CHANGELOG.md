@@ -956,6 +956,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Sicherheit
 
+- Die Anwendung prüft beim Start, was ihre Datenbankrolle kann, nicht nur, wie sie heißt (#685, gefunden in der
+  Sicherheitsprüfung opengewerk-haustechnik#360). Ist die Rolle Superuser, hat sie `BYPASSRLS`, besitzt sie Tabellen
+  oder ist sie Mitglied von `opengewerk_owner`, startet die Instanz nicht und nennt den Grund
+  (`Database.roleProblem` im Fundament). Warum: abgelehnt wurden bisher nur die Namen `postgres` und
+  `opengewerk_owner`, eine Rolle mit anderem Namen und denselben Rechten startete, und die Mandantentrennung griff
+  dann nicht.
+
 - Wer die Instanz betreibt, sieht von den offenen Einladungen zur Leitung eines Betriebs nur noch die, die jemand
   aus dem Bereich der Instanz verschickt hat (#701, gefunden in der Sicherheitsprüfung opengewerk-haustechnik#360).
   `tenants_with_leads()` fragt dafür `instance_operators`, das die Policy `readable_by_the_owner` bekommt; die
