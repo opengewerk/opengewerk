@@ -2,15 +2,18 @@ import type { AccountMessages } from '@opengewerk/platform-server'
 
 import {
   mailServerChangedMessage,
+  operatorsChangedMessage,
   passkeyAddedMessage,
   passwordResetMessage,
+  recoveryCodesRenewedMessage,
 } from '../notifications/templates.js'
 
 /**
  * What this application says in the mails to an account
  * (opengewerk-haustechnik#81): the link to a new password and the notice of a
- * new passkey, in its words and under its name, and to whoever owns a
- * business when the mail server of the instance changes
+ * new passkey and of new recovery codes, in its words and under its name, to
+ * whoever owns a business when the mail server of the instance changes, and
+ * to every operator when somebody is named one or taken off
  * (opengewerk-haustechnik#360).
  *
  * When they go out, and through what, is the foundation's: through the mail
@@ -26,5 +29,7 @@ export const accountMessages: AccountMessages = {
   accountPath: '/konto',
   passwordReset: passwordResetMessage,
   passkeyAdded: passkeyAddedMessage,
+  recoveryCodesRenewed: recoveryCodesRenewedMessage,
+  operatorsChanged: operatorsChangedMessage,
   mailServerChanged: mailServerChangedMessage,
 }

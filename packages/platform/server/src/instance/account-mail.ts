@@ -1,4 +1,8 @@
-import type { PasskeyNotice, PasswordResetMail } from '../authentication/notices.js'
+import type {
+  PasskeyNotice,
+  PasswordResetMail,
+  RecoveryCodesNotice,
+} from '../authentication/notices.js'
 import type { Database } from '../database/database.js'
 import type { MailContext } from '../mail/context.js'
 import { instanceMailConnection } from './mail-server.js'
@@ -60,6 +64,29 @@ export interface AccountMessages {
     readonly link: string
   }) => AccountMessageText
   /**
+   * To the account, once it has a new set of recovery codes
+   * (opengewerk-haustechnik#360); `link` is where the account is looked after.
+   */
+  readonly recoveryCodesRenewed: (facts: {
+    readonly name: string
+    readonly renewedAt: Date
+    readonly link: string
+  }) => AccountMessageText
+  /**
+   * To everybody who runs the instance, once an account was named to run it or
+   * taken off (opengewerk-haustechnik#360), and to the one taken off as well.
+   * `person` and `personEmail` are the account named or taken off; `link` is
+   * the instance.
+   */
+  readonly operatorsChanged: (facts: {
+    readonly name: string
+    readonly appointed: boolean
+    readonly person: string
+    readonly personEmail: string
+    readonly changedAt: Date
+    readonly link: string
+  }) => AccountMessageText
+  /**
    * To whoever leads a tenant on the instance, once the mail server of the
    * instance was set up, changed or removed (opengewerk-haustechnik#360). It
    * goes out through the server that was there before, and never through the
@@ -95,7 +122,11 @@ export function accountMails(
   database: Database,
   mail: MailContext,
   messages: AccountMessages,
-): { readonly passwordResetMail: PasswordResetMail; readonly passkeyNotice: PasskeyNotice } {
+): {
+  readonly passwordResetMail: PasswordResetMail
+  readonly passkeyNotice: PasskeyNotice
+  readonly recoveryCodesNotice: RecoveryCodesNotice
+} {
   const send = async (
     to: { readonly name: string; readonly email: string },
     text: AccountMessageText,
@@ -138,6 +169,15 @@ export function accountMails(
           name: owner.name,
           passkey: passkey.name,
           addedAt: new Date(),
+          link: `${mail.origin}${messages.accountPath}`,
+        }),
+      ),
+    recoveryCodesNotice: (owner) =>
+      send(
+        owner,
+        messages.recoveryCodesRenewed({
+          name: owner.name,
+          renewedAt: new Date(),
           link: `${mail.origin}${messages.accountPath}`,
         }),
       ),

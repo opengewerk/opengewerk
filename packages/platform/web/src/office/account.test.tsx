@@ -372,10 +372,12 @@ describe('the recovery codes of the account', () => {
 
   /**
    * The count and not the codes: they were shown once, when they were made. A
-   * new set asks for the password and replaces the old one.
+   * new set asks for the password and the code from the app, confirmed first
+   * (opengewerk-haustechnik#360), and replaces the old one.
    */
-  it('make a new set only after the password, show it once and count again', async () => {
+  it('make a new set only after the password and the code, show it once and count again', async () => {
     server.answer('GET', '/auth/recovery-codes', { left: 3 })
+    server.answer('POST', '/api/auth/reconfirm', {})
     server.answer('POST', '/api/auth/two-factor/generate-backup-codes', {
       backupCodes: ['aaaaa-11111', 'bbbbb-22222'],
     })
@@ -391,15 +393,20 @@ describe('the recovery codes of the account', () => {
     const counted = server.heard.filter((call) => call.path === '/auth/recovery-codes').length
 
     await userEvent.type(codes().getByLabelText('Passwort zur Bestätigung'), 'das-passwort')
+    await userEvent.type(codes().getByLabelText('Code aus der App'), '123456')
     await userEvent.click(codes().getByRole('button', { name: 'Neue Codes erzeugen' }))
 
     expect(await codes().findByText('aaaaa-11111')).toBeTruthy()
     expect(codes().getByText('bbbbb-22222')).toBeTruthy()
+    expect(sent('POST', '/api/auth/reconfirm')).toEqual([
+      { password: 'das-passwort', code: '123456' },
+    ])
     expect(sent('POST', '/api/auth/two-factor/generate-backup-codes')).toEqual([
       { password: 'das-passwort' },
     ])
-    // The question is closed, the password gone from the page.
+    // The question is closed, the password and the code gone from the page.
     expect(codes().queryByLabelText('Passwort zur Bestätigung')).toBeNull()
+    expect(codes().queryByLabelText('Code aus der App')).toBeNull()
     await waitFor(() => {
       expect(
         server.heard.filter((call) => call.path === '/auth/recovery-codes').length,
@@ -407,22 +414,19 @@ describe('the recovery codes of the account', () => {
     })
   })
 
-  it('say the sentence of the server when the password is refused, and keep the question open', async () => {
+  it('say the sentence of the server when the confirmation is refused, ask for no codes and keep the question open', async () => {
     server.answer('GET', '/auth/recovery-codes', { left: 3 })
-    server.answer(
-      'POST',
-      '/api/auth/two-factor/generate-backup-codes',
-      { message: 'Das Passwort stimmt nicht.' },
-      401,
-    )
+    server.answer('POST', '/api/auth/reconfirm', { message: 'Das Passwort stimmt nicht.' }, 401)
     await account()
     await screen.findByText(/Noch 3 Codes übrig/)
     await userEvent.click(codes().getByRole('button', { name: 'Neue Codes erzeugen' }))
     await userEvent.type(codes().getByLabelText('Passwort zur Bestätigung'), 'falsch')
+    await userEvent.type(codes().getByLabelText('Code aus der App'), '123456')
     await userEvent.click(codes().getByRole('button', { name: 'Neue Codes erzeugen' }))
 
     expect((await codes().findByRole('alert')).textContent).toBe('Das Passwort stimmt nicht.')
     expect(codes().getByLabelText('Passwort zur Bestätigung')).toBeTruthy()
+    expect(sent('POST', '/api/auth/two-factor/generate-backup-codes')).toEqual([])
   })
 
   it('say so in their own words when nothing came back', async () => {
@@ -431,6 +435,7 @@ describe('the recovery codes of the account', () => {
     await screen.findByText(/Noch 3 Codes übrig/)
     await userEvent.click(codes().getByRole('button', { name: 'Neue Codes erzeugen' }))
     await userEvent.type(codes().getByLabelText('Passwort zur Bestätigung'), 'das-passwort')
+    await userEvent.type(codes().getByLabelText('Code aus der App'), '123456')
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
     await userEvent.click(codes().getByRole('button', { name: 'Neue Codes erzeugen' }))
 
@@ -445,14 +450,17 @@ describe('the recovery codes of the account', () => {
     await screen.findByText(/Noch 3 Codes übrig/)
     await userEvent.click(codes().getByRole('button', { name: 'Neue Codes erzeugen' }))
     await userEvent.type(codes().getByLabelText('Passwort zur Bestätigung'), 'das-passwort')
+    await userEvent.type(codes().getByLabelText('Code aus der App'), '123456')
     await userEvent.click(codes().getByRole('button', { name: 'Abbrechen' }))
 
     expect(codes().queryByLabelText('Passwort zur Bestätigung')).toBeNull()
+    expect(sent('POST', '/api/auth/reconfirm')).toEqual([])
     expect(sent('POST', '/api/auth/two-factor/generate-backup-codes')).toEqual([])
 
-    // Opened again, the password typed before is gone.
+    // Opened again, the password and the code typed before are gone.
     await userEvent.click(codes().getByRole('button', { name: 'Neue Codes erzeugen' }))
     expect((codes().getByLabelText('Passwort zur Bestätigung') as HTMLInputElement).value).toBe('')
+    expect((codes().getByLabelText('Code aus der App') as HTMLInputElement).value).toBe('')
   })
 })
 

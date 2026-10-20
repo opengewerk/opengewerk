@@ -20,7 +20,12 @@ import {
   authVerifications,
 } from '../schema.js'
 import type { AccessRules } from './access.js'
-import { type PasskeyNotice, type PasswordResetMail, passwordResetLifetime } from './notices.js'
+import {
+  type PasskeyNotice,
+  type PasswordResetMail,
+  passwordResetLifetime,
+  type RecoveryCodesNotice,
+} from './notices.js'
 import { markUsed, recordAdded, recordWithdrawn } from './passkeys.js'
 import { shortestPassword } from './password.js'
 import { recordPasswordReset, waitingAfterReset, waitsAfterReset } from './password-resets.js'
@@ -97,7 +102,20 @@ export interface AuthenticationOptions {
    * the link to a new password, nothing is sent.
    */
   readonly passkeyNotice?: PasskeyNotice
+  /**
+   * Tells an account about a new set of recovery codes
+   * (opengewerk-haustechnik#360). Left out, nothing is sent.
+   */
+  readonly recoveryCodesNotice?: RecoveryCodesNotice
 }
+
+/**
+ * Where a new set of recovery codes is made, which ends the old one
+ * (opengewerk-haustechnik#360). Ten new codes are ten ways past the second
+ * factor, so the route asks what a sign in asks, the password and the code
+ * from the app, and not the password alone, as better-auth does by itself.
+ */
+const renewingRecoveryCodes = '/two-factor/generate-backup-codes'
 
 /** The two routes of the passkey plugin that register one, both behind the confirmation. */
 const registering: ReadonlySet<string> = new Set([
@@ -110,7 +128,46 @@ const registering: ReadonlySet<string> = new Set([
  * routes that register one. Each waits a day after a reset of the password
  * (`password-resets.ts`).
  */
-const settingUpASecondFactor: ReadonlySet<string> = new Set(['/two-factor/enable', ...registering])
+const settingUpASecondFactor: ReadonlySet<string> = new Set([
+  '/two-factor/enable',
+  ...registering,
+  renewingRecoveryCodes,
+])
+
+/**
+ * The routes of better-auth that are switched off, see `disabledPaths` in
+ * `createAuthentication`. Exported for the test that holds every route still
+ * reachable against a list.
+ */
+export const disabledPaths: readonly string[] = [
+  '/passkey/list-user-passkeys',
+  '/passkey/update-passkey',
+  '/passkey/delete-passkey',
+  '/list-sessions',
+  '/update-user',
+  '/update-session',
+  '/change-email',
+  '/delete-user',
+  '/delete-user/callback',
+  '/verify-email',
+  '/send-verification-email',
+  '/two-factor/get-totp-uri',
+  '/two-factor/disable',
+  '/verify-password',
+  '/revoke-session',
+  '/revoke-sessions',
+  '/revoke-other-sessions',
+  '/sign-up/email',
+  '/sign-in/social',
+  '/link-social',
+  '/unlink-account',
+  '/list-accounts',
+  '/account-info',
+  '/get-access-token',
+  '/refresh-token',
+  '/two-factor/send-otp',
+  '/two-factor/verify-otp',
+]
 
 /** Where a sign in with a passkey happens, the one route that makes a passkey session. */
 const passkeySignIn = '/passkey/verify-authentication'
@@ -248,6 +305,7 @@ export function createAuthentication({
   rateLimited = true,
   passwordResetMail,
   passkeyNotice,
+  recoveryCodesNotice,
 }: AuthenticationOptions): Authentication {
   const party = relyingParty(trustedOrigins)
 
@@ -445,6 +503,22 @@ export function createAuthentication({
           })
         }
 
+        if (ctx.path === renewingRecoveryCodes) {
+          // The password better-auth asks for in the body is checked after
+          // this; the confirmation is the code as well, and it is spent here,
+          // so a wrong password needs both again.
+          if (!(await claimReconfirmation(database, found.session.id))) {
+            throw new APIError('FORBIDDEN', {
+              code: 'RECONFIRMATION_REQUIRED',
+              message:
+                'Neue Wiederherstellungscodes gibt es erst nach der Bestätigung mit dem ' +
+                'Passwort und dem Code aus der App.',
+            })
+          }
+
+          return
+        }
+
         if (!registering.has(ctx.path)) {
           return
         }
@@ -495,6 +569,12 @@ export function createAuthentication({
       after: createAuthMiddleware(async (ctx) => {
         if (ctx.path === '/passkey/verify-registration') {
           await afterRegistration(ctx.context.returned, await getSessionFromCtx(ctx))
+
+          return
+        }
+
+        if (ctx.path === renewingRecoveryCodes) {
+          await afterRenewal(ctx.context.returned, await getSessionFromCtx(ctx))
 
           return
         }
@@ -556,12 +636,21 @@ export function createAuthentication({
     // the list of sessions, which answered with the token of every session of
     // the account and asked only for a young session, since `freshAge` is 0
     // not even that. The devices of an account are `/auth/devices`.
-    disabledPaths: [
-      '/passkey/list-user-passkeys',
-      '/passkey/update-passkey',
-      '/passkey/delete-passkey',
-      '/list-sessions',
-    ],
+    //
+    // The changes to an account that are ours as well
+    // (opengewerk-haustechnik#360): its name and address only through
+    // `PATCH /auth/account`, after a confirmation and into the log of every
+    // tenant (`own-account.ts`), and an account is never removed by its own
+    // session. `/update-user` renamed an account with a session alone and told
+    // nobody; the others are closed today by a setting or a field nobody may
+    // send, and named here so that it stays so. The secret of the app and
+    // switching it off are not used by the interface: the first would hand
+    // a copy of the app to whoever has a session and the password, the second
+    // would leave the password alone as the way in. And what nothing here
+    // uses: a check of the password that answers yes or no to every session,
+    // the end of sessions by their token, the sign up nobody may do, the
+    // accounts of other providers and the codes by mail, none set up.
+    disabledPaths: [...disabledPaths],
     advanced: {
       // Cookies are already HttpOnly and SameSite=Lax by default; this is the
       // one that has to be said out loud, because an instance always runs
@@ -654,6 +743,25 @@ export function createAuthentication({
       reconfirmation(database),
     ],
   })
+
+  /**
+   * Once a new set of recovery codes is kept, the account is told by mail,
+   * without waiting for it: see `RecoveryCodesNotice`.
+   */
+  async function afterRenewal(
+    returned: unknown,
+    found: Awaited<ReturnType<typeof getSessionFromCtx>>,
+  ): Promise<void> {
+    if (!found || !recoveryCodesNotice || isAPIError(returned)) {
+      return
+    }
+
+    const owner = { id: found.user.id, email: found.user.email, name: found.user.name }
+
+    void recoveryCodesNotice(owner).catch((error: unknown) => {
+      console.error('Die Nachricht über neue Wiederherstellungscodes ging nicht hinaus.', error)
+    })
+  }
 
   /**
    * What happens once a passkey is stored: it goes into the log of every

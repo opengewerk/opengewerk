@@ -12,6 +12,7 @@ import type { TableCard } from '../components/panel.js'
 import { Status } from '../components/status.js'
 import { Cell, Column } from '../components/table.js'
 import { date } from '../format.js'
+import { Reconfirmation } from '../office/passkeys.js'
 import { SettingsText } from '../office/settings.js'
 import {
   appointOperator,
@@ -32,6 +33,10 @@ function saidWhy(error: unknown, fallback: string): string {
  * named to run it is an account that exists already; naming one hands it this
  * area and nothing in any tenant. Nobody takes themselves off, and the last
  * one stays, so the instance always has somebody who can reach it.
+ *
+ * Naming one and taking one off ask for the confirmation with the password
+ * and the code from the app first, as the mail server of the instance does
+ * (opengewerk-haustechnik#360): whoever is named could change it next.
  */
 export function InstanceOperatorsScreen() {
   const sentences = useInstanceSentences().operators
@@ -40,6 +45,8 @@ export function InstanceOperatorsScreen() {
   const account = useQuery(accountQuery)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [removing, setRemoving] = useState<OperatorView | null>(null)
+  // The one whose removal waits for the confirmation with the password.
+  const [confirming, setConfirming] = useState<OperatorView | null>(null)
   const you = account.data?.userId ?? null
   const count = list.data?.length ?? 0
 
@@ -66,7 +73,7 @@ export function InstanceOperatorsScreen() {
         size="small"
         tone="danger"
         aria-label={sentences.remove(operator.name)}
-        disabled={operator.userId === you || count <= 1 || remove.isPending}
+        disabled={operator.userId === you || count <= 1 || remove.isPending || confirming !== null}
         onClick={() => {
           setTrouble(null)
           setRemoving(operator)
@@ -136,6 +143,26 @@ export function InstanceOperatorsScreen() {
         </TablePanel>
       )}
 
+      {confirming ? (
+        <section
+          aria-label={`${sentences.remove(confirming.name)} bestätigen`}
+          className="rounded-[5px] border border-line bg-surface-sunken p-3"
+        >
+          <Reconfirmation
+            narrow
+            onConfirmed={() => {
+              const leaving = confirming
+
+              setConfirming(null)
+              remove.mutate(leaving.userId)
+            }}
+            onCancel={() => {
+              setConfirming(null)
+            }}
+          />
+        </section>
+      ) : null}
+
       <Panel title={sentences.appoint} roomy>
         <AppointForm onAppointed={refresh} />
       </Panel>
@@ -146,9 +173,8 @@ export function InstanceOperatorsScreen() {
         confirm="Entfernen"
         busy={remove.isPending}
         onConfirm={() => {
-          if (removing) {
-            remove.mutate(removing.userId)
-          }
+          setConfirming(removing)
+          setRemoving(null)
         }}
         onCancel={() => {
           setRemoving(null)
@@ -197,6 +223,7 @@ function AppointForm({ onAppointed }: { readonly onAppointed: () => void }) {
   const [email, setEmail] = useState('')
   const [trouble, setTrouble] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
 
   const appoint = useMutation({
     mutationFn: appointOperator,
@@ -221,39 +248,66 @@ function AppointForm({ onAppointed }: { readonly onAppointed: () => void }) {
       return
     }
 
-    appoint.mutate(email)
+    setConfirming(true)
   }
 
   return (
-    <form noValidate onSubmit={submit} className="flex flex-col gap-2.5">
-      <SettingsText muted>{sentences.appointing}</SettingsText>
-      <div className="flex flex-wrap items-end gap-2.5">
-        <div className="w-[320px] max-sm:w-full">
-          <Field
-            label="E-Mail des Kontos"
-            type="email"
-            value={email}
-            placeholder={sentences.exampleAddress}
-            autoComplete="off"
-            onChange={(event) => {
-              setEmail(event.target.value)
+    <div className="flex flex-col gap-2.5">
+      <form noValidate onSubmit={submit} className="flex flex-col gap-2.5">
+        <SettingsText muted>{sentences.appointing}</SettingsText>
+        <div className="flex flex-wrap items-end gap-2.5">
+          <div className="w-[320px] max-sm:w-full">
+            <Field
+              label="E-Mail des Kontos"
+              type="email"
+              value={email}
+              placeholder={sentences.exampleAddress}
+              autoComplete="off"
+              onChange={(event) => {
+                setEmail(event.target.value)
+              }}
+            />
+          </div>
+          <Button
+            tone="primary"
+            type="submit"
+            icon={Plus}
+            disabled={appoint.isPending || confirming}
+          >
+            {sentences.appoint}
+          </Button>
+          <span className="self-center text-[12px] text-ink-muted">
+            Mit erneuter Bestätigung durch Passwort und Code.
+          </span>
+        </div>
+        {trouble ? (
+          <p role="alert" className="text-[13px] font-semibold text-conflict">
+            {trouble}
+          </p>
+        ) : null}
+        {done ? (
+          <p role="status" className="text-[13px] text-done">
+            {done}
+          </p>
+        ) : null}
+      </form>
+      {confirming ? (
+        <section
+          aria-label={`${sentences.appoint} bestätigen`}
+          className="rounded-[5px] border border-line bg-surface-sunken p-3"
+        >
+          <Reconfirmation
+            narrow
+            onConfirmed={() => {
+              setConfirming(false)
+              appoint.mutate(email)
+            }}
+            onCancel={() => {
+              setConfirming(false)
             }}
           />
-        </div>
-        <Button tone="primary" type="submit" icon={Plus} disabled={appoint.isPending}>
-          {sentences.appoint}
-        </Button>
-      </div>
-      {trouble ? (
-        <p role="alert" className="text-[13px] font-semibold text-conflict">
-          {trouble}
-        </p>
+        </section>
       ) : null}
-      {done ? (
-        <p role="status" className="text-[13px] text-done">
-          {done}
-        </p>
-      ) : null}
-    </form>
+    </div>
   )
 }

@@ -196,20 +196,44 @@ async function settingsOf(tx: TenantTransaction, tenantId: TenantId) {
  * The password kept goes to the server and the login it was typed in for, and
  * to no other (opengewerk-haustechnik#31). Whoever may change the settings
  * could otherwise point them at a server of their own and have the password of
- * the mailbox sent there, with a check or with the next message. The port and
- * the kind of connection may change; the server stays the same one.
+ * the mailbox sent there, with a check or with the next message.
+ *
+ * And never with less encryption than it was kept for
+ * (opengewerk-haustechnik#360). With TLS, at once or after STARTTLS, which
+ * both require it and hold the certificate against the name of the server, the
+ * port may change: whatever answers there, only that server reads the
+ * password. Without TLS a server may take it in the clear before anything is
+ * encrypted, where whoever reads the line between the instance and the
+ * provider reads it too; so without TLS it goes only to the very connection
+ * it was kept for, the same port and no encryption before either, and a
+ * change to none asks for it again. A port left empty is the one that goes
+ * with the encryption.
  */
 export function keptPasswordFits(
-  current: { readonly host: string; readonly username: string | null } | null,
-  input: Pick<MailConnectionInput, 'host' | 'username'>,
+  current: {
+    readonly host: string
+    readonly port: number
+    readonly security: SmtpSecurity
+    readonly username: string | null
+  } | null,
+  input: Pick<MailConnectionInput, 'host' | 'port' | 'security' | 'username'>,
 ): void {
-  if (
-    current !== null &&
-    (current.host.toLowerCase() !== input.host.toLowerCase() || current.username !== input.username)
-  ) {
+  if (current === null) {
+    return
+  }
+
+  const port = input.port ?? defaultSmtpPorts[input.security]
+  const sameServer =
+    current.host.toLowerCase() === input.host.toLowerCase() && current.username === input.username
+  const encrypted = input.security !== 'none'
+  const asKept = current.security === 'none' && current.port === port
+
+  if (!sameServer || !(encrypted || asKept)) {
     throw new BadRequestException(
       'Das gespeicherte Passwort geht nur an den Server und den Benutzernamen, für die es ' +
-        'eingegeben wurde. Für einen anderen Server oder Benutzernamen gehört es neu eingegeben.',
+        'eingegeben wurde, und ohne Verschlüsselung nur über die gespeicherte Verbindung. Für ' +
+        'einen anderen Server oder Benutzernamen gehört es neu eingegeben, ebenso für eine ' +
+        'Verbindung ohne Verschlüsselung.',
     )
   }
 }

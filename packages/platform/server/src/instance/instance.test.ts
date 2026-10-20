@@ -109,6 +109,25 @@ function send(
 
 const message = (answer: { body: unknown }) => (answer.body as { message: string }).message
 
+/**
+ * A change of who runs the instance, or a tenant for somebody else, after
+ * confirming again on the session as the routes ask (opengewerk-haustechnik#360).
+ */
+function confirmed(
+  method: 'post' | 'delete',
+  path: string,
+  person: { email: string },
+  body?: object,
+) {
+  return {
+    async expect(status: number) {
+      await visitors.reconfirm(person.email, as(person))
+
+      return send(method, path, person, body).expect(status)
+    },
+  }
+}
+
 /** A script: nobody at the terminal, and nothing shown on it. */
 function script(): NonNullable<CommandSurroundings['terminal']> {
   return {
@@ -423,7 +442,7 @@ describe('MAIL_INTERNAL_HOSTS from the .env', () => {
 
 describe('who runs the instance', () => {
   it('is named among the accounts that exist, and no other, and nobody twice', async () => {
-    const named = await send('post', '/instance/operators', lea, {
+    const named = await confirmed('post', '/instance/operators', lea, {
       email: 'Otto@Nord.example.de',
     }).expect(201)
 
@@ -434,17 +453,20 @@ describe('who runs the instance', () => {
       secondFactor: true,
     })
 
-    const unknown = await send('post', '/instance/operators', lea, {
+    const unknown = await confirmed('post', '/instance/operators', lea, {
       email: 'niemand@example.de',
     }).expect(404)
 
     expect(message(unknown)).toBe('Ein Konto mit dieser Adresse gibt es auf dieser Instanz nicht.')
 
-    const twice = await send('post', '/instance/operators', lea, { email: otto.email }).expect(409)
+    const twice = await confirmed('post', '/instance/operators', lea, { email: otto.email }).expect(
+      409,
+    )
 
     expect(message(twice)).toBe(sentences.alreadyOperator)
 
-    await send('post', '/instance/operators', lea, { email: 'keine-adresse' }).expect(400)
+    await confirmed('post', '/instance/operators', lea, { email: 'keine-adresse' }).expect(400)
+    // Without an address at all, refused before any confirmation is asked for.
     await send('post', '/instance/operators', lea, {}).expect(400)
 
     const list = (await get('/instance/operators', lea).expect(200)).body as OperatorView[]
@@ -452,22 +474,54 @@ describe('who runs the instance', () => {
     expect(list.map((operator) => operator.userId)).toEqual([idOf(lea), idOf(otto)])
   })
 
+  /**
+   * Whoever is named could change the mail server of the instance next, with a
+   * confirmation of their own; a session left open names nobody
+   * (opengewerk-haustechnik#360). Nor does it take anybody off, or make a
+   * tenant with a link that makes somebody lead it.
+   */
+  it('changes only after confirming again with the password and the code', async () => {
+    const before = await running()
+    const tenants = (await admin.query('select 1 from tenants')).rowCount
+
+    for (const refused of [
+      await send('post', '/instance/operators', lea, { email: mia.email }).expect(403),
+      await send('delete', `/instance/operators/${idOf(otto)}`, lea).expect(403),
+    ]) {
+      expect(message(refused)).toBe(
+        'Wer die Instanz verwaltet, ändert sich erst nach der Bestätigung mit Passwort und Code.',
+      )
+    }
+
+    const noTenant = await send('post', '/instance/tenants', lea, {
+      name: 'Mandant Ohne',
+      leadName: 'Olga Ohne',
+      leadEmail: 'olga@ohne.example.de',
+    }).expect(403)
+
+    expect(message(noTenant)).toBe(
+      'Ein neuer Mandant mit Einladung entsteht erst nach der Bestätigung mit Passwort und Code.',
+    )
+    expect(await running()).toEqual(before)
+    expect((await admin.query('select 1 from tenants')).rowCount).toBe(tenants)
+  })
+
   it('opens the area to whoever was named, at once', async () => {
     await get('/instance/settings', otto).expect(200)
   })
 
   it('is taken from another and never from oneself, in the words of the application', async () => {
-    const oneself = await send('delete', `/instance/operators/${idOf(lea)}`, lea).expect(409)
+    const oneself = await confirmed('delete', `/instance/operators/${idOf(lea)}`, lea).expect(409)
 
     expect(message(oneself)).toBe(sentences.notOneself)
 
-    const stranger = await send('delete', `/instance/operators/${idOf(mia)}`, lea).expect(404)
+    const stranger = await confirmed('delete', `/instance/operators/${idOf(mia)}`, lea).expect(404)
 
     expect(message(stranger)).toBe(sentences.notAnOperator)
 
-    await send('delete', `/instance/operators/${idOf(otto)}`, lea).expect(200, {
-      removed: idOf(otto),
-    })
+    const removed = await confirmed('delete', `/instance/operators/${idOf(otto)}`, lea).expect(200)
+
+    expect(removed.body).toEqual({ removed: idOf(otto) })
 
     // Taken away, and at once: the next request with the same session is refused.
     await get('/instance/settings', otto).expect(403)
@@ -634,7 +688,7 @@ describe('a further tenant', () => {
   })
 
   it('is created for somebody else by whoever runs the instance, with an invitation to lead it', async () => {
-    const created = await send('post', '/instance/tenants', lea, {
+    const created = await confirmed('post', '/instance/tenants', lea, {
       name: 'Mandant Süd',
       leadName: 'Sven Süd',
       leadEmail: 'Sven@Sued.example.de',
@@ -663,7 +717,7 @@ describe('a further tenant', () => {
   })
 
   it('needs somebody to lead it, named in the words of the application', async () => {
-    const nameless = await send('post', '/instance/tenants', lea, {
+    const nameless = await confirmed('post', '/instance/tenants', lea, {
       name: 'Mandant West',
       leadName: '  ',
       leadEmail: 'wanda@west.example.de',
@@ -671,7 +725,7 @@ describe('a further tenant', () => {
 
     expect(message(nameless)).toBe(sentences.leadNameMissing)
 
-    const noAddress = await send('post', '/instance/tenants', lea, {
+    const noAddress = await confirmed('post', '/instance/tenants', lea, {
       name: 'Mandant West',
       leadName: 'Wanda West',
       leadEmail: 'wanda',

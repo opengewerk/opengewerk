@@ -7,6 +7,25 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Sicherheit
+
+- Teil 2 der Sicherheitsprüfung für OpenGewerk Haustechnik (opengewerk/opengewerk-haustechnik#360) fand vier
+  Wege, auf denen eine offene Sitzung mehr konnte, als die Bestätigung mit Passwort und Code erlauben soll. Alle
+  vier sind geschlossen:
+  - Das Geheimnis der Authenticator-App lesen und die App abschalten ging mit Sitzung und Passwort; beide Routen
+    von better-auth sind abgeschaltet. Neue Wiederherstellungscodes gibt es nur nach Passwort und Code, nicht am
+    ersten Tag nach einem neuen Passwort, und der Zugang bekommt eine E-Mail darüber. Unter „Konto“ fragt das
+    Formular dafür nach beidem.
+  - Benennen und Entfernen eines Betreibers und ein Betrieb mit Einladung für jemand anderen verlangen dieselbe
+    Bestätigung wie der Mailserver der Instanz, denn wer Betreiber wird, kann diesen danach ändern. Jede Änderung
+    an den Betreibern geht per E-Mail an alle Betreiber und an den entfernten.
+  - `/update-user` von better-auth änderte den Namen eines Zugangs ohne Bestätigung und ohne Eintrag im
+    Protokoll. Abgeschaltet ist jetzt jede Route von better-auth, die die Oberfläche nicht nutzt, und ein Test
+    hält die Liste der übrigen.
+  - Das gespeicherte Passwort eines Mailservers ging bei gleichem Server und Benutzer auch an einen anderen Port
+    ohne Verschlüsselung, über eine Prüfung ohne Bestätigung. Ohne TLS geht es jetzt nur noch über genau die
+    gespeicherte Verbindung, mit TLS weiter an jeden Port desselben Servers.
+
 ## [0.6.0] - 2026-10-20
 
 Die sechste Fassung schließt acht Sicherheitslücken, die eine Prüfung vor der nächsten Fassung von

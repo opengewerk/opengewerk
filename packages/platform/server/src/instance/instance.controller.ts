@@ -57,6 +57,7 @@ import {
 } from './mail-server.js'
 import { type MailServerNamed, recordMailServerChange, tellWhoLeads } from './mail-server-notice.js'
 import { appointOperator, listOperators, removeOperator } from './operators.js'
+import { tellOperators } from './operators-notice.js'
 import {
   checkedChange,
   type InstanceSettingsCache,
@@ -98,6 +99,14 @@ function field(body: unknown, name: string): unknown {
 const mailServerUnconfirmed =
   'Der Mailserver der Instanz ändert sich erst nach der Bestätigung mit Passwort und Code.'
 
+/** The same for naming somebody to run the instance, or taking them off (opengewerk-haustechnik#360). */
+const operatorsUnconfirmed =
+  'Wer die Instanz verwaltet, ändert sich erst nach der Bestätigung mit Passwort und Code.'
+
+/** The same for a tenant made for somebody else, and the link that makes them lead it. */
+const tenantUnconfirmed =
+  'Ein neuer Mandant mit Einladung entsteht erst nach der Bestätigung mit Passwort und Code.'
+
 /**
  * The area of the instance (#188), for whoever runs it: the tenants on it
  * (#142), its settings, its legal texts, the accounts that run it and its log. Not the
@@ -113,6 +122,12 @@ const mailServerUnconfirmed =
  * and every change goes into the log of every tenant and by mail, through the
  * server of before, to whoever leads one (`mail-server-notice.ts`). Whoever
  * runs the instance writes those rows and reads none of them.
+ *
+ * Naming somebody to run the instance, or taking them off, and a tenant made
+ * for somebody else take the same confirmation: whoever is named could change
+ * the mail server next, with a confirmation of their own, and a session left
+ * open must not be enough for that either. A change of who runs it is told by
+ * mail to each of them (`operators-notice.ts`).
  */
 @Controller('instance')
 export class InstanceController {
@@ -172,10 +187,26 @@ export class InstanceController {
    * change that fails after it needs the password again, which is the side to
    * err on, and a session that did not confirm reaches nothing at all.
    */
-  private async reconfirmed(user: SignedInUser): Promise<void> {
+  private async reconfirmed(user: SignedInUser, refusal = mailServerUnconfirmed): Promise<void> {
     if (!(await claimReconfirmation(this.database, user.sessionId))) {
-      throw new ForbiddenException(mailServerUnconfirmed)
+      throw new ForbiddenException(refusal)
     }
+  }
+
+  /** Tells everybody who runs the instance of a change among them, without waiting for the mail. */
+  private tellOperators(
+    change: { readonly appointed: boolean; readonly name: string; readonly email: string },
+    userId: string,
+  ): void {
+    if (!this.mail || !this.messages) {
+      return
+    }
+
+    void tellOperators(this.database, this.mail, this.messages, change, userId).catch(
+      (error: unknown) => {
+        console.error('Die Nachricht über die Verwaltung der Instanz ging nicht hinaus.', error)
+      },
+    )
   }
 
   /**
@@ -401,25 +432,54 @@ export class InstanceController {
     return listOperators(this.database, user.userId)
   }
 
+  /** Names an account to run the instance, after confirming again, and tells everybody who runs it. */
   @Post('operators')
   @RequiresOperator()
-  appoint(@CurrentUser() user: SignedInUser, @Body() body: unknown): Promise<OperatorView> {
+  async appoint(@CurrentUser() user: SignedInUser, @Body() body: unknown): Promise<OperatorView> {
     const email = field(body, 'email')
 
     if (typeof email !== 'string') {
       throw new BadRequestException('Die E-Mail-Adresse fehlt.')
     }
 
-    return appointOperator(this.database, this.access.sentences.instance, user.userId, email)
+    await this.reconfirmed(user, operatorsUnconfirmed)
+
+    const appointed = await appointOperator(
+      this.database,
+      this.access.sentences.instance,
+      user.userId,
+      email,
+    )
+
+    this.tellOperators(
+      { appointed: true, name: appointed.name, email: appointed.email },
+      user.userId,
+    )
+
+    return appointed
   }
 
+  /** Takes an account off, after confirming again, and tells it and everybody who still runs the instance. */
   @Delete('operators/:userId')
   @RequiresOperator()
   async remove(
     @CurrentUser() user: SignedInUser,
     @Param('userId') userId: string,
   ): Promise<{ readonly removed: string }> {
+    await this.reconfirmed(user, operatorsUnconfirmed)
+
+    const leaving = (await listOperators(this.database, user.userId)).find(
+      (operator) => operator.userId === userId,
+    )
+
     await removeOperator(this.database, this.access.sentences.instance, user.userId, userId)
+
+    if (leaving) {
+      this.tellOperators(
+        { appointed: false, name: leaving.name, email: leaving.email },
+        user.userId,
+      )
+    }
 
     return { removed: userId }
   }
@@ -454,6 +514,8 @@ export class InstanceController {
     @CurrentUser() user: SignedInUser,
     @Body() body: unknown,
   ): Promise<{ readonly tenantId: string; readonly token: string; readonly expiresAt: string }> {
+    await this.reconfirmed(user, tenantUnconfirmed)
+
     const created = await createTenantFor(this.database, this.access, user.userId, {
       name: field(body, 'name'),
       leadName: field(body, 'leadName'),

@@ -3,7 +3,7 @@ import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { newId } from '../database/identifier.js'
-import { authenticationPath } from './authentication.js'
+import { authenticationPath, disabledPaths } from './authentication.js'
 import {
   cookiesOf,
   type ProbeFoundation,
@@ -236,5 +236,95 @@ describe('changing the own account', () => {
 
   it('cannot be reached without a session', async () => {
     await change('', { name: 'Niemand' }).expect(401)
+  })
+})
+
+/**
+ * better-auth brings routes of its own for much of what an account is, and
+ * each that is reachable is a way past the confirmation and the log of the
+ * routes of ours (opengewerk-haustechnik#360). So every route it still
+ * answers stands in a list here, and a new one, from an update or a plugin,
+ * makes this test red until somebody has looked at it.
+ */
+describe('the routes of better-auth', () => {
+  it('rename nobody: /update-user is not there, and the name and the log stay', async () => {
+    // The address as the tests above left it.
+    const before = await accountOf(idOf(other))
+    const cookies = await signIn(before.email)
+    const entries = (await logged(north.id, 'name_after')).length
+
+    await http()
+      .post(`${authenticationPath}/update-user`)
+      .set('cookie', cookies)
+      .set('origin', origin)
+      .send({ name: 'Unter falschem Namen' })
+      .expect(404)
+
+    expect(await accountOf(idOf(other))).toEqual(before)
+    expect(await logged(north.id, 'name_after')).toHaveLength(entries)
+  })
+
+  it('answer for none of the paths switched off, with a session or without', async () => {
+    const cookies = await signIn((await accountOf(idOf(other))).email)
+
+    for (const path of disabledPaths) {
+      for (const method of ['get', 'post'] as const) {
+        await http()
+          [method](`${authenticationPath}${path}`)
+          .set('cookie', cookies)
+          .set('origin', origin)
+          .send(method === 'post' ? { password } : undefined)
+          .expect(404)
+      }
+    }
+  })
+
+  it('are reachable only as far as the list says', () => {
+    const reachable = Object.values(
+      instance.authentication.api as Record<
+        string,
+        {
+          path?: string
+          options?: { method?: string | string[]; metadata?: { SERVER_ONLY?: boolean } }
+        }
+      >,
+    )
+      .filter((endpoint) => endpoint.path && !endpoint.options?.metadata?.SERVER_ONLY)
+      .filter((endpoint) => !disabledPaths.includes(endpoint.path ?? ''))
+      .flatMap((endpoint) => {
+        const methods = endpoint.options?.method ?? []
+
+        return (Array.isArray(methods) ? methods : [methods]).map(
+          (method) => `${method} ${endpoint.path ?? ''}`,
+        )
+      })
+      .sort()
+
+    // The two with a parameter cannot be switched off by name and answer
+    // without a provider of another kind or a link of their own: there is
+    // none here.
+    expect(reachable).toEqual([
+      'GET /callback/:id',
+      'GET /error',
+      'GET /get-session',
+      'GET /ok',
+      'GET /passkey/generate-authenticate-options',
+      'GET /passkey/generate-register-options',
+      'GET /reset-password/:token',
+      'POST /callback/:id',
+      'POST /change-password',
+      'POST /get-session',
+      'POST /passkey/verify-authentication',
+      'POST /passkey/verify-registration',
+      'POST /reconfirm',
+      'POST /request-password-reset',
+      'POST /reset-password',
+      'POST /sign-in/email',
+      'POST /sign-out',
+      'POST /two-factor/enable',
+      'POST /two-factor/generate-backup-codes',
+      'POST /two-factor/verify-backup-code',
+      'POST /two-factor/verify-totp',
+    ])
   })
 })

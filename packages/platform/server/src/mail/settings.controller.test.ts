@@ -450,6 +450,10 @@ describe('checking the connection', () => {
     const elsewhere = [
       { ...withoutPassword, host: 'mail.angreifer.example' },
       { ...withoutPassword, username: 'jemand@angreifer.example' },
+      // The same server without TLS could take it in the clear, before any
+      // encryption (opengewerk-haustechnik#360), on its port or another.
+      { ...withoutPassword, port: 587, security: 'none' },
+      { ...withoutPassword, port: 25, security: 'none' },
     ]
 
     for (const body of elsewhere) {
@@ -460,7 +464,8 @@ describe('checking the connection', () => {
         .expect(400)
 
       expect((checked.body as { message: string }).message).toContain(
-        'Für einen anderen Server oder Benutzernamen gehört es neu eingegeben.',
+        'Für einen anderen Server oder Benutzernamen gehört es neu eingegeben, ebenso für eine ' +
+          'Verbindung ohne Verschlüsselung.',
       )
       await save(body).expect(400)
     }

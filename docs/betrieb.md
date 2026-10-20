@@ -284,6 +284,16 @@ Mailserver von vorher und nicht über den neuen.
 Jedes neue Passwort steht ebenso im Protokoll jedes Betriebs des Zugangs (siehe
 "Ein Passwort ändern und zurückholen").
 
+Wer einen weiteren Betreiber benennt, kann damit den Mailserver der Instanz in
+andere Hände geben. Deshalb verlangen auch das Benennen und Entfernen eines
+Betreibers und ein Betrieb mit Einladung für jemand anderen die Bestätigung mit
+Passwort und Code, und jede Änderung an den Betreibern geht per E-Mail an alle
+Betreiber und an den entfernten, über den Mailserver der Instanz. Das
+gespeicherte Passwort eines Mailservers geht nur an den Server und den
+Benutzernamen, für die es eingegeben wurde, und ohne Verschlüsselung nur über
+genau die gespeicherte Verbindung; wer den Port wechselt und dabei auf "ohne
+Verschlüsselung" stellt, gibt das Passwort neu ein.
+
 Der Bereich selbst gehört zum Fundament (ADR 0010) und ist in jeder Anwendung
 der Organisation derselbe. Was diese Anwendung dazu sagt, sind ihre Wörter:
 "Betreiber" für den, der die Instanz betreibt, "Betrieb" und "Inhaber".

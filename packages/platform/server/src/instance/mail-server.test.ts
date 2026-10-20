@@ -77,6 +77,14 @@ const messages: AccountMessages = {
     subject: 'Ein neuer Passkey',
     body: `Hallo ${name}, angelegt wurde „${passkey}“. Ihre Passkeys: ${link}`,
   }),
+  recoveryCodesRenewed: ({ name, link }) => ({
+    subject: 'Neue Wiederherstellungscodes',
+    body: `Hallo ${name}, es gibt neue Codes. Ihr Konto: ${link}`,
+  }),
+  operatorsChanged: ({ name, appointed, person, link }) => ({
+    subject: 'Die Verwaltung der Instanz',
+    body: `Hallo ${name}, ${person} ${appointed ? 'verwaltet jetzt mit' : 'verwaltet nicht mehr'}. ${link}`,
+  }),
   mailServerChanged: ({ name, host, link }) => ({
     subject: 'Ein neuer Mailserver der Instanz',
     body: `Hallo ${name}, Mails an ein Konto gehen jetzt über ${host ?? 'keinen Server'}. ${link}`,
@@ -494,6 +502,9 @@ describe('changing the mail server of the instance', () => {
       for (const moved of [
         { host: 'localhost', port: elsewhere.port, password: undefined },
         { username: 'jemand-anders', password: undefined },
+        // Kept without TLS, it goes nowhere else without TLS, not even to
+        // another port of the same server (opengewerk-haustechnik#360).
+        { host: '127.0.0.1', port: elsewhere.port, password: undefined },
       ]) {
         for (const path of ['/instance/mail-server', '/instance/mail-server/check'] as const) {
           const refused = path.endsWith('check')
@@ -514,7 +525,11 @@ describe('changing the mail server of the instance', () => {
   })
 
   it('refuses the same where the settings are saved without a route in front', async () => {
-    for (const moved of [{ host: 'localhost' }, { username: 'jemand-anders' }]) {
+    for (const moved of [
+      { host: 'localhost' },
+      { username: 'jemand-anders' },
+      { port: smtp.port + 1 },
+    ]) {
       await expect(
         saveInstanceMailServer(database, 'somebody', key, {
           host: '127.0.0.1',
@@ -561,13 +576,18 @@ describe('a mail to an account', () => {
   const otherwise = { id: 'user-1', email: 'mia@nord.example.de', name: 'Mia Mitglied' }
 
   it('goes out through the mail server of the instance, under the name of the application', async () => {
-    const { passwordResetMail, passkeyNotice } = accountMails(database, mail, messages)
+    const { passwordResetMail, passkeyNotice, recoveryCodesNotice } = accountMails(
+      database,
+      mail,
+      messages,
+    )
     const before = smtp.received.length
 
     await passwordResetMail(otherwise, 'einmal-und-nie-wieder')
     await passkeyNotice(otherwise, { id: 'passkey-1', name: 'Telefon' })
+    await recoveryCodesNotice(otherwise)
 
-    const [reset, notice] = smtp.received.slice(before)
+    const [reset, notice, codes] = smtp.received.slice(before)
     // A long line is folded on its way, with an equals sign at the fold.
     const unfolded = (data: string | undefined) => (data ?? '').replace(/=\r?\n/g, '')
 
@@ -577,6 +597,10 @@ describe('a mail to an account', () => {
     expect(unfolded(reset?.data)).toContain(`${origin}/passwort/einmal-und-nie-wieder`)
     expect(notice?.to).toEqual(['mia@nord.example.de'])
     expect(unfolded(notice?.data)).toContain(`${origin}/konto`)
+    // New recovery codes are told the same way (opengewerk-haustechnik#360).
+    expect(codes?.to).toEqual(['mia@nord.example.de'])
+    expect(codes?.data).toContain('Subject: Neue Wiederherstellungscodes')
+    expect(unfolded(codes?.data)).toContain(`${origin}/konto`)
   })
 
   it('takes a passkey back with it where the mail server refuses the notice', async () => {
@@ -740,6 +764,81 @@ describe('whoever leads a tenant, told of a change of the mail server', () => {
         from_after: null,
       }),
     ])
+  })
+})
+
+/**
+ * Whoever is named to run the instance could change its mail server next, so
+ * everybody who runs it learns of it by mail, and the one taken off learns of
+ * that (opengewerk-haustechnik#360). Through the mail server of the instance
+ * as it is.
+ */
+describe('everybody who runs the instance, told of a change among them', () => {
+  let told: ProbeInstance
+  let ottoId = ''
+
+  /** The mails about the area of the instance, to whom, in the order they came. */
+  const aboutTheArea = () =>
+    smtp.received.filter((mail) => mail.data?.includes('Subject: Die Verwaltung der Instanz'))
+
+  function confirmedOn(method: 'post' | 'put' | 'delete', path: string, body?: object) {
+    return {
+      async expect(status: number) {
+        await visitors.reconfirm(lea.email, as(lea))
+
+        return told
+          .http()
+          [method](path)
+          .set('cookie', as(lea))
+          .set('origin', origin)
+          .send(body ?? {})
+          .expect(status)
+      },
+    }
+  }
+
+  beforeAll(async () => {
+    told = await probeInstance(foundation.kit.applicationDatabaseUrl(), {
+      mail,
+      accountMessages: messages,
+    })
+    await confirmedOn('put', '/instance/mail-server', typed()).expect(200)
+  })
+
+  afterAll(async () => {
+    await told.close()
+  })
+
+  it('are told when somebody is named, the new one with them', async () => {
+    const before = aboutTheArea().length
+
+    const named = await confirmedOn('post', '/instance/operators', { email: otto.email }).expect(
+      201,
+    )
+
+    ottoId = (named.body as { userId: string }).userId
+    await vi.waitFor(() => {
+      expect(aboutTheArea().length).toBe(before + 2)
+    })
+
+    const got = aboutTheArea().slice(before)
+
+    expect(got.flatMap((mail) => mail.to).sort()).toEqual([lea.email, otto.email].sort())
+    expect(got[0]?.data).toContain(`${otto.name} verwaltet jetzt mit`)
+  })
+
+  it('are told when somebody is taken off, and so is the one taken off', async () => {
+    const before = aboutTheArea().length
+
+    await confirmedOn('delete', `/instance/operators/${ottoId}`).expect(200)
+    await vi.waitFor(() => {
+      expect(aboutTheArea().length).toBe(before + 2)
+    })
+
+    const got = aboutTheArea().slice(before)
+
+    expect(got.flatMap((mail) => mail.to).sort()).toEqual([lea.email, otto.email].sort())
+    expect(got[0]?.data).toContain(`${otto.name} verwaltet nicht mehr`)
   })
 })
 
