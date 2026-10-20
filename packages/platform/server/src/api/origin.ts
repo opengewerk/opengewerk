@@ -153,8 +153,17 @@ export class SameOriginGuard implements CanActivate {
  * as `from` and `to`, and in umlauts. Every other route reads the 100 kB
  * Express reads by default: none of them takes more than a form's worth, and
  * a body is read before anybody knows who sent it.
+ *
+ * The outbox is read by its route, after the guards (`outboxOf` in the sync),
+ * so that eight megabytes are read for a device somebody is signed in on and
+ * for nobody else.
  */
 export const largestTransmissionBytes = 8 * 1024 * 1024
+
+/** A transmission of the outbox, the one JSON body the parser in front leaves to its route. */
+function isOutbox(request: Request): boolean {
+  return request.method === 'POST' && request.path === '/sync'
+}
 
 /**
  * Reads JSON bodies and nothing else.
@@ -166,24 +175,24 @@ export const largestTransmissionBytes = 8 * 1024 * 1024
  * middleware of its own, on that route alone. For an application created with
  * `bodyParser: false`.
  *
- * The outbox at `POST /sync` is read first, with a limit of its own; a body
- * read there counts as read, and the parser for everything else passes it by.
- * Until #202 it had the 100 kB of every route, and a device over that was
- * refused with an answer that named no operation, so its outbox hung for good.
+ * The outbox at `POST /sync` is passed by unread: its route reads it once the
+ * guards have let it through, with a limit of its own. Until #202 it had the
+ * 100 kB of every route, and a device over that was refused with an answer
+ * that named no operation, so its outbox hung for good. After that it was read
+ * here, with its larger limit, before anybody had asked who sent it.
  *
  * Called after the authentication is mounted, never before: Express reads a
- * body once, and a parser in front would leave the sign in with an empty one,
- * which looks exactly like a wrong password.
+ * body once, and a parser in front would hand the sign in a body it had made
+ * something else of.
  */
 export function readJsonBodiesOnly(application: NestExpressApplication): void {
-  const outbox = readJson({ limit: largestTransmissionBytes })
+  const everyOther = readJson()
 
   application.use((request: Request, response: Response, next: NextFunction) => {
-    if (request.method === 'POST' && request.path === '/sync') {
-      outbox(request, response, next)
-    } else {
+    if (isOutbox(request)) {
       next()
+    } else {
+      everyOther(request, response, next)
     }
   })
-  application.useBodyParser('json')
 }

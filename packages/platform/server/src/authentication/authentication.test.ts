@@ -164,6 +164,27 @@ describe('signing in', () => {
     expect(JSON.stringify(refused.body)).not.toContain(member.name)
   })
 
+  /**
+   * The body of a sign in reaches better-auth through the limit in front of
+   * it (`mountAuthentication`, as an instance mounts it): read there and
+   * handed on as text. Without its body better-auth would refuse the request
+   * for a missing address, with 400; with it, a wrong password is refused as
+   * wrong credentials and the right one opens a session.
+   */
+  it('reaches better-auth through the limit of its body: a wrong password is wrong credentials, the right one a session', async () => {
+    const wrong = await http()
+      .post(`${authenticationPath}/sign-in/email`)
+      .set('origin', origin)
+      .send({ email: member.email, password: 'falsch-aber-lang-genug' })
+
+    expect(wrong.status).toBe(401)
+    expect(wrong.body).toMatchObject({ code: 'INVALID_EMAIL_OR_PASSWORD' })
+
+    const cookies = await signInRaw(member.email)
+
+    expect(cookies.some((cookie) => cookie.includes('session_token='))).toBe(true)
+  })
+
   it('is refused for somebody who does not exist, the same way', async () => {
     const refused = await http()
       .post(`${authenticationPath}/sign-in/email`)

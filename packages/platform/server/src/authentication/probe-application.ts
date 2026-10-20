@@ -21,6 +21,7 @@ import {
   type TenantId,
 } from '@opengewerk/platform-domain'
 import { toNodeHandler } from 'better-auth/node'
+import type { RequestHandler } from 'express'
 import type { Pool } from 'pg'
 import request from 'supertest'
 
@@ -52,6 +53,7 @@ import type { InstanceSettingsCache } from '../instance/settings.js'
 import { MAIL, type MailContext } from '../mail/context.js'
 import type { MadeByTheApplication } from '../migration/guards.js'
 import { memberships } from '../schema.js'
+import { mountAuthentication } from '../start/server.js'
 import type { AccessRules, MembershipAdditions } from './access.js'
 import {
   type Authentication,
@@ -472,10 +474,10 @@ export async function probeInstance(
   const app = built.createNestApplication()
 
   if (!closed) {
-    // In front of Nest's body parser, which is the order an instance uses and
-    // the order that matters: a parser in front leaves better-auth with an
-    // empty body and the failure reads like a wrong password.
-    app.use(authenticationPath, toNodeHandler(authentication))
+    // As an instance mounts it: behind the limit of its bodies, which hands
+    // it every body as text, and in front of Nest's body parser, which would
+    // hand it a body it had made something else of.
+    mountAuthentication(app, toNodeHandler(authentication) as RequestHandler)
   }
 
   await app.init()

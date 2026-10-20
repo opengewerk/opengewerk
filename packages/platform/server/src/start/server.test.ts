@@ -4,16 +4,18 @@ import { join } from 'node:path'
 
 import { Controller, type DynamicModule, Module, Post, Req } from '@nestjs/common'
 import type { NestExpressApplication } from '@nestjs/platform-express'
-import type { Request, Response } from 'express'
+import { toNodeHandler } from 'better-auth/node'
+import type { Request, RequestHandler } from 'express'
 import request from 'supertest'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { PublicRoute } from '../api/authorization.js'
 import { ClosedIdentitySource } from '../api/closed-identity.js'
-import { AcceptsBody, largestTransmissionBytes } from '../api/origin.js'
+import { AcceptsBody } from '../api/origin.js'
+import { sentByHand } from '../api/probe-sending.js'
 import { ProbeModule } from '../authentication/probe-application.js'
 import { Database } from '../database/database.js'
-import { createServer } from './server.js'
+import { createServer, largestAuthenticationBodyBytes } from './server.js'
 
 // The server of an instance around the module of an application that belongs
 // to nobody: what stands in front of its routes, in its order, and the
@@ -40,20 +42,23 @@ function builtInterface(): string {
   return directory
 }
 
-/** A stand-in for the authentication that says what body it was handed. */
-function echoingAuthentication(): (request: Request, response: Response) => void {
-  return (incoming, response) => {
-    let body = ''
+/**
+ * A stand-in for the authentication behind better-auth's own adapter for
+ * Node, so that what it says it was handed is what better-auth would read:
+ * its path and its body, as text. It counts how often it was asked.
+ */
+function echoingAuthentication(): { readonly handler: RequestHandler; asked(): number } {
+  let asked = 0
+  const handler = toNodeHandler(async (incoming: globalThis.Request) => {
+    asked += 1
 
-    incoming.setEncoding('utf8')
-    incoming.on('data', (chunk: string) => {
-      body += chunk
-    })
-    incoming.on('end', () => {
-      response.json({ path: incoming.url, body, parsed: incoming.body !== undefined })
-    })
-  }
+    return Response.json({ path: new URL(incoming.url).pathname, body: await incoming.text() })
+  }) as RequestHandler
+
+  return { handler, asked: () => asked }
 }
+
+const signIn = '/api/auth/sign-in/email'
 
 /**
  * Routes that say what the server made of a body before they saw it: one that
@@ -77,8 +82,8 @@ class EchoController {
 
   @Post('sync')
   @PublicRoute()
-  outbox(@Req() incoming: Request): { characters: number } {
-    return { characters: JSON.stringify(incoming.body).length }
+  outbox(@Req() incoming: Request): { read: boolean } {
+    return { read: incoming.body !== undefined }
   }
 }
 
@@ -113,23 +118,95 @@ describe('the server of an instance', () => {
     expect(answer.headers['x-powered-by']).toBeUndefined()
   })
 
-  it('hands the authentication its body unread, in front of the parser', async () => {
+  it('hands the authentication every body as it was sent, read in front of it up to a limit', async () => {
+    const authentication = echoingAuthentication()
     const { app } = await started({
-      authenticationHandler: echoingAuthentication(),
+      authenticationHandler: authentication.handler,
       serverPaths: [],
       interfaceDirectory: null,
     })
+    const sent = '{"email":"leitung@probe.example.org","name":"Jürgen Weiß"}'
     const answer = await request(app.getHttpServer())
-      .post('/api/auth/sign-in/email')
+      .post(signIn)
       .set('Content-Type', 'application/json')
-      .send('{"email":"leitung@probe.example.org"}')
+      .send(sent)
       .expect(200)
 
-    expect(answer.body).toEqual({
-      path: '/sign-in/email',
-      body: '{"email":"leitung@probe.example.org"}',
-      parsed: false,
+    expect(answer.body).toEqual({ path: signIn, body: sent })
+
+    // Without a length as well, the way a proxy may pass a body on.
+    const unannounced = await sentByHand(
+      app.getHttpServer(),
+      signIn,
+      { 'content-type': 'application/json' },
+      [sent.slice(0, 20), sent.slice(20)],
+      true,
+    )
+
+    expect(unannounced?.status).toBe(200)
+    expect(JSON.parse(unannounced?.text ?? 'null')).toEqual({ path: signIn, body: sent })
+
+    // And up to the limit itself, to the byte.
+    const largest = JSON.stringify({ token: 'x'.repeat(largestAuthenticationBodyBytes - 12) })
+
+    expect(Buffer.byteLength(largest)).toBe(largestAuthenticationBodyBytes)
+    expect(
+      (
+        await request(app.getHttpServer())
+          .post(signIn)
+          .set('Content-Type', 'application/json')
+          .send(largest)
+          .expect(200)
+      ).body,
+    ).toEqual({ path: signIn, body: largest })
+    expect(authentication.asked()).toBe(3)
+  })
+
+  /**
+   * Its handler would read any body whole before anybody is known. A body
+   * over the limit is answered in front of it and goes nowhere: one whose
+   * length says so before a byte of it is read, one without a length once it
+   * runs over, while the sender is still sending.
+   */
+  it('refuses a body over the limit of the authentication, announced or counted, and hands it to nobody', async () => {
+    const authentication = echoingAuthentication()
+    const { app } = await started({
+      authenticationHandler: authentication.handler,
+      serverPaths: [],
+      interfaceDirectory: null,
     })
+    const refusal = 'Diese Anfrage ist zu groß für die Anmeldung.'
+    const tooLarge = await request(app.getHttpServer())
+      .post(signIn)
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ token: 'x'.repeat(largestAuthenticationBodyBytes) }))
+
+    expect(tooLarge.status).toBe(413)
+    expect(tooLarge.body).toEqual({ statusCode: 413, message: refusal })
+
+    // Ten megabytes announced, ten bytes sent: the answer does not wait for the rest.
+    const announced = await sentByHand(
+      app.getHttpServer(),
+      signIn,
+      { 'content-type': 'application/json', 'content-length': String(10 * 1024 * 1024) },
+      ['{"email":"'],
+      false,
+    )
+
+    expect(announced?.status).toBe(413)
+
+    // No length, and a sender that does not stop: refused once it runs over.
+    const counted = await sentByHand(
+      app.getHttpServer(),
+      signIn,
+      { 'content-type': 'application/json' },
+      Array.from({ length: 64 }, () => 'x'.repeat(16 * 1024)),
+      false,
+    )
+
+    expect(counted?.status).toBe(413)
+    expect(JSON.parse(counted?.text ?? 'null')).toEqual({ statusCode: 413, message: refusal })
+    expect(authentication.asked()).toBe(0)
   })
 
   /**
@@ -141,7 +218,7 @@ describe('the server of an instance', () => {
    */
   it('sends the security headers on the answers of the authentication as well', async () => {
     const { app } = await started({
-      authenticationHandler: echoingAuthentication(),
+      authenticationHandler: echoingAuthentication().handler,
       serverPaths: [],
       interfaceDirectory: null,
     })
@@ -180,7 +257,13 @@ describe('the server of an instance', () => {
     ).toEqual({ body: null })
   })
 
-  it('takes the outbox of a device up to a limit of its own, and every other body up to that of a form', async () => {
+  /**
+   * The outbox is the one JSON body its route reads itself, after the guards
+   * and with a limit of its own (the tests of the sync hold both). In front of
+   * the routes it is passed by unread; every other body is read there, up to
+   * the 100 kB of a form.
+   */
+  it('leaves the outbox of a device to its route unread, and reads every other body up to that of a form', async () => {
     const { app } = await started(
       { authenticationHandler: null, serverPaths: [], interfaceDirectory: null },
       EchoModule.around(module),
@@ -189,18 +272,13 @@ describe('the server of an instance', () => {
     // Twice what every other route reads.
     const large = { text: 'x'.repeat(200 * 1024) }
 
-    expect(
-      (await request(server).post('/sync').send(large).expect(201)).body.characters,
-    ).toBeGreaterThan(200 * 1024)
+    expect((await request(server).post('/sync').send(large).expect(201)).body).toEqual({
+      read: false,
+    })
     await request(server).post('/echo/json').send(large).expect(413)
     // Only where the outbox goes, and only the way it is sent there.
     await request(server).put('/sync').send(large).expect(413)
     await request(server).post('/sync/conflicts').send(large).expect(413)
-    // And not without a limit there either.
-    await request(server)
-      .post('/sync')
-      .send({ text: 'x'.repeat(largestTransmissionBytes) })
-      .expect(413)
   })
 
   it('has no authentication at all where none is handed in, as on a closed instance', async () => {

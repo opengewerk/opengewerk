@@ -1,9 +1,10 @@
-import type { DynamicModule } from '@nestjs/common'
+import type { DynamicModule, INestApplication } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { toNodeHandler } from 'better-auth/node'
 import type { RequestHandler } from 'express'
 
+import { bodiesUpTo } from '../api/body-bytes.js'
 import { readJsonBodiesOnly } from '../api/origin.js'
 import { sendSecurityHeaders } from '../api/security-headers.js'
 import { type Authentication, authenticationPath } from '../authentication/authentication.js'
@@ -42,6 +43,34 @@ export function authenticationHandler(authentication: Authentication): RequestHa
 }
 
 /**
+ * The most a body sent to the authentication may be, in bytes.
+ *
+ * Its handler reads a body whole, with no limit of its own, and before
+ * anybody is known: these are the routes that sign in. What they are sent is
+ * an address and a password, a code, a token, and at the most the answer of a
+ * passkey to its registration, which asks for no attestation and so stays at
+ * a few kilobytes. Sixty-four kilobytes are far above all of it, and nothing
+ * larger goes into memory.
+ */
+export const largestAuthenticationBodyBytes = 64 * 1024
+
+const authenticationBodyTooLarge = 'Diese Anfrage ist zu groß für die Anmeldung.'
+
+/**
+ * Mounts the handler of the authentication under its path, behind the limit
+ * of its bodies (`bodiesUpTo`). An instance does it in `createServer`; a test
+ * that puts the authentication in front of a module of its own does it here,
+ * so that it signs in through the same reading of a body as an instance.
+ */
+export function mountAuthentication(application: INestApplication, handler: RequestHandler): void {
+  application.use(
+    authenticationPath,
+    bodiesUpTo(largestAuthenticationBodyBytes, authenticationBodyTooLarge),
+    handler,
+  )
+}
+
+/**
  * The HTTP server of an instance: the module of the application, and what
  * stands in front of its routes in every application of the organisation
  * (ADR 0010), in the order that is part of the matter.
@@ -49,14 +78,16 @@ export function authenticationHandler(authentication: Authentication): RequestHa
  * The security headers first, so that every answer carries them, those of the
  * authentication included. The authentication before the body parser, and
  * that order is not a preference: Express reads the stream once, and a parser
- * in front would leave better-auth an empty body on every sign in, which looks
- * like a wrong password. Its routes are mounted in front of Nest and outside
- * the guard because a route that hands out a session cannot ask for one; what
- * protects them is their own layer, the rate limits and the origin check.
- * Then JSON and nothing else as a body, and no header telling every caller
- * which framework serves it. The interface last: its fallback leaves every
- * path of the server to the routes of the application and answers the rest
- * with the shell of its entry.
+ * in front would hand better-auth a body it had made something else of. Its
+ * bodies are read in front of it up to a limit of their own and handed to it
+ * as text, exactly as they were sent (`mountAuthentication`). Its routes are
+ * mounted in front of Nest and outside the guard because a route that hands
+ * out a session cannot ask for one; what protects them is their own layer,
+ * the limit of a body, the rate limits and the origin check. Then JSON and
+ * nothing else as a body, and no header telling every caller which framework
+ * serves it. The interface last: its fallback leaves every path of the server
+ * to the routes of the application and answers the rest with the shell of its
+ * entry.
  *
  * No parser of Nest's own, and a log of warnings and errors only: the log of a
  * container is the only one there is, and the route table of every start
@@ -72,7 +103,7 @@ export async function createServer(module: DynamicModule, parts: ServerParts): P
   sendSecurityHeaders(express)
 
   if (parts.authenticationHandler) {
-    application.use(authenticationPath, parts.authenticationHandler)
+    mountAuthentication(application, parts.authenticationHandler)
   }
 
   readJsonBodiesOnly(application)

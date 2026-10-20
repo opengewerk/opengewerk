@@ -1,4 +1,4 @@
-import type { Request } from 'express'
+import type { Request, RequestHandler } from 'express'
 
 /**
  * The body of a request as bytes, read here and by nothing in front of the
@@ -62,4 +62,60 @@ export function bodyBytesOf(request: Request, most: number): Promise<Buffer | nu
     request.on('end', end)
     request.on('error', reject)
   })
+}
+
+/**
+ * Reads the body of a request up to `most` bytes in front of a handler that
+ * would read it whole, and hands it on as text in `request.body`.
+ *
+ * A handler for Node that finds its stream read takes the body from there,
+ * as it was sent (better-auth's does, through `getRequest` of better-call).
+ * So the handler is changed in nothing but what it gets to read: a body over
+ * the limit is answered with 413 and handed to nobody. A length announced
+ * over the limit is refused before a byte is read; a body without one is
+ * counted as it comes and refused once it runs over.
+ *
+ * Read here is only what the handler would read itself, a body that says
+ * what it is. One without a type is passed on unread, as before: the handler
+ * leaves it alone, and Node discards it after the answer.
+ */
+export function bodiesUpTo(most: number, refusal: string): RequestHandler {
+  return (request, response, next) => {
+    const said = Number(request.header('content-length') ?? '0')
+    const announced = Number.isFinite(said) ? said : 0
+    const refuse = () => {
+      response.status(413).json({ statusCode: 413, message: refusal })
+    }
+
+    if (announced > most) {
+      refuse()
+
+      return
+    }
+
+    const carriesBody = announced > 0 || request.header('transfer-encoding') !== undefined
+    const withoutBody = request.method === 'GET' || request.method === 'HEAD'
+
+    if (withoutBody || !carriesBody || request.header('content-type') === undefined) {
+      next()
+
+      return
+    }
+
+    bodyBytesOf(request, most).then(
+      (body) => {
+        if (body === null) {
+          refuse()
+
+          return
+        }
+
+        request.body = body.toString('utf-8')
+        next()
+      },
+      (error: unknown) => {
+        next(error)
+      },
+    )
+  }
 }
