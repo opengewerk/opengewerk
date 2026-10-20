@@ -1009,6 +1009,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   bisher ließ es sie bei jeder Antwort außer 401 und 403 fallen. HEIC und HEIF gelten nur noch,
   wenn die `ftyp`-Box der Datei sie zeigt; ein Inhalt, der nur als HEIC angegeben ist, wird als
   `application/octet-stream` abgelegt, und ein Weg, der nur ein Foto nimmt, weist ihn ab.
+- Ein Datensatz nennt eine abgelegte Datei nur noch, wenn die Person sie selbst abgelegt hat oder
+  eine Zeile in ihrer Reichweite sie schon nennt (gefunden in der Sicherheitsprüfung,
+  `opengewerk-haustechnik#360`). Bisher gehörte die Zeile einer Datei dem ganzen Mandanten, und wer
+  den Hash einer Datei kannte, die er nicht sehen durfte, hängte sie an einen eigenen Datensatz und
+  bekam ihre Bytes. Jetzt schreibt `fileRowFor` die Person der Transaktion in die neue Tabelle
+  `file_uploads`, in der jede Person nur ihre eigenen Zeilen sieht, und `mayNameFile` fragt sie
+  zusammen mit den Orten, die eine Anwendung nennt. Der Abgleich der Fassungen fragt es für die Datei
+  und die Vorschau (`attachmentVersionFiles`, mit `attachmentVersionPlace` für Fassungen in
+  Reichweite, deren Ablage nicht entfernt ist); eine Datei, die nicht genannt werden darf, ist ein
+  Konflikt wie eine, die nie ankam. In der Handwerkersoftware fragt es auch der Start eines Imports
+  aus DATANORM, und die Migration `0083_file_uploads` gibt jeder Datei von vorher die Person, die sie
+  laut Änderungsprotokoll zuerst abgelegt hat.
 
 ## [0.5.0] - 2026-10-04
 
