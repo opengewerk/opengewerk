@@ -229,3 +229,35 @@ describe('the second factor of a session', () => {
     expect(await reach(elsewhere)).toEqual(signedOut)
   })
 })
+
+/**
+ * The one limit of the sign in that counts per account and not per address
+ * (opengewerk-haustechnik#360): ten wrong codes in a row hold the account for
+ * a quarter of an hour, wherever they come from. It holds where the limits per
+ * address cannot, behind a proxy that names nobody or for somebody with many
+ * addresses. The instance here counts nothing per address at all.
+ */
+describe('the code from the app at a sign in', () => {
+  it('is refused after ten wrong ones in a row, the right one included, from any address', async () => {
+    const userId = await leader('gesperrt@nord.example.de')
+    const { totpUri } = await setUpApp('gesperrt@nord.example.de')
+
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      await post('/two-factor/verify-totp', await codeAsked('gesperrt@nord.example.de'))
+        .set('x-forwarded-for', `203.0.113.${String(100 + attempt)}`)
+        .send({ code: '000000' })
+        .expect(401)
+    }
+
+    const held = await post('/two-factor/verify-totp', await codeAsked('gesperrt@nord.example.de'))
+      .set('x-forwarded-for', '198.51.100.200')
+      .send({ code: await currentCode(totpUri) })
+
+    expect(held.status).toBe(429)
+
+    await admin.query(
+      'update auth_two_factors set failed_verification_count = 0, locked_until = null where user_id = $1',
+      [userId],
+    )
+  })
+})

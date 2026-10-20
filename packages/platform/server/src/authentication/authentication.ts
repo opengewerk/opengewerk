@@ -7,7 +7,7 @@ import { APIError, createAuthMiddleware, getSessionFromCtx, isAPIError } from 'b
 import { twoFactor } from 'better-auth/plugins'
 import { and, eq, exists, ne } from 'drizzle-orm'
 
-import { clientAddressHeader, unknownClientAddress } from '../api/client-address.js'
+import { clientAddressHeader } from '../api/client-address.js'
 import type { ServerApplication } from '../configuration.js'
 import type { Database } from '../database/database.js'
 import {
@@ -127,44 +127,6 @@ const confirmingSecondFactor: ReadonlySet<string> = new Set([
  * The new one keeps the second factor of the old.
  */
 const replacingSession = '/change-password'
-
-/** A rule of better-auth's rate limit: so many requests in so many seconds. */
-interface RateRule {
-  readonly window: number
-  readonly max: number
-}
-
-/**
- * The limits of the authentication, which count per address, for the requests
- * whose address this instance knows (opengewerk-haustechnik#360).
- *
- * The address comes from `nameTheClient`, as `clientAddress` determines it.
- * Where it is not known, nothing in front of the instance named a client, and
- * better-auth would count the request in one counter for every such request,
- * `no-trusted-ip`; five wrong passwords from one stranger would then lock the
- * sign in for everybody. Such a request is not counted instead. That is no
- * weaker than before: a proxy that does not append to `X-Forwarded-For` lets a
- * client name any address it likes as well, and the README says how a proxy
- * appends. Without the header at all, a handler mounted without
- * `nameTheClient`, the rule stands as it is.
- *
- * Each named rule, and a last one for every other path that keeps whatever
- * better-auth and its plugins would have applied (`current`). The first key
- * that matches a path wins, so the named ones come first.
- */
-function perKnownAddress(
-  rules: Readonly<Record<string, RateRule>>,
-): Record<string, (request: Request, current: RateRule) => RateRule | false> {
-  const known =
-    (rule: RateRule | null) =>
-    (request: Request, current: RateRule): RateRule | false =>
-      request.headers.get(clientAddressHeader) === unknownClientAddress ? false : (rule ?? current)
-
-  return {
-    ...Object.fromEntries(Object.entries(rules).map(([path, rule]) => [path, known(rule)])),
-    '/**': known(null),
-  }
-}
 
 /**
  * The relying party a passkey is bound to: the host of the first trusted
@@ -533,7 +495,7 @@ export function createAuthentication({
       storage: 'database',
       window: 60,
       max: 60,
-      customRules: perKnownAddress({
+      customRules: {
         // The ones worth guessing at. Everything else lives under the general
         // limit above.
         '/sign-in/email': { window: 60, max: 5 },
@@ -551,7 +513,7 @@ export function createAuthentication({
         [reconfirmationPath]: { window: 60, max: 5 },
         '/passkey/verify-registration': { window: 60, max: 5 },
         '/passkey/verify-authentication': { window: 60, max: 10 },
-      }),
+      },
     },
     // Routes of better-auth that are not used here, off so that nothing can
     // reach them. The plugin's own list, rename and delete of passkeys, which
@@ -584,7 +546,13 @@ export function createAuthentication({
       // `nameTheClient` in front of the handler, and not better-auth's own
       // reading of `X-Forwarded-For` (opengewerk-haustechnik#360). An IPv6
       // address counts by its /64, as every limit per address here does
-      // (`limitKey`); better-auth keeps it so in the session as well.
+      // (`limitKey`); better-auth keeps it so in the session as well. Where
+      // the address is not known, the header says `unknown`, which is no
+      // address, and better-auth counts every such request in one counter,
+      // `no-trusted-ip`, under the same limits as one address. That a stranger
+      // can then lock the sign in for everybody is the smaller harm, next to
+      // guessing without any limit, and the right setting of the proxy ends
+      // both; `nameTheClient` says so in the log.
       ipAddress: {
         ipAddressHeaders: [clientAddressHeader],
         ipv6Subnet: 64,
@@ -593,6 +561,13 @@ export function createAuthentication({
     plugins: [
       twoFactor({
         issuer: application.name,
+        // Ten wrong codes in a row hold the account for a quarter of an hour,
+        // from whichever address they come (opengewerk-haustechnik#360). The
+        // plugin does that by itself; written out so that nobody turns it off
+        // by accident, because it is the one limit of the sign in that counts
+        // per account and not per address. The confirmation again counts on
+        // the same column with the same numbers (`reconfirmation.ts`).
+        accountLockout: { enabled: true, maxFailedAttempts: 10, durationSeconds: 15 * 60 },
       }),
       /**
        * Passkeys (#167, #248), back since they can be listed, renamed and

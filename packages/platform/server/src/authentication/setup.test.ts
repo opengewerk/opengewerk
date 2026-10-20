@@ -530,22 +530,37 @@ describe('the setup code', () => {
 
   /**
    * Without an address named by a proxy in front, a request has the address
-   * of the proxy, the same for everybody (opengewerk-haustechnik#360). Counted
-   * by it, five wrong codes from a stranger would lock out the person at the
-   * server; such a request counts over all addresses only.
+   * of the proxy, the same for everybody (opengewerk-haustechnik#360). Every
+   * such request counts in one counter, under the limit of one address:
+   * five wrong codes from requests without an address, and the next one
+   * without is refused, whoever sends it. A named address still gets in.
+   *
+   * On an instance of its own: the counter lives in the controller, and the
+   * other tests here set up without an address.
    */
-  it('counts a request whose address nobody named over all addresses only', async () => {
+  it('counts every request whose address nobody named in one counter', async () => {
     await emptyInstance()
 
-    for (let attempt = 1; attempt <= 6; attempt++) {
-      await http()
-        .post('/setup')
-        .set('origin', origin)
-        .send({ ...firstRequest, setupCode: 'AAAA-AAAA' })
-        .expect(403)
-    }
+    const own = await probeInstance(foundation.kit.applicationDatabaseUrl(), { setupCode })
 
-    await http().post('/setup').set('origin', origin).send(firstRequest).expect(201)
+    try {
+      const unnamed = (header?: string) => {
+        const sending = own.http().post('/setup').set('origin', origin)
+
+        return header === undefined ? sending : sending.set('x-forwarded-for', header)
+      }
+
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        await unnamed(attempt % 2 === 0 ? 'unknown' : undefined)
+          .send({ ...firstRequest, setupCode: 'AAAA-AAAA' })
+          .expect(403)
+      }
+
+      await unnamed().send(firstRequest).expect(429)
+      await unnamed('192.0.2.44').send(firstRequest).expect(201)
+    } finally {
+      await own.close()
+    }
   })
 
   /**

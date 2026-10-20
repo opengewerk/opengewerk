@@ -1240,10 +1240,11 @@ Organisation.
   Anfrage vom Proxy. Der letzte Eintrag ist der, den der Proxy selbst anhängt;
   was ein Client davor schreibt, zählt nicht. Eine IPv6-Adresse zählt mit ihrem
   ganzen /64. Reicht der Proxy den Header nur weiter, wählt ein Client seine
-  Adresse selbst, und eine Anfrage ohne den Header zählt die Anwendung in keiner
-  Grenze je Adresse, weil sie ihre Adresse nicht kennt. Apache mit `ProxyPass`
-  und Caddy hängen von sich aus an. nginx tut es nur mit einer Zeile im
-  `server`-Block:
+  Adresse selbst, und alle Anfragen ohne den Header zählen zusammen in einem
+  Zähler, mit derselben Grenze wie eine Adresse: dann sperren wenige
+  Fehlversuche eines Fremden die Anmeldung für alle. Die Anwendung schreibt das
+  beim ersten Mal als Warnung ins Log. Apache mit `ProxyPass` und Caddy hängen
+  von sich aus an. nginx tut es nur mit einer Zeile im `server`-Block:
 
   ```nginx
   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

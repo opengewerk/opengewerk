@@ -965,11 +965,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   einem Eintrag, jede andere Anfrage zählte es in einem gemeinsamen Zähler, und jede Grenze zählte
   eine IPv6-Adresse einzeln. Jetzt schreibt `nameTheClient` vor der Anmeldung die Adresse aus
   `clientAddress` in einen eigenen Header, ersetzt dabei, was ein Client dort mitschickt, und
-  better-auth liest nur diesen. Eine Anfrage, deren Adresse kein Proxy nennt, zählt in keiner Grenze
-  je Adresse statt in einem Zähler für alle; die Grenzen über alle Adressen bleiben. Für
-  Anwendungen: `clientAddress` gibt dann `null`, und eine Grenze je Adresse zählt nach
-  `addressForLimits` (`limitKey`). Das README sagt, dass der Reverse Proxy `X-Forwarded-For`
-  ergänzen muss, mit Beispielen für nginx und Apache und einer Prüfung.
+  better-auth liest nur diesen. Anfragen, deren Adresse kein Proxy nennt, zählen zusammen in einem
+  Zähler mit derselben Grenze wie eine Adresse, und das Log sagt einmal, was am Proxy fehlt. Zehn
+  falsche Codes aus der App halten das Konto weiter eine Viertelstunde fest, von jeder Adresse aus;
+  das steht jetzt ausdrücklich in der Konfiguration. Für Anwendungen: `clientAddress` gibt `null`,
+  wo die Adresse fehlt, und eine Grenze je Adresse zählt nach `addressForLimits` (`limitKey`). Das
+  README sagt, dass der Reverse Proxy `X-Forwarded-For` ergänzen muss, mit Beispielen für nginx und
+  Apache und einer Prüfung.
 
 ## [0.5.0] - 2026-10-04
 

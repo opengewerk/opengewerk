@@ -24,11 +24,10 @@ export interface AddressedRequest {
  * The README says how a proxy is told to append.
  *
  * Null when the connection comes from inside a network and nothing in front
- * names a client, or names something that is no address. The address of the
- * connection is then the proxy's, the same for everybody, and a limit on it
- * would be one limit for all of them, which one stranger fills for everybody
- * (opengewerk-haustechnik#360). Whatever limits per address leaves such a
- * request to its limits over all addresses.
+ * names a client, or names something that is no address: the address of the
+ * connection is then the proxy's, the same for everybody, and is not the
+ * client's (opengewerk-haustechnik#360). A limit counts every such request in
+ * one counter (`addressForLimits`).
  *
  * A connection from the internet is taken by its own address, and a header it
  * brings is ignored: a client talking to the instance directly could write
@@ -86,18 +85,61 @@ export function limitKey(address: string): string {
   return `${[a, b, c, d].map((group) => group.toString(16)).join(':')}::/64`
 }
 
-/** What a limit per address counts a request under, null where its address is not known. */
-export function addressForLimits(request: AddressedRequest): string | null {
-  const address = clientAddress(request)
-
-  return address === null ? null : limitKey(address)
-}
-
 /** The header the authentication reads the address of a client from, and only `nameTheClient` writes. */
 export const clientAddressHeader = 'x-client-address'
 
-/** What `nameTheClient` writes where the address is not known. */
+/**
+ * What stands for an address that is not known: in the header of the
+ * authentication, which better-auth then takes for no address at all, and as
+ * the key of a limit.
+ */
 export const unknownClientAddress = 'unknown'
+
+/** Whether the log has been told about requests without an address yet. */
+let reported = false
+
+/**
+ * Says once, in the log, that requests arrive whose address nobody named, and
+ * what the proxy in front lacks. Once and not per request: a proxy that does
+ * not append does so for every request, and a log with one line each would
+ * bury everything else.
+ */
+function reportUnknownAddress(): void {
+  if (reported) {
+    return
+  }
+
+  reported = true
+  console.warn(
+    'Anfragen kommen ohne nutzbare Adresse an: Die Verbindung kommt aus dem eigenen Netz, ' +
+      'und X-Forwarded-For fehlt oder nennt keine Adresse. Der Reverse Proxy muss den Header ' +
+      'ergänzen, für nginx mit "proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;" ' +
+      '(README, Reverse Proxy). Bis dahin zählen alle diese Anfragen in einem gemeinsamen ' +
+      'Zähler, und wenige Fehlversuche sperren die Anmeldung für alle.',
+  )
+}
+
+/**
+ * What a limit per address counts a request under (`limitKey`).
+ *
+ * A request whose address is not known counts under one key, the same for
+ * every such request, and under the same limit as one address
+ * (opengewerk-haustechnik#360). Never under none: then nothing would hold
+ * somebody guessing. That a stranger can fill this counter for everybody
+ * behind the same proxy is the smaller harm, and the setting of the proxy
+ * that ends it is said in the log once (`reportUnknownAddress`).
+ */
+export function addressForLimits(request: AddressedRequest): string {
+  const address = clientAddress(request)
+
+  if (address === null) {
+    reportUnknownAddress()
+
+    return unknownClientAddress
+  }
+
+  return limitKey(address)
+}
 
 /**
  * Hands the authentication the address `clientAddress` determined, and no
@@ -105,16 +147,23 @@ export const unknownClientAddress = 'unknown'
  *
  * better-auth reads `X-Forwarded-For` by itself, and not the way this instance
  * does: it takes the header only when it has exactly one entry. Behind a
- * proxy that appends, a client that sent an entry of its own then lands in one
- * counter with everybody else who did, and without the header every request
- * lands in one (`no-trusted-ip`), so that a stranger who fills it locks
- * everybody out. So it reads this header instead (`ipAddressHeaders`), and
+ * proxy that appends, a request from a client that sent an entry of its own
+ * has two, and better-auth counted it in the one counter it keeps for
+ * requests without an address (`no-trusted-ip`), together with every other
+ * such request. So it reads this header instead (`ipAddressHeaders`), and
  * whatever a client sent under the same name is replaced here before it gets
- * there. Where the address is not known, the header says so, and the limits
- * of the authentication leave the request alone rather than count it with
- * everybody else's (`authentication.ts`).
+ * there. Where the address is not known, the header says so; better-auth
+ * takes that for no address and counts the request in that one counter,
+ * under the same limits as one address (`authentication.ts`), and the log
+ * hears of it once.
  */
 export function nameTheClient(request: Request, _response: Response, next: NextFunction): void {
-  request.headers[clientAddressHeader] = clientAddress(request) ?? unknownClientAddress
+  const address = clientAddress(request)
+
+  if (address === null) {
+    reportUnknownAddress()
+  }
+
+  request.headers[clientAddressHeader] = address ?? unknownClientAddress
   next()
 }

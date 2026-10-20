@@ -77,28 +77,6 @@ describe('the attempts at a setup code', () => {
     expect(attempts.refuses('198.51.100.1')).toBe(true)
   })
 
-  /**
-   * An attempt whose address nobody named (opengewerk-haustechnik#360) is
-   * counted over all addresses and in no counter of its own: several of them
-   * do not refuse the next one, and they still fill the overall limit.
-   */
-  it('count an attempt without an address over all addresses only', () => {
-    const time = clock()
-    const attempts = new SetupAttempts({ perAddress: 5, overall: 10, windowMs: 60_000 }, time.read)
-
-    for (let attempt = 1; attempt <= 9; attempt++) {
-      expect(attempts.refuses(null)).toBe(false)
-      attempts.failed(null)
-    }
-
-    expect(attempts.refuses('203.0.113.1')).toBe(false)
-
-    attempts.failed(null)
-
-    expect(attempts.refuses(null)).toBe(true)
-    expect(attempts.refuses('203.0.113.1')).toBe(true)
-  })
-
   it('forget a wrong code once it is older than the window', () => {
     const time = clock()
     const attempts = new SetupAttempts({ perAddress: 2, overall: 10, windowMs: 60_000 }, time.read)

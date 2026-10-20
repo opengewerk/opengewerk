@@ -177,7 +177,7 @@ export class SetupController {
    * anything, so two requests arriving together cannot both slip under it.
    * The code itself goes nowhere: not into a message, not into the log.
    */
-  private admit(given: string, address: string | null): void {
+  private admit(given: string, address: string): void {
     const expected = normalizeSetupCode(this.setupCode ?? '')
 
     if (expected === '') {

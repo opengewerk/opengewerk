@@ -1064,12 +1064,13 @@ describe('the rate limits', () => {
 
   /**
    * Where nothing in front names a client, its address is the proxy's, the
-   * same for everybody. better-auth counted all of them in one counter, and
-   * five wrong passwords from a stranger locked the sign in for everybody. Two
-   * such clients now share no counter: neither is counted, and a client whose
-   * address is known keeps its own allowance.
+   * same for everybody (opengewerk-haustechnik#360). Every such request counts
+   * in one counter, under the limit of one address, never in none: two
+   * clients without an address, one with no header and one whose header names
+   * no address, are refused together after five wrong passwords. A client
+   * whose address is known keeps its own allowance.
    */
-  it('count no two clients together whose address nobody named', async () => {
+  it('count every request whose address nobody named in one counter, under the same limit', async () => {
     const limited = await probeInstance(foundation.kit.applicationDatabaseUrl(), {
       secret: 'v'.repeat(64),
       rateLimited: true,
@@ -1077,27 +1078,25 @@ describe('the rate limits', () => {
 
     others.push(limited)
 
-    const guess = (email: string) =>
-      limited
+    const guess = (header?: string) => {
+      const sending = limited
         .http()
         .post(`${authenticationPath}/sign-in/email`)
         .set('origin', origin)
-        .send({ email, password: 'immer-wieder-falsch-geraten' })
+
+      return (header === undefined ? sending : sending.set('x-forwarded-for', header)).send({
+        email: member.email,
+        password: 'immer-wieder-falsch-geraten',
+      })
+    }
     const statuses: number[] = []
 
-    for (let attempt = 1; attempt <= 4; attempt += 1) {
-      statuses.push((await guess(member.email)).status, (await guess(both.email)).status)
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      statuses.push((await guess()).status, (await guess('unknown')).status)
     }
 
-    const known = await limited
-      .http()
-      .post(`${authenticationPath}/sign-in/email`)
-      .set('origin', origin)
-      .set('x-forwarded-for', '203.0.113.51')
-      .send({ email: member.email, password: 'immer-wieder-falsch-geraten' })
-
-    expect(statuses).toEqual([401, 401, 401, 401, 401, 401, 401, 401])
-    expect(known.status).toBe(401)
+    expect(statuses).toEqual([401, 401, 401, 401, 401, 429])
+    expect((await guess('203.0.113.51')).status).toBe(401)
   })
 
   /**

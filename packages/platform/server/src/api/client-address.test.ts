@@ -1,6 +1,6 @@
 import express from 'express'
 import request from 'supertest'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   addressForLimits,
@@ -77,10 +77,68 @@ describe('the key a limit per address counts under', () => {
     expect(limitKey('::ffff:198.51.100.1')).not.toBe(limitKey('::ffff:203.0.113.9'))
   })
 
-  it('is the key of the address of a request, and none where that is not known', () => {
+  /**
+   * Where nobody named the client, every such request counts under one key:
+   * under none, nothing would hold somebody guessing.
+   */
+  it('is the key of the address of a request, and one shared key where that is not known', () => {
     expect(addressForLimits(requestFrom('2001:db8:1:2::5'))).toBe('2001:db8:1:2::/64')
     expect(addressForLimits(requestFrom('127.0.0.1', '2001:db8:1:2::6'))).toBe('2001:db8:1:2::/64')
-    expect(addressForLimits(requestFrom('127.0.0.1'))).toBeNull()
+    expect(addressForLimits(requestFrom('127.0.0.1'))).toBe(unknownClientAddress)
+    expect(addressForLimits(requestFrom('172.18.0.1', 'unknown'))).toBe(unknownClientAddress)
+  })
+})
+
+/**
+ * A proxy that does not append does so for every request. The log hears of it
+ * once, with what the proxy lacks, and not once per request.
+ */
+describe('a request whose address nobody named', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('is said in the log once, with what the proxy lacks', async () => {
+    vi.resetModules()
+
+    const fresh = await import('./client-address.js')
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const passing = express()
+
+    passing.use(fresh.nameTheClient, (_incoming, response) => {
+      response.end()
+    })
+
+    fresh.addressForLimits(requestFrom('203.0.113.9'))
+    fresh.addressForLimits(requestFrom('172.18.0.1', '203.0.113.9'))
+
+    expect(warned).not.toHaveBeenCalled()
+
+    fresh.addressForLimits(requestFrom('172.18.0.1'))
+    await request(passing).get('/').expect(200)
+    fresh.addressForLimits(requestFrom('127.0.0.1'))
+
+    expect(warned).toHaveBeenCalledTimes(1)
+    expect(String(warned.mock.calls[0]?.[0])).toContain(
+      'proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;',
+    )
+  })
+
+  it('is said in the log by the header of the authentication as well', async () => {
+    vi.resetModules()
+
+    const fresh = await import('./client-address.js')
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const passing = express()
+
+    passing.use(fresh.nameTheClient, (_incoming, response) => {
+      response.end()
+    })
+
+    await request(passing).get('/').expect(200)
+    await request(passing).get('/').expect(200)
+
+    expect(warned).toHaveBeenCalledTimes(1)
   })
 })
 
