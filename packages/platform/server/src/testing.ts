@@ -20,6 +20,9 @@ export * from './database/tenant-checks.js'
 export * from './api/routes.js'
 export * from './api/test-identity.js'
 
+// A real photo in HEIC, for a route that takes photos.
+export * from './files/test-pictures.js'
+
 // Whether the sealed credentials of an application are touched in one
 // place only.
 export * from './secrets/boundaries.js'

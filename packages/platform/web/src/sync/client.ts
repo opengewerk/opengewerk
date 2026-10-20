@@ -19,7 +19,13 @@ import { uuidv7 } from 'uuidv7'
 import { holdUpdates } from '../shell/updates.js'
 import { byRecord, project, recordKey } from './projection.js'
 import type { LocalStore, StoredFile } from './store.js'
-import { isForbidden, isUnauthenticated, RequestRefused, type SyncTransport } from './transport.js'
+import {
+  isForbidden,
+  isRefusedForGood,
+  isUnauthenticated,
+  RequestRefused,
+  type SyncTransport,
+} from './transport.js'
 
 /**
  * Whether a value a form hands in is the one the device holds. A list or a
@@ -1312,6 +1318,12 @@ export class SyncClient {
    * would get the same answer every time. It comes off the list, and the
    * version that names it comes back as a conflict about that version, which
    * is where a person sees it and can let it go.
+   *
+   * An answer that says "not now" is no refusal of the file. A 429 says the
+   * account has stored as much as an hour allows, a 507 that the volume of
+   * the server is full, and any 5xx that the server could not answer: the
+   * file stays on the device, the exchange stops with the server's sentence,
+   * and the next one sends it.
    */
   private async uploadFiles(): Promise<void> {
     const waiting = await this.store.waitingFiles()
@@ -1333,7 +1345,7 @@ export class SyncClient {
         // A 403 says nothing about the file. It refuses the request as a
         // whole, and the file would be let go over a missing right or an
         // untrusted address that the next attempt may no longer have.
-        if (!(error instanceof RequestRefused) || isUnauthenticated(error) || isForbidden(error)) {
+        if (!isRefusedForGood(error) || isUnauthenticated(error) || isForbidden(error)) {
           throw error
         }
       }
