@@ -35,6 +35,9 @@
 
 set -eu
 
+# The copy of the archive and what is unpacked from it hold every tenant.
+umask 077
+
 : "${POSTGRES_HOST:=postgres}"
 : "${POSTGRES_DB:=opengewerk}"
 : "${STORAGE_PATH:=/var/lib/opengewerk/storage}"
@@ -114,17 +117,25 @@ fi
 
 echo "Sicherung: $(basename "$archive")"
 
-# --- Where it comes from ---------------------------------------------------
-# Before it is decrypted or unpacked, see archive-checks.sh.
-if ! check_origin "$archive" "$trusted"; then
-	refuse_origin "Es wird nichts zurückgespielt."
-fi
-
 work=$(mktemp -d)
+held=$(mktemp -d)
 cleanup() {
-	rm -rf "$work"
+	rm -rf "$work" "$held"
 }
 trap cleanup EXIT
+
+# --- Where it comes from ---------------------------------------------------
+# Before it is decrypted or unpacked, see archive-checks.sh. The archive is
+# read from the target once, into a folder of this container, and from then
+# on only that copy is checked and read: the target is where somebody else
+# can write, and a file checked there could be another one by the time it is
+# read. The copy is as the target holds it, encrypted when the archive is.
+copy="${held}/archive"
+cp "$archive" "$copy"
+
+if ! check_origin "$copy" "$(basename "$archive")" "$trusted"; then
+	refuse_origin "Es wird nichts zurückgespielt."
+fi
 
 # --- Unpack, decrypting first when needed ----------------------------------
 case "$archive" in
@@ -137,14 +148,16 @@ case "$archive" in
 	fi
 
 	echo "  Sicherung wird entschlüsselt."
-	age --decrypt --identity "$BACKUP_AGE_IDENTITY" --output "${work}/archive.tar.gz" "$archive"
+	age --decrypt --identity "$BACKUP_AGE_IDENTITY" --output "${work}/archive.tar.gz" "$copy"
 	tar --extract --gzip --file "${work}/archive.tar.gz" --directory "$work"
 	rm -f "${work}/archive.tar.gz"
 	;;
 *)
-	tar --extract --gzip --file "$archive" --directory "$work"
+	tar --extract --gzip --file "$copy" --directory "$work"
 	;;
 esac
+
+rm -f "$copy"
 
 for part in manifest.json database.dump storage.tar audit-chains.tsv; do
 	if [ ! -f "${work}/${part}" ]; then

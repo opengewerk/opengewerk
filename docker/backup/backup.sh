@@ -114,8 +114,10 @@ fi
 work=$(mktemp -d)
 
 # The archive is written under a hidden name, which the names of archives do
-# not match (names.sh), and renamed when it is whole.
-partial="${BACKUP_PATH}/.${name}.tmp"
+# not match (names.sh), and renamed when it is whole. mktemp makes the name
+# up and creates the file, so nobody who writes to the target can lay a link
+# there beforehand for the archive to be written through.
+partial=''
 renamed=false
 recorded=false
 
@@ -133,6 +135,8 @@ cleanup() {
 }
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
+
+partial=$(mktemp -p "$BACKUP_PATH" ".${name}.XXXXXX")
 
 echo "Sicherung ${name} wird erstellt."
 
@@ -227,6 +231,9 @@ renamed=true
 # retention took it off the target, so that one fetched back from elsewhere
 # can still be held to it; a line is about a hundred bytes. last.json is read
 # by the application, which runs as another user, and is made readable for it.
+# Under a lock, because the nightly backup and one by hand can finish at the
+# same moment, and the one that read the record first would otherwise write
+# it back without the line of the other.
 if [ -n "${BACKUP_STATUS_PATH:-}" ]; then
 	# A folder made here has to let the application through to last.json.
 	mkdir -p -m 0755 "$BACKUP_STATUS_PATH"
@@ -236,6 +243,9 @@ if [ -n "${BACKUP_STATUS_PATH:-}" ]; then
 	if [ -n "${BACKUP_AGE_RECIPIENT:-}" ]; then
 		encrypted=true
 	fi
+
+	(
+	flock 9
 
 	{
 		if [ -f "$record" ]; then
@@ -259,6 +269,7 @@ JSON
 	chmod 0644 "${BACKUP_STATUS_PATH}/.last.json"
 	mv "${record}.tmp" "$record"
 	mv "${BACKUP_STATUS_PATH}/.last.json" "${BACKUP_STATUS_PATH}/last.json"
+	) 9>"${BACKUP_STATUS_PATH}/.lock"
 else
 	echo "  WARNUNG: BACKUP_STATUS_PATH ist nicht gesetzt, die Sicherung steht in keinem"
 	echo "  Verzeichnis. Zurückspielen lässt sie sich nur mit --skip-origin-check."

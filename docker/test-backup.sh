@@ -70,9 +70,15 @@ FAKE
 #
 # age as it is, unless a check asks otherwise: AGE_SAW names a file to write
 # down what lies on the target while it encrypts, AGE_FAILS=halfway passes on
-# a little of what it reads and fails.
+# a little of what it reads and fails. SWAP_FROM and SWAP_ONTO replace a file
+# on the target with another before it decrypts, the way somebody who writes
+# there could between the check of an archive and its reading; tar does the
+# same before it unpacks.
 cat > "$work/bin/age" <<FAKE
 #!/bin/sh
+if [ -n "\${SWAP_FROM:-}" ] && [ "\$1" = --decrypt ]; then
+  cp "\$SWAP_FROM" "\$SWAP_ONTO"
+fi
 if [ -n "\${AGE_SAW:-}" ]; then
   ls -A "\$BACKUP_PATH" > "\$AGE_SAW"
 fi
@@ -87,6 +93,9 @@ FAKE
 # pipe breaks off after a little, the way a disk error would end it.
 cat > "$work/bin/tar" <<FAKE
 #!/bin/sh
+if [ -n "\${SWAP_FROM:-}" ] && [ "\$1" = --extract ]; then
+  cp "\$SWAP_FROM" "\$SWAP_ONTO"
+fi
 if [ -n "\${TAR_FAILS:-}" ] && [ "\$1" = --create ]; then
   case " \$* " in
     *' --file - '*)
@@ -479,7 +488,8 @@ POSTGRES_DB=opengewerk BACKUP_KEEP=0 BACKUP_AGE_RECIPIENT="$recipient" AGE_SAW="
 streamed=$(sed -n 's|^Fertig: .*/\([^/ ]*\) (.*|\1|p' "$work/out")
 printf '%s' "$streamed" | grep -Eq '^streamed-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{6}Z\.tar\.gz\.age$'
 grep -vxF -f "$work/before" "$work/saw" > "$work/new" || true
-if [ "$(cat "$work/new")" != ".${streamed%.tar.gz.age}.tmp" ]; then
+if [ "$(wc -l < "$work/new")" -ne 1 ] ||
+  ! grep -Eqx "\.${streamed%.tar.gz.age}\.[A-Za-z0-9]{6}" "$work/new"; then
   echo 'FEHLER: während age lief, lag auf dem Ziel mehr als die verborgene Datei:'
   cat "$work/new"
   exit 1
@@ -506,6 +516,51 @@ taken env POSTGRES_DB=opengewerk BACKUP_AGE_RECIPIENT="$recipient" BACKUP_AGE_ID
 grep -qx "Sicherung: $streamed" "$work/out"
 grep -q '^pg_restore ' "$CALLS"
 check 'Verzeichnis: Name und Prüfsumme der Sicherung auf der Instanz, das Rückspielen nimmt sie'
+
+# What is checked is what is read: the archive is copied from the target once,
+# and replaced there after the check, before age or tar read it, the restore
+# and the check of the chains still read the archive that was checked. An
+# encrypted one and one in the clear, because they are read by different
+# tools.
+printf 'kein Archiv' > "$work/swap"
+cp "$work/backups/$streamed" "$work/kept"
+for script in restore.sh verify.sh; do
+  taken env POSTGRES_DB=opengewerk BACKUP_AGE_RECIPIENT="$recipient" BACKUP_AGE_IDENTITY="$work/key.txt" \
+    SWAP_FROM="$work/swap" SWAP_ONTO="$work/backups/$streamed" sh "$work/bin/$script" latest
+  cmp -s "$work/swap" "$work/backups/$streamed"
+  [ "$script" = verify.sh ] || grep -q '^pg_restore ' "$CALLS"
+  cp "$work/kept" "$work/backups/$streamed"
+done
+for script in restore.sh verify.sh; do
+  taken env BACKUP_PREFIX=opengewerk POSTGRES_DB=opengewerk \
+    SWAP_FROM="$work/swap" SWAP_ONTO="$work/backups/$ours" sh "$work/bin/$script" "$ours"
+  cmp -s "$work/swap" "$work/backups/$ours"
+  [ "$script" = verify.sh ] || grep -q '^pg_restore ' "$CALLS"
+  cp "$pristine" "$work/backups/$ours"
+done
+check 'Herkunft: geprüft und gelesen wird dieselbe Kopie, ein danach getauschtes Archiv bleibt ungelesen'
+
+# Two backups that finish at the same moment both keep their line: the record
+# is rewritten under a lock. The lock is held here while a line is added the
+# same way, read before the backup runs and written after it would have.
+(
+  flock 9
+  cp "$work/status/archives.sha256" "$work/held"
+  sleep 2
+  printf '%064d  %s\n' 0 'held-2026-01-01T000000Z.tar.gz' >> "$work/held"
+  mv "$work/held" "$work/status/archives.sha256"
+) 9> "$work/status/.lock" &
+holder=$!
+sleep 1
+BACKUP_PREFIX=locked POSTGRES_DB=opengewerk BACKUP_KEEP=0 sh "$work/bin/backup.sh" > "$work/out" 2>&1 || {
+  cat "$work/out"
+  exit 1
+}
+wait "$holder"
+locked=$(sed -n 's|^Fertig: .*/\([^/ ]*\) (.*|\1|p' "$work/out")
+grep -q '  held-2026-01-01T000000Z.tar.gz$' "$work/status/archives.sha256"
+grep -q "  ${locked}\$" "$work/status/archives.sha256"
+check 'Verzeichnis: zwei Sicherungen zugleich behalten beide ihre Zeile'
 
 # A backup that fails on the way leaves nothing on the target and no record:
 # age that breaks off after a little, age that refuses the recipient, a tar

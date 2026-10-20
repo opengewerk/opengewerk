@@ -21,12 +21,14 @@
 # that is right. It is a flag on purpose and no setting: standing in the .env,
 # it would switch the check off for good.
 
-# Whether the archive in $1 is one this instance wrote. $2 is "true" when
-# --skip-origin-check was given. Says why not on stderr and returns 1.
+# Whether the archive copied from the target into $1, named $2 there, is one
+# this instance wrote. $3 is "true" when --skip-origin-check was given. Says
+# why not on stderr and returns 1. The caller reads the copy alone from here
+# on, so that what is checked is what is read.
 check_origin() {
-	origin_name=$(basename "$1")
+	origin_name=$2
 
-	if [ "$2" = true ]; then
+	if [ "$3" = true ]; then
 		echo "  WARNUNG: Die Herkunft der Sicherung wird nicht geprüft (--skip-origin-check)."
 		return 0
 	fi

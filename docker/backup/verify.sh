@@ -25,6 +25,9 @@
 
 set -eu
 
+# The copy of the archive and what is unpacked from it hold every tenant.
+umask 077
+
 : "${POSTGRES_HOST:=postgres}"
 : "${POSTGRES_DB:=opengewerk}"
 : "${BACKUP_PATH:=/var/lib/opengewerk/backups}"
@@ -93,15 +96,22 @@ fi
 
 echo "Sicherung: $(basename "$archive")"
 
-if ! check_origin "$archive" "$trusted"; then
-	refuse_origin "Es wird nichts geprüft."
-fi
-
 work=$(mktemp -d)
+held=$(mktemp -d)
 cleanup() {
-	rm -rf "$work"
+	rm -rf "$work" "$held"
 }
 trap cleanup EXIT
+
+# Read from the target once, and only the copy is checked and read, as in
+# restore.sh: a file checked on the target could be another one by the time
+# it is read.
+copy="${held}/archive"
+cp "$archive" "$copy"
+
+if ! check_origin "$copy" "$(basename "$archive")" "$trusted"; then
+	refuse_origin "Es wird nichts geprüft."
+fi
 
 # Only the chain file is needed. The database dump stays packed, which is why
 # this takes a second on an archive that takes minutes to restore.
@@ -113,11 +123,11 @@ case "$archive" in
 		exit 1
 	fi
 
-	age --decrypt --identity "$BACKUP_AGE_IDENTITY" --output "${work}/archive.tar.gz" "$archive"
+	age --decrypt --identity "$BACKUP_AGE_IDENTITY" --output "${work}/archive.tar.gz" "$copy"
 	tar --extract --gzip --file "${work}/archive.tar.gz" --directory "$work" ./audit-chains.tsv
 	;;
 *)
-	tar --extract --gzip --file "$archive" --directory "$work" ./audit-chains.tsv
+	tar --extract --gzip --file "$copy" --directory "$work" ./audit-chains.tsv
 	;;
 esac
 
