@@ -710,6 +710,48 @@ describe('the passkeys stored before 0052', () => {
 })
 
 /**
+ * 0081 makes the second factor a property of the session
+ * (opengewerk-haustechnik#360). A session from before cannot always say
+ * whether it had one: with a passkey it did, with the password on an account
+ * that has the app it may or may not. Those end; the rest stay as they were.
+ */
+describe('the sessions from before 0081', () => {
+  const before = () =>
+    readMigrationIndex().findIndex((entry) => entry.tag === '0081_session_second_factor')
+
+  it('keep a passkey with its second factor, end the password where the account has the app, and leave the rest without', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query(
+      `insert into auth_users (id, name, email, two_factor_enabled)
+         values ('with-app', 'Anna App', 'anna@example.de', true),
+                ('without-app', 'Otto Ohne', 'otto@example.de', false)`,
+    )
+    await admin.query(
+      `insert into auth_sessions (id, token, user_id, expires_at, sign_in_method)
+         values ('app-password', 't1', 'with-app', now() + interval '1 day', 'password'),
+                ('app-passkey', 't2', 'with-app', now() + interval '1 day', 'passkey'),
+                ('plain-password', 't3', 'without-app', now() + interval '1 day', 'password'),
+                ('plain-passkey', 't4', 'without-app', now() + interval '1 day', 'passkey')`,
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows } = await admin.query<{ id: string; second_factor: boolean }>(
+      'select id, second_factor from auth_sessions order by id',
+    )
+
+    expect(rows).toEqual([
+      { id: 'app-passkey', second_factor: true },
+      { id: 'plain-passkey', second_factor: true },
+      { id: 'plain-password', second_factor: false },
+    ])
+  })
+})
+
+/**
  * 0029 changed the shipped instructions of every business with four UPDATEs,
  * and as the owner under FORCE ROW LEVEL SECURITY they found no row. 0032 says
  * the same again with FORCE lifted. These are the rows 0027 wrote, planted as

@@ -90,7 +90,7 @@ describe('the question who is signed in', () => {
 
     expect(answer.body).toMatchObject({
       user: { id: 'preview', twoFactorEnabled: true },
-      session: { activeTenantId: identity.tenantId },
+      session: { activeTenantId: identity.tenantId, secondFactor: true },
     })
   })
 

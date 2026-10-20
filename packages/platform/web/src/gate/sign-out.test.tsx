@@ -85,6 +85,7 @@ describe('signing out', () => {
       tenantId: 't-nord' as TenantId,
       twoFactorEnabled: false,
       signInMethod: 'password',
+      secondFactor: false,
     })
     const signedOut = vi.fn()
 

@@ -427,8 +427,9 @@ function ChooseTenant({
    * setting the factor up replaces the session, and at this point there is no
    * tenant on it yet and nothing to put back.
    *
-   * A sign in with a passkey carries the second factor itself (#167), so it
-   * goes straight on to the choice, as the server lets it.
+   * Asked of the session, as the server asks it (opengewerk-haustechnik#360):
+   * a sign in with the code or with a passkey (#167) goes straight on to the
+   * choice, one with the password alone does not.
    */
   const needed = tenants.data.some((tenant) => tenant.secondFactor)
 

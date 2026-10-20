@@ -58,11 +58,17 @@ export interface Account {
    * pair answers "can this person work here" (ADR 0006).
    */
   readonly twoFactorEnabled: boolean
-  /**
-   * With what this session was signed in (#167). A session that began with a
-   * passkey carries the second factor itself, so the gate asks this as well.
-   */
+  /** With what this session was signed in (#167), the password or a passkey. */
   readonly signInMethod: SignInMethod
+  /**
+   * Whether this session carries a second factor, which the server writes
+   * when it begins (opengewerk-haustechnik#360): with the code from the app,
+   * a recovery code or a passkey, or in the session the app was set up in.
+   * The gate asks this and not `twoFactorEnabled`, as the server does: a
+   * session that began with the password alone has none, whatever the
+   * account has since.
+   */
+  readonly secondFactor: boolean
   /**
    * The device this session is registered for, null where it is registered
    * for none. Not there on an account kept from an earlier start: without a
@@ -111,6 +117,7 @@ interface SessionAnswer {
   readonly session?: {
     readonly activeTenantId?: unknown
     readonly signInMethod?: unknown
+    readonly secondFactor?: unknown
     readonly deviceId?: unknown
   }
 }
@@ -155,6 +162,7 @@ export async function currentAccount(): Promise<Account | null> {
     tenantId: typeof tenantId === 'string' ? (tenantId as TenantId) : null,
     twoFactorEnabled: user.twoFactorEnabled === true,
     signInMethod: isSignInMethod(signInMethod) ? signInMethod : 'password',
+    secondFactor: answer?.session?.secondFactor === true,
     deviceId: typeof deviceId === 'string' && deviceId !== '' ? deviceId : null,
   }
 

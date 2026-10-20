@@ -21,18 +21,21 @@ export function isSignInMethod(value: unknown): value is SignInMethod {
 /**
  * Whether a session carries a second factor.
  *
- * With the password it does when the account has the app set up: better-auth
- * then asks for the code before there is a session at all. With a passkey it
- * always does, because only one confirmed on the device signs in, and that
- * confirmation is the second factor the password lacks. The server asks this
- * on every request of a role that needs it, the screen before offering the
- * setup of the app.
+ * A property of the session and not of the account (opengewerk-haustechnik#360).
+ * The server writes it when the session begins: with the code from the app or
+ * a recovery code after the password, with a passkey, which signs in only when
+ * confirmed on the device, or in the session the app was just set up in, where
+ * a code from it was confirmed. A session that took the place of one with a
+ * second factor keeps it. A session that began with the password alone never
+ * comes to have one; the account getting the app later does not change that.
+ *
+ * The server asks this on every request of a role that needs it and in the
+ * area of the instance, the screen before offering the setup of the app.
  */
 export function hasSecondFactor(session: {
-  readonly twoFactorEnabled: boolean | null | undefined
-  readonly signInMethod: string | null | undefined
+  readonly secondFactor?: boolean | null | undefined
 }): boolean {
-  return session.twoFactorEnabled === true || session.signInMethod === 'passkey'
+  return session.secondFactor === true
 }
 
 /** The longest name a passkey may be given, "Laptop Büro" and a good deal more. */

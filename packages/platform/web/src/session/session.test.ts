@@ -48,6 +48,7 @@ const account: Account = {
   tenantId,
   twoFactorEnabled: false,
   signInMethod: 'password',
+  secondFactor: false,
 }
 
 const choice: TenantChoice = {
@@ -140,6 +141,35 @@ describe('who is signed in', () => {
     answers = () => json({ message: 'Datenbank nicht erreichbar.' }, 500)
 
     await expect(currentAccount()).rejects.toThrow(RequestRefused)
+  })
+
+  /**
+   * The second factor is the session's, as the server writes it
+   * (opengewerk-haustechnik#360): the app on the account gives a session that
+   * began with the password alone none, and what the server does not say is
+   * not there.
+   */
+  it('takes the second factor from the session and not from the account', async () => {
+    answers = () =>
+      json({
+        user: { id: 'u-1', twoFactorEnabled: true },
+        session: { activeTenantId: null, signInMethod: 'password', secondFactor: false },
+      })
+
+    expect(await currentAccount()).toMatchObject({ twoFactorEnabled: true, secondFactor: false })
+
+    answers = () =>
+      json({
+        user: { id: 'u-1', twoFactorEnabled: true },
+        session: { activeTenantId: null, signInMethod: 'password', secondFactor: true },
+      })
+
+    expect(await currentAccount()).toMatchObject({ twoFactorEnabled: true, secondFactor: true })
+
+    answers = () =>
+      json({ user: { id: 'u-1', twoFactorEnabled: true }, session: { activeTenantId: null } })
+
+    expect(await currentAccount()).toMatchObject({ secondFactor: false })
   })
 
   it('takes a sign in the server does not know the kind of for one with a password', async () => {

@@ -93,6 +93,13 @@ beforeAll(async () => {
       'insert into auth_users (id, name, email, two_factor_enabled) values ($1, $2, $3, $4)',
       [userId, person.name, person.email, person.secondFactor],
     )
+    // The second factor is the session's (opengewerk-haustechnik#360): the one
+    // the header stands for, as if signed in with the code where there is one.
+    await admin.query(
+      `insert into auth_sessions (id, token, user_id, expires_at, second_factor)
+         values ($1, $1, $2, now() + interval '1 day', $3)`,
+      [`test-session-${userId}`, userId, person.secondFactor],
+    )
     await database.forTenant({ tenantId: first, reason: 'membership.create' }, (tx) =>
       tx.insert(memberships).values({ tenantId: first, userId, roles: [...person.roles] }),
     )

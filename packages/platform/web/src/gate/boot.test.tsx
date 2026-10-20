@@ -48,6 +48,7 @@ const account = {
   name: 'Mia Mitglied',
   twoFactorEnabled: false,
   signInMethod: 'password' as const,
+  secondFactor: false,
 }
 
 /** A tenant as `/auth/tenants` answers it, with whatever the test says about it. */
@@ -194,11 +195,17 @@ function serverAnswers(answer: (path: string) => unknown) {
   })
 }
 
-/** What `/api/auth/get-session` answers for somebody signed in, in a tenant or in none yet. */
-function session(tenantId: string | null, signInMethod = 'password') {
+/**
+ * What `/api/auth/get-session` answers for somebody signed in, in a tenant or
+ * in none yet, by default with the password alone and without the app.
+ */
+function session(
+  tenantId: string | null,
+  { signInMethod = 'password', secondFactor = false, twoFactorEnabled = false } = {},
+) {
   return {
-    user: { id: account.userId, email: account.email, name: account.name },
-    session: { activeTenantId: tenantId, signInMethod },
+    user: { id: account.userId, email: account.email, name: account.name, twoFactorEnabled },
+    session: { activeTenantId: tenantId, signInMethod, secondFactor },
   }
 }
 
@@ -328,19 +335,23 @@ describe('starting with a network', () => {
   })
 
   /**
-   * A sign in with a passkey carries the second factor itself (#167), so
-   * somebody who leads a tenant and has no app goes on to the choice, where
-   * one who signed in with the password alone is asked to set the app up.
+   * The second factor is asked of the session, as the server asks it
+   * (opengewerk-haustechnik#360). Somebody whose role asks for it goes on to
+   * the choice after a sign in with the code or with a passkey (#167), and is
+   * asked to set the app up after one with the password alone, also where the
+   * account has the app by now.
    */
   it.each([
-    ['passkey', 'Mandant wählen'],
-    ['password', 'Zweiter Faktor'],
+    ['the code', { secondFactor: true, twoFactorEnabled: true }, 'Mandant wählen'],
+    ['a passkey', { secondFactor: true, signInMethod: 'passkey' }, 'Mandant wählen'],
+    ['the password, the app set up since', { twoFactorEnabled: true }, 'Zweiter Faktor'],
+    ['the password, without the app', {}, 'Zweiter Faktor'],
   ])(
-    'sends somebody without the app whose role asks for it after a sign in with the %s to "%s"',
-    async (method, heading) => {
+    'sends somebody whose role asks for it after a sign in with %s to "%s"',
+    async (_way, signedIn, heading) => {
       serverAnswers((path) =>
         path.endsWith('/get-session')
-          ? session(null, method)
+          ? session(null, signedIn)
           : path === '/auth/tenants'
             ? [
                 aTenant({ id: 't-nord', roles: ['lead'], secondFactor: true }),

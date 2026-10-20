@@ -4,11 +4,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { newId } from '../database/identifier.js'
 import { applicationRole } from '../database/test-database.js'
+import { appointOperator } from '../instance/operators.js'
 import { authenticationPath } from './authentication.js'
 import type { PasskeyOwner } from './notices.js'
 import {
   cookiesOf,
   joined,
+  probeAccess,
   probeAuthenticator,
   type ProbeFoundation,
   probeFoundation,
@@ -629,6 +631,10 @@ describe('signing in with a passkey', () => {
     await instance.chooseTenant(cookies, north.id)
     await http().get('/probe/members').set('cookie', cookies).expect(200)
 
+    // The session of the password stays as it was: without the app on the
+    // account, a passkey ends no other session (opengewerk-haustechnik#360).
+    await http().get('/probe/members').set('cookie', withPassword).expect(403)
+
     // And the tenant sees it in its log.
     const { rows } = await admin.query<{ new_value: string; reason: string }>(
       `select new_value, reason from audit_entries
@@ -661,14 +667,60 @@ describe('signing in with a passkey', () => {
   it('cannot be claimed by a session that began with the password', async () => {
     const cookies = await signIn(leader.email)
 
-    await http()
-      .post(`${authenticationPath}/update-session`)
-      .set('cookie', cookies)
-      .set('origin', origin)
-      .send({ signInMethod: 'passkey' })
+    // Neither the way it began nor the second factor itself
+    // (opengewerk-haustechnik#360) is a column a client may write, each tried
+    // on its own.
+    for (const claimed of [{ signInMethod: 'passkey' }, { secondFactor: true }]) {
+      await http()
+        .post(`${authenticationPath}/update-session`)
+        .set('cookie', cookies)
+        .set('origin', origin)
+        .send(claimed)
+    }
 
     await instance.chooseTenant(cookies, north.id)
     await http().get('/probe/members').set('cookie', cookies).expect(403)
+  })
+
+  /**
+   * Setting the app up ends the sessions of the account that have no second
+   * factor (opengewerk-haustechnik#360). One that began with a passkey has
+   * one, so it stays and keeps working, in the tenant and in the area of the
+   * instance, which both ask for it.
+   */
+  it('keeps its session and its second factor when the app is set up in another', async () => {
+    const owner = { email: 'passkey-und-app@example.de', name: 'Pia Passkey' }
+    const { userId } = await addStaffMember(instance.authentication, instance.database, {
+      ...owner,
+      password,
+      tenantId: north.id,
+      roles: ['lead'],
+    })
+
+    await appointOperator(instance.database, probeAccess.sentences.instance, userId, owner.email)
+
+    const authenticator = await addPasskey(owner.email, 'Telefon von Pia')
+    const cookies = cookiesOf(await passkeySignIn(authenticator))
+
+    // The app, set up in a session of the password, as "Konto" does it.
+    const withPassword = await signIn(owner.email)
+    const started = await http()
+      .post(`${authenticationPath}/two-factor/enable`)
+      .set('cookie', withPassword)
+      .set('origin', origin)
+      .send({ password })
+      .expect(200)
+
+    await http()
+      .post(`${authenticationPath}/two-factor/verify-totp`)
+      .set('cookie', withPassword)
+      .set('origin', origin)
+      .send({ code: await currentCode((started.body as { totpURI: string }).totpURI) })
+      .expect(200)
+
+    await instance.chooseTenant(cookies, north.id)
+    await http().get('/probe/members').set('cookie', cookies).expect(200)
+    await http().get('/instance/operators').set('cookie', cookies).expect(200)
   })
 })
 

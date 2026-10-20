@@ -28,19 +28,14 @@ describe('the name of a passkey', () => {
 })
 
 describe('the second factor of a session', () => {
-  it('is there with the app set up, however the session began', () => {
-    expect(hasSecondFactor({ twoFactorEnabled: true, signInMethod: 'password' })).toBe(true)
-    expect(hasSecondFactor({ twoFactorEnabled: true, signInMethod: 'passkey' })).toBe(true)
+  it('is there when the session says so', () => {
+    expect(hasSecondFactor({ secondFactor: true })).toBe(true)
   })
 
-  it('is there after signing in with a passkey, without the app', () => {
-    expect(hasSecondFactor({ twoFactorEnabled: false, signInMethod: 'passkey' })).toBe(true)
-  })
-
-  it('is missing after the password alone', () => {
-    expect(hasSecondFactor({ twoFactorEnabled: false, signInMethod: 'password' })).toBe(false)
-    expect(hasSecondFactor({ twoFactorEnabled: null, signInMethod: null })).toBe(false)
-    expect(hasSecondFactor({ twoFactorEnabled: undefined, signInMethod: undefined })).toBe(false)
+  it('is missing otherwise, also where nothing is said', () => {
+    expect(hasSecondFactor({ secondFactor: false })).toBe(false)
+    expect(hasSecondFactor({ secondFactor: null })).toBe(false)
+    expect(hasSecondFactor({ secondFactor: undefined })).toBe(false)
   })
 })
 

@@ -64,6 +64,9 @@ export function previewSession(
           id: previewSessionId,
           userId: identity.userId,
           activeTenantId: identity.tenantId,
+          // The owner needs a second factor, and in the preview the session
+          // has one, as after a sign in with the code (opengewerk-haustechnik#360).
+          secondFactor: true,
         },
       })
 
