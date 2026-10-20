@@ -136,6 +136,8 @@ jobs:
       - name: Installationspaket packen
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          APP_DIGEST: ${{ steps.app.outputs.digest }}
+          BACKUP_DIGEST: ${{ steps.backup.outputs.digest }}
         run: |
           set -eu
           # The folder as committed, without its tests, no .env and nothing
@@ -143,19 +145,16 @@ jobs:
           # this one and the .env stays where it is.
           mkdir opengewerk
           git archive HEAD -- docker LICENSE \
-            ':(exclude)docker/test-*.sh' ':(exclude)docker/compose.test.yaml' |
+            ':(exclude)docker/test-*.sh' ':(exclude)docker/compose.test.yaml' \
+            ':(exclude)docker/kit-images.sh' |
             tar -x -C opengewerk
 
-          # The version in place of "source" at every image of this project,
-          # so that start.sh pulls it and so does every docker compose
-          # command the README names. A version in the .env still wins.
-          compose=opengewerk/docker/compose.yaml
-          sed -i "s/OPENGEWERK_VERSION:-source}/OPENGEWERK_VERSION:-$VERSION}/" "$compose"
-          if grep -q 'OPENGEWERK_VERSION:-source}' "$compose" ||
-            ! grep -Fq "OPENGEWERK_VERSION:-$VERSION}" "$compose"; then
-            echo "compose.yaml im Paket nennt nicht überall die Fassung $VERSION." >&2
-            exit 1
-          fi
+          # The version in place of "source", and every image of this project
+          # by the digest pushed above (#687): start.sh checks the signature of
+          # exactly these bytes before it pulls them, and every docker compose
+          # command docs/betrieb.md names runs them.
+          sh docker/kit-images.sh opengewerk/docker/compose.yaml OPENGEWERK "$VERSION" \
+            "ghcr.io/opengewerk/opengewerk@$APP_DIGEST" "ghcr.io/opengewerk/backup@$BACKUP_DIGEST"
 
           # Every entry belongs to root, by number and without a name. tar
           # otherwise writes down the account that packs, the runner's, and

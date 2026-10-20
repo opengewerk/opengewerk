@@ -195,4 +195,65 @@ printf '%s' "$out" | grep -q 'kein Präfix für Variablen'
 test ! -s "$CALLS"
 check 'zweite Anwendung: falsches Präfix abgelehnt, bevor Docker gefragt wird'
 
+# 9. A kit with digests (#687), packed the way the release packs it: its own
+# version and no other, a version in the .env notwithstanding, and the
+# signature of each image of the application checked against the release
+# workflow before anything is pulled. Not the renderer, which nobody here
+# signs.
+cp "$source_dir/compose.yaml" "$work/docker/compose.yaml"
+app_digest="sha256:$(printf '%064d' 1)"
+backup_digest="sha256:$(printf '%064d' 2)"
+sh "$source_dir/kit-images.sh" "$work/docker/compose.yaml" OPENGEWERK 0.6.0 \
+  "ghcr.io/opengewerk/opengewerk@$app_digest" "ghcr.io/opengewerk/backup@$backup_digest"
+
+cat > "$work/bin/cosign" <<'FAKE'
+#!/bin/sh
+printf 'cosign|%s\n' "$*" >> "$CALLS"
+if [ -n "${COSIGN_REFUSES:-}" ]; then
+  echo 'Error: no matching signatures' >&2
+  exit 1
+fi
+FAKE
+chmod +x "$work/bin/cosign"
+
+said() {
+  : > "$CALLS"
+  OPENGEWERK_ADDRESS=http://127.0.0.1:23700 sh "$work/docker/start.sh" < /dev/null 2>&1
+}
+
+identity='https://github.com/opengewerk/opengewerk/.github/workflows/release.yml@refs/tags/v0.6.0'
+pin 0.2.1
+out=$(said)
+for image in "ghcr.io/opengewerk/opengewerk:0.6.0@$app_digest" "ghcr.io/opengewerk/backup:0.6.0@$backup_digest"; do
+  grep -qF "cosign|verify --certificate-identity $identity --certificate-oidc-issuer https://token.actions.githubusercontent.com $image" "$CALLS"
+done
+absent 'cosign|.*browserless'
+pulled '0\.6\.0'
+first_pull=$(grep -n 'pull --policy missing' "$CALLS" | head -n 1 | cut -d: -f1)
+last_check=$(grep -n '^cosign|' "$CALLS" | tail -n 1 | cut -d: -f1)
+test "$last_check" -lt "$first_pull"
+printf '%s' "$out" | grep -q 'gilt nur für einen Checkout'
+printf '%s' "$out" | grep -q 'Die Signaturen der Abbilder sind geprüft.'
+check 'Paket mit Digest: seine Fassung, jede Signatur geprüft, bevor etwas geholt wird'
+
+# 10. A signature that does not hold stops the start before anything is
+# pulled or migrated, and says why.
+if out=$(COSIGN_REFUSES=1 said); then
+  echo 'FEHLER: eine abgelehnte Signatur lief durch'
+  exit 1
+fi
+printf '%s' "$out" | grep -q 'ließ sich nicht bestätigen'
+printf '%s' "$out" | grep -q 'no matching signatures'
+absent ' pull'
+absent ' run --rm migrate'
+check 'Paket mit Digest: abgelehnte Signatur hält den Start an'
+
+# 11. Without cosign the start goes on and says how to check by hand.
+out=$(COSIGN="$work/no-cosign" said)
+printf '%s' "$out" | grep -q 'cosign fehlt auf dieser Maschine'
+printf '%s' "$out" | grep -qF "cosign verify --certificate-identity $identity"
+absent '^cosign|'
+pulled '0\.6\.0'
+check 'Paket mit Digest ohne cosign: sagt, wie man von Hand prüft'
+
 echo 'Startskript: alles in Ordnung.'
