@@ -1021,6 +1021,22 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Konflikt wie eine, die nie ankam. In der Handwerkersoftware fragt es auch der Start eines Imports
   aus DATANORM, und die Migration `0083_file_uploads` gibt jeder Datei von vorher die Person, die sie
   laut Änderungsprotokoll zuerst abgelegt hat.
+- Den Mailserver der Instanz ändert, wer die Instanz betreibt, nur noch nach der Bestätigung mit
+  Passwort und Code, und jeder Betrieb erfährt davon und von jedem neuen Passwort (gefunden in der
+  Sicherheitsprüfung, `opengewerk-haustechnik#360`). Über diesen Server geht der Link zu einem neuen
+  Passwort; bisher genügte zum Ändern eine Sitzung, und weder die Änderung noch ein zurückgesetztes
+  Passwort stand irgendwo, wo ein Betrieb es sah. Jetzt verlangen `PUT` und
+  `DELETE /instance/mail-server` die Bestätigung aus `reconfirmation.ts` und verbrauchen sie; der
+  Bereich der Instanz fragt sie vor dem Speichern und dem Entfernen. Jede Änderung steht vorher als
+  Zeile von `account_mail_server_changes` im Änderungsprotokoll jedes Betriebs, mit Server und
+  Absenderadresse vorher und nachher, und geht danach per E-Mail an die Inhaber aller Betriebe, über
+  den Mailserver von vorher und nicht über den neuen (`AccountMessages.mailServerChanged`, für
+  Anwendungen `authenticationParts({ accountMessages })`). Jedes neue Passwort, über den Link oder
+  mit `reset-password`, steht als Zeile von `password_resets` im Protokoll jedes Betriebs des
+  Zugangs, mit Zeitpunkt und ohne Link oder Token. Einen Tag nach einem neuen Passwort lassen sich
+  keine App und kein Passkey einrichten, damit eine fremde Rücksetzung auffallen kann, bevor ein
+  zweiter Faktor sie festigt. Die Handwerkersoftware bekommt beide Tabellen mit der Migration
+  `0084_password_resets_and_mail_server_changes`.
 
 ## [0.5.0] - 2026-10-04
 

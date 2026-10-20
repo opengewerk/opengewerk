@@ -764,6 +764,12 @@ Wie `add-staff` fragt der Befehl das neue Passwort verdeckt ab, und aus einem
 Skript heraus kommt es aus `OPENGEWERK_PASSWORD`. Alle Geräte des Zugangs sind
 danach abgemeldet.
 
+Jedes neue Passwort, über den Link oder mit `reset-password`, steht im
+Änderungsprotokoll jedes Betriebs, in dem der Zugang arbeitet, mit Zeitpunkt und
+ohne den Link. Einen Tag lang lassen sich danach für diesen Zugang keine App und
+kein Passkey einrichten; ein zweiter Faktor, den er schon hat, gilt weiter. So
+bleibt Zeit zu bemerken, wenn jemand anderes das Passwort zurückgesetzt hat.
+
 Einen zweiten Faktor kann jedes Konto auch später einrichten, auf dem Bildschirm
 "Konto" im Büro. Für `owner` ist er Pflicht und die Anwendung fragt von selbst
 danach, für alle anderen ist er eine Empfehlung.
@@ -822,6 +828,15 @@ Bereich nur seinen Namen, den Tag der Anlage, seine Inhaber und die Zahl der
 Zugänge, nichts, was in ihm steht. Wer einen Betrieb führt, liest die Liste
 aus den Rollen des Betriebs: Inhaber ist dort, wer eine Rolle hält, die den
 Betrieb führt, wie immer sie heißt.
+
+Wer den Mailserver der Instanz einrichtet, bestimmt damit, über welchen Server
+die Links zu neuen Passwörtern gehen. Deshalb lässt er sich nur nach der
+Bestätigung mit Passwort und Code ändern oder entfernen, jede Änderung steht im
+Änderungsprotokoll jedes Betriebs, aus dem der Betreiber sie nicht wieder
+herausnehmen kann, und geht per E-Mail an die Inhaber aller Betriebe, über den
+Mailserver von vorher und nicht über den neuen.
+Jedes neue Passwort steht ebenso im Protokoll jedes Betriebs des Zugangs (siehe
+"Ein Passwort ändern und zurückholen").
 
 Der Bereich selbst gehört zum Fundament (ADR 0010) und ist in jeder Anwendung
 der Organisation derselbe. Was diese Anwendung dazu sagt, sind ihre Wörter:
