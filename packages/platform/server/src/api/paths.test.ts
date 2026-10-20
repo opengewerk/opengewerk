@@ -51,6 +51,7 @@ const controllers = [
   ...authenticationParts({
     access: probeAccess,
     authentication: {} as Authentication,
+    accountMessages: null,
   }).controllers,
   ...syncParts({
     access: probeSyncAccess,

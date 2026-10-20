@@ -175,9 +175,10 @@ const noDelete: readonly TablePrivilege[] = ['select', 'insert', 'update']
  *   and the invitations: never deleted. Who was let in, by whom and what
  *   became of it is part of the record; a person is blocked, an invitation
  *   called back, and both are changes the log keeps.
- * - The corrections of a name or an address: read and inserted. A row says
- *   what was changed into what at one moment, and nothing about it changes
- *   afterwards.
+ * - The corrections of a name or an address, the resets of a password and the
+ *   changes of the mail server of the instance as a tenant learns of them:
+ *   read and inserted. A row says what happened at one moment, and nothing
+ *   about it changes afterwards.
  * - The roles of a tenant: read, written when a tenant comes into being or
  *   makes one of its own, and removed (opengewerk/opengewerk-haustechnik#346).
  *   Of a row only its label, its rights, whether it asks for a second factor
@@ -234,6 +235,13 @@ export const foundationGuards: readonly TableGuard[] = [
   { table: 'tenant_sessions', grants: noDelete, audited: true, synced: false },
   { table: 'member_passkeys', grants: noDelete, audited: true, synced: false },
   { table: 'account_corrections', grants: ['select', 'insert'], audited: true, synced: false },
+  { table: 'password_resets', grants: ['select', 'insert'], audited: true, synced: false },
+  {
+    table: 'account_mail_server_changes',
+    grants: ['select', 'insert'],
+    audited: true,
+    synced: false,
+  },
   { table: 'invitations', grants: noDelete, audited: true, synced: false },
   {
     table: 'tenant_roles',

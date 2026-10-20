@@ -148,7 +148,7 @@ describe('the foundation, built from its building blocks alone', () => {
   it('keeps every table from the owner and opens it to the application', async () => {
     const tables = await tableProtections(admin)
 
-    expect(tables).toHaveLength(28)
+    expect(tables).toHaveLength(30)
     expect(unprotected(tables)).toEqual([])
   })
 
@@ -172,8 +172,8 @@ describe('the foundation, built from its building blocks alone', () => {
   it('lets the application past the tenant only where the list says why', async () => {
     const reading = await readPolicies(admin)
 
-    // The eighteen tables of the foundation that carry a tenant, `tenants` among them.
-    expect(reading.tables).toBe(18)
+    // The twenty tables of the foundation that carry a tenant, `tenants` among them.
+    expect(reading.tables).toBe(20)
     expect(reading.violations).toEqual([])
     expect(reading.stale).toEqual([])
   })
@@ -279,6 +279,7 @@ describe('the foundation, built from its building blocks alone', () => {
       'deadline_settings_responsible_works_here',
       'file_uploads_file_in_tenant',
       'member_passkeys_person_works_here',
+      'password_resets_person_works_here',
     ])
     expect(withoutTheTenant(keys)).toEqual([])
   })
@@ -288,6 +289,7 @@ describe('the foundation, built from its building blocks alone', () => {
 
     expect(coverage.watched).toEqual([
       'account_corrections',
+      'account_mail_server_changes',
       'audit_redactions',
       'deadline_settings',
       'files',
@@ -295,6 +297,7 @@ describe('the foundation, built from its building blocks alone', () => {
       'mail_settings',
       'member_passkeys',
       'memberships',
+      'password_resets',
       'tenant_roles',
       'tenant_sessions',
       'tenants',
@@ -871,6 +874,6 @@ describe('the rollback of the foundation', () => {
     expect(rows[0]?.schema).toBeNull()
 
     await kit.applyFoundation()
-    expect(await tableNames(admin)).toHaveLength(28)
+    expect(await tableNames(admin)).toHaveLength(30)
   })
 })

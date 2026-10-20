@@ -19,7 +19,20 @@ import { instanceMailConnection } from './mail-server.js'
  * Sent straight away and not through an outbox. An outbox is a table, and a
  * link that works would stand in it, and in the log of it, until it went out.
  * If the mail server does not answer, nothing waits: the person asks again.
+ *
+ * Whoever sets that server up could read the links there, so a change of it
+ * takes a confirmation, goes into the log of every tenant and is told to
+ * whoever leads one, through the server of before (`mail-server-notice.ts`),
+ * and every reset of a password goes into the log of every tenant of the
+ * account (`password-resets.ts`) (opengewerk-haustechnik#360).
  */
+
+/**
+ * The words of an application for the mails to an account, under the token
+ * the area of the instance is handed them by: it tells whoever leads a tenant
+ * of a new mail server in them (`mail-server-notice.ts`).
+ */
+export const ACCOUNT_MESSAGES = Symbol('AccountMessages')
 
 /** A message as an application words it. */
 export interface AccountMessageText {
@@ -44,6 +57,20 @@ export interface AccountMessages {
     readonly name: string
     readonly passkey: string
     readonly addedAt: Date
+    readonly link: string
+  }) => AccountMessageText
+  /**
+   * To whoever leads a tenant on the instance, once the mail server of the
+   * instance was set up, changed or removed (opengewerk-haustechnik#360). It
+   * goes out through the server that was there before, and never through the
+   * new one (`mail-server-notice.ts`). `host` and `fromAddress` are the server
+   * now, both null where it was removed; `link` is the instance.
+   */
+  readonly mailServerChanged: (facts: {
+    readonly name: string
+    readonly host: string | null
+    readonly fromAddress: string | null
+    readonly changedAt: Date
     readonly link: string
   }) => AccountMessageText
 }

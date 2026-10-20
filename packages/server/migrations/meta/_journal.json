@@ -589,6 +589,13 @@
       "when": 1792487359759,
       "tag": "0083_file_uploads",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1792490538761,
+      "tag": "0084_password_resets_and_mail_server_changes",
+      "breakpoints": true
     }
   ]
 }

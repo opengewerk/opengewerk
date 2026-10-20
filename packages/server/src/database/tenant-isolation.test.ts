@@ -804,6 +804,13 @@ const crossings: readonly {
             values (${own.tenant}, ${other.user}, 'Alt', 'Neu')`,
   },
   {
+    // An insert as well: a reset is written once, for somebody who works in
+    // the business that learns of it (opengewerk-haustechnik#360).
+    key: 'password_resets_person_works_here',
+    write: (own, other) =>
+      sql`insert into password_resets (tenant_id, user_id) values (${own.tenant}, ${other.user})`,
+  },
+  {
     key: 'push_outbox_subscription_in_tenant',
     write: (own, other) =>
       repoint('push_outbox', 'subscription_id', own.pushMessage, other.pushDevice),
