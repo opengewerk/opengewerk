@@ -5,7 +5,7 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError, createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth/api'
 import { twoFactor } from 'better-auth/plugins'
-import { eq } from 'drizzle-orm'
+import { and, eq, exists, ne } from 'drizzle-orm'
 
 import type { ServerApplication } from '../configuration.js'
 import type { Database } from '../database/database.js'
@@ -107,6 +107,27 @@ const registering: ReadonlySet<string> = new Set([
 const passkeySignIn = '/passkey/verify-authentication'
 
 /**
+ * The routes at which better-auth writes a session after a second factor
+ * (opengewerk-haustechnik#360): the code from the app and a recovery code
+ * after the password, and a passkey (#167). The first is also where the code
+ * that sets the app up is confirmed, and the session the app was set up in is
+ * written there anew. The codes better-auth could send by mail are not set up
+ * here.
+ */
+const confirmingSecondFactor: ReadonlySet<string> = new Set([
+  '/two-factor/verify-totp',
+  '/two-factor/verify-backup-code',
+  passkeySignIn,
+])
+
+/**
+ * Where better-auth puts a new session in the place of the one the request
+ * came with: a new password, which ends every other session of the account.
+ * The new one keeps the second factor of the old.
+ */
+const replacingSession = '/change-password'
+
+/**
  * The relying party a passkey is bound to: the host of the first trusted
  * origin, where the instance is reached. A passkey works on exactly that host
  * and its subdomains, so the origins it is checked against are the trusted
@@ -151,10 +172,11 @@ export interface FoundSession {
     readonly longLived?: boolean | null | undefined
     /** With what the session was signed in, the password or a passkey. */
     readonly signInMethod?: string | null | undefined
+    /** Whether the session carries a second factor (opengewerk-haustechnik#360). */
+    readonly secondFactor?: boolean | null | undefined
   }
   readonly user: {
     readonly id: string
-    readonly twoFactorEnabled?: boolean | null | undefined
   }
 }
 
@@ -314,6 +336,12 @@ export function createAuthentication({
         // counts as a second factor, so a client must never be able to write
         // it: that would be a way past the second factor.
         signInMethod: { type: 'string', required: false, input: false, defaultValue: 'password' },
+        // Whether the session carries a second factor (opengewerk-haustechnik#360),
+        // set below when the row is written and asked on every request of a
+        // role that needs one. Like the column before it, a client writing it
+        // would be a way past the second factor. Without a default here: the
+        // hook below sets it on every new row, and the column has one.
+        secondFactor: { type: 'boolean', required: false, input: false },
       },
     },
     databaseHooks: {
@@ -327,13 +355,38 @@ export function createAuthentication({
           // signs in with a passkey makes a passkey session; every other way
           // to a session goes through the password, the code included where
           // one is set up.
-          before: async (session, context) => ({
-            data: {
-              ...session,
-              expiresAt: new Date(Date.now() + sessionLifetimes.ordinary * 1000),
-              signInMethod: context?.path === passkeySignIn ? 'passkey' : 'password',
-            },
-          }),
+          //
+          // And whether it carries a second factor (opengewerk-haustechnik#360):
+          // when it is written after one was confirmed, or in the place of a
+          // session that had one. Never from the account: a session that began
+          // with the password alone stays without, also once the account has
+          // the app.
+          before: async (session, context) => {
+            const path = context?.path ?? ''
+            const replaced = path === replacingSession ? context?.context.session : null
+
+            return {
+              data: {
+                ...session,
+                expiresAt: new Date(Date.now() + sessionLifetimes.ordinary * 1000),
+                signInMethod: path === passkeySignIn ? 'passkey' : 'password',
+                secondFactor:
+                  confirmingSecondFactor.has(path) || replaced?.session.secondFactor === true,
+              },
+            }
+          },
+          // A session with a second factor on an account that has the app ends
+          // the sessions of the account without one (opengewerk-haustechnik#360).
+          // Setting the app up is the moment this matters: whoever had only the
+          // password, and a session from it, is out, and the gate of a device
+          // signed in that way shows the sign in again rather than a setup that
+          // is done. A passkey session stays, it carries a second factor of its
+          // own.
+          after: async (session) => {
+            if (session.secondFactor === true) {
+              await endSessionsWithoutSecondFactor(database, session.userId, session.id)
+            }
+          },
         },
       },
     },
@@ -594,4 +647,34 @@ export function createAuthentication({
   }
 
   return authentication
+}
+
+/**
+ * Ends every session of an account that carries no second factor, apart from
+ * the one named, once the account has the app (opengewerk-haustechnik#360).
+ * As a new password ends the other sessions: the rows go, and with them the
+ * cookies they stood behind.
+ */
+async function endSessionsWithoutSecondFactor(
+  database: Database,
+  userId: string,
+  keep: string,
+): Promise<void> {
+  await database.forInstance(
+    (tx) =>
+      tx.delete(authSessions).where(
+        and(
+          eq(authSessions.userId, userId),
+          ne(authSessions.id, keep),
+          eq(authSessions.secondFactor, false),
+          exists(
+            tx
+              .select({ id: authUsers.id })
+              .from(authUsers)
+              .where(and(eq(authUsers.id, userId), eq(authUsers.twoFactorEnabled, true))),
+          ),
+        ),
+      ),
+    userId,
+  )
 }

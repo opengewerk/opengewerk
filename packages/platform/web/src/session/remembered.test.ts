@@ -30,6 +30,7 @@ const account: Account = {
   tenantId,
   twoFactorEnabled: true,
   signInMethod: 'password',
+  secondFactor: true,
 }
 
 const choice: TenantChoice = {
@@ -90,6 +91,7 @@ describe('who was signed in here last', () => {
         email: 7,
         twoFactorEnabled: 'yes',
         signInMethod: 'x',
+        secondFactor: 'yes',
       }),
     )
 
@@ -100,6 +102,7 @@ describe('who was signed in here last', () => {
       name: '',
       twoFactorEnabled: false,
       signInMethod: 'password',
+      secondFactor: false,
     })
   })
 

@@ -122,6 +122,17 @@ export const authSessions = pgTable(
      */
     signInMethod: signInMethod('sign_in_method').notNull().default('password'),
     /**
+     * Whether this session carries a second factor (opengewerk-haustechnik#360).
+     * Set when the row is written, from the route that writes it, and never by
+     * a client: true for a sign in with the code from the app, a recovery code
+     * or a passkey, for the session the app was set up in, and for one that
+     * takes the place of a session that had it (`authentication.ts`). Read on
+     * every request of a role that needs it and in the area of the instance;
+     * the account having the app says nothing about a session that began
+     * without it.
+     */
+    secondFactor: boolean('second_factor').notNull().default(false),
+    /**
      * When the person last confirmed again with the password and, where set
      * up, the code (#167). Adding a passkey asks for it within the last few
      * minutes, so that a session left open on somebody's desk cannot give

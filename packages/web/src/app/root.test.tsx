@@ -36,6 +36,7 @@ const account = {
   name: 'Max Monteur',
   twoFactorEnabled: false,
   signInMethod: 'password' as const,
+  secondFactor: false,
 }
 
 let counter = 0
@@ -126,7 +127,7 @@ function noNetwork() {
 function session(tenantId: string | null) {
   return {
     user: { id: account.userId, email: account.email, name: account.name },
-    session: { activeTenantId: tenantId, signInMethod: 'passkey' },
+    session: { activeTenantId: tenantId, signInMethod: 'passkey', secondFactor: true },
   }
 }
 

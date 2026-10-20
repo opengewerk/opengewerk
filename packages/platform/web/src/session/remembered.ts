@@ -62,6 +62,7 @@ export function rememberedAccount(): Account | null {
       tenantId: account.tenantId as TenantId,
       twoFactorEnabled: account.twoFactorEnabled === true,
       signInMethod: isSignInMethod(account.signInMethod) ? account.signInMethod : 'password',
+      secondFactor: account.secondFactor === true,
     }
   } catch {
     return null

@@ -135,21 +135,17 @@ export class SessionIdentitySource<Right extends string = string> implements Ide
     // nothing, and a key without a row is not a role.
     const sum = this.access.catalogue.sumOf(membership.held)
 
-    if (
-      sum.secondFactor &&
-      !hasSecondFactor({
-        twoFactorEnabled: found.user.twoFactorEnabled,
-        signInMethod: found.session.signInMethod,
-      })
-    ) {
+    if (sum.secondFactor && !hasSecondFactor(found.session)) {
       // ADR 0006 hangs this on the role and not on a setting, so it is checked
       // here rather than at sign in: somebody given such a role an hour ago is
       // stopped at the next request, without anybody having to remember to
       // re-check them.
       //
-      // Asked of the session and not only of the account (#167): a session
-      // that began with a passkey confirmed on the device carries the second
-      // factor itself, one that began with the password alone does not.
+      // Asked of the session and not of the account (#167,
+      // opengewerk-haustechnik#360): a session that began with the code or
+      // with a passkey confirmed on the device carries the second factor, one
+      // that began with the password alone does not, also once the account
+      // has the app.
       throw new ForbiddenException(
         'Für diese Rolle ist ein zweiter Faktor Pflicht. Bitte eine Authenticator-App ' +
           'einrichten oder mit einem Passkey anmelden.',

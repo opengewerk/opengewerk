@@ -933,6 +933,24 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Anfrage an `/sync` ohne Sitzung bekommt 401, ohne dass ihr Körper gelesen wird. Das README
   empfiehlt dem Reverse Proxy dazu eine Grenze je Pfad, groß nur für `/files/` und `/sync`, mit
   Beispielen für nginx und Apache.
+- Der zweite Faktor gehört zur Sitzung und nicht mehr zum Konto (gefunden in der
+  Sicherheitsprüfung, `opengewerk-haustechnik#360`). Bisher lasen eine Rolle mit Pflicht zum
+  zweiten Faktor und der Bereich der Instanz am Konto ab, ob die App eingerichtet ist, und so galt
+  eine Sitzung, die nur mit dem Passwort begonnen hatte, als zweifach angemeldet, sobald das Konto
+  die App bekam. Jetzt schreibt der Server beim Anlegen einer Sitzung `auth_sessions.second_factor`:
+  wahr nach dem Code aus der App, einem Wiederherstellungscode oder einem Passkey, in der Sitzung,
+  in der die App eingerichtet wurde, und in der neuen Sitzung nach einem neuen Passwort, wenn die
+  alte ihn hatte; kein Client kann die Spalte setzen. `hasSecondFactor` fragt nur noch sie, das Tor
+  im Web ebenso (`Account.secondFactor`). Entsteht eine Sitzung mit zweitem Faktor auf einem Konto
+  mit App, enden dessen Sitzungen ohne, Sitzungen mit Passkey bleiben. Die Handwerkersoftware
+  bekommt die Spalte mit der Migration `0081_session_second_factor`; Sitzungen mit Passkey behalten
+  den zweiten Faktor, Sitzungen mit Passwort auf einem Konto mit App enden, weil sich bei ihnen
+  nicht sagen lässt, ob sie mit dem Code begannen. Wer so angemeldet war, meldet sich nach dem
+  Update einmal neu an.
+- better-auth und `@better-auth/passkey` stehen auf 1.7.11, `@better-auth/utils` auf 0.5.0. Darin
+  steckt die Korrektur aus better-auth 1.7.7, nach der gleichzeitige Anfragen die Ratengrenzen in
+  PostgreSQL nicht mehr überschreiten; OpenGewerk hält diese Grenzen in der Datenbank und war
+  davon betroffen.
 
 ## [0.5.0] - 2026-10-04
 
