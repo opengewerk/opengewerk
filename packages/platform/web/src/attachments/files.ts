@@ -231,6 +231,9 @@ export function usePreview(version: RecordState | undefined): string | null {
         try {
           const response = await fetch(versionPath(id, 'preview'), {
             credentials: 'include',
+            // Kept in the store of the device, which signing out empties, and
+            // nowhere else: past the HTTP cache, as every request (`request`).
+            cache: 'no-store',
             headers: workingInHeaders(),
           })
 
@@ -284,6 +287,8 @@ export async function holdVersion(client: SyncClient, version: RecordState): Pro
   try {
     const response = await fetch(versionPath(String(version['id']), 'content'), {
       credentials: 'include',
+      // Held in the store of the device only, as the preview above.
+      cache: 'no-store',
       headers: workingInHeaders(),
     })
 

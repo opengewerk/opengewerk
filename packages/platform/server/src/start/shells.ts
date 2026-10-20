@@ -112,7 +112,8 @@ export function serveInterface(
       // are an installation that keeps starting the version it had when it
       // was first opened. A browser caps how long it trusts a worker script
       // by itself, which is a safety net and not a reason to serve it with a
-      // year on it.
+      // year on it. Either replaces the `no-store` every answer starts with
+      // (`sendSecurityHeaders`): a built file is the same for everybody.
       setHeaders(response: Response, path: string) {
         const pointsAtTheRest =
           path.endsWith('index.html') ||

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { Controller, type DynamicModule, Module, Post, Req } from '@nestjs/common'
+import { Controller, type DynamicModule, Get, Header, Module, Post, Req } from '@nestjs/common'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { toNodeHandler } from 'better-auth/node'
 import type { Request, RequestHandler } from 'express'
@@ -36,8 +36,12 @@ function builtInterface(): string {
   const directory = mkdtempSync(join(tmpdir(), 'server-'))
 
   mkdirSync(join(directory, 'm'))
+  mkdirSync(join(directory, 'assets'))
   writeFileSync(join(directory, 'index.html'), '<!doctype html><title>Schreibtisch</title>')
   writeFileSync(join(directory, 'm', 'index.html'), '<!doctype html><title>Unterwegs</title>')
+  writeFileSync(join(directory, 'assets', 'office-abc123.js'), 'console.log(1)')
+  writeFileSync(join(directory, 'service-worker.js'), 'self.addEventListener("fetch", () => {})')
+  writeFileSync(join(directory, 'manifest.webmanifest'), '{"name":"Probe"}')
 
   return directory
 }
@@ -84,6 +88,21 @@ class EchoController {
   @PublicRoute()
   outbox(@Req() incoming: Request): { read: boolean } {
     return { read: incoming.body !== undefined }
+  }
+
+  /** What a list of people looks like to a browser, without a session to ask for. */
+  @Get('echo/people')
+  @PublicRoute()
+  people(): readonly { name: string; email: string }[] {
+    return [{ name: 'Probe Leitung', email: 'leitung@example.org' }]
+  }
+
+  /** A route that says itself what a browser may keep of it. */
+  @Get('echo/own')
+  @PublicRoute()
+  @Header('Cache-Control', 'private, no-store')
+  own(): { name: string } {
+    return { name: 'Probe Leitung' }
   }
 }
 
@@ -324,5 +343,72 @@ describe('the server of an instance', () => {
     const { interfaceDirectory } = await started({ authenticationHandler: null, serverPaths: [] })
 
     expect(interfaceDirectory).toBeNull()
+  })
+})
+
+/**
+ * What a browser may keep of an answer (opengewerk-haustechnik#360). Signing
+ * out empties the stores of the device and cannot reach the HTTP cache of the
+ * browser, so nothing private may go there: `no-store` is what every answer
+ * starts with. The built files of the interface are the same for everybody
+ * and keep what they had, as does a route that says itself.
+ */
+describe('the cache of a browser', () => {
+  async function instance() {
+    const { app } = await started(
+      {
+        authenticationHandler: echoingAuthentication().handler,
+        serverPaths: ['probe', 'echo'],
+        interfaceDirectory: builtInterface(),
+      },
+      EchoModule.around(module),
+    )
+
+    return app.getHttpServer()
+  }
+
+  it('keeps no answer of the API or of the authentication, a refusal included', async () => {
+    const server = await instance()
+    const answers = {
+      people: await request(server).get('/echo/people').expect(200),
+      refused: await request(server).get('/probe/members').expect(401),
+      unknown: await request(server).get('/echo/nothing').expect(404),
+      session: await request(server)
+        .post('/api/auth/sign-in/email')
+        .set('Content-Type', 'application/json')
+        .send('{}')
+        .expect(200),
+    }
+
+    expect(answers.people.text).toContain('Probe Leitung')
+    expect(
+      Object.fromEntries(
+        Object.entries(answers).map(([name, answer]) => [name, answer.headers['cache-control']]),
+      ),
+    ).toEqual({ people: 'no-store', refused: 'no-store', unknown: 'no-store', session: 'no-store' })
+  })
+
+  it('leaves the built files of the interface and a route that says itself what they have', async () => {
+    const server = await instance()
+    const kept = async (path: string) =>
+      (await request(server).get(path).expect(200)).headers['cache-control']
+
+    expect({
+      asset: await kept('/assets/office-abc123.js'),
+      office: await kept('/'),
+      site: await kept('/m/regale/1'),
+      shell: await kept('/index.html'),
+      worker: await kept('/service-worker.js'),
+      manifest: await kept('/manifest.webmanifest'),
+      own: await kept('/echo/own'),
+    }).toEqual({
+      asset: 'public, max-age=31536000, immutable',
+      office: 'no-cache',
+      site: 'no-cache',
+      shell: 'no-cache',
+      worker: 'no-cache',
+      manifest: 'no-cache',
+      own: 'private, no-store',
+    })
   })
 })

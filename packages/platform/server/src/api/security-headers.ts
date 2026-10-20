@@ -47,12 +47,21 @@ export const shellPolicy = [
  *   then replaces the value rather than sending a second header: a browser
  *   reads only the first.
  * - The window and the resources to this origin (`COOP`, `CORP`).
+ * - `no-store`, so that no answer is kept in the HTTP cache of the browser
+ *   (opengewerk-haustechnik#360). An answer of the API carries the people,
+ *   the records and the files of a tenant, and signing out takes the stores
+ *   of the device along but cannot reach that cache: what it held would
+ *   outlast the session on the disk of the device. It is the default and
+ *   nothing more. Written before anything else answers, so the built files of
+ *   the interface replace it with their own (`serveInterface`), and so does a
+ *   route that names one itself.
  *
  * Set here and not in the proxy, so that an instance behind any proxy has
  * them. The README says which the proxy must not send a second time.
  */
 export function sendSecurityHeaders(application: Express): void {
   application.use((_request: Request, response: Response, next: NextFunction) => {
+    response.setHeader('Cache-Control', 'no-store')
     response.setHeader('X-Content-Type-Options', 'nosniff')
     response.setHeader('Referrer-Policy', 'no-referrer')
     response.setHeader('X-Frame-Options', 'DENY')
