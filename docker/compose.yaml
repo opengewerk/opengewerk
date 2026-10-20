@@ -93,7 +93,7 @@ services:
   # them, so by the time the migration runs the serving container is already
   # gone. If the migration then fails, the instance is down rather than still
   # answering on the old state. Measured on 19.09.2026, the reason stands in
-  # the README under "Aktualisieren".
+  # docs/betrieb.md under "Aktualisieren".
   #
   # Its own service, because it signs in as opengewerk_owner. The application
   # is never to see those credentials.

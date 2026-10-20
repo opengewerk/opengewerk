@@ -16,14 +16,14 @@ const words: BackupWords = {
     <>
       Eine Sicherung auf derselben Platte wie die Daten übersteht einen Fehler, aber keinen Ausfall
       der Platte. Wer die Instanz betreibt, legt die Archive deshalb auf eine andere Maschine, über{' '}
-      <code>BACKUP_TARGET</code>; die README beschreibt, wie.
+      <code>BACKUP_TARGET</code>; die Anleitung zum Betrieb beschreibt, wie.
     </>
   ),
   unencrypted: (
     <>
       Das Archiv liegt unverschlüsselt, und es enthält Kundendaten und Belege. Mit einem
-      öffentlichen Schlüssel in <code>BACKUP_AGE_RECIPIENT</code> wird es verschlüsselt; die README
-      beschreibt, wie.
+      öffentlichen Schlüssel in <code>BACKUP_AGE_RECIPIENT</code> wird es verschlüsselt; die
+      Anleitung zum Betrieb beschreibt, wie.
     </>
   ),
 }

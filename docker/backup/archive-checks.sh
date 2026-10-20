@@ -17,7 +17,7 @@
 # of its own is one.
 #
 # A new machine after a lost one has no record. --skip-origin-check takes the
-# archive anyway, on the word of whoever types it, and the README says when
+# archive anyway, on the word of whoever types it, and docs/betrieb.md says when
 # that is right. It is a flag on purpose and no setting: standing in the .env,
 # it would switch the check off for good.
 
@@ -77,7 +77,7 @@ check_origin() {
 # The sentences after a refusal of check_origin, $1 says what is not done.
 refuse_origin() {
 	echo "Stammt sie sicher aus einer Sicherung dieser Anwendung, etwa auf einer neuen" >&2
-	echo "Maschine ohne das Verzeichnis, nimmt sie ein Lauf mit --skip-origin-check (README," >&2
+	echo "Maschine ohne das Verzeichnis, nimmt sie ein Lauf mit --skip-origin-check (docs/betrieb.md," >&2
 	echo "\"Zurückspielen\"). ${1}" >&2
 	exit 1
 }

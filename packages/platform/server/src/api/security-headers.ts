@@ -57,7 +57,7 @@ export const shellPolicy = [
  *   route that names one itself.
  *
  * Set here and not in the proxy, so that an instance behind any proxy has
- * them. The README says which the proxy must not send a second time.
+ * them. docs/betrieb.md says which the proxy must not send a second time.
  */
 export function sendSecurityHeaders(application: Express): void {
   application.use((_request: Request, response: Response, next: NextFunction) => {
