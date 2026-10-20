@@ -1,8 +1,8 @@
 import { sql } from 'drizzle-orm'
-import { bigint, check, pgTable, text, unique, uniqueIndex } from 'drizzle-orm/pg-core'
+import { bigint, check, foreignKey, pgTable, text, unique, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { primaryId, timestamps } from './columns.js'
-import { tenantIsolation } from './rls.js'
+import { heldByThePersonAsking, tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 /**
@@ -41,5 +41,41 @@ export const files = pgTable(
     // way and a comparison is exact.
     check('files_sha256_is_hex', sql`${table.sha256} ~ '^[0-9a-f]{64}$'`),
     check('files_size_not_negative', sql`${table.sizeBytes} >= 0`),
+  ],
+)
+
+/**
+ * Who has stored a file of the tenant: a row for each person who sent its
+ * bytes, written with the row of the file (`fileRowFor`), and one for each
+ * person a file was made for on the server, a print.
+ *
+ * What it is for is the question who may name a file in a record of their
+ * own (`mayNameFile`). The row of the file is one for the whole tenant, while
+ * the records that name files lie in areas, and whoever knew the hash of a
+ * file of another area could otherwise hang it on a record of their own and
+ * read it there. Having sent the bytes is the proof of having them.
+ *
+ * Each person sees their own rows and nobody else's (`heldByThePersonAsking`):
+ * who sent which file is nothing the rest of the tenant needs to know. Added
+ * and never changed or removed, like the file.
+ */
+export const fileUploads = pgTable(
+  'file_uploads',
+  {
+    id: primaryId<'fileUpload'>(),
+    ...tenantColumn,
+    sha256: text('sha256').notNull(),
+    userId: text('user_id').notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    tenantIsolation(table.tenantId),
+    heldByThePersonAsking(table.userId),
+    uniqueIndex('file_uploads_once').on(table.tenantId, table.sha256, table.userId),
+    foreignKey({
+      columns: [table.tenantId, table.sha256],
+      foreignColumns: [files.tenantId, files.sha256],
+      name: 'file_uploads_file_in_tenant',
+    }).onDelete('restrict'),
   ],
 )

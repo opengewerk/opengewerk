@@ -203,6 +203,40 @@ describe('an attachment with its versions', () => {
     ])
   })
 
+  it('names a file another person stored only where a version in the records names it already', async () => {
+    const colleague = JSON.stringify({ userId: 'kollegin', tenantId: north.id, roles: ['office'] })
+    const theirs = Buffer.from('Messprotokoll der Kollegin\n')
+    const outcomes = async (operations: unknown[], identity?: string) =>
+      (await push(operations, identity)).receipts.map((receipt) => [
+        receipt.outcome,
+        receipt.reason,
+        receipt.fields,
+      ])
+
+    await upload(theirs, 'text/plain', colleague)
+
+    // Named by no version yet: answered as if it never arrived.
+    const before = attachmentWithVersion(theirs, 'Messprotokoll.txt', 'text/plain')
+
+    expect(await outcomes(before.operations)).toEqual([
+      ['applied', null, []],
+      ['conflict', 'record_missing', ['sha256']],
+    ])
+
+    // Once her version names it, whoever reads the records may lay it over another file.
+    const hers = attachmentWithVersion(theirs, 'Messprotokoll.txt', 'text/plain')
+    const again = attachmentWithVersion(theirs, 'Messprotokoll.txt', 'text/plain')
+
+    expect(await outcomes(hers.operations, colleague)).toEqual([
+      ['applied', null, []],
+      ['applied', null, []],
+    ])
+    expect(await outcomes(again.operations)).toEqual([
+      ['applied', null, []],
+      ['applied', null, []],
+    ])
+  })
+
   it('is refused for the transmission when it says what only a broken client says', async () => {
     await upload(notes, 'text/plain')
 

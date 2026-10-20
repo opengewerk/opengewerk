@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -855,6 +856,79 @@ describe('the conflicts from before 0082', () => {
     expect(forced).toEqual([
       { relname: 'sync_conflicts', relforcerowsecurity: true },
       { relname: 'tenant_sessions', relforcerowsecurity: true },
+    ])
+  })
+})
+
+/**
+ * 0083 writes down who stored a file (opengewerk-haustechnik#360): a record
+ * names a file only when the person stored it or a row in reach names it. The
+ * files of before get the person the change log kept for their row.
+ */
+describe('the files from before 0083', () => {
+  const before = () => readMigrationIndex().findIndex((entry) => entry.tag === '0083_file_uploads')
+  const elsewhere = { id: newId<'tenant'>(), name: 'Elektro Süd GmbH' }
+  const hash = (text: string) => createHash('sha256').update(text).digest('hex')
+
+  /** A file stored the way the application stores one, by a person or by nobody. */
+  async function stored(tenantId: string, userId: string, sha256: string): Promise<void> {
+    await admin.query('begin')
+
+    try {
+      await admin.query(
+        `select set_config('app.tenant_id', $1, true), set_config('app.user_id', $2, true)`,
+        [tenantId, userId],
+      )
+      await admin.query(
+        `insert into files (tenant_id, sha256, size_bytes, media_type)
+           values ($1, $2, 4, 'application/pdf')`,
+        [tenantId, sha256],
+      )
+      await admin.query('commit')
+    } catch (error) {
+      await admin.query('rollback')
+      throw error
+    }
+  }
+
+  it('get the person who stored them first, and nobody where nobody did', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2), ($3, $4)', [
+      tenant.id,
+      tenant.name,
+      elsewhere.id,
+      elsewhere.name,
+    ])
+
+    // Anna's plan, a photo sent from outside without a person, and the same
+    // bytes once more in another business, stored there by Bert.
+    await stored(tenant.id, 'anna', hash('plan'))
+    await stored(tenant.id, '', hash('photo from outside'))
+    await stored(elsewhere.id, 'bert', hash('plan'))
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows } = await admin.query<{ tenant_id: string; sha256: string; user_id: string }>(
+      'select tenant_id, sha256, user_id from file_uploads order by user_id',
+    )
+
+    expect(rows).toEqual([
+      { tenant_id: tenant.id, sha256: hash('plan'), user_id: 'anna' },
+      { tenant_id: elsewhere.id, sha256: hash('plan'), user_id: 'bert' },
+    ])
+
+    // Lifted for the statement and back afterwards, and the new table forced too.
+    const { rows: forced } = await admin.query<{ relname: string; relforcerowsecurity: boolean }>(
+      `select relname, relforcerowsecurity from pg_class
+         where relname in ('file_uploads', 'files') order by relname`,
+    )
+
+    expect(forced).toEqual([
+      { relname: 'file_uploads', relforcerowsecurity: true },
+      { relname: 'files', relforcerowsecurity: true },
     ])
   })
 })

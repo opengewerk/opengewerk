@@ -174,7 +174,7 @@ describe('the tables of the foundation', () => {
     const tables = foundationGuards.map((guard) => guard.table)
 
     expect(new Set(tables).size).toBe(tables.length)
-    expect(tables).toHaveLength(27)
+    expect(tables).toHaveLength(28)
   })
 
   it('give the application nothing but reading on what only a trigger writes', () => {
@@ -196,7 +196,7 @@ describe('the tables of the foundation', () => {
       (guard) => !guard.table.startsWith('auth_') && !guard.table.startsWith('instance_'),
     )
 
-    expect(ofATenant).toHaveLength(17)
+    expect(ofATenant).toHaveLength(18)
     expect(
       ofATenant.filter((guard) => guard.grants.includes('delete')).map((guard) => guard.table),
     ).toEqual(['tenant_roles', 'mail_settings'])

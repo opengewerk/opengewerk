@@ -188,7 +188,8 @@ const noDelete: readonly TablePrivilege[] = ['select', 'insert', 'update']
  * - The files of a tenant: read and inserted. The bytes behind a row never
  *   change, so neither does the row, and a file a record points at outlives
  *   every mistake; ending one at the end of a retention period is a
- *   procedure of its own.
+ *   procedure of its own. Who stored a file, the same, and kept out of the
+ *   log: the row of the file is in it with the person who stored it first.
  * - The mail server of a tenant: all four. It is set up, changed and removed
  *   again, and the log sees each of them; the password is not in it.
  * - What a tenant sets for a kind of deadline: written and changed, never
@@ -250,6 +251,8 @@ export const foundationGuards: readonly TableGuard[] = [
     ],
   },
   { table: 'files', grants: ['select', 'insert'], audited: true, synced: false },
+  // Who stored a file: added, and read by the person it names alone.
+  { table: 'file_uploads', grants: ['select', 'insert'], audited: false, synced: false },
   { table: 'mail_settings', grants: everything, audited: true, synced: false },
   { table: 'deadline_settings', grants: noDelete, audited: true, synced: false },
   { table: 'deadline_runs', grants: noDelete, audited: false, synced: false },
