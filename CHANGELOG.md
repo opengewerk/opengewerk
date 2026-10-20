@@ -742,6 +742,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Die Karte eines Konflikts, dessen Datensatz die Person nicht mehr sieht, sagt, warum sie leer ist (#697): "Nicht
+  mehr sichtbar" unter der Art des Datensatzes, der Satz, dass die Änderung deshalb nicht übernommen wurde, und nur
+  "Schließen", im Büro und vor Ort wie die Tafeln "Konflikt ohne Werte" der Haustechnik. Warum: seit #696 kommt ein
+  solcher Konflikt ohne Felder und Werte, und die Karte mit Grund, ohne Zeilen und mit zwei Knöpfen, die beide nur
+  schließen, sah aus wie ein Fehler der Anzeige.
+
 - Der Fehlerfilter (`DatabaseExceptionFilter`) schreibt einen Fehler, den er nicht kennt, mit Stack ins Protokoll des
   Servers, bevor er mit 500 und einem allgemeinen Satz antwortet (#694, gefunden bei opengewerk-haustechnik#475). Was
   er kennt, eine Ablehnung der Datenbank, einen zu großen Körper oder eine fertige Antwort, bleibt draußen. Warum: Der
