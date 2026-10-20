@@ -185,6 +185,18 @@ describe('the tables of the foundation', () => {
     }
   })
 
+  it('let the application add to what records one moment, and neither change nor remove it', () => {
+    // A correction of an account, a new password and a change of the mail
+    // server of the instance, as a tenant learns of them: written once, and
+    // whoever wrote one has no way to take it back (opengewerk-haustechnik#360).
+    for (const table of ['account_corrections', 'password_resets', 'account_mail_server_changes']) {
+      expect(foundationGuards.find((guard) => guard.table === table)?.grants).toEqual([
+        'select',
+        'insert',
+      ])
+    }
+  })
+
   it('let nothing that names a tenant be deleted by the application, its roles and its mail server aside', () => {
     // Who was let in, by whom and what became of it is part of the record. A
     // person is blocked and an invitation called back, both changes the log
