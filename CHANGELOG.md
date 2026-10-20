@@ -9,6 +9,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Der Dateispeicher räumt sich auf (#657): einmal am Tag nimmt ein Lauf die Bytes jeder Datei heraus, die kein
+  Betrieb mehr hält und die älter als ein Tag ist, dazu liegengebliebene Reste abgebrochener Schreibvorgänge. Welche
+  Namen noch gehalten werden, beantwortet `files_held` mit den Rechten des Eigentümers (Migration `0086_file_sweep`,
+  Policy `readable_by_the_owner` an `files`); ein erneutes Ablegen derselben Bytes macht eine Datei wieder neu, und
+  eine Datei wird vor dem Löschen beiseitegelegt, damit ein gleichzeitiges Ablegen sie nicht verliert. Warum: mit dem
+  Löschen nach Ablauf einer Aufbewahrung verschwinden Zeilen, und die Bytes blieben sonst für immer auf der Platte.
+
 - Vorlagen für den Reverse Proxy unter `docker/proxy/`, `apache.conf` für Apache 2.4 und `nginx.conf` für nginx, jede
   für sich vollständig: die Weiterleitung von HTTP auf HTTPS, das Zertifikat unter dem Pfad, den certbot anlegt, der Proxy
   auf `127.0.0.1:23700` mit Host, Protokoll und ergänztem `X-Forwarded-For`, die Grenzen je Pfad und 300 Sekunden für
