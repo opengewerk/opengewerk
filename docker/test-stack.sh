@@ -335,6 +335,53 @@ print-network)
     }))' || fail 'Der Renderer erreicht mehr als die Anwendung, oder die Anwendung nicht.'
   ;;
 
+base-images)
+  # Every image the stack pulls and every stage it builds from, named by its
+  # digest (#687, found in the security review opengewerk-haustechnik#360): a
+  # tag names whatever was pushed under it last. The images of the application
+  # itself are built here and get theirs in the kit. And the backup is built
+  # on the very image of the database, so that pg_dump matches the server it
+  # dumps; Dependabot moves the two in pull requests of their own, and this is
+  # where they meet.
+  compose --profile '*' config --no-interpolate --format json > "$temp/compose.json"
+  python3 - "$temp/compose.json" <<'PYTHON'
+import json
+import os
+import re
+import sys
+
+services = json.load(open(sys.argv[1], encoding="utf-8"))["services"]
+problems = []
+database = (services.get("postgres") or {}).get("image", "")
+backup_base = None
+
+for name, service in sorted(services.items()):
+    build = service.get("build")
+    if build:
+        dockerfile = os.path.join(build["context"], build.get("dockerfile", "Dockerfile"))
+        bases = re.findall(r"^FROM\s+(\S+)", open(dockerfile, encoding="utf-8").read(), re.M)
+        for base in bases:
+            print(f"{name}: baut auf {base}")
+            if "@sha256:" not in base:
+                problems.append(f"{name} baut auf {base} ohne Digest (FROM ...@sha256:...).")
+        if name == "backup" and bases:
+            backup_base = bases[0]
+    elif "${" not in service.get("image", ""):
+        image = service.get("image", "")
+        print(f"{name}: {image}")
+        if "@sha256:" not in image:
+            problems.append(f"{name} nennt {image} ohne Digest (image: ...@sha256:...).")
+
+print(f"Datenbank {database}, Sicherung auf {backup_base}")
+if backup_base != database:
+    problems.append("Die Sicherung baut nicht auf dem Abbild der Datenbank, pg_dump passt dann nicht zum Server.")
+
+if not services or problems:
+    print("\n".join(problems or ["Kein Dienst gefunden."]))
+    sys.exit(1)
+PYTHON
+  ;;
+
 start)
   # The way an installation starts, with the one command the README names:
   # setup.sh makes every secret and prints only their names, then the

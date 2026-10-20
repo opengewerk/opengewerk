@@ -23,6 +23,15 @@ und baut die Abbilder aus dem Quelltext, für Entwicklung und Vorschau. Wer im
 Checkout lieber eine veröffentlichte Fassung betreibt, trägt sie in der `.env`
 als `OPENGEWERK_VERSION` ein.
 
+**Ein Paket nennt seine Abbilder mit Digest und prüft ihre Signatur** (#687). In
+`docker/compose.yaml` eines Pakets steht jedes Abbild von OpenGewerk als
+`<abbild>:<fassung>@sha256:...`, genau die Bytes, die der Release gebaut und
+signiert hat. Bevor `start.sh` sie holt, prüft es mit `cosign` ihre Signatur
+gegen den Workflow "Release" dieser Fassung; schlägt das fehl, wird nichts geholt
+und nichts gestartet. Ohne `cosign` auf der Maschine sagt der Start, wie man von
+Hand prüft, und läuft weiter. Ein solches Paket startet immer seine eigene
+Fassung: `OPENGEWERK_VERSION` in der `.env` gilt nur für einen Checkout.
+
 **Beim ersten Start füllt er die `.env` selbst aus.** Er legt `docker/.env` aus
 der Vorlage an und erzeugt jedes Passwort und jeden Schlüssel darin, 32
 Zufallsbytes als Hex, jeden für sich, dazu den Einrichtungscode für die erste

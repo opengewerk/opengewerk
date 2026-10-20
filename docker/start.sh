@@ -7,7 +7,9 @@
 #
 # Then the images (#155). In a release kit the version stands in compose.yaml,
 # and the signed images of that release are pulled; a checkout of the source
-# has "source" there and builds them. A version in the .env wins over both.
+# has "source" there and builds them. A version in the .env wins over both,
+# except over a kit that names its images with their digest (#687): that one
+# starts its own version, and checks their signature before it pulls them.
 #
 # Then the migration on its own, and only after it the containers. That is the
 # order docs/betrieb.md explains under "Aktualisieren": `docker compose up -d`
@@ -75,7 +77,51 @@ if [ -z "$pinned" ]; then
 fi
 
 shipped=$(sed -n "s/.*${version_variable}:-\([^}]*\)}.*/\1/p" "$here/compose.yaml" | head -n 1)
-version=${pinned:-$shipped}
+
+# The images a kit names with their digest (#687): the release wrote them as
+# "<image>:<version>@sha256:..." with kit-images.sh, and only those are this
+# application's. The renderer carries a digest as well, under a tag of its own.
+signed=$(sed -n "s/^[[:space:]]*image:[[:space:]]*\([^[:space:]]*:${shipped}@sha256:[0-9a-f]\{64\}\).*/\1/p" "$here/compose.yaml" | sort -u)
+
+if [ -n "$signed" ]; then
+  # A kit with digests starts its own version and no other, its images being
+  # these bytes. A version in the .env is for a checkout.
+  if [ -n "$pinned" ] && [ "$pinned" != "$shipped" ]; then
+    say "In der .env steht ${version_variable}=${pinned}. Dieses Paket ist die Fassung ${shipped} und nennt seine Abbilder mit Digest, die Zeile gilt nur für einen Checkout und kann weg."
+  fi
+  version=$shipped
+else
+  version=${pinned:-$shipped}
+fi
+
+# That the images of a kit are the ones the release workflow of this
+# application built and signed, keyless through Sigstore (#687). With cosign
+# on the machine a signature that does not hold stops the start before
+# anything is pulled; without it the start says how to check by hand. COSIGN
+# names another cosign than the one on the PATH.
+verify_signatures() {
+  [ -n "${APPLICATION_REPOSITORY:-}" ] ||
+    fail 'In application.env fehlt APPLICATION_REPOSITORY, ohne sie lässt sich die Signatur der Abbilder nicht prüfen.'
+
+  identity="https://github.com/${APPLICATION_REPOSITORY}/.github/workflows/release.yml@refs/tags/v${version}"
+  issuer=https://token.actions.githubusercontent.com
+  cosign=${COSIGN:-cosign}
+
+  if command -v "$cosign" >/dev/null 2>&1; then
+    for image in $signed; do
+      if ! answer=$("$cosign" verify --certificate-identity "$identity" --certificate-oidc-issuer "$issuer" "$image" 2>&1); then
+        printf '%s\n' "$answer" >&2
+        fail "Die Signatur von $image ließ sich nicht bestätigen, das Abbild stammt nicht sicher aus dem Release der Fassung $version. Geholt und gestartet wird nichts, eine laufende Instanz arbeitet unverändert weiter."
+      fi
+    done
+    say 'Die Signaturen der Abbilder sind geprüft.'
+  else
+    say 'cosign fehlt auf dieser Maschine, die Signaturen der Abbilder sind nicht geprüft. Von Hand, je Abbild:'
+    for image in $signed; do
+      say "  cosign verify --certificate-identity $identity --certificate-oidc-issuer $issuer $image"
+    done
+  fi
+}
 
 case "$version" in
   '' | latest | source)
@@ -87,6 +133,9 @@ case "$version" in
     ;;
   *)
     export "$version_variable=$version"
+    if [ -n "$signed" ]; then
+      verify_signatures
+    fi
     say "Fassung $version: die signierten Abbilder werden geholt."
     compose pull --policy missing ||
       fail "Die Abbilder der Fassung $version ließen sich nicht holen, der Grund steht darüber. Gebraucht werden eine Verbindung zu ghcr.io und Docker Compose ab 2.22. Eine laufende Instanz arbeitet unverändert weiter."

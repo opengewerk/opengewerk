@@ -5,7 +5,11 @@
 # age comes on top, for encrypting an archive with a public key. The private
 # key never touches this container, so a machine that makes backups cannot
 # read its own older ones.
-FROM postgres:18-alpine
+#
+# By its digest (#687), the same one the database runs in compose.yaml;
+# "test-stack.sh base-images" holds the two together when Dependabot moves
+# them one after the other.
+FROM postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
 
 # tzdata for the schedule, which runs at night in the time zone of the
 # instance and not in UTC (#130).

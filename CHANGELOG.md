@@ -975,6 +975,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   #644). Warum: kein Schritt danach spricht mit git, und der Token lag sonst während des ganzen Baus der Abbilder auf
   der Platte; die Haustechnik hält es schon so.
 
+- Das Installationspaket nennt jedes Abbild der Anwendung mit Fassung und Digest, und `start.sh` prüft ihre Signatur
+  mit `cosign`, bevor es sie holt (#687, gefunden in der Sicherheitsprüfung opengewerk-haustechnik#360). Ohne `cosign`
+  sagt der Start, wie man von Hand prüft; ein Paket mit Digest startet immer seine eigene Fassung, eine Fassung in der
+  `.env` gilt nur für einen Checkout. Die Basisabbilder im Bau (`node:24-alpine`, `postgres:18-alpine`) und die
+  Datenbank in `compose.yaml` stehen auf einem Digest, den Dependabot nachzieht; `test-stack.sh base-images` prüft
+  das und dass die Sicherung auf dem Abbild der Datenbank baut. `docker/kit-images.sh` schreibt Fassung und Digests
+  in das Paket, für beide Anwendungen gleich. Warum: ein Tag nennt, was zuletzt darunter geschoben wurde, und die
+  Signatur der Abbilder prüfte bisher niemand.
+
 - Die Anwendung prüft beim Start, was ihre Datenbankrolle kann, nicht nur, wie sie heißt (#685, gefunden in der
   Sicherheitsprüfung opengewerk-haustechnik#360). Ist die Rolle Superuser, hat sie `BYPASSRLS`, besitzt sie Tabellen
   oder ist sie Mitglied von `opengewerk_owner`, startet die Instanz nicht und nennt den Grund
