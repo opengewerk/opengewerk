@@ -1292,6 +1292,15 @@ Organisation.
   für diese Instanz heraus. Soll HSTS länger gelten oder Subdomains
   einschließen, ersetzt er den Wert, statt einen zweiten Header zu schicken. Ob
   jeder genau einmal ankommt, zeigt `curl -sI https://<adresse>/`.
+- **Was ein Browser von einer Antwort behalten darf, sagt ebenfalls die
+  Anwendung.** Jede Antwort trägt `Cache-Control: no-store`, nur die gebauten
+  Dateien der Oberfläche nicht: die Dateien mit Prüfsumme im Namen dürfen ein
+  Jahr bleiben, die beiden Hüllen, das Manifest und der Service Worker tragen
+  `no-cache`. Eine Antwort der API enthält Personen, Datensätze und Dateien, und
+  das Abmelden löscht die Daten auf dem Gerät, den HTTP-Cache des Browsers aber
+  nicht. Der Proxy speichert deshalb keine Antwort der Anwendung zwischen und
+  ersetzt `Cache-Control` nicht. Prüfen lässt es sich mit
+  `curl -sI https://<adresse>/health`, das `cache-control: no-store` zeigen muss.
 - **Die `.env` ist die einzige Datei mit Zugangsdaten.** `chmod 600`, und sie
   bleibt draußen aus dem Repository.
 - **Ein Paket entpackt root mit `tar --no-same-owner`.** Ohne die Option

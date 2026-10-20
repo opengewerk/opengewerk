@@ -951,6 +951,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   steckt die Korrektur aus better-auth 1.7.7, nach der gleichzeitige Anfragen die Ratengrenzen in
   PostgreSQL nicht mehr überschreiten; OpenGewerk hält diese Grenzen in der Datenbank und war
   davon betroffen.
+- Keine Antwort der Anwendung bleibt mehr im HTTP-Cache des Browsers (gefunden in der
+  Sicherheitsprüfung, `opengewerk-haustechnik#360`). Bisher trugen die Antworten der API kein
+  `Cache-Control`, und das Abmelden löschte die Daten auf dem Gerät, diesen Cache aber nicht. Jetzt
+  trägt jede Antwort `Cache-Control: no-store`; die gebauten Dateien der Oberfläche behalten ihre
+  Regel, ebenso eine Route, die selbst eine nennt. Das Web fragt die API und Dateien zusätzlich mit
+  `cache: 'no-store'`. `Clear-Site-Data` beim Abmelden kommt nicht dazu: ob es die Dateien
+  verschont, die der Service Worker für einen Start ohne Netz hält, lässt die Spezifikation offen.
+  Das README sagt, dass der Proxy keine Antwort zwischenspeichert, und wie man es prüft.
 
 ## [0.5.0] - 2026-10-04
 

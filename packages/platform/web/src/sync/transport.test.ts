@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { request, RequestRefused } from './transport.js'
+import { request, RequestRefused, requestFile } from './transport.js'
 
 /**
  * What a route answers that has nothing to say: a removal answers 200 with no
@@ -45,5 +45,35 @@ describe('an answer of the server', () => {
     await expect(request('/roles/own-1', { method: 'DELETE' })).rejects.toBeInstanceOf(
       RequestRefused,
     )
+  })
+})
+
+/**
+ * Signing out empties the stores of the device, and the HTTP cache of the
+ * browser is out of its reach (opengewerk-haustechnik#360). So nothing the
+ * server answers goes there: every request asks past it, whatever its caller
+ * asked for, a file included.
+ */
+describe('a request to the server', () => {
+  it('goes past the HTTP cache of the browser, there and back', async () => {
+    const sent: (RequestInit | undefined)[] = []
+
+    vi.stubGlobal('fetch', (_path: string, init?: RequestInit) => {
+      sent.push(init)
+
+      return Promise.resolve(new Response('[]', { status: 200 }))
+    })
+
+    await request('/staff')
+    await request('/sync?since=0', { cache: 'default' })
+    await request('/roles/own-1', { method: 'DELETE' })
+    await requestFile('/staff/table', 'text/csv')
+
+    expect(sent.map((init) => init?.cache)).toEqual([
+      'no-store',
+      'no-store',
+      'no-store',
+      'no-store',
+    ])
   })
 })

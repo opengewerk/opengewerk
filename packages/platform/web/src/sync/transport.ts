@@ -149,6 +149,13 @@ export async function request<Answer>(path: string, init?: RequestInit): Promise
     // call comes back as "not signed in" while the browser holds the cookie.
     credentials: 'include',
     ...init,
+    // Past the HTTP cache of the browser, there and back, whatever a caller
+    // asked for (opengewerk-haustechnik#360). An answer carries the people and
+    // the records of a tenant; signing out takes the stores of the device
+    // along but cannot reach that cache, and what it kept would outlast the
+    // session on the disk. The server says the same with every answer; this
+    // holds behind a proxy that drops it, too.
+    cache: 'no-store',
     headers: {
       Accept: 'application/json',
       ...(init?.body === undefined ? {} : { 'Content-Type': 'application/json' }),
@@ -187,6 +194,8 @@ export interface RequestedFile {
 export async function requestFile(path: string, accept: string): Promise<RequestedFile> {
   const response = await fetch(path, {
     credentials: 'include',
+    // Past the HTTP cache, as every request (`request`).
+    cache: 'no-store',
     headers: { Accept: `${accept}, application/json`, ...workingInHeaders() },
   })
 

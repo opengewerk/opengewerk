@@ -485,6 +485,11 @@ describe('the preview of a version', () => {
     })
     expect(fetched).toHaveBeenCalledTimes(1)
     expect(fetched.mock.calls[0]?.[0 as never]).toBe('/attachments/versions/v-7/preview')
+    // Past the HTTP cache: the store of the device keeps it, and signing out
+    // empties that one (opengewerk-haustechnik#360).
+    expect((fetched.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({
+      cache: 'no-store',
+    })
     expect((await client.readFile(hashOf(preview)))?.bytes.byteLength).toBe(100)
 
     const second = shown(client, version)
@@ -545,6 +550,10 @@ describe('a version held on the device (opengewerk-haustechnik#348)', () => {
     expect(await holdVersion(client, version)).toBe(true)
     expect(await holdVersion(client, version)).toBe(true)
     expect(fetched).toHaveBeenCalledTimes(1)
+    // Past the HTTP cache, as the preview (opengewerk-haustechnik#360).
+    expect((fetched.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({
+      cache: 'no-store',
+    })
     expect(
       new Uint8Array((await client.readFile(version.sha256))?.bytes ?? new ArrayBuffer(0)),
     ).toEqual(bytes)

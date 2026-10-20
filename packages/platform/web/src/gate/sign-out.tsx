@@ -32,7 +32,12 @@ async function quietly(task: (() => Promise<unknown>) | undefined): Promise<void
  * Every store of a tenant on this device goes, with every record in it and
  * every file. A device that is handed on, sold or lost after somebody signed
  * out would otherwise carry the tenant on, readable to anybody who opens the
- * developer tools of the browser.
+ * developer tools of the browser. The HTTP cache of the browser is the one
+ * place this cannot empty, so nothing of the server's goes there in the first
+ * place (opengewerk-haustechnik#360): every answer says `no-store`, and every
+ * request asks past it (`request`). A `Clear-Site-Data` on the answer to the
+ * sign out is no substitute: whether it leaves the files the service worker
+ * keeps for a start without a network is not settled, and those must stay.
  *
  * What has not reached the server yet is sent first. When that is not
  * possible, the button says how much would be lost and signs out only once
