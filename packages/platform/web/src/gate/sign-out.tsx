@@ -54,6 +54,7 @@ export function SignOutButton({
   wide = false,
   row = false,
   icon = false,
+  primary = false,
 }: {
   /** The running sync client, when a tenant is open; its outbox is sent first. */
   readonly client: SyncClient | null
@@ -66,6 +67,8 @@ export function SignOutButton({
   readonly row?: boolean | 'large'
   /** The door in front of the word, as the head of "Konto" has it. */
   readonly icon?: boolean
+  /** The one way on, as in the gate when a sign in has to be done again (#691). */
+  readonly primary?: boolean
 }) {
   const application = useApplication()
   const [waiting, setWaiting] = useState<number | null>(null)
@@ -186,7 +189,7 @@ export function SignOutButton({
         </button>
       ) : (
         <Button
-          tone="secondary"
+          tone={primary ? 'primary' : 'secondary'}
           wide={wide}
           disabled={busy}
           {...(icon ? { icon: LogOut } : {})}

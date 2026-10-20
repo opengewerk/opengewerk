@@ -742,6 +742,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Das Tor richtet die Authenticator-App eines Kontos, das sie schon hat, nicht noch einmal ein (#691). Kam die
+  Anmeldung ohne zweiten Faktor und verlangt eine Rolle ihn, sagt es jetzt, dass die Anmeldung ihn braucht, und bietet
+  das Abmelden an, wie die Tafel "Zweiter Faktor fehlt in der Anmeldung" der Haustechnik es zeigt. Warum: seit #690
+  gehört der zweite Faktor zur Sitzung, better-auth lehnt ein zweites Einrichten mit "already enabled" ab, und die
+  Person steckte fest.
+
 - Der Fehlerfilter (`DatabaseExceptionFilter`) schreibt einen Fehler, den er nicht kennt, mit Stack ins Protokoll des
   Servers, bevor er mit 500 und einem allgemeinen Satz antwortet (#694, gefunden bei opengewerk-haustechnik#475). Was
   er kennt, eine Ablehnung der Datenbank, einen zu großen Körper oder eine fertige Antwort, bleibt draußen. Warum: Der
