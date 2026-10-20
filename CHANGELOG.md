@@ -7,6 +7,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-21
+
+Eine Sicherheitsfassung. Teil 2 der Prüfung vor der nächsten Fassung von OpenGewerk Haustechnik hat im
+gemeinsamen Fundament vier Wege gefunden, auf denen eine offene Sitzung mehr konnte, als die Bestätigung mit
+Passwort und Code erlauben soll: den zweiten Faktor lesen, abschalten oder mit neuen Codes umgehen, die Betreiber
+der Instanz ändern, den Namen eines Zugangs ohne Spur ändern und das gespeicherte Passwort eines Mailservers ohne
+Verschlüsselung hinausschicken. Alle vier sind geschlossen, die Advisories erscheinen mit dieser Fassung. Dazu
+kommen Vite 8.3.3 und der Renderer 2.57.1.
+
+Aktualisiert wird wie bei jeder Fassung, vorher gesichert; eine Migration gibt es nicht. Danach fragt „Konto“ für
+neue Wiederherstellungscodes nach Passwort und Code, der Bereich der Instanz fragt vor dem Benennen oder Entfernen
+eines Betreibers und vor einem Betrieb für jemand anderen nach der Bestätigung, und wer bei einem Mailserver ohne
+Verschlüsselung den Port ändert, gibt das Passwort neu ein.
+
 ### Geändert
 
 - Der Renderer für PDFs läuft auf `browserless/chromium` 2.57.1, im Stapel, im Job der E-Rechnung und im
