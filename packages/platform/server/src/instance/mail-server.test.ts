@@ -657,6 +657,27 @@ describe('whoever leads a tenant, told of a change of the mail server', () => {
   const toLeads = (server: FakeSmtpServer) =>
     server.received.filter((mail) => mail.to.some((to) => [...leads, mia.email].includes(to)))
 
+  /**
+   * Waits until a change has sent its mails, through whichever of the two
+   * servers, and hands back what each of them got. A change tells everybody
+   * who leads once, so it is over when as many have arrived in all.
+   */
+  async function toldOf(change: () => Promise<unknown>) {
+    const before = { smtp: toLeads(smtp).length, other: toLeads(other).length }
+
+    await change()
+    await vi.waitFor(
+      () => {
+        expect(toLeads(smtp).length + toLeads(other).length).toBe(
+          before.smtp + before.other + leads.length,
+        )
+      },
+      { timeout: 10_000 },
+    )
+
+    return { smtp: toLeads(smtp).slice(before.smtp), other: toLeads(other).slice(before.other) }
+  }
+
   function changeOn(method: 'put' | 'delete', body?: object) {
     return {
       async expect(status: number) {
@@ -687,46 +708,24 @@ describe('whoever leads a tenant, told of a change of the mail server', () => {
   })
 
   it('are told through the server of before, each once, and nothing through the new one', async () => {
-    // The first server: there is none before it, and so nobody to be told through.
-    await changeOn('put', typed()).expect(200)
+    // The server of before, set up on the instance that tells nobody.
+    await change('put', lea, typed()).expect(200)
 
-    const before = toLeads(smtp).length
-
-    await changeOn('put', typed({ port: other.port, fromAddress: 'neu@nord.example.de' })).expect(
-      200,
-    )
-    await vi.waitFor(
-      () => {
-        expect(toLeads(smtp).length).toBe(before + leads.length)
-      },
-      { timeout: 10_000 },
+    const got = await toldOf(() =>
+      changeOn('put', typed({ port: other.port, fromAddress: 'neu@nord.example.de' })).expect(200),
     )
 
-    const mails = toLeads(smtp).slice(before)
-
-    expect(mails.flatMap((mail) => mail.to).sort()).toEqual([...leads].sort())
-    expect(new Set(mails.map((mail) => mail.from))).toEqual(new Set(['instanz@nord.example.de']))
-    expect(mails[0]?.data).toContain('Subject: Ein neuer Mailserver der Instanz')
-    expect(toLeads(other)).toEqual([])
+    expect(got.smtp.flatMap((mail) => mail.to).sort()).toEqual([...leads].sort())
+    expect(new Set(got.smtp.map((mail) => mail.from))).toEqual(new Set(['instanz@nord.example.de']))
+    expect(got.smtp[0]?.data).toContain('Subject: Ein neuer Mailserver der Instanz')
+    expect(got.other).toEqual([])
   })
 
   it('are told of a removal through the server that goes, and every tenant keeps it', async () => {
-    const before = toLeads(other).length
+    const got = await toldOf(() => changeOn('delete').expect(200))
 
-    await changeOn('delete').expect(200)
-    await vi.waitFor(
-      () => {
-        expect(toLeads(other).length).toBe(before + leads.length)
-      },
-      { timeout: 10_000 },
-    )
-
-    expect(
-      toLeads(other)
-        .slice(before)
-        .flatMap((mail) => mail.to)
-        .sort(),
-    ).toEqual([...leads].sort())
+    expect(got.other.flatMap((mail) => mail.to).sort()).toEqual([...leads].sort())
+    expect(got.smtp).toEqual([])
     expect((await changesIn()).slice(-2)).toEqual([
       expect.objectContaining({
         host_before: '127.0.0.1',
