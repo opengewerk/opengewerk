@@ -7,6 +7,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Behoben
+
+- Die Prüfung der Breiten wartet nach dem Laden einer Seite höchstens zehn Sekunden auf ein ruhiges Netz und
+  misst ohne Service Worker. Sie war gelegentlich rot an einer Seite, die niemand angefasst hatte, weil das
+  Vorladen der Anwendung oder die Suche nach einer neuen Fassung das Netz länger als 30 Sekunden beschäftigte
+  (opengewerk/opengewerk-haustechnik#492); ob eine Seite steht, entscheidet weiter, ob ihr Inhalt gezeichnet ist.
+
 ### Sicherheit
 
 - Teil 2 der Sicherheitsprüfung für OpenGewerk Haustechnik (opengewerk/opengewerk-haustechnik#360) fand vier
