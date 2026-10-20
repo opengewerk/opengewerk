@@ -39,17 +39,44 @@ export const printPolicy =
  */
 export function withPrintPolicy(html: string): string {
   const meta = `<meta http-equiv="Content-Security-Policy" content="${printPolicy}">`
-  const head = /<head(?:\s[^>]*)?>/i.exec(html)
+  const end = endOfHead(html)
 
-  if (head !== null) {
-    const end = head.index + head[0].length
-
+  if (end !== null) {
     return html.slice(0, end) + meta + html.slice(end)
   }
 
   const doctype = /^\s*<!doctype[^>]*>/i.exec(html)
 
   return doctype === null ? meta + html : doctype[0] + meta + html.slice(doctype[0].length)
+}
+
+/**
+ * Where the opening tag of the head ends, `<head>` or `<head ...>` and never
+ * `<header>`, or null. Searched and not matched with a pattern: a pattern with
+ * a run of anything up to ">" goes back over a page full of "<head" again and
+ * again, and a page is as long as its embedded images.
+ */
+function endOfHead(html: string): number | null {
+  const lower = html.toLowerCase()
+
+  for (let at = lower.indexOf('<head'); at !== -1; at = lower.indexOf('<head', at + 5)) {
+    const next = lower.charAt(at + 5)
+
+    if (
+      next === '>' ||
+      next === ' ' ||
+      next === '\t' ||
+      next === '\n' ||
+      next === '\r' ||
+      next === '\f'
+    ) {
+      const close = lower.indexOf('>', at + 5)
+
+      return close === -1 ? null : close + 1
+    }
+  }
+
+  return null
 }
 
 /** The four margins of a page, as CSS lengths: `20mm`. */
