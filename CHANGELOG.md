@@ -959,6 +959,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `cache: 'no-store'`. `Clear-Site-Data` beim Abmelden kommt nicht dazu: ob es die Dateien
   verschont, die der Service Worker für einen Start ohne Netz hält, lässt die Spezifikation offen.
   Das README sagt, dass der Proxy keine Antwort zwischenspeichert, und wie man es prüft.
+- Die Grenzen je Adresse zählen nach der Adresse, die die Anwendung selbst bestimmt, auch die der
+  Anmeldung, und eine IPv6-Adresse mit ihrem /64 (gefunden in der Sicherheitsprüfung,
+  `opengewerk-haustechnik#360`). Bisher las better-auth `X-Forwarded-For` selbst und nur mit genau
+  einem Eintrag, jede andere Anfrage zählte es in einem gemeinsamen Zähler, und jede Grenze zählte
+  eine IPv6-Adresse einzeln. Jetzt schreibt `nameTheClient` vor der Anmeldung die Adresse aus
+  `clientAddress` in einen eigenen Header, ersetzt dabei, was ein Client dort mitschickt, und
+  better-auth liest nur diesen. Eine Anfrage, deren Adresse kein Proxy nennt, zählt in keiner Grenze
+  je Adresse statt in einem Zähler für alle; die Grenzen über alle Adressen bleiben. Für
+  Anwendungen: `clientAddress` gibt dann `null`, und eine Grenze je Adresse zählt nach
+  `addressForLimits` (`limitKey`). Das README sagt, dass der Reverse Proxy `X-Forwarded-For`
+  ergänzen muss, mit Beispielen für nginx und Apache und einer Prüfung.
 
 ## [0.5.0] - 2026-10-04
 

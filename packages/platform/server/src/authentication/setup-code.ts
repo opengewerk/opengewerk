@@ -103,21 +103,30 @@ export class SetupAttempts {
     private readonly now: () => number = Date.now,
   ) {}
 
-  /** Whether the next attempt from this address is refused without looking at the code. */
-  refuses(address: string): boolean {
+  /**
+   * Whether the next attempt from this address is refused without looking at
+   * the code. The address is the key of a limit per address
+   * (`addressForLimits`), null where it is not known: such an attempt is held
+   * by the limit over all addresses alone, and never by one counter for every
+   * attempt whose address nobody named (opengewerk-haustechnik#360).
+   */
+  refuses(address: string | null): boolean {
     this.forgetOld()
 
     return (
       this.overall.length >= this.limits.overall ||
-      (this.failures.get(address)?.length ?? 0) >= this.limits.perAddress
+      (address !== null && (this.failures.get(address)?.length ?? 0) >= this.limits.perAddress)
     )
   }
 
-  /** Counts a wrong code from this address. */
-  failed(address: string): void {
+  /** Counts a wrong code from this address, and over all addresses. */
+  failed(address: string | null): void {
     const at = this.now()
 
-    this.failures.set(address, [...(this.failures.get(address) ?? []), at])
+    if (address !== null) {
+      this.failures.set(address, [...(this.failures.get(address) ?? []), at])
+    }
+
     this.overall.push(at)
   }
 

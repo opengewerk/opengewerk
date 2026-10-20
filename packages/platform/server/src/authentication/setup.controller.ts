@@ -17,7 +17,7 @@ import type { Request } from 'express'
 
 import { PublicRoute } from '../api/authorization.js'
 import { pick, requireFields } from '../api/body.js'
-import { clientAddress } from '../api/client-address.js'
+import { addressForLimits } from '../api/client-address.js'
 import { AUTHENTICATION, SETUP_CODE } from '../api/handed-in.js'
 import { Database } from '../database/database.js'
 import { ACCESS_RULES, type AccessRules } from './access.js'
@@ -143,7 +143,7 @@ export class SetupController {
       )
     }
 
-    this.admit(setupCode, clientAddress(request))
+    this.admit(setupCode, addressForLimits(request))
 
     if (this.running || Date.now() - this.lastFailure < restAfterFailure) {
       throw new ConflictException(
@@ -177,7 +177,7 @@ export class SetupController {
    * anything, so two requests arriving together cannot both slip under it.
    * The code itself goes nowhere: not into a message, not into the log.
    */
-  private admit(given: string, address: string): void {
+  private admit(given: string, address: string | null): void {
     const expected = normalizeSetupCode(this.setupCode ?? '')
 
     if (expected === '') {

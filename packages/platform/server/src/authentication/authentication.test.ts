@@ -498,7 +498,8 @@ describe('devices', () => {
 
   it('name no address that a client added to the one of the web server', async () => {
     // A client that sends an address of its own makes two of them, and the
-    // session keeps none rather than the one the client chose.
+    // session keeps the one the web server added, the last
+    // (opengewerk-haustechnik#360).
     const answer = await http()
       .post(`${authenticationPath}/sign-in/email`)
       .set('origin', origin)
@@ -509,7 +510,7 @@ describe('devices', () => {
     const seen = await http().get('/auth/devices').set('cookie', cookies).expect(200)
     const rows = seen.body as { current: boolean; ipAddress: string | null }[]
 
-    expect(rows.find((row) => row.current)?.ipAddress).not.toBe('198.51.100.9')
+    expect(rows.find((row) => row.current)?.ipAddress).toBe('203.0.113.7')
   })
 
   it('can be cut off from another one, and the cut off session stops working', async () => {
@@ -935,6 +936,9 @@ describe('the rate limits', () => {
         .http()
         .post(`${authenticationPath}/sign-in/email`)
         .set('origin', origin)
+        // As a proxy in front names the client: without, nobody can tell
+        // whom to count (`perKnownAddress`).
+        .set('x-forwarded-for', '203.0.113.21')
         .send({ email: member.email, password: 'immer-wieder-falsch-geraten' })
 
       statuses.push(answer.status)
@@ -968,6 +972,7 @@ describe('the rate limits', () => {
         .http()
         .post(`${authenticationPath}/two-factor/verify-backup-code`)
         .set('origin', origin)
+        .set('x-forwarded-for', '203.0.113.22')
         .send({ code: 'abcde-fghij' })
 
     await admin.query("delete from auth_rate_limits where key like '%verify-backup-code%'")
@@ -981,6 +986,118 @@ describe('the rate limits', () => {
     )
 
     expect((await guess()).status).toBe(429)
+  })
+
+  /**
+   * better-auth reads `X-Forwarded-For` only with a single entry, and counted
+   * every other request in one counter (opengewerk-haustechnik#360). Now it
+   * counts by the address this instance determines: the entry the proxy in
+   * front appended, whatever the client wrote before it, and whatever it wrote
+   * under the header the authentication reads.
+   */
+  it('count a client by the address the proxy in front added, not by what the client wrote', async () => {
+    const limited = await probeInstance(foundation.kit.applicationDatabaseUrl(), {
+      secret: 'w'.repeat(64),
+      rateLimited: true,
+    })
+
+    others.push(limited)
+
+    const statuses: number[] = []
+
+    for (let attempt = 1; attempt <= 6; attempt += 1) {
+      const written = `198.51.100.${String(attempt)}`
+      const answer = await limited
+        .http()
+        .post(`${authenticationPath}/sign-in/email`)
+        .set('origin', origin)
+        .set('x-forwarded-for', `${written}, 203.0.113.50`)
+        .set('x-client-address', written)
+        .send({ email: member.email, password: 'immer-wieder-falsch-geraten' })
+
+      statuses.push(answer.status)
+    }
+
+    const keys = await admin.query<{ key: string }>(
+      "select key from auth_rate_limits where key like '%198.51.100.%' or key like '%203.0.113.50%'",
+    )
+
+    expect(statuses).toEqual([401, 401, 401, 401, 401, 429])
+    expect(keys.rows.map((row) => row.key)).toEqual(['203.0.113.50|/sign-in/email'])
+  })
+
+  /**
+   * A connection at home or on a phone is given a whole /64 to pick its
+   * addresses from. Counted per single address, it would never meet the limit.
+   */
+  it('count every address of one /64 as one client', async () => {
+    const limited = await probeInstance(foundation.kit.applicationDatabaseUrl(), {
+      secret: 'u'.repeat(64),
+      rateLimited: true,
+    })
+
+    others.push(limited)
+
+    const statuses: number[] = []
+
+    for (let attempt = 1; attempt <= 6; attempt += 1) {
+      const answer = await limited
+        .http()
+        .post(`${authenticationPath}/sign-in/email`)
+        .set('origin', origin)
+        .set('x-forwarded-for', `2001:db8:4:5::${String(attempt)}`)
+        .send({ email: member.email, password: 'immer-wieder-falsch-geraten' })
+
+      statuses.push(answer.status)
+    }
+
+    const next = await limited
+      .http()
+      .post(`${authenticationPath}/sign-in/email`)
+      .set('origin', origin)
+      .set('x-forwarded-for', '2001:db8:4:6::1')
+      .send({ email: member.email, password: 'immer-wieder-falsch-geraten' })
+
+    expect(statuses).toEqual([401, 401, 401, 401, 401, 429])
+    expect(next.status).toBe(401)
+  })
+
+  /**
+   * Where nothing in front names a client, its address is the proxy's, the
+   * same for everybody. better-auth counted all of them in one counter, and
+   * five wrong passwords from a stranger locked the sign in for everybody. Two
+   * such clients now share no counter: neither is counted, and a client whose
+   * address is known keeps its own allowance.
+   */
+  it('count no two clients together whose address nobody named', async () => {
+    const limited = await probeInstance(foundation.kit.applicationDatabaseUrl(), {
+      secret: 'v'.repeat(64),
+      rateLimited: true,
+    })
+
+    others.push(limited)
+
+    const guess = (email: string) =>
+      limited
+        .http()
+        .post(`${authenticationPath}/sign-in/email`)
+        .set('origin', origin)
+        .send({ email, password: 'immer-wieder-falsch-geraten' })
+    const statuses: number[] = []
+
+    for (let attempt = 1; attempt <= 4; attempt += 1) {
+      statuses.push((await guess(member.email)).status, (await guess(both.email)).status)
+    }
+
+    const known = await limited
+      .http()
+      .post(`${authenticationPath}/sign-in/email`)
+      .set('origin', origin)
+      .set('x-forwarded-for', '203.0.113.51')
+      .send({ email: member.email, password: 'immer-wieder-falsch-geraten' })
+
+    expect(statuses).toEqual([401, 401, 401, 401, 401, 401, 401, 401])
+    expect(known.status).toBe(401)
   })
 
   /**

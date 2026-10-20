@@ -664,7 +664,8 @@ nur, wo er steht. Ablesen lässt er sich auf dem Server etwa mit
 Bindestrich spielen beim Eintippen keine Rolle. Nach fünf falschen Codes nimmt
 die Instanz von derselben Adresse eine Viertelstunde lang keinen mehr an, über
 alle Adressen zusammen nach hundert; hinter einem Reverse Proxy gilt als Adresse
-der letzte Eintrag in `X-Forwarded-For`. Fehlt `SETUP_CODE` in der `.env`,
+der letzte Eintrag in `X-Forwarded-For`, eine IPv6-Adresse zählt mit ihrem ganzen
+/64. Fehlt `SETUP_CODE` in der `.env`,
 startet die Instanz trotzdem, lehnt aber die Einrichtung ab, bis
 `sh docker/start.sh` ihn eingetragen hat. Nach der Einrichtung öffnet der Code
 nichts mehr.
@@ -1233,6 +1234,36 @@ Organisation.
 - **Vor die Anwendung gehört ein Reverse Proxy mit TLS.** Sie lauscht
   absichtlich nur auf `127.0.0.1`. Eine Anwendung, die Rechnungen führt, steht
   nicht unverschlüsselt im Netz.
+- **Der Proxy ergänzt `X-Forwarded-For`, statt es durchzureichen.** Die
+  Grenzen je Adresse, etwa fünf falsche Passwörter in der Minute, zählen nach
+  dem letzten Eintrag dieses Headers, denn die Verbindung selbst kommt für jede
+  Anfrage vom Proxy. Der letzte Eintrag ist der, den der Proxy selbst anhängt;
+  was ein Client davor schreibt, zählt nicht. Eine IPv6-Adresse zählt mit ihrem
+  ganzen /64. Reicht der Proxy den Header nur weiter, wählt ein Client seine
+  Adresse selbst, und eine Anfrage ohne den Header zählt die Anwendung in keiner
+  Grenze je Adresse, weil sie ihre Adresse nicht kennt. Apache mit `ProxyPass`
+  und Caddy hängen von sich aus an. nginx tut es nur mit einer Zeile im
+  `server`-Block:
+
+  ```nginx
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  ```
+
+  Hat ein `location`-Block ein eigenes `proxy_set_header`, gehört die Zeile
+  auch dorthin: nginx erbt die Zeilen des `server`-Blocks dann nicht.
+
+  Für Apache im `VirtualHost` genügt `ProxyPass`; `ProxyAddHeaders` steht ohne
+  Angabe auf `On` und bleibt so:
+
+  ```apache
+  ProxyPass        / http://127.0.0.1:23700/
+  ProxyPassReverse / http://127.0.0.1:23700/
+  ProxyAddHeaders  On
+  ```
+
+  Ob es stimmt, zeigt nach einer Anmeldung „Konto“ unter „Angemeldete Geräte“:
+  dort steht beim eigenen Gerät die Netzadresse, von der es kam. Steht dort
+  keine, ergänzt der Proxy den Header nicht.
 - **Der Proxy begrenzt Anfragen je Pfad: groß nur für Dateien und den
   Postausgang.** Eine Datei für die Ablage an `/files/` darf 25 MB haben und
   eine Übertragung des Postausgangs an `POST /sync` 8 MB. Beide liest die

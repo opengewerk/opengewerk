@@ -510,6 +510,45 @@ describe('the setup code', () => {
   })
 
   /**
+   * A connection at home or on a phone is given a whole /64 to pick its
+   * addresses from (opengewerk-haustechnik#360). Five wrong codes from five of
+   * them, and the next one from yet another is refused as from one address;
+   * the next /64 still gets in.
+   */
+  it('counts every address of one /64 as one address', async () => {
+    await emptyInstance()
+
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      await from(`2001:db8:5:6::${String(attempt)}`)
+        .send({ ...firstRequest, setupCode: 'AAAA-AAAA' })
+        .expect(403)
+    }
+
+    await from('2001:db8:5:6::99').send(firstRequest).expect(429)
+    await from('2001:db8:5:7::1').send(firstRequest).expect(201)
+  })
+
+  /**
+   * Without an address named by a proxy in front, a request has the address
+   * of the proxy, the same for everybody (opengewerk-haustechnik#360). Counted
+   * by it, five wrong codes from a stranger would lock out the person at the
+   * server; such a request counts over all addresses only.
+   */
+  it('counts a request whose address nobody named over all addresses only', async () => {
+    await emptyInstance()
+
+    for (let attempt = 1; attempt <= 6; attempt++) {
+      await http()
+        .post('/setup')
+        .set('origin', origin)
+        .send({ ...firstRequest, setupCode: 'AAAA-AAAA' })
+        .expect(403)
+    }
+
+    await http().post('/setup').set('origin', origin).send(firstRequest).expect(201)
+  })
+
+  /**
    * An .env from before #215, or one filled in by hand without the line. The
    * instance runs, and the first run is refused with the sentence that says
    * how to get a code, rather than taken from anybody.
