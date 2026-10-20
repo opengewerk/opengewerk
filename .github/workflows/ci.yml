@@ -640,7 +640,7 @@ jobs:
         working-directory: docker
         run: sh test-stack.sh log-limits
 
-      - name: Jeder Dienst gibt seine Rechte ab, die Anwendung hat eine Speichergrenze
+      - name: Jeder Dienst gibt seine Rechte ab, die Anwendung hat eine Speichergrenze, der Renderer ein eigenes Netz
         working-directory: docker
         run: sh test-stack.sh hardening
 
@@ -701,6 +701,10 @@ jobs:
             }
             console.log(`PDF vom Renderer: ${pdf.byteLength} Bytes`)
           '
+
+      - name: Der Renderer erreicht die Anwendung und nicht die Datenbank
+        working-directory: docker
+        run: sh test-stack.sh print-network
 
       - name: Speicherbedarf im Leerlauf melden
         working-directory: docker
