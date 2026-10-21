@@ -108,7 +108,9 @@ function movementParts() {
     supplierId: reference<'supplier'>('supplier_id'),
     counterpartStoreId: reference<'store'>('counterpart_store_id'),
     reason: text('reason'),
-    bookedBy: text('booked_by').notNull(),
+    // Who booked it. An application may let the person go after a period of
+    // its own and keep the booking, so the column takes null.
+    bookedBy: text('booked_by'),
     bookedAt: timestamp('booked_at', { withTimezone: true }).notNull().defaultNow(),
     ...timestamps,
     ...syncColumns,
