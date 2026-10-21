@@ -7,6 +7,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Geändert
+
+- Die Karte eines Etiketts lädt das PDF herunter, unter dem Namen "Etikett" mit dem gedruckten Code, statt es in einem Tab zu
+  öffnen; der Knopf heißt "PDF herunterladen". Warum: in einem Tab ohne die Leiste eines PDF-Programms, etwa in der
+  installierten Anwendung, ließ sich das Etikett ansehen, aber nicht speichern (opengewerk/opengewerk-haustechnik#509).
+
 ### Hinzugefügt
 
 - Die Instanz hat einen Schlüssel zum Signieren von PDFs, mit einem Zertifikat, das sie sich selbst ausstellt, und

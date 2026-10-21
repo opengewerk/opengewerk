@@ -287,7 +287,7 @@ export interface ButtonLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement>
   readonly children: ReactNode
 }
 
-/** An `<a>` for an address outside the router, dressed as a button: "PDF öffnen". */
+/** An `<a>` for an address outside the router, dressed as a button: "PDF herunterladen". */
 export function ButtonLink({
   tone = 'secondary',
   size = 'normal',

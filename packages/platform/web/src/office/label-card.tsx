@@ -4,7 +4,7 @@ import {
   labelPrintProblem,
   printedLabelCode,
 } from '@opengewerk/platform-domain'
-import { Ban, Plus, Printer } from 'lucide-react'
+import { Ban, Download, Plus } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button, ButtonLink } from '../components/button.js'
@@ -302,25 +302,27 @@ function ValidLabel({
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
         {online && !problem ? (
+          // Saved under a name of its own, not opened in a tab: a tab without the
+          // bar of a PDF viewer, as in an installed application, keeps nothing
+          // (opengewerk/opengewerk-haustechnik#509).
           <ButtonLink
             tone="primary"
-            icon={Printer}
+            icon={Download}
             href={pdfAddress(label, format, whole(count), format === 'sheet' ? whole(start) : 1)}
-            target="_blank"
-            rel="noopener noreferrer"
+            download={`Etikett ${printedLabelCode(label.code)}.pdf`}
           >
-            PDF öffnen
+            PDF herunterladen
           </ButtonLink>
         ) : (
           <Button
             tone="primary"
-            icon={Printer}
+            icon={Download}
             disabled
             title={
               online ? undefined : 'Das Etikett druckt der Server, dafür braucht es Verbindung.'
             }
           >
-            PDF öffnen
+            PDF herunterladen
           </Button>
         )}
         {mayBlock ? (
