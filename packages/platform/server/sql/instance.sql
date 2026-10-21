@@ -62,7 +62,7 @@ BEGIN
 	FOR changed IN
 		SELECT k.field
 		  FROM jsonb_object_keys(before_row || after_row) AS k(field)
-		 WHERE NOT (k.field = ANY (ARRAY['updated_at', 'updated_by', 'version', 'change_sequence', 'mail_server_password']))
+		 WHERE NOT (k.field = ANY (ARRAY['updated_at', 'updated_by', 'version', 'change_sequence', 'mail_server_password', 'signing_key']))
 		   AND (before_row ->> k.field) IS DISTINCT FROM (after_row ->> k.field)
 		 ORDER BY k.field
 	LOOP

@@ -142,7 +142,14 @@ export * from './instance/measures.js'
 export * from './instance/operators.js'
 export * from './instance/sentences.js'
 export * from './instance/settings.js'
+export * from './instance/signing.js'
 export * from './instance/tenants.js'
+
+// The signature of the PDFs of the instance (opengewerk-haustechnik#457): a
+// key with a certificate the instance gives itself, and a CMS signature that
+// leaves its content out, as PAdES puts it into a PDF. Into which PDFs it
+// goes, the application says.
+export * from './signing/signing.js'
 
 // The files a tenant keeps: the content addressed store, the row that makes a
 // file a tenant's, what its first bytes show, and the route its bytes are

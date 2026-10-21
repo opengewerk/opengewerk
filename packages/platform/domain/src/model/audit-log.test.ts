@@ -142,6 +142,13 @@ describe('what the log of the instance keeps to itself', () => {
       'Mailserver der Instanz, Passwort gesetzt am',
     )
   })
+
+  // The same for the sealed key the instance signs PDFs with
+  // (opengewerk-haustechnik#457); its certificate is no secret.
+  it('is the sealed key the instance signs PDFs with', () => {
+    expect(language.isSecret('instance_settings', 'signing_key')).toBe(true)
+    expect(language.isSecret('instance_settings', 'signing_certificate')).toBe(false)
+  })
 })
 
 describe("what a record's name is", () => {

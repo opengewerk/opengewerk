@@ -3,6 +3,7 @@ import type {
   InstanceLegalTextsView,
   InstanceLogPage,
   InstanceMailServerState,
+  InstanceSigningState,
   InstanceMailServerView,
   InstanceMeasures,
   InstanceMeasuresView,
@@ -105,6 +106,16 @@ export function checkInstanceMailServer(
 
 export async function removeInstanceMailServer(): Promise<void> {
   await request('/instance/mail-server', { method: 'DELETE' })
+}
+
+/** The certificate the instance signs PDFs with (opengewerk-haustechnik#457). */
+export function instanceSigning(): Promise<InstanceSigningState> {
+  return request<InstanceSigningState>('/instance/signing')
+}
+
+/** A new key for every PDF signed from now on. */
+export function renewInstanceSigning(): Promise<InstanceSigningState> {
+  return request<InstanceSigningState>('/instance/signing', { method: 'POST' })
 }
 
 /** The legal texts of the instance for their screen, each with when and by whom it was last changed (opengewerk-haustechnik#129). */

@@ -7,6 +7,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- Die Instanz hat einen Schlüssel zum Signieren von PDFs, mit einem Zertifikat, das sie sich selbst ausstellt, und
+  das Fundament eine CMS-Signatur, wie PAdES sie in ein PDF setzt (`signDetached`, `instanceSigningKey`). Der
+  Schlüssel entsteht mit dem ersten signierten PDF oder in den Einstellungen der Instanz, versiegelt in
+  `instance_settings`, und das Protokoll der Instanz hält ihn nie; ein früheres Zertifikat bleibt bekannt.
+  Warum: OpenGewerk Haustechnik signiert jedes PDF mit einer Unterschrift darin, damit eine spätere Änderung in
+  jedem PDF-Programm auffällt (opengewerk/opengewerk-haustechnik#457). Die Handwerkersoftware signiert noch nichts
+  und zeigt die Karte "Signatur der PDFs" deshalb nicht; sie bekommt die Spalten mit der Migration
+  `0088_instance_signing`.
+
 ### Geändert
 
 - Eine Buchung im Lager darf ohne die Person stehen, die gebucht hat (`stock_movements.booked_by` nimmt null).

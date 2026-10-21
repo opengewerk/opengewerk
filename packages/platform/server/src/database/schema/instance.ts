@@ -115,6 +115,25 @@ export const instanceSettings = pgTable(
     subprocessors: jsonb('subprocessors')
       .notNull()
       .default(sql`'[]'::jsonb`),
+    /**
+     * The key the instance signs PDFs with (opengewerk-haustechnik#457), as
+     * PKCS #8, sealed with the key of the instance. Like the password of the
+     * mail server, the log of the instance never holds it: its trigger leaves
+     * the column out. Null while the application has signed nothing yet.
+     */
+    signingKey: text('signing_key'),
+    /** The certificate the instance gave itself for that key, DER in base64. */
+    signingCertificate: text('signing_certificate'),
+    /** Since when the instance signs with it. */
+    signingSince: timestamp('signing_since', { withTimezone: true }),
+    /**
+     * The certificates of the keys before, DER in base64, so that a PDF signed
+     * with one of them is still known as one of this instance.
+     */
+    signingEarlier: text('signing_earlier')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     ...timestamps,
   },
   (table) => [
@@ -136,6 +155,12 @@ export const instanceSettings = pgTable(
         and (${table.mailServerPassword} is null) = (${table.mailServerPasswordSetAt} is null)`,
     ),
     check('instance_settings_measures_object', sql`jsonb_typeof(${table.measures}) = 'object'`),
+    // A key comes with its certificate and the moment it was made, or none of them is set.
+    check(
+      'instance_settings_signing_whole',
+      sql`(${table.signingKey} is null) = (${table.signingCertificate} is null)
+        and (${table.signingKey} is null) = (${table.signingSince} is null)`,
+    ),
     check(
       'instance_settings_subprocessors_list',
       sql`jsonb_typeof(${table.subprocessors}) = 'array'`,
