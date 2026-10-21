@@ -144,9 +144,9 @@ describe('the card "QR-Etikett"', () => {
     expect(
       within(panel).getByRole('img', { name: 'QR-Code des Etiketts 7K2M-9QX4-TBA3-HW8P' }),
     ).toBeTruthy()
-    expect(within(panel).getByRole('link', { name: 'PDF öffnen' }).getAttribute('href')).toBe(
-      '/installations/i-1/labels/l-1/pdf?format=roll&count=1',
-    )
+    expect(
+      within(panel).getByRole('link', { name: 'PDF herunterladen' }).getAttribute('href'),
+    ).toBe('/installations/i-1/labels/l-1/pdf?format=roll&count=1')
   })
 
   it('prints on a sheet from the first free field, and names a print it cannot make', async () => {
@@ -162,9 +162,9 @@ describe('the card "QR-Etikett"', () => {
     await user.clear(start)
     await user.type(start, '5')
 
-    expect(within(panel).getByRole('link', { name: 'PDF öffnen' }).getAttribute('href')).toBe(
-      '/installations/i-1/labels/l-1/pdf?format=sheet&count=3&start=5',
-    )
+    expect(
+      within(panel).getByRole('link', { name: 'PDF herunterladen' }).getAttribute('href'),
+    ).toBe('/installations/i-1/labels/l-1/pdf?format=sheet&count=3&start=5')
 
     await user.clear(count)
     await user.type(count, '0')
@@ -172,9 +172,10 @@ describe('the card "QR-Etikett"', () => {
     expect(within(panel).getByRole('alert').textContent).toBe(
       'Gedruckt werden 1 bis 24 Etiketten auf einmal.',
     )
-    expect(within(panel).queryByRole('link', { name: 'PDF öffnen' })).toBeNull()
+    expect(within(panel).queryByRole('link', { name: 'PDF herunterladen' })).toBeNull()
     expect(
-      (within(panel).getByRole('button', { name: 'PDF öffnen' }) as HTMLButtonElement).disabled,
+      (within(panel).getByRole('button', { name: 'PDF herunterladen' }) as HTMLButtonElement)
+        .disabled,
     ).toBe(true)
   })
 
@@ -210,7 +211,8 @@ describe('the card "QR-Etikett"', () => {
 
     await waitFor(() => {
       expect(
-        (within(panel).getByRole('button', { name: 'PDF öffnen' }) as HTMLButtonElement).disabled,
+        (within(panel).getByRole('button', { name: 'PDF herunterladen' }) as HTMLButtonElement)
+          .disabled,
       ).toBe(true)
     })
     expect(panel.textContent).toContain(

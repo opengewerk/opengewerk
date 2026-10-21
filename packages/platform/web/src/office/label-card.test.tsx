@@ -89,9 +89,13 @@ describe('the card of a label', () => {
     mount({ valid: label })
 
     expect(within(card()).getByText('7K2M-9QX4-TBA3-HW8P')).toBeTruthy()
-    expect(within(card()).getByRole('link', { name: 'PDF öffnen' }).getAttribute('href')).toBe(
-      '/shelves/labels/l-1/pdf?format=roll&count=1&start=1',
-    )
+    expect(
+      within(card()).getByRole('link', { name: 'PDF herunterladen' }).getAttribute('href'),
+    ).toBe('/shelves/labels/l-1/pdf?format=roll&count=1&start=1')
+    // Saved under the printed code, not opened in a tab (opengewerk/opengewerk-haustechnik#509).
+    expect(
+      within(card()).getByRole('link', { name: 'PDF herunterladen' }).getAttribute('download'),
+    ).toBe('Etikett 7K2M-9QX4-TBA3-HW8P.pdf')
 
     await user.selectOptions(within(card()).getByLabelText('Format'), 'sheet')
     await user.clear(within(card()).getByLabelText('Anzahl'))
@@ -99,9 +103,9 @@ describe('the card of a label', () => {
     await user.clear(within(card()).getByLabelText('Beginnen bei'))
     await user.type(within(card()).getByLabelText('Beginnen bei'), '5')
 
-    expect(within(card()).getByRole('link', { name: 'PDF öffnen' }).getAttribute('href')).toBe(
-      '/shelves/labels/l-1/pdf?format=sheet&count=3&start=5',
-    )
+    expect(
+      within(card()).getByRole('link', { name: 'PDF herunterladen' }).getAttribute('href'),
+    ).toBe('/shelves/labels/l-1/pdf?format=sheet&count=3&start=5')
   })
 
   it('names a print it cannot make and offers no link for it', async () => {
@@ -115,7 +119,7 @@ describe('the card of a label', () => {
     expect(within(card()).getByRole('alert').textContent).toBe(
       'Gedruckt werden 1 bis 24 Etiketten auf einmal.',
     )
-    expect(within(card()).queryByRole('link', { name: 'PDF öffnen' })).toBeNull()
+    expect(within(card()).queryByRole('link', { name: 'PDF herunterladen' })).toBeNull()
   })
 
   it('blocks only after asking, in the words of the application', async () => {
@@ -143,7 +147,7 @@ describe('the card of a label', () => {
     mount({ valid: label, mayBlock: false })
 
     expect(within(card()).queryByRole('button', { name: 'Sperren' })).toBeNull()
-    expect(within(card()).getByRole('link', { name: 'PDF öffnen' })).toBeTruthy()
+    expect(within(card()).getByRole('link', { name: 'PDF herunterladen' })).toBeTruthy()
   })
 
   it('says what the server said when it refused', async () => {
@@ -168,7 +172,7 @@ describe('the card of a label', () => {
         'Drucken und Sperren gehen über den Server, dafür braucht es Verbindung.',
       ),
     ).toBeTruthy()
-    expect(within(card()).queryByRole('link', { name: 'PDF öffnen' })).toBeNull()
+    expect(within(card()).queryByRole('link', { name: 'PDF herunterladen' })).toBeNull()
     expect(
       (within(card()).getByRole('button', { name: 'Sperren' }) as HTMLButtonElement).disabled,
     ).toBe(true)
