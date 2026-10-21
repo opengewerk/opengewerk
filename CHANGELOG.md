@@ -9,6 +9,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Eine Buchung im Lager darf ohne die Person stehen, die gebucht hat (`stock_movements.booked_by` nimmt null).
+  Warum: OpenGewerk Haustechnik lässt die Person nach drei Jahren gehen und behält die Buchung
+  (opengewerk/opengewerk-haustechnik#412). Die Handwerkersoftware legt die Tabelle nicht an.
 - Das Security-Review steht auf `731e352` von opengewerk/.github (opengewerk/.github#45), dem Stand, der ein
   angehobenes Submodul selbst belegt, wie in den übrigen Repositories der Organisation.
 

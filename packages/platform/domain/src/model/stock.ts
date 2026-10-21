@@ -167,7 +167,8 @@ export interface StockMovement extends Synced {
   readonly counterpartStoreId: StoreId | null
   /** Why a count corrects the stock or a write-off takes it away, or what is said with a receipt or a withdrawal. */
   readonly reason: string | null
-  readonly bookedBy: string
+  /** Who booked it, or null once an application has let the person go after a period of its own. */
+  readonly bookedBy: string | null
   readonly bookedAt: Date
 }
 
