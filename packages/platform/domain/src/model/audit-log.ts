@@ -289,9 +289,10 @@ export const quietAuditFields: readonly string[] = [
  * (opengewerk-haustechnik#31).
  */
 const foundationSecretFields: Readonly<Record<string, readonly string[]>> = {
-  // The trigger of the log of the instance leaves the sealed password out
-  // already; should a row of it ever be there, it is not spelled out either.
-  instance_settings: ['mail_server_password'],
+  // The trigger of the log of the instance leaves the sealed password and the
+  // sealed key out already; should a row of either ever be there, it is not
+  // spelled out either.
+  instance_settings: ['mail_server_password', 'signing_key'],
   invitations: ['token_hash'],
   push_subscriptions: ['endpoint', 'p256dh', 'auth'],
 }
@@ -625,6 +626,10 @@ function foundationInstanceTables(
         privacy_notice: 'Datenschutzhinweise',
         measures: 'Maßnahmen, Teil B',
         subprocessors: 'Unterauftragsverarbeiter',
+        signing_key: 'Signatur der PDFs, Schlüssel',
+        signing_certificate: 'Signatur der PDFs, Zertifikat',
+        signing_since: 'Signatur der PDFs, Schlüssel seit',
+        signing_earlier: 'Signatur der PDFs, frühere Zertifikate',
       },
     },
     instance_operators: { label: words.operator },

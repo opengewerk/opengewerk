@@ -51,6 +51,7 @@ import { probeMade } from '../database/probe-schema.js'
 import type { TestDatabase } from '../database/test-database.js'
 import type { InstanceSettingsCache } from '../instance/settings.js'
 import type { AccountMessages } from '../instance/account-mail.js'
+import { SIGNING, type SigningContext } from '../instance/signing.js'
 import { MAIL, type MailContext } from '../mail/context.js'
 import type { MadeByTheApplication } from '../migration/guards.js'
 import { memberships } from '../schema.js'
@@ -304,6 +305,8 @@ export interface ProbeModuleOptions {
   readonly mail?: MailContext | null
   /** The words of the mails to an account. Left out, nobody is told by mail of a new mail server. */
   readonly accountMessages?: AccountMessages | null
+  /** What the instance signs PDFs with. Left out, this application signs none. */
+  readonly signing?: SigningContext | null
   /** The version the health check names; left out, it names none, as in a checkout. */
   readonly version?: string | null
   /** What this application keeps beside a membership. Left out, nothing. */
@@ -341,6 +344,7 @@ export class ProbeModule {
         ...signingIn.providers,
         { provide: TRUSTED_ORIGINS, useValue: options.trustedOrigins ?? [] },
         { provide: MAIL, useValue: options.mail ?? null },
+        { provide: SIGNING, useValue: options.signing ?? null },
         { provide: VERSION, useValue: options.version ?? null },
         { provide: IDENTITY_SOURCE, useValue: identities },
         { provide: AUTHORIZATION, useValue: probeAuthorization },
@@ -388,6 +392,8 @@ export interface ProbeInstanceOptions extends Pick<
   readonly mail?: MailContext | null
   /** The words of the mails to an account. Left out, nobody is told by mail of a new mail server. */
   readonly accountMessages?: AccountMessages | null
+  /** What the instance signs PDFs with. Left out, this application signs none. */
+  readonly signing?: SigningContext | null
   /** What this application keeps beside a membership. Left out, nothing. */
   readonly additions?: MembershipAdditions
   /** The roles given only up to a last day. Left out, none. */
@@ -441,6 +447,7 @@ export async function probeInstance(
     instanceSettings = null,
     mail = null,
     accountMessages = null,
+    signing = null,
     additions,
     endingRoles,
     trustedOrigins = [probeOrigin],
@@ -463,7 +470,7 @@ export async function probeInstance(
         database,
         closed ? new ClosedIdentitySource() : probeIdentities(authentication, database),
         closed
-          ? { trustedOrigins, invitationMailing, instanceSettings, mail }
+          ? { trustedOrigins, invitationMailing, instanceSettings, mail, signing }
           : {
               authentication,
               setupCode: setupCode ?? null,
@@ -472,6 +479,7 @@ export async function probeInstance(
               instanceSettings,
               mail,
               accountMessages,
+              signing,
               ...(additions ? { additions } : {}),
               ...(endingRoles ? { endingRoles } : {}),
             },

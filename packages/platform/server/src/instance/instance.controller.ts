@@ -26,6 +26,7 @@ import type {
   InstanceMailServerState,
   InstanceMailServerView,
   InstanceSettingsView,
+  InstanceSigningState,
   InstanceTenantView,
   OperatorView,
 } from '@opengewerk/platform-domain'
@@ -64,6 +65,12 @@ import {
   readInstanceSettings,
   saveInstanceSettings,
 } from './settings.js'
+import {
+  readInstanceSigning,
+  renewInstanceSigning,
+  SIGNING,
+  type SigningContext,
+} from './signing.js'
 import { createTenantFor, listInstanceTenants } from './tenants.js'
 
 /**
@@ -96,6 +103,8 @@ function field(body: unknown, name: string): unknown {
 }
 
 /** Why a change of the mail server of the instance is refused to a session that did not confirm again. */
+const noSigning = 'Die Anwendung dieser Instanz signiert keine PDFs.'
+
 const mailServerUnconfirmed =
   'Der Mailserver der Instanz ändert sich erst nach der Bestätigung mit Passwort und Code.'
 
@@ -143,6 +152,9 @@ export class InstanceController {
     @Optional()
     @Inject(ACCOUNT_MESSAGES)
     private readonly messages?: AccountMessages | null,
+    @Optional()
+    @Inject(SIGNING)
+    private readonly signing?: SigningContext | null,
   ) {}
 
   /** When the mail server of the instance was last tried, the last ten minutes of it. In memory, like the tries of a tenant. */
@@ -424,6 +436,36 @@ export class InstanceController {
     @Body() body: unknown,
   ): Promise<InstanceMeasuresView> {
     return saveMeasures(this.database, user.userId, checkedMeasures(body))
+  }
+
+  /**
+   * The certificate the instance signs PDFs with
+   * (opengewerk-haustechnik#457), on an instance whose application signs.
+   */
+  @Get('signing')
+  @RequiresOperator()
+  async signingState(): Promise<InstanceSigningState> {
+    return this.signing
+      ? { signs: true, certificate: await readInstanceSigning(this.database, this.signing) }
+      : { signs: false, certificate: null }
+  }
+
+  /**
+   * A new key for every PDF signed from now on. The certificate of the one
+   * before stays known, so a PDF signed with it is still one of this instance.
+   */
+  @Post('signing')
+  @HttpCode(HttpStatus.OK)
+  @RequiresOperator()
+  async renewSigning(@CurrentUser() user: SignedInUser): Promise<InstanceSigningState> {
+    if (!this.signing) {
+      throw new NotFoundException(noSigning)
+    }
+
+    return {
+      signs: true,
+      certificate: await renewInstanceSigning(this.database, this.signing, user.userId),
+    }
   }
 
   @Get('operators')

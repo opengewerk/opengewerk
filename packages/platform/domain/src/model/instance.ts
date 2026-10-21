@@ -61,6 +61,37 @@ export interface InstanceMailServerState {
 }
 
 /**
+ * The certificate the instance signs PDFs with (opengewerk-haustechnik#457),
+ * as its settings show it. It names the instance by its address and the
+ * application by its name; nothing in it names a person.
+ */
+export interface InstanceCertificateView {
+  readonly commonName: string
+  readonly organisation: string
+  /** SHA-256 over the certificate, as a PDF program shows it: pairs of hexadecimal digits with colons. */
+  readonly fingerprint: string
+  readonly validFrom: string
+  readonly validTo: string
+  /** Since when the instance signs with this key. */
+  readonly since: string
+  /**
+   * False when the kept key no longer opens, because `SESSION_SECRET` was
+   * changed since: the next PDF then comes with a new key.
+   */
+  readonly readable: boolean
+  /** How many certificates of earlier keys the instance still knows its PDFs by. */
+  readonly earlier: number
+}
+
+/** What the settings of the instance learn about the signature of its PDFs. */
+export interface InstanceSigningState {
+  /** False on an instance whose application signs no PDF. */
+  readonly signs: boolean
+  /** Null while there is no key yet; it comes with the first PDF signed. */
+  readonly certificate: InstanceCertificateView | null
+}
+
+/**
  * The two legal texts of an instance (opengewerk-haustechnik#129): its legal
  * notice and its notice on data protection. Whoever runs the instance keeps
  * them on a screen; they are in no source code, and they are the same for
