@@ -15,6 +15,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Eine Route kann sagen, dass sie nur ein Mitglied des Mandanten verlangt und kein Recht (`RequiresMembership`): der
+  Guard stellt fest, wer fragt, im Mandanten der Sitzung, und reicht die Identität mit dem Grund `membership` weiter;
+  der Gang über die Routen zählt sie als eigene Art (`needsMembershipOnly`). Warum: OpenGewerk Haustechnik zeigt die
+  eigenen Qualifikationen und die eigene Pflichtenübertragung einer Person ohne ein Recht, weil es ihre eigenen Daten
+  sind (opengewerk/opengewerk-haustechnik#543).
 - Die Instanz hat einen Schlüssel zum Signieren von PDFs, mit einem Zertifikat, das sie sich selbst ausstellt, und
   das Fundament eine CMS-Signatur, wie PAdES sie in ein PDF setzt (`signDetached`, `instanceSigningKey`). Der
   Schlüssel entsteht mit dem ersten signierten PDF oder in den Einstellungen der Instanz, versiegelt in
