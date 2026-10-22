@@ -14,6 +14,7 @@ import {
   AUTHORIZATION,
   AuthorizationGuard,
   PublicRoute,
+  RequiresMembership,
   RequiresOperator,
   RequiresPermission,
   RequiresSession,
@@ -93,6 +94,12 @@ class ProbeController {
   @RequiresSession()
   me(@CurrentUser() user: SignedInUser) {
     return user
+  }
+
+  @Get('mine')
+  @RequiresMembership()
+  mine(@CurrentIdentity() identity: RequestIdentity<ProbeIdentity, ProbeRight>) {
+    return { userId: identity.userId, tenantId: identity.tenantId, reason: identity.reason }
   }
 
   @Get('instance')
@@ -201,12 +208,16 @@ describe('a route that declares nothing', () => {
       'GET /probe/forgotten',
       'GET /probe/instance',
       'GET /probe/me',
+      'GET /probe/mine',
       'GET /probe/open',
       'POST /probe',
     ])
     expect(undeclared(routes).map((route) => route.name)).toEqual(['GET /probe/forgotten'])
     expect(routes.filter((route) => route.isPublic).map((route) => route.name)).toEqual([
       'GET /probe/open',
+    ])
+    expect(routes.filter((route) => route.needsMembershipOnly).map((route) => route.name)).toEqual([
+      'GET /probe/mine',
     ])
     expect(routes.find((route) => route.name === 'POST /probe')).toMatchObject({
       writes: true,
@@ -238,6 +249,29 @@ describe('a route for somebody signed in who has chosen no tenant', () => {
 
   it('refuses whoever is not signed in', async () => {
     await http().get('/probe/me').expect(401)
+  })
+})
+
+describe('a route for whoever works for the tenant, with no right asked', () => {
+  it('answers somebody who holds no right, in the tenant of the session, with the membership as the reason', async () => {
+    const answer = await http()
+      .get('/probe/mine')
+      .set(testIdentityHeader, as('member', tenant))
+      .expect(200)
+
+    expect(answer.body).toEqual({ userId: 'member', tenantId: tenant, reason: 'membership' })
+  })
+
+  it('refuses whoever is not signed in', async () => {
+    await http().get('/probe/mine').expect(401)
+  })
+
+  it('refuses a page that works in another tenant than the session', async () => {
+    await http()
+      .get('/probe/mine')
+      .set(testIdentityHeader, as('member', tenant))
+      .set('X-OpenGewerk-Tenant', otherTenant)
+      .expect(401)
   })
 })
 

@@ -33,6 +33,10 @@ export const PERMISSION_METADATA = 'opengewerk:permission'
 export const PUBLIC_METADATA = 'opengewerk:public'
 export const SESSION_METADATA = 'opengewerk:session'
 export const OPERATOR_METADATA = 'opengewerk:operator'
+export const MEMBERSHIP_METADATA = 'opengewerk:membership'
+
+/** The reason a route of `RequiresMembership` hands on with the identity: no right, the membership itself. */
+export const membershipReason = 'membership'
 
 /**
  * The right a handler needs. Sits on the handler, not in its body, so that a
@@ -93,6 +97,17 @@ export const RequiresSession = () => SetMetadata(SESSION_METADATA, true)
  * the same test as the other kinds.
  */
 export const RequiresOperator = () => SetMetadata(OPERATOR_METADATA, true)
+
+/**
+ * A route for somebody who works for the tenant of the session, whatever
+ * their roles let them do there: what is their own in that tenant, which a
+ * right of the tenant neither opens nor closes. The guard settles who is
+ * asking as for a right, in the tenant the session chose and the page names,
+ * and hands the identity on with `membershipReason` as its reason. What the
+ * route reads is the handler's to keep to the person; that is why it is a
+ * kind of its own, counted by the same test as the other kinds.
+ */
+export const RequiresMembership = () => SetMetadata(MEMBERSHIP_METADATA, true)
 
 /**
  * What the guard has to be told by the application it guards (ADR 0010).
@@ -226,6 +241,18 @@ export class AuthorizationGuard implements CanActivate {
 
     if (workingIn !== undefined && workingIn !== identity.tenantId) {
       throw new UnauthorizedException(this.authorization.sentences.workingInAnotherTenant)
+    }
+
+    const membershipOnly = this.reflector.getAllAndOverride<boolean | undefined>(
+      MEMBERSHIP_METADATA,
+      [context.getHandler(), context.getClass()],
+    )
+
+    // Working for the tenant is the whole requirement; no right is asked.
+    if (membershipOnly) {
+      request[identityProperty] = { ...identity, reason: membershipReason }
+
+      return true
     }
 
     const permission = this.reflector.getAllAndOverride<string | undefined>(PERMISSION_METADATA, [

@@ -2,6 +2,7 @@ import { RequestMethod } from '@nestjs/common'
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants'
 
 import {
+  MEMBERSHIP_METADATA,
   OPERATOR_METADATA,
   PERMISSION_METADATA,
   PUBLIC_METADATA,
@@ -34,6 +35,8 @@ export interface Route {
   readonly isPublic: boolean
   readonly needsSessionOnly: boolean
   readonly needsOperator: boolean
+  /** For whoever works for the tenant, with no right asked (`RequiresMembership`). */
+  readonly needsMembershipOnly: boolean
 }
 
 /** The routes of these controllers, as a module lists them under `controllers`. */
@@ -69,6 +72,7 @@ export function routesOf(controllers: readonly unknown[]): Route[] {
         isPublic: Reflect.getMetadata(PUBLIC_METADATA, handler) === true,
         needsSessionOnly: Reflect.getMetadata(SESSION_METADATA, handler) === true,
         needsOperator: Reflect.getMetadata(OPERATOR_METADATA, handler) === true,
+        needsMembershipOnly: Reflect.getMetadata(MEMBERSHIP_METADATA, handler) === true,
       })
     }
   }
@@ -83,7 +87,8 @@ export function undeclared(routes: readonly Route[]): Route[] {
       route.permission === undefined &&
       !route.isPublic &&
       !route.needsSessionOnly &&
-      !route.needsOperator,
+      !route.needsOperator &&
+      !route.needsMembershipOnly,
   )
 }
 
