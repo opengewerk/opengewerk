@@ -8,7 +8,7 @@
 # Both stages on the image by its digest (#687): a tag names whatever was
 # pushed under it last. Dependabot moves the digest, in a pull request the
 # CI builds like any other.
-FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS build
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS build
 
 WORKDIR /build
 RUN corepack enable
@@ -45,7 +45,7 @@ RUN pnpm deploy --filter @opengewerk/server --prod /anwendung
 # The built interface goes in beside it, under the name the server looks for.
 RUN cp -r packages/web/dist /anwendung/interface
 
-FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS runtime
+FROM node:25-alpine@sha256:bdf2cca6fe3dabd014ea60163eca3f0f7015fbd5c7ee1b0e9ccb4ced6eb02ef4 AS runtime
 
 # tini as process 1. Node neither forwards a SIGTERM to child processes nor
 # reaps zombies, and both only show up in operation, when an update waits ten
