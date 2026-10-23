@@ -7,6 +7,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Sicherheit
+
+- Das Abbild baut auf `node:24-alpine` mit Node 24.22.1 statt 24.22.0, und der Renderer für PDFs läuft auf
+  `browserless/chromium` 2.57.3 statt 2.57.1, das ebenfalls Node 24.22.1 mitbringt. Warum: Node 24.22.1 schließt die
+  Lücken aus dem Sicherheitsrelease vom 21.10.2026, darunter CVE-2026-111497 (der Brotli-Decoder schreibt außerhalb
+  seines Puffers, was fremden Code ausführen lässt).
+
 ### Geändert
 
 - Die Karte eines Etiketts lädt das PDF herunter, unter dem Namen "Etikett" mit dem gedruckten Code, statt es in einem Tab zu
