@@ -7,18 +7,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
-### Sicherheit
+## [0.6.2] - 2026-10-23
 
-- Das Abbild baut auf `node:24-alpine` mit Node 24.22.1 statt 24.22.0, und der Renderer für PDFs läuft auf
-  `browserless/chromium` 2.57.3 statt 2.57.1, das ebenfalls Node 24.22.1 mitbringt. Warum: Node 24.22.1 schließt die
-  Lücken aus dem Sicherheitsrelease vom 21.10.2026, darunter CVE-2026-111497 (der Brotli-Decoder schreibt außerhalb
-  seines Puffers, was fremden Code ausführen lässt).
+Eine Sicherheitsfassung. Das Abbild baut auf Node 24.22.1, und der Renderer für PDFs läuft auf 2.57.3, das dieselbe
+Fassung von Node mitbringt; beide schließen damit die Lücken aus dem Sicherheitsrelease von Node vom 21.10.2026,
+darunter CVE-2026-111497. Dazu kommen die Bausteine, die das Fundament seit 0.6.1 für OpenGewerk Haustechnik bekam:
+Routen, die nur ein Mitglied verlangen, ein Schlüssel der Instanz zum Signieren von PDFs und Buchungen im Lager ohne
+die Person, die gebucht hat. In der Handwerkersoftware zu sehen ist davon nur, dass die Karte eines Etiketts das PDF
+herunterlädt.
 
-### Geändert
-
-- Die Karte eines Etiketts lädt das PDF herunter, unter dem Namen "Etikett" mit dem gedruckten Code, statt es in einem Tab zu
-  öffnen; der Knopf heißt "PDF herunterladen". Warum: in einem Tab ohne die Leiste eines PDF-Programms, etwa in der
-  installierten Anwendung, ließ sich das Etikett ansehen, aber nicht speichern (opengewerk/opengewerk-haustechnik#509).
+Aktualisiert wird wie bei jeder Fassung, vorher gesichert. Eine Migration kommt dazu, `0088_instance_signing`, mit
+den Spalten für den Schlüssel der Instanz.
 
 ### Hinzugefügt
 
@@ -38,11 +37,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Karte eines Etiketts lädt das PDF herunter, unter dem Namen "Etikett" mit dem gedruckten Code, statt es in einem Tab zu
+  öffnen; der Knopf heißt "PDF herunterladen". Warum: in einem Tab ohne die Leiste eines PDF-Programms, etwa in der
+  installierten Anwendung, ließ sich das Etikett ansehen, aber nicht speichern (opengewerk/opengewerk-haustechnik#509).
 - Eine Buchung im Lager darf ohne die Person stehen, die gebucht hat (`stock_movements.booked_by` nimmt null).
   Warum: OpenGewerk Haustechnik lässt die Person nach drei Jahren gehen und behält die Buchung
   (opengewerk/opengewerk-haustechnik#412). Die Handwerkersoftware legt die Tabelle nicht an.
 - Das Security-Review steht auf `731e352` von opengewerk/.github (opengewerk/.github#45), dem Stand, der ein
   angehobenes Submodul selbst belegt, wie in den übrigen Repositories der Organisation.
+
+### Sicherheit
+
+- Das Abbild baut auf `node:24-alpine` mit Node 24.22.1 statt 24.22.0, und der Renderer für PDFs läuft auf
+  `browserless/chromium` 2.57.3 statt 2.57.1, das ebenfalls Node 24.22.1 mitbringt. Warum: Node 24.22.1 schließt die
+  Lücken aus dem Sicherheitsrelease vom 21.10.2026, darunter CVE-2026-111497 (der Brotli-Decoder schreibt außerhalb
+  seines Puffers, was fremden Code ausführen lässt).
 
 ## [0.6.1] - 2026-10-21
 
