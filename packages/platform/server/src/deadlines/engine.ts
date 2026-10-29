@@ -37,6 +37,21 @@ import { deadlineSettingsOf } from './settings.js'
 export const mostRemindersPerPass = 100
 
 /**
+ * Where the last pass of a tenant stopped at the bound, by the engine that
+ * ran it: the place of the last deadline it tried, in the order the pass
+ * reads them. The next pass goes on after it and comes round to the start
+ * again, so that deadlines whose reminder fails every time, and which stay
+ * due and first, do not keep the ones after them waiting for ever
+ * (opengewerk-haustechnik#31). Kept in the process, which runs the passes.
+ */
+const stoppedAt = new WeakMap<object, Map<TenantId, string>>()
+
+/** The place of a deadline in the order of a pass: due day, then id. */
+function placeOf(deadline: KeptDeadline): string {
+  return `${String(deadline.dueOn)}|${deadline.id}`
+}
+
+/**
  * A deadline as its source asks for it right now: what the engine compares
  * with the deadline it keeps, to write it, move it or let it drop.
  */
@@ -398,11 +413,19 @@ export async function runDeadlinesOf<
   }))
 
   const most = engine.mostRemindersPerPass ?? mostRemindersPerPass
+  const stops = stoppedAt.get(engine) ?? new Map<TenantId, string>()
+  const after = stops.get(tenantId)
+  const from = after === undefined ? 0 : due.findIndex((deadline) => placeOf(deadline) > after)
+  const turn = from <= 0 ? due : [...due.slice(from), ...due.slice(0, from)]
   let tried = 0
+  let last: string | undefined
   let reminded = 0
   const failures: unknown[] = []
 
-  for (const deadline of due) {
+  stoppedAt.set(engine, stops)
+  stops.delete(tenantId)
+
+  for (const deadline of turn) {
     const kind = engine.registry.kind(deadline.kind)
 
     // A kind the instance no longer knows, because a package was taken out,
@@ -418,12 +441,18 @@ export async function runDeadlinesOf<
     }
 
     // The rest in the next pass, failed ones counted: a reminder that fails
-    // costs its transaction as well.
+    // costs its transaction as well. The next pass goes on after the last
+    // one tried.
     if (tried === most) {
+      if (last !== undefined) {
+        stops.set(tenantId, last)
+      }
+
       break
     }
 
     tried += 1
+    last = placeOf(deadline)
 
     try {
       const done = await inTenant(actor, (tx) =>

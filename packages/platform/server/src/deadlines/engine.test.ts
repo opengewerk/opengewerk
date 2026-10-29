@@ -503,6 +503,39 @@ describe('a reminder', () => {
     })
   })
 
+  it('goes on past the ones that fail every time, so that the later ones come as well', async () => {
+    const third = newId<'source'>()
+    const bounded = engine({
+      mostRemindersPerPass: 2,
+      actions: {
+        note: async (context) => {
+          if (context.deadline.parcelNumber !== 'P-0003') {
+            throw new Error('The note could not be written.')
+          }
+
+          noted.push({
+            kind: context.kind.key,
+            label: context.deadline.sourceLabel,
+            responsible: context.responsible,
+            parcel: context.deadline.parcelNumber,
+          })
+        },
+      },
+    })
+
+    parcels
+      .get(north.id)
+      ?.set(third, { arrivedOn: '2037-03-04', takenInBy: 'tom', number: 'P-0003' })
+      .set(parcelTwo, { arrivedOn: '2037-03-03', takenInBy: 'tom', number: 'P-0002' })
+      .set(parcelOne, { arrivedOn: '2037-03-02', takenInBy: 'tom', number: 'P-0001' })
+    await runDeadlinesOf(bounded, north.id, at('2037-03-04'))
+
+    // The two earliest fail, the next pass goes on after them.
+    await expect(runDeadlinesOf(bounded, north.id, at('2037-03-20'))).rejects.toThrow()
+    await expect(runDeadlinesOf(bounded, north.id, at('2037-03-20'))).rejects.toThrow()
+    expect(noted.map((note) => note.parcel)).toEqual(['P-0003'])
+  })
+
   it('goes to whoever leads, for a kind that names nobody, and to the person the tenant chose', async () => {
     buildings.get(north.id)?.set(eastHouse, { name: 'Haus Ost', checkedOn: '2036-09-15' })
     await runDeadlinesOf(engine(), north.id, at('2037-03-01'))
