@@ -374,7 +374,7 @@ export class DocumentInstructionsController {
       throw new NotFoundException('Zu diesem Beleg gibt es diese Belehrung nicht.')
     }
 
-    const bytes = await this.files.printSheet(content, position)
+    const bytes = await this.files.printSheet(content, position, identity)
     const document = `${headingOf(content)}${content.number === null ? '' : ` ${content.number}`}`
     const name = safe(`${instruction.title} zu ${document}.pdf`)
 

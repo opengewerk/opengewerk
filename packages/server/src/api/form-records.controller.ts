@@ -109,7 +109,7 @@ export class FormRecordsController {
     let bytes: Uint8Array
 
     try {
-      bytes = await this.render(protocolPrintJob(protocol))
+      bytes = await this.render(protocolPrintJob(protocol), identity)
     } catch (error) {
       if (error instanceof RendererUnavailableError) {
         throw new ServiceUnavailableException(error.message)

@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  type PrintJob,
   printPolicy,
+  queuedRenderer,
   readRendererConfiguration,
   renderPdf,
+  RendererBusyError,
+  rendererFor,
   RendererUnavailableError,
   withPrintPolicy,
 } from './renderer.js'
@@ -145,6 +149,135 @@ describe('the renderer', () => {
     await expect(renderPdf('<p>dauert</p>', configured, { timeoutMs: 10 })).rejects.toThrow(
       RendererUnavailableError,
     )
+  })
+})
+
+/**
+ * The queue in front of the renderer: one job at a time, a few waiting, a
+ * tenant only part of those, and nobody waiting forever.
+ */
+describe('the queue of the renderer', () => {
+  /** A renderer whose jobs end when the test says, in the order they started. */
+  function heldRenderer() {
+    const started: string[] = []
+    const ends: (() => void)[] = []
+    const render = (job: PrintJob) =>
+      new Promise<Uint8Array>((resolve) => {
+        started.push(job.html)
+        ends.push(() => {
+          resolve(new Uint8Array([1]))
+        })
+      })
+
+    return { started, ends, render }
+  }
+
+  it('stands in front of the renderer an instance prints with', async () => {
+    const answers: ((response: Response) => void)[] = []
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise<Response>((resolve) => answers.push(resolve))),
+    )
+
+    const render = rendererFor(configured)
+    const first = render({ html: '<p>eins</p>' })
+    const second = render({ html: '<p>zwei</p>' })
+
+    await settled()
+    expect(answers).toHaveLength(1)
+
+    answers[0]?.(new Response(new Uint8Array([1])))
+    await first
+    await settled()
+    expect(answers).toHaveLength(2)
+
+    answers[1]?.(new Response(new Uint8Array([2])))
+    await second
+  })
+
+  const settled = () => new Promise((resolve) => setTimeout(resolve, 5))
+
+  it('renders one job at a time, the others in the order they came, and turns away what finds no place', async () => {
+    const held = heldRenderer()
+    const queued = queuedRenderer(held.render, {
+      atOnce: 1,
+      waiting: 2,
+      waitingPerTenant: 5,
+      waitMs: 10_000,
+    })
+    const first = queued({ html: 'eins' })
+    const second = queued({ html: 'zwei' })
+    const third = queued({ html: 'drei' })
+
+    await expect(queued({ html: 'vier' })).rejects.toBeInstanceOf(RendererBusyError)
+    await settled()
+    expect(held.started).toEqual(['eins'])
+
+    held.ends[0]?.()
+    await first
+    await settled()
+    expect(held.started).toEqual(['eins', 'zwei'])
+
+    held.ends[1]?.()
+    await second
+    await settled()
+    held.ends[2]?.()
+    await third
+    expect(held.started).toEqual(['eins', 'zwei', 'drei'])
+  })
+
+  it('keeps places for the others when one tenant waits with as many as it may', async () => {
+    const held = heldRenderer()
+    const queued = queuedRenderer(held.render, {
+      atOnce: 1,
+      waiting: 5,
+      waitingPerTenant: 2,
+      waitMs: 10_000,
+    })
+    const north = { tenantId: 'nord' }
+    const jobs = [
+      queued({ html: 'nord 1' }, north),
+      queued({ html: 'nord 2' }, north),
+      queued({ html: 'nord 3' }, north),
+    ]
+
+    await expect(queued({ html: 'nord 4' }, north)).rejects.toBeInstanceOf(RendererBusyError)
+
+    const south = queued({ html: 'süd 1' }, { tenantId: 'sued' })
+
+    for (let index = 0; index < 4; index += 1) {
+      await settled()
+      held.ends[index]?.()
+    }
+
+    await Promise.all([...jobs, south])
+    expect(held.started).toEqual(['nord 1', 'nord 2', 'nord 3', 'süd 1'])
+  })
+
+  it('tells a job that waited too long that the renderer is busy, and gives its place up', async () => {
+    const held = heldRenderer()
+    const queued = queuedRenderer(held.render, {
+      atOnce: 1,
+      waiting: 1,
+      waitingPerTenant: 1,
+      waitMs: 20,
+    })
+    const first = queued({ html: 'lang' })
+    const waited = queued({ html: 'wartet' })
+
+    await expect(waited).rejects.toBeInstanceOf(RendererBusyError)
+    await expect(waited).rejects.toBeInstanceOf(RendererUnavailableError)
+
+    // Its place is free again, and it was never rendered.
+    const next = queued({ html: 'danach' })
+
+    held.ends[0]?.()
+    await first
+    await settled()
+    held.ends[1]?.()
+    await next
+    expect(held.started).toEqual(['lang', 'danach'])
   })
 })
 

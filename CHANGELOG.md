@@ -59,6 +59,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   eines Push-Abos drei Sekunden zum Auflösen; eine Person höchstens 20 Geräte für Push; `GET /sync/conflicts` liefert
   die ältesten 200 offenen Konflikte. Warum: Ohne sie konnte eine Anfrage oder ein Lauf eines Betriebs eine Verbindung,
   den Versand der Mails oder die Auflösung von Namen für alle anderen ohne Ende festhalten.
+- Drucke warten im Prozess auf den Renderer: einer zur Zeit, wie der Renderer sie nimmt, höchstens zehn wartend, davon
+  drei für einen Mandanten, keiner länger als eine Minute (`queuedRenderer`); darüber hinaus antwortet die Route mit
+  503 und dem Satz, dass der Renderer gerade für andere druckt. Warum: Jede Route, die druckt, rendert bei jedem Aufruf
+  neu, eine Instanz hat einen Renderer, und jeder Auftrag ging sofort an ihn. Wer einen Druck öffnen durfte, hielt ihn
+  so für alle Mandanten besetzt, und die Aufträge stauten sich dahinter.
 - Ablehnungen von Mailserver und Push-Dienst verraten nicht mehr, was der Resolver der Instanz geantwortet hat: ein
   Name, der nach innen zeigt, wird wie ein Name abgelehnt, der sich nicht auflösen lässt, beim Mailserver mit demselben
   Satz und derselben Art von Fehler (`unreachableName`, `EDNS`), beim Push mit `endpointNameRefused`, und keine

@@ -51,6 +51,9 @@ import {
 } from '../documents/template.js'
 import { zugferdPdf } from '../documents/zugferd.js'
 
+/** The tenant a print is for, which the queue of the renderer counts by. */
+type PrintedFor = { readonly tenantId: string }
+
 /** What the two forms are called in a sentence that says what one of them lacks. */
 const formNames: Readonly<Record<EInvoiceProfile, string>> = {
   xrechnung: 'die XRechnung',
@@ -278,8 +281,8 @@ export class DocumentFiles {
    * matter and says which service is missing; one that refuses the document
    * is a fault in the template and says so too, and neither is a crash.
    */
-  async print(content: DocumentContent): Promise<Uint8Array> {
-    const rendered = await this.rendered(content, (assets) => printJob(content, assets))
+  async print(content: DocumentContent, printedFor: PrintedFor): Promise<Uint8Array> {
+    const rendered = await this.rendered(content, printedFor, (assets) => printJob(content, assets))
 
     // The pages the law prescribes whole go in after rendering, in place of
     // the empty pages the template left for them (#431).
@@ -291,7 +294,11 @@ export class DocumentFiles {
    * every request and not kept: it says nothing the snapshot does not, and
    * nobody receives it by mail.
    */
-  async printSheet(content: DocumentContent, index: number): Promise<Uint8Array> {
+  async printSheet(
+    content: DocumentContent,
+    index: number,
+    printedFor: PrintedFor,
+  ): Promise<Uint8Array> {
     const graphic = content.instructions[index]?.graphic ?? null
 
     // A page the law prescribes whole is its own sheet, with nothing around it.
@@ -299,7 +306,7 @@ export class DocumentFiles {
       return this.legal(() => legalPage(graphic))
     }
 
-    return this.rendered(content, (assets) => instructionSheet(content, index, assets))
+    return this.rendered(content, printedFor, (assets) => instructionSheet(content, index, assets))
   }
 
   /** A file of the Commission that is missing or changed is a fault of the installation. */
@@ -317,6 +324,7 @@ export class DocumentFiles {
 
   private async rendered(
     content: DocumentContent,
+    printedFor: PrintedFor,
     job: (assets: PrintAssets) => Parameters<Renderer>[0],
   ): Promise<Uint8Array> {
     const logo = content.issuer.logo
@@ -327,7 +335,7 @@ export class DocumentFiles {
       : null
 
     try {
-      return await this.render(job({ logo }))
+      return await this.render(job({ logo }), printedFor)
     } catch (error) {
       if (error instanceof RendererUnavailableError) {
         throw new ServiceUnavailableException(error.message)
@@ -350,7 +358,13 @@ export class DocumentFiles {
   ): Promise<Uint8Array> {
     return sha256 !== null
       ? this.read(sha256)
-      : this.keep(identity, documentId, 'pdf', await this.print(content), 'application/pdf')
+      : this.keep(
+          identity,
+          documentId,
+          'pdf',
+          await this.print(content, identity),
+          'application/pdf',
+        )
   }
 
   /**
@@ -453,7 +467,7 @@ export class DocumentFiles {
 
       if (signed) {
         return {
-          bytes: await this.print(signed),
+          bytes: await this.print(signed, actor),
           kind: signed.kind,
           number: null,
           heading: headingOf(signed),

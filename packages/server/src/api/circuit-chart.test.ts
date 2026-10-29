@@ -35,14 +35,16 @@ let installationId: string
 let southInstallationId: string
 
 const jobs: PrintJob[] = []
+const printedFor: (string | undefined)[] = []
 let renderer: 'working' | 'missing' = 'working'
 
-const standIn: Renderer = async (job) => {
+const standIn: Renderer = async (job, who) => {
   if (renderer === 'missing') {
     throw new RendererUnavailableError('Der Renderer antwortet nicht.')
   }
 
   jobs.push(job)
+  printedFor.push(who?.tenantId)
 
   return new TextEncoder().encode('%PDF-1.7 Stromkreisverzeichnis')
 }
@@ -184,6 +186,8 @@ describe('the circuit chart of an installation', () => {
     )
     expect(text).toContain('Keller, Raum 2')
     expect(lastPage().match(/class="board"/g)).toHaveLength(2)
+    // For the tenant asking, which the queue of the renderer counts by.
+    expect(printedFor.at(-1)).toBe(north.id)
   })
 
   it('lists the circuits the way the board counts them, sections as headings', async () => {
