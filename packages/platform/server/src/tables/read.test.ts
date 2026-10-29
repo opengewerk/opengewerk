@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest'
 import { packedOf, type ProbeZipEntry, zipOf } from '../files/probe-zip.js'
 import { TableRefused } from './limits.js'
 import { tableFileOf, tableFileTooLarge } from './read.js'
+import { kindOfFormat } from './workbook.js'
 
 /**
  * A file somebody chose, read as the table it is. The workbooks are written
@@ -1200,5 +1201,39 @@ describe('the name of a file that was read', () => {
       { name: '', rows: [['Raum', 'Etage']] },
     ])
     expect(tableFileOf(bytesOf('Raum\n'), '').name).toBe('')
+  })
+})
+
+/**
+ * Two ways of reading a workbook that took the square of what it holds: a
+ * format of brackets that never close, and a long shared string that comes to
+ * nothing, made into the text of a cell again for every cell that points to
+ * it and counted for no limit. Each is read in the time it takes once.
+ */
+describe('a workbook built to be slow', () => {
+  it('reads a format of brackets that never close in the time it takes to read it once', () => {
+    const started = performance.now()
+
+    expect(kindOfFormat(`0${'['.repeat(100_000)}`)).toBe('plain')
+    expect(kindOfFormat('[Rot]0,00 "m"')).toBe('plain')
+    expect(kindOfFormat('"Stand: "dd.mm.yyyy')).toBe('day')
+    expect(performance.now() - started).toBeLessThan(1000)
+  })
+
+  it('reads a long shared string that comes to nothing once, however many cells point to it', () => {
+    // The one cell with something in it first, so that the empty ones below
+    // it count for no limit of rows.
+    const rows = Array.from(
+      { length: 20_000 },
+      (_, index) =>
+        `<row r="${String(index + 2)}"><c r="A${String(index + 2)}" t="s"><v>0</v></c></row>`,
+    )
+    const started = performance.now()
+    const read = rowsOf(`<row r="1"><c r="A1" t="s"><v>1</v></c></row>${rows.join('')}`, {
+      strings: [`<t>${' '.repeat(1_000_000)}</t>`, '<t>Raum</t>'],
+    })
+
+    expect(read).toEqual([['Raum']])
+    expect(performance.now() - started).toBeLessThan(2000)
   })
 })

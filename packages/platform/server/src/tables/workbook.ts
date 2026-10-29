@@ -1,4 +1,4 @@
-import { tableLimits, type TableSheet } from '@opengewerk/platform-domain'
+import { cellText, tableLimits, type TableSheet } from '@opengewerk/platform-domain'
 
 import { unzip, ZipRefused } from '../files/zip.js'
 import { SheetRows, tableBudget, TableRefused } from './limits.js'
@@ -195,7 +195,11 @@ function sharedStrings(xml: string): string[] {
     },
     close(name) {
       if (name === 'si') {
-        strings.push(unescaped(current))
+        // Made into the text of a cell once, here, and not again for every
+        // cell that points to it: a string of a megabyte that comes to
+        // nothing was otherwise read once for each of its cells, and an
+        // empty cell counts for no limit.
+        strings.push(cellText(unescaped(current)))
       } else if (name === 'rPh') {
         aid -= 1
       } else if (name === 't') {
@@ -231,14 +235,43 @@ type NumberKind = 'day' | 'share' | 'plain'
  * letter for day, month, year, hour or second is left, a share where a
  * percent sign is.
  */
-function kindOfFormat(code: string): NumberKind {
-  const bare = code
-    .replace(/"[^"]*"/g, '')
-    .replace(/\[[^\]]*\]/g, '')
+export function kindOfFormat(code: string): NumberKind {
+  const bare = withoutEnclosed(withoutEnclosed(code, '"', '"'), '[', ']')
     .replace(/\\./g, '')
     .replace(/[_*]./g, '')
 
   return /[dmyhs]/i.test(bare) ? 'day' : bare.includes('%') ? 'share' : 'plain'
+}
+
+/**
+ * The text with every part from `open` to the next `close` taken out, and an
+ * `open` that nothing closes left as it stands. Walked once: a pattern for it
+ * read from every unclosed `open` to the end, and a format of quotes or
+ * brackets that never close took the square of its length.
+ */
+function withoutEnclosed(text: string, open: string, close: string): string {
+  let kept = ''
+  let at = 0
+
+  while (at < text.length) {
+    const start = text.indexOf(open, at)
+
+    if (start < 0) {
+      return kept + text.slice(at)
+    }
+
+    const end = text.indexOf(close, start + 1)
+
+    if (end < 0) {
+      // Nothing closes it, and nothing after it is closed either.
+      return kept + text.slice(at)
+    }
+
+    kept += text.slice(at, start)
+    at = end + 1
+  }
+
+  return kept
 }
 
 /** For every format of a cell, by its number in the file, what a number under it is. */

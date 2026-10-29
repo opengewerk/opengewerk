@@ -22,6 +22,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   unterschreibt. Warum: Eine Position, die im selben Moment geschrieben wurde, kam in den Beleg, aber nicht in seinen
   Schnappschuss, und ein Storno konnte eine Rechnung treffen, auf die gerade eine Zahlung oder eine abziehende
   Folgerechnung kam. Beides widerspricht der Festschreibung, die die GoBD verlangen.
+- Die Leser für Tabellen im Fundament gehen ihre Eingabe einmal durch: CSV wird Wert für Wert gelesen (`readCsv`),
+  sodass die Grenzen beim Lesen gelten; Formate einer Arbeitsmappe, ihre Attribute und Deklarationen werden ohne
+  Muster gelesen, die von jeder Stelle aus neu probierten; ein geteilter Text wird einmal zum Text einer Zelle statt
+  für jede Zelle, die auf ihn zeigt. Der CSV-Export setzt auch Werte mit Komma oder Tabulator in Anführungszeichen.
+  Warum: Eine hochgeladene Tabelle konnte den gemeinsamen Prozess mit dem Quadrat ihrer Größe beschäftigen oder ein
+  Vielfaches ihrer Größe in den Speicher legen, und ein Programm, das das Komma oder den Tabulator für das
+  Trennzeichen hält, begann mitten in einem exportierten Wert eine Zelle, vor der kein Apostroph mehr stand.
 - Drei Wege gehen in einem Durchgang statt mit dem Quadrat ihrer Eingabe: der DATANORM-Leser findet die gefüllten
   Zeilen ohne ein Muster, das eine lange Zeile aus Leerzeichen von jeder Stelle aus neu probierte; der Stromkreisplan
   gruppiert Abschnitte und Stromkreise einmal, statt sie für jeden Verteiler und Abschnitt neu zu filtern; der Abruf

@@ -180,7 +180,11 @@ function textValue(text: string): string {
   // The apostrophe tells a spreadsheet that what follows is text.
   const safe = readAsFormula(text) ? `'${text}` : text
 
-  return /[;"\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
+  // In quotes as well where a comma or a tab stands in it, not only the
+  // semicolon this file is separated by: a program that takes the comma or
+  // the tab for the separator would otherwise begin a cell in the middle of
+  // the value, and with it a formula that stands there.
+  return /[;,\t"\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
 }
 
 // --- Workbook -------------------------------------------------------------------------------
