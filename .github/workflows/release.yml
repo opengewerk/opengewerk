@@ -176,6 +176,14 @@ jobs:
 
           sha256sum "$kit" > "$kit.sha256"
 
+          # The kit signed as well, keyless like the images and by the same
+          # run. It decides which images a start checks, against which
+          # identity, and its scripts run with Docker's rights; a checksum
+          # beside it on the same page only says that both were put there
+          # together. The bundle holds signature and certificate in one file
+          # for `cosign verify-blob`.
+          cosign sign-blob --yes --bundle "$kit.sigstore.json" "$kit"
+
       - name: Release schreiben
         env:
           GH_TOKEN: ${{ github.token }}
@@ -293,6 +301,15 @@ jobs:
             --certificate-identity https://github.com/opengewerk/opengewerk/.github/workflows/release.yml@refs/tags/v{version} \\
             --certificate-oidc-issuer https://token.actions.githubusercontent.com
           ```
+
+          Das Paket ist im selben Lauf genauso signiert. Vor dem Entpacken prüfen, mit `opengewerk-{version}.tar.gz.sigstore.json` daneben:
+
+          ```bash
+          cosign verify-blob opengewerk-{version}.tar.gz \\
+            --bundle opengewerk-{version}.tar.gz.sigstore.json \\
+            --certificate-identity https://github.com/opengewerk/opengewerk/.github/workflows/release.yml@refs/tags/v{version} \\
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          ```
           """
           open("notes.md", "w", encoding="utf-8").write(notes)
           PYTHON
@@ -302,7 +319,8 @@ jobs:
             --title "OpenGewerk $VERSION" \
             --notes-file notes.md \
             "opengewerk-$VERSION.tar.gz" \
-            "opengewerk-$VERSION.tar.gz.sha256"
+            "opengewerk-$VERSION.tar.gz.sha256" \
+            "opengewerk-$VERSION.tar.gz.sigstore.json"
 
   # The same images on Docker Hub, with their signatures, after the release
   # page exists (#281). Without the secrets the called workflow does nothing.

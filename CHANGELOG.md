@@ -50,6 +50,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   eines Geräts fragt je Zeile über einen Index, ob die Person sie angelegt hat, statt die Liste all ihrer Einträge zu
   durchsuchen. Warum: Alle drei laufen im gemeinsamen Prozess oder auf dem gemeinsamen Pool, und eine Eingabe eines
   Mandanten hielt so die Anfragen aller anderen über Sekunden bis Minuten auf.
+- Das Installationspaket ist ab dieser Fassung signiert wie die Abbilder, ohne Schlüssel über Sigstore, und die
+  Release-Seite trägt die Datei `opengewerk-<fassung>.tar.gz.sigstore.json` und den Befehl `cosign verify-blob` dazu.
+  Warum: Das Paket legt fest, welche Abbilder der Start prüft und gegen welchen Workflow, und seine Skripte laufen mit
+  den Rechten von Docker; die Prüfsumme daneben stammt von derselben Seite und sagt nur, dass beides zusammen
+  hochgeladen wurde.
 - Fristen und Grenzen im Fundament: der Pool der Datenbank wartet höchstens 30 Sekunden auf eine Verbindung, eine
   Anweisung hat zwei Minuten und eine untätige Transaktion fünf; eine Mail hat zwei Minuten bis zur Annahme; der Name
   eines Push-Abos drei Sekunden zum Auflösen; eine Person höchstens 20 Geräte für Push; `GET /sync/conflicts` liefert
