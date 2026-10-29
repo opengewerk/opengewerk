@@ -39,7 +39,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { documentFiles, documents, files } from '../database/schema/index.js'
 import { ciiInvoice } from '../documents/cii.js'
 import { contentOf, frozenContent } from '../documents/content.js'
-import { checkedCii, SchemaCheckError } from '../documents/cii-schema.js'
+import { checkedCii, CiiTooLargeError, SchemaCheckError } from '../documents/cii-schema.js'
 import { LegalGraphicError, legalPage, withLegalPages } from '../documents/legal-graphics.js'
 import {
   documentTitle,
@@ -89,7 +89,7 @@ export function eInvoiceXml(content: DocumentContent, profile: EInvoiceProfile):
 
     return checkedCii(ciiInvoice(content, profile))
   } catch (error) {
-    if (error instanceof RuleError) {
+    if (error instanceof RuleError || error instanceof CiiTooLargeError) {
       throw new UnprocessableEntityException(error.message)
     }
 

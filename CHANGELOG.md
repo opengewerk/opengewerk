@@ -67,6 +67,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `document_lines_within_count` (OG007); vorhandene Belege bleiben, wie sie sind. Warum: Wer Belege schreiben darf,
   konnte die gemeinsame Datenbank mit Positionen beliebiger Länge und Zahl füllen, und das Prüfprotokoll hält jede davon
   für immer.
+- Eine E-Rechnung über 10 MB wird nicht mehr geschrieben, sondern mit einem Satz abgelehnt (422), bevor ihr XML in den
+  Parser kommt (`largestCiiBytes`). Warum: Die Schemaprüfung kopiert jede E-Rechnung in den einen Parser des Prozesses
+  und baut einen Baum daraus, und ein Beleg mit langen Positionstexten, jedes `&` als `&amp;` geschrieben, kam auch
+  innerhalb der neuen Grenzen auf Hunderte Megabyte; der Prozess stand dann für jeden Mandanten.
 - Ein Monteur nimmt über den Abgleich keinen stornierten Auftrag mehr wieder auf, und eine Unterschrift landet nur
   noch unter einem Regiebericht im Entwurf, der an keinem anderen Beleg hängt. Die Prüfung `jobProgress` fragt den
   gespeicherten Status, `signatureRefusal` die Art und den Vorgänger, und die Migration `0090_sign_only_a_report`
