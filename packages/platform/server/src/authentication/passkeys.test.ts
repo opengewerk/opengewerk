@@ -820,16 +820,61 @@ describe('the passkeys of an account', () => {
   })
 
   /**
+   * A session says it carries a second factor, not which key gave it, so
+   * one opened with a deleted key would keep the leading role for as long as
+   * it is used. With the key every other session of the account ends, and
+   * what it had open in a tenant is closed; the one that deletes it goes on.
+   */
+  it('end every other session of the account, the one the key opened included', async () => {
+    const authenticator = await addPasskey(leader.email, 'Geht verloren')
+    const [passkey] = (await passkeyRows(userIds.get(leader.email) ?? '')).filter(
+      (row) => row.name === 'Geht verloren',
+    )
+    const opened = cookiesOf(await passkeySignIn(authenticator))
+
+    await instance.chooseTenant(opened, north.id)
+    await http().get('/probe/members').set('cookie', opened).expect(200)
+
+    const session = await http().get(`${authenticationPath}/get-session`).set('cookie', opened)
+    const openedId = (session.body as { session: { id: string } }).session.id
+    const here = await signIn(leader.email)
+
+    await http()
+      .delete(`/auth/passkeys/${passkey?.id ?? ''}`)
+      .set('cookie', here)
+      .set('origin', origin)
+      .expect(200)
+
+    await http().get('/probe/members').set('cookie', opened).expect(401)
+    await http().get('/auth/passkeys').set('cookie', here).expect(200)
+
+    const { rows } = await admin.query<{ ended: boolean; reason: string | null }>(
+      `select t.ended_at is not null as ended,
+              (select a.reason
+                 from audit_entries a
+                where a.table_name = 'tenant_sessions' and a.record_id = t.id
+                  and a.field = 'ended_at') as reason
+         from tenant_sessions t
+        where t.session_id = $1`,
+      [openedId],
+    )
+
+    expect(rows).toEqual([{ ended: true, reason: 'passkey.remove' }])
+  })
+
+  /**
    * A removal whose record broke off after the key was gone is finished by
-   * the same request again, and only then is the answer "not there".
+   * the same request again, the other sessions ended with it, and only then
+   * is the answer "not there".
    */
   it('finish a removal that broke off halfway when asked again', async () => {
     await addPasskey(worker.email, 'Halb gelöscht')
     const userId = userIds.get(worker.email) ?? ''
     const [passkey] = (await passkeyRows(userId)).filter((row) => row.name === 'Halb gelöscht')
     const id = passkey?.id ?? ''
+    const elsewhere = await signIn(worker.email)
 
-    // The key went, the tenants did not learn of it.
+    // The key went, the tenants did not learn of it, the sessions stayed.
     await admin.query('delete from auth_passkeys where id = $1', [id])
 
     const cookies = await signIn(worker.email)
@@ -839,6 +884,7 @@ describe('the passkeys of an account', () => {
       .set('cookie', cookies)
       .set('origin', origin)
       .expect(200)
+    await http().get('/auth/passkeys').set('cookie', elsewhere).expect(401)
 
     const { rows } = await admin.query<{ removed: boolean }>(
       'select removed_at is not null as removed from member_passkeys where passkey_id = $1',

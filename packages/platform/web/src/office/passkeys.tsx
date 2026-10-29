@@ -322,7 +322,7 @@ export function PasskeysPanel() {
           setRemoving(null)
         }}
       >
-        {`„${removing?.name ?? ''}“ meldet danach nicht mehr an. Das Passwort bleibt, und ein neuer Passkey lässt sich jederzeit wieder hinzufügen.`}
+        {`„${removing?.name ?? ''}“ meldet danach nicht mehr an, und alle anderen Geräte dieses Zugangs werden abgemeldet. Das Passwort bleibt, und ein neuer Passkey lässt sich jederzeit wieder hinzufügen.`}
       </Confirm>
     </Panel>
   )
