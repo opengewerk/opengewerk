@@ -965,7 +965,14 @@ describe('the rate limits', () => {
 
     others.push(limited)
 
-    for (const made of ['ausgedacht-1', 'ausgedacht-2', 'sign-in/ausgedacht']) {
+    for (const made of [
+      'ausgedacht-1',
+      'ausgedacht-2',
+      'sign-in/ausgedacht',
+      // The two routes with a value in their path, with values made up.
+      'reset-password/ausgedacht-3',
+      'callback/ausgedacht-4',
+    ]) {
       await limited
         .http()
         .post(`${authenticationPath}/${made}`)

@@ -30,7 +30,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Vielfaches ihrer Größe in den Speicher legen, und ein Programm, das das Komma oder den Tabulator für das
   Trennzeichen hält, begann mitten in einem exportierten Wert eine Zelle, vor der kein Apostroph mehr stand.
 - Die Anmeldung reicht nur noch Pfade an better-auth weiter, für die es eine Route gibt; jeder andere unter `/api/auth`
-  bekommt vorher eine 404. Die Route für das Logo liest ihren Body selbst, nach den Guards und ohne ihn zu entpacken,
+  bekommt vorher eine 404, auch die beiden Routen mit einem Wert im Pfad, die hier niemand braucht. Die Route für das Logo liest ihren Body selbst, nach den Guards und ohne ihn zu entpacken,
   statt eines Parsers davor. Warum: Die Ratengrenzen von better-auth legten für jeden ausgedachten Pfad eine Zeile in
   der Datenbank an, von jedem und ohne Sitzung, und der Parser vor dem Logo las und entpackte den Body jeder Anfrage
   mit einem Bildtyp, bevor gefragt war, wer sie schickt.

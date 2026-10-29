@@ -300,18 +300,15 @@ describe('the routes of better-auth', () => {
       })
       .sort()
 
-    // The two with a parameter cannot be switched off by name and answer
-    // without a provider of another kind or a link of their own: there is
-    // none here.
+    // The two with a parameter, which better-auth cannot switch off by name,
+    // are on the list of the switched off as well: the handler in front of it
+    // answers them (`authenticationHandler`).
     expect(reachable).toEqual([
-      'GET /callback/:id',
       'GET /error',
       'GET /get-session',
       'GET /ok',
       'GET /passkey/generate-authenticate-options',
       'GET /passkey/generate-register-options',
-      'GET /reset-password/:token',
-      'POST /callback/:id',
       'POST /change-password',
       'POST /get-session',
       'POST /passkey/verify-authentication',

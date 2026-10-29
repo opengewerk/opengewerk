@@ -167,6 +167,15 @@ export const disabledPaths: readonly string[] = [
   '/refresh-token',
   '/two-factor/send-otp',
   '/two-factor/verify-otp',
+  // The two routes with a part of the path as a value. better-auth cannot
+  // switch them off by name; `authenticationHandler` answers them in front of
+  // it, since `routes` leaves out every path here. The link to a new password
+  // goes to the page of the application with the token, which sends it in the
+  // body of `/reset-password`, and there is no sign in through another
+  // provider to come back from. Reachable, every value made up for them was a
+  // row of the rate limits.
+  '/reset-password/:token',
+  '/callback/:id',
 ]
 
 /** Where a sign in with a passkey happens, the one route that makes a passkey session. */
