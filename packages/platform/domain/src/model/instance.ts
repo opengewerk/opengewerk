@@ -28,6 +28,42 @@ export interface InstanceSettingsView {
   readonly backupTime: string
   /** When `MAIL_INTERNAL_HOSTS` was taken over from the `.env`, ISO 8601, or null. */
   readonly takenOverAt: string | null
+  /**
+   * What one tenant may keep in the file store, in bytes, or null for no
+   * limit (B9 of the security audit).
+   */
+  readonly tenantStorageBytes: number | null
+  /**
+   * Whether whoever leads a tenant may make further tenants of their own, at
+   * most `ownTenantsPerAccount` each (N11 of the security audit).
+   */
+  readonly ownTenantsAllowed: boolean
+}
+
+/** The most tenants one account makes for itself (N11 of the security audit, Moritz, 29.10.2026). */
+export const ownTenantsPerAccount = 5
+
+/** The largest store budget of a tenant the screen takes, in gigabytes: a petabyte. */
+const largestTenantStorage = 1_000_000
+
+/**
+ * Why a store budget of a tenant, as typed in gigabytes, is not one, or null
+ * when it is: a whole number of gigabytes, or nothing for no limit.
+ */
+export function tenantStorageProblem(gigabytes: string): string | null {
+  const typed = gigabytes.trim()
+
+  if (typed === '') {
+    return null
+  }
+
+  if (!/^\d+$/.test(typed) || Number(typed) < 1) {
+    return 'Eine ganze Zahl von Gigabyte, mindestens 1, oder nichts für ohne Grenze.'
+  }
+
+  return Number(typed) > largestTenantStorage
+    ? `Höchstens ${largestTenantStorage.toLocaleString('de-DE')} GB.`
+    : null
 }
 
 /**
@@ -154,6 +190,8 @@ export interface InstanceTenantView {
   readonly members: number
   /** Addresses invited to lead it that have not taken the invitation up yet. */
   readonly invitedLeads: readonly string[]
+  /** What it keeps in the file store, in bytes (B9 of the security audit). */
+  readonly storedBytes: number
 }
 
 /** A page of the log of the instance, in the shape of the log of a tenant. */

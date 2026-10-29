@@ -232,6 +232,7 @@ const tenants: readonly InstanceTenantView[] = [
     leads: [{ name: 'Moritz Kohm', email: 'moritz@kohm.example.de' }],
     members: 4,
     invitedLeads: [],
+    storedBytes: 0,
   },
 ]
 
@@ -252,7 +253,7 @@ describe('the businesses on the instance in this application', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((cell) => cell.textContent),
-    ).toEqual(['Betrieb', 'Angelegt', 'Inhaber', 'Zugänge'])
+    ).toEqual(['Betrieb', 'Angelegt', 'Inhaber', 'Zugänge', 'Belegt'])
 
     await user.click(screen.getByRole('button', { name: 'Betrieb anlegen' }))
 
@@ -291,6 +292,8 @@ const settings: InstanceSettingsView = {
   mailInternalHosts: ['mail.intern.example'],
   backupTime: '02:30',
   takenOverAt: null,
+  tenantStorageBytes: null,
+  ownTenantsAllowed: true,
 }
 
 describe('the settings of the instance in this application', () => {

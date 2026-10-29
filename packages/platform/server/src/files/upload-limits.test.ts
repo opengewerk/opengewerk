@@ -3,6 +3,7 @@ import type { TenantId } from '@opengewerk/platform-domain'
 import { describe, expect, it } from 'vitest'
 
 import type { FileStorage } from './store.js'
+import type { TenantStorage } from './tenant-storage.js'
 import { type UploadAllowance, UploadLimits } from './upload-limits.js'
 
 /**
@@ -159,6 +160,41 @@ describe('the limits of storing', () => {
     expect(await answer(limits, north, 'mia', 1)).toBe(200)
     expect(await answer(limits, north, 'mia', 1)).toBe(200)
     expect(await answer(limits, north, 'mia', 1)).toBe(429)
+  })
+
+  /**
+   * The budget of a tenant in the store (B9 of the security audit): what it
+   * keeps and what it adds against what the instance gives it, refusing that
+   * tenant alone, and nothing asked while there is no budget.
+   */
+  it('refuse a tenant at its budget in the store, and nobody else', async () => {
+    const kept = new Map<TenantId, number>([
+      [north, 4000],
+      [south, 0],
+    ])
+    const asked: TenantId[] = []
+    let budget: number | null = 5000
+    const storage: TenantStorage = {
+      budget: () => budget,
+      stored: (tenantId) => {
+        asked.push(tenantId)
+
+        return Promise.resolve(kept.get(tenantId) ?? 0)
+      },
+    }
+    const limits = new UploadLimits(volume(null), allowance, () => 0, storage)
+
+    expect(await answer(limits, north, 'mia', 1000)).toBe(200)
+    expect(await answer(limits, north, 'otto', 1001)).toBe(507)
+    expect(await answer(limits, south, 'sven', 1000)).toBe(200)
+
+    budget = null
+    asked.length = 0
+    kept.set(north, 1_000_000)
+
+    // Far over what the budget was, within what the hour still allows the tenant.
+    expect(await answer(limits, north, 'lea', 500)).toBe(200)
+    expect(asked).toEqual([])
   })
 
   it('keep the room free that they are told to, and refuse what would go below it', async () => {

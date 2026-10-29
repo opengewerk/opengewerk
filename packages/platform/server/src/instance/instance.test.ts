@@ -1,7 +1,7 @@
 import { tmpdir } from 'node:os'
 import { PassThrough, Writable } from 'node:stream'
 
-import { BadRequestException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException } from '@nestjs/common'
 import type {
   InstanceLogPage,
   InstanceSettingsView,
@@ -320,7 +320,50 @@ describe('the settings of the instance', () => {
       mailInternalHosts: [],
       backupTime: '02:30',
       takenOverAt: null,
+      tenantStorageBytes: null,
+      ownTenantsAllowed: true,
     })
+  })
+
+  /**
+   * The budget of a tenant in the store and the switch for tenants of one's
+   * own (B9 and N11 of the security audit): no budget and the switch on until
+   * somebody changes them, a budget in whole bytes and nothing else.
+   */
+  it('take a budget of a tenant in bytes or none, and the switch for tenants of one’s own', async () => {
+    try {
+      const saved = await send('put', '/instance/settings', lea, {
+        tenantStorageBytes: 50_000_000_000,
+        ownTenantsAllowed: false,
+      }).expect(200)
+
+      expect(saved.body as InstanceSettingsView).toMatchObject({
+        tenantStorageBytes: 50_000_000_000,
+        ownTenantsAllowed: false,
+      })
+
+      for (const wrong of [
+        { tenantStorageBytes: 0 },
+        { tenantStorageBytes: -1 },
+        { tenantStorageBytes: 1.5 },
+        { tenantStorageBytes: '50' },
+        { tenantStorageBytes: 2_000_000_000_000_000 },
+        { ownTenantsAllowed: 'nein' },
+      ]) {
+        await send('put', '/instance/settings', lea, wrong).expect(400)
+      }
+    } finally {
+      // What the tests after this one start from, whatever happened here.
+      const back = await send('put', '/instance/settings', lea, {
+        tenantStorageBytes: null,
+        ownTenantsAllowed: true,
+      }).expect(200)
+
+      expect(back.body as InstanceSettingsView).toMatchObject({
+        tenantStorageBytes: null,
+        ownTenantsAllowed: true,
+      })
+    }
   })
 
   it('came with the table, and the log of the instance says so', async () => {
@@ -400,6 +443,8 @@ describe('the settings an application keeps in memory', () => {
       mailInternalHosts: ['mail.lan'],
       backupTime: '02:30',
       takenOverAt: null,
+      tenantStorageBytes: null,
+      ownTenantsAllowed: true,
     })
 
     await fixed.refresh()
@@ -772,6 +817,32 @@ describe('a further tenant', () => {
       'leads',
       'members',
       'name',
+      'storedBytes',
+    ])
+  })
+
+  /**
+   * What each keeps in the file store (B9 of the security audit): the sum of
+   * its files and nothing of what they are, each tenant its own.
+   */
+  it('is listed with what each keeps in the file store', async () => {
+    for (const [tenantId, sha, size] of [
+      [north, 'a', 1_500_000],
+      [north, 'b', 500_000],
+      [branch, 'a', 1_500_000],
+    ] as const) {
+      await admin.query(
+        `insert into files (tenant_id, sha256, size_bytes, media_type) values ($1, $2, $3, 'image/jpeg')`,
+        [tenantId, sha.repeat(64), size],
+      )
+    }
+
+    const seen = await tenantsAsSeen()
+
+    expect(seen.map((tenant) => [tenant.name, tenant.storedBytes])).toEqual([
+      ['Mandant Nord', 2_000_000],
+      ['Mandant Zweig', 1_500_000],
+      ['Mandant Süd', 0],
     ])
   })
 
@@ -932,5 +1003,68 @@ describe('a further tenant from the command line', () => {
       'Mandant West',
       'Mandant Zweig',
     ])
+  })
+})
+
+/**
+ * Tenants of one's own are bounded (N11 of the security audit): whoever runs
+ * the instance may switch them off, and nobody makes more than five, counted
+ * from the log of the instance and one account at a time.
+ */
+describe('tenants of one’s own', () => {
+  const ownOf = async (userId: string) =>
+    Number(
+      (
+        await admin.query<{ made: string }>(
+          `select count(distinct record_id) as made from instance_changes
+            where table_name = 'tenants' and operation = 'insert'
+              and user_id = $1 and reason = 'tenant.create'`,
+          [userId],
+        )
+      ).rows[0]?.made ?? 0,
+    )
+
+  it('are refused while whoever runs the instance has switched them off', async () => {
+    const before = await ownOf(idOf(otto))
+
+    await send('put', '/instance/settings', lea, { ownTenantsAllowed: false }).expect(200)
+
+    try {
+      const refused = createOwnTenant(database, probeAccess, idOf(otto), 'Mandant Aus')
+
+      await expect(refused).rejects.toBeInstanceOf(ForbiddenException)
+      await expect(refused).rejects.toThrow(sentences.ownTenantsOff)
+      expect(await ownOf(idOf(otto))).toBe(before)
+    } finally {
+      await send('put', '/instance/settings', lea, { ownTenantsAllowed: true }).expect(200)
+    }
+  })
+
+  it('stop at five for one account, also when two are asked for at once, and not for another', async () => {
+    while ((await ownOf(idOf(otto))) < 4) {
+      await createOwnTenant(
+        database,
+        probeAccess,
+        idOf(otto),
+        `Mandant ${String(await ownOf(idOf(otto)))}`,
+      )
+    }
+
+    const both = await Promise.allSettled([
+      createOwnTenant(database, probeAccess, idOf(otto), 'Mandant Fünf'),
+      createOwnTenant(database, probeAccess, idOf(otto), 'Mandant Sechs'),
+    ])
+
+    expect(both.map((one) => one.status).sort()).toEqual(['fulfilled', 'rejected'])
+    expect(await ownOf(idOf(otto))).toBe(5)
+
+    const sixth = createOwnTenant(database, probeAccess, idOf(otto), 'Mandant Sieben')
+
+    await expect(sixth).rejects.toBeInstanceOf(ForbiddenException)
+    await expect(sixth).rejects.toThrow(sentences.ownTenantsLimit)
+    expect(await ownOf(idOf(otto))).toBe(5)
+
+    // Another account counts its own.
+    await createOwnTenant(database, probeAccess, idOf(mia), 'Mandant von Mia')
   })
 })

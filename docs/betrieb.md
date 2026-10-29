@@ -295,8 +295,8 @@ Zugang, der Link zu einem neuen Passwort und der Hinweis auf einen neuen
 Passkey: ein Zugang gehört der Instanz und keinem Betrieb, und wer einen Betrieb
 führt, soll solche E-Mails nicht über einen eigenen Mailserver lesen können.
 Ohne ihn geht keine davon hinaus. Aus einem Betrieb sieht der
-Bereich nur seinen Namen, den Tag der Anlage, seine Inhaber und die Zahl der
-Zugänge, nichts, was in ihm steht. Wer einen Betrieb führt, liest die Liste
+Bereich nur seinen Namen, den Tag der Anlage, seine Inhaber, die Zahl der
+Zugänge und wie viel er im Dateispeicher belegt, nichts, was in ihm steht. Wer einen Betrieb führt, liest die Liste
 aus den Rollen des Betriebs: Inhaber ist dort, wer eine Rolle hält, die den
 Betrieb führt, wie immer sie heißt.
 
@@ -353,6 +353,20 @@ Ein neuer Betrieb startet leer wie nach der Ersteinrichtung. Angelegt wird er
 von der Funktion `create_tenant` in der Datenbank, denn die Anwendungsrolle
 darf in `tenants` keine Zeile schreiben; für den Namen gilt dieselbe Regel wie
 bei der Ersteinrichtung und unter "Briefkopf".
+
+**Grenzen für einen Betrieb** stehen im Bereich der Instanz unter
+"Einstellungen", Karte "Betriebe". "Speicher je Betrieb" begrenzt, was ein
+Betrieb im Dateispeicher ablegt, alles zusammen, in GB; leer heißt ohne Grenze,
+und so beginnt jede Instanz. Ein Betrieb an seiner Grenze bekommt beim
+Hochladen eine Absage, alle anderen legen weiter ab. Wie viel jeder belegt,
+steht in der Liste der Betriebe. Arbeiten mehrere Betriebe auf der Instanz,
+hält eine Grenze einen davon ab, den Speicher für alle zu füllen; ohne sie
+schützt nur die freie Reserve von 2 GB, die dann für alle zugleich gilt.
+"Inhaber dürfen weitere Betriebe anlegen" ist an, bis der Betreiber den Haken
+nimmt; ein Konto legt höchstens fünf eigene Betriebe an, gezählt aus dem
+Protokoll der Instanz. Ohne den Haken legt einen weiteren Betrieb nur noch der
+Betreiber an. Jeder Betrieb verlängert die Durchgänge der Hintergrundläufe und
+den Start der Instanz, und gelöscht wird keiner.
 
 **Gewechselt wird ohne neue Anmeldung** (#242), in der Kopfleiste, im Menü am
 Telefon und unter "Konto", sobald eine Person mehr als einen Betrieb hat. Der

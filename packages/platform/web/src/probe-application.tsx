@@ -298,6 +298,14 @@ export function probeApplication(over: Partial<InterfaceApplication> = {}): Inte
           mailNoWayIn: 'So kommt kein Mandant in das Netz dahinter.',
           accountMail: 'Mails an ein Konto gehen über diesen Server und über den keines Mandanten.',
           accountMailMissing: 'Ohne ihn bekommt niemand einen Link zu einem neuen Passwort.',
+          tenantLimits: {
+            title: 'Mandanten',
+            what: 'Wie viel ein Mandant im Dateispeicher ablegen darf.',
+            storageLabel: 'Speicher je Mandant',
+            storageHint: 'In GB. Leer heißt ohne Grenze.',
+            ownLabel: 'Leitungen dürfen weitere Mandanten anlegen',
+            ownHint: 'Höchstens fünf je Konto.',
+          },
         },
         legal: {
           forAll: 'Er gilt für alle Mandanten.',

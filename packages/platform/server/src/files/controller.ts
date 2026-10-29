@@ -23,9 +23,12 @@ import { CurrentIdentity, type RequestIdentity } from '../api/identity.js'
 import type { AccessRules } from '../authentication/access.js'
 import { Database } from '../database/database.js'
 import { files } from '../database/schema/files.js'
+import { INSTANCE_SETTINGS } from '../instance/instance.controller.js'
+import type { InstanceSettingsCache } from '../instance/settings.js'
 import { storedMediaType } from './media-type.js'
 import { fileRowFor } from './rows.js'
 import { type FileStorage, noFileStorage } from './store.js'
+import { tenantStorage } from './tenant-storage.js'
 import { type UploadAllowance, uploadAllowance, UploadLimits } from './upload-limits.js'
 
 /**
@@ -186,7 +189,17 @@ export function fileParts<Right extends string>(
       { provide: FILE_STORE, useValue: store },
       {
         provide: UploadLimits,
-        useValue: parts.limits ?? new UploadLimits(store, parts.allowance ?? uploadAllowance),
+        // With the budget of a tenant from the settings of the instance (B9),
+        // where the module has them.
+        useFactory: (database: Database, settings: InstanceSettingsCache | null) =>
+          parts.limits ??
+          new UploadLimits(
+            store,
+            parts.allowance ?? uploadAllowance,
+            Date.now,
+            tenantStorage(database, settings),
+          ),
+        inject: [Database, { token: INSTANCE_SETTINGS, optional: true }],
       },
     ],
   }

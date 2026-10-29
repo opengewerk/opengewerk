@@ -2,6 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common'
 import type { TenantId } from '@opengewerk/platform-domain'
 
 import type { FileStorage } from './store.js'
+import type { TenantStorage } from './tenant-storage.js'
 
 /**
  * How much the routes that take files from people store within an hour, and
@@ -171,6 +172,8 @@ export class UploadLimits {
     private readonly store: FileStorage,
     private readonly allowance: UploadAllowance = uploadAllowance,
     private readonly now: () => number = Date.now,
+    /** The budget of a tenant in the store (B9); without it, there is none. */
+    private readonly storage: TenantStorage | null = null,
   ) {
     this.accounts = new HourlyBytes(allowance.accountBytesPerHour)
     this.tenants = new HourlyBytes(allowance.tenantBytesPerHour)
@@ -232,6 +235,29 @@ export class UploadLimits {
             'Auf dem Speicher für Dateien ist kaum noch Platz frei. Damit Datenbank, Drucke und ' +
             'Sicherung weiterlaufen, wird keine Datei mehr abgelegt, bis auf dem Server Platz ' +
             'geschaffen ist.',
+          error: 'Insufficient Storage',
+        },
+        HttpStatus.INSUFFICIENT_STORAGE,
+      )
+    }
+
+    // What the tenant keeps, against the budget the instance gives it (B9).
+    // Before the windows, since it waits for the database. Two uploads at
+    // once can both pass it, by no more than the windows let through.
+    const budget = this.storage?.budget() ?? null
+
+    if (
+      this.storage &&
+      budget !== null &&
+      (await this.storage.stored(uploader.tenantId)) + sizeBytes > budget
+    ) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.INSUFFICIENT_STORAGE,
+          message:
+            'Der Speicher für Dateien, den die Instanz hier zuteilt, ist aufgebraucht. Weitere ' +
+            'Dateien lassen sich erst ablegen, wenn die Grenze in den Einstellungen der Instanz ' +
+            'angehoben wird.',
           error: 'Insufficient Storage',
         },
         HttpStatus.INSUFFICIENT_STORAGE,

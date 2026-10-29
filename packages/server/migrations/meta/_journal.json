@@ -659,6 +659,13 @@
       "when": 1793304796245,
       "tag": "0093_second_factor_changes",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1793310427447,
+      "tag": "0094_tenant_limits",
+      "breakpoints": true
     }
   ]
 }

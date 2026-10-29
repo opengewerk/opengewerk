@@ -326,6 +326,15 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
       return raw.slice(0, 5)
     }
 
+    // The budget of a tenant in the store, kept in bytes and set in gigabytes.
+    if (field === 'tenant_storage_bytes' && /^\d+$/.test(raw)) {
+      return `${(Number(raw) / 1_000_000_000).toLocaleString('de-DE')} GB`
+    }
+
+    if (field === 'own_tenants_allowed') {
+      return raw === 'true' ? 'erlaubt' : raw === 'false' ? 'abgeschaltet' : raw
+    }
+
     if (language.isPersonField(field)) {
       return held(page.people, raw) ?? nobody
     }

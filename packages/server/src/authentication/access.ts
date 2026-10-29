@@ -87,6 +87,10 @@ export const access: AccessRules<Permission> = {
     // runs an instance is its "Betreiber" here, and a tenant a "Betrieb" with
     // an "Inhaber"; another application has other words for all three.
     instance: {
+      ownTenantsOff: 'Weitere Betriebe legt auf dieser Instanz nur der Betreiber an.',
+      ownTenantsLimit:
+        'Mehr als fünf eigene Betriebe legt ein Konto nicht an. Einen weiteren legt der ' +
+        'Betreiber der Instanz an.',
       alreadyOperator: 'Dieses Konto ist schon Betreiber.',
       notAnOperator: 'Dieses Konto ist kein Betreiber.',
       notOneself: 'Sich selbst entfernt kein Betreiber; das macht ein anderer.',

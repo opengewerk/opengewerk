@@ -636,6 +636,8 @@ function foundationInstanceTables(
         signing_certificate: 'Signatur der PDFs, Zertifikat',
         signing_since: 'Signatur der PDFs, Schlüssel seit',
         signing_earlier: 'Signatur der PDFs, frühere Zertifikate',
+        tenant_storage_bytes: `Dateispeicher je ${words.tenant}`,
+        own_tenants_allowed: `${words.tenant} anlegen, durch die Leitung`,
       },
     },
     instance_operators: { label: words.operator },

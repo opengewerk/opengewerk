@@ -56,6 +56,8 @@ export function instanceSettings(): Promise<InstanceSettingsView> {
 export function saveInstanceSettings(change: {
   readonly mailInternalHosts?: readonly string[]
   readonly backupTime?: string
+  readonly tenantStorageBytes?: number | null
+  readonly ownTenantsAllowed?: boolean
 }): Promise<InstanceSettingsView> {
   return request<InstanceSettingsView>('/instance/settings', {
     method: 'PUT',

@@ -9,7 +9,7 @@ import { Field } from '../components/field.js'
 import { Panel, TablePanel } from '../components/panel.js'
 import type { TableCard } from '../components/panel.js'
 import { Cell, Column } from '../components/table.js'
-import { date } from '../format.js'
+import { date, fileSize } from '../format.js'
 import { Reconfirmation } from '../office/passkeys.js'
 import { SettingsText } from '../office/settings.js'
 import { createTenantFor, instanceTenants } from '../session/instance.js'
@@ -56,7 +56,7 @@ export function InstanceTenantsScreen() {
       <div className="flex flex-col gap-2 text-[15px]">
         <span className="block font-semibold [overflow-wrap:anywhere]">{tenant.name}</span>
         <span className="text-[13px] text-ink-muted">
-          {`Angelegt am ${date(tenant.createdAt)} · ${String(tenant.members)} ${tenant.members === 1 ? 'Zugang' : 'Zugänge'}`}
+          {`Angelegt am ${date(tenant.createdAt)} · ${String(tenant.members)} ${tenant.members === 1 ? 'Zugang' : 'Zugänge'} · ${fileSize(tenant.storedBytes)} belegt`}
         </span>
         <div>
           <Leads tenant={tenant} me={me} inBox />
@@ -127,6 +127,9 @@ export function InstanceTenantsScreen() {
               <Column numeric className="w-[80px]">
                 Zugänge
               </Column>
+              <Column numeric className="w-[100px]">
+                Belegt
+              </Column>
             </tr>
           </thead>
           <tbody>
@@ -138,6 +141,7 @@ export function InstanceTenantsScreen() {
                   <Leads tenant={tenant} me={me} />
                 </Cell>
                 <Cell numeric>{tenant.members}</Cell>
+                <Cell numeric>{fileSize(tenant.storedBytes)}</Cell>
               </tr>
             ))}
           </tbody>
