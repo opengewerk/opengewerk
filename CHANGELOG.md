@@ -14,6 +14,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   seinen Postausgang zusätzlich in Teile von höchstens 1000. Warum: Bestätigte während eines Abrufs eine Transaktion
   Zeilen in zwei Tabellen, sah der Abruf nur die höhere Nummer, und das Gerät bekam die niedrigere nie; und acht
   Megabyte der kleinsten Vorgänge waren Zehntausende Zeilen in einer Transaktion, die den Zähler des Mandanten hält.
+- Die Cookies der Anmeldung heißen `__Host-better-auth.*` statt `__Secure-better-auth.*`. **Das Update meldet einmal
+  jedes Gerät ab**, danach meldet sich jeder neu an. Warum: Ein Cookie mit `__Secure-` darf auch eine andere
+  Subdomain derselben Domain setzen, etwa eine Firmenwebsite neben der Instanz, und mit dem Token einer eigenen
+  Sitzung davor gesetzt las die Anmeldung dieses statt des eigenen. Ein Cookie mit `__Host-` behält der Browser nur
+  für genau den Host, der es gesetzt hat.
 - Ein Beleg wird beim Ausstellen, beim Stornieren und beim Schreiben seiner Positionen gesperrt. Das Ausstellen liest
   den Beleg mit einer Zeilensperre, bevor es festhält, was in den Schnappschuss kommt, und die Vorgänger, die es
   abzieht, mit einer geteilten Sperre; das Stornieren sperrt die Rechnung vor seinen Prüfungen; die Routen der

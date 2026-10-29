@@ -64,6 +64,13 @@ const argon2Parameters = {
  */
 export const authenticationPath = '/api/auth'
 
+/**
+ * What the name of every cookie of the sign in begins with, the session's
+ * `__Host-better-auth.session_token`. A new name ends every session an
+ * instance holds, once, at the update that brings it.
+ */
+export const sessionCookiePrefix = '__Host-better-auth'
+
 export interface AuthenticationOptions {
   /**
    * The application, for its name: what an authenticator app lists the account
@@ -331,7 +338,7 @@ export function createAuthentication({
     // QR labels print as well (#551). Without it better-auth warned at every
     // start and took the address from each request, behind the web server in
     // front of it the inner one. Nothing that signs in depends on it here: the
-    // cookies are named by `useSecureCookies`, a passkey by its relying party
+    // cookies are named by `cookiePrefix`, a passkey by its relying party
     // below, and a request from any other trusted origin is let in by the list
     // as before.
     ...(trustedOrigins[0] ? { baseURL: trustedOrigins[0] } : {}),
@@ -667,11 +674,22 @@ export function createAuthentication({
     // accounts of other providers and the codes by mail, none set up.
     disabledPaths: [...disabledPaths],
     advanced: {
-      // Cookies are already HttpOnly and SameSite=Lax by default; this is the
-      // one that has to be said out loud, because an instance always runs
+      // Cookies are already HttpOnly and SameSite=Lax by default; `Secure` is
+      // the one that has to be there as well, because an instance always runs
       // behind TLS and a cookie that would travel without it is a cookie that
       // can be taken off the wire.
-      useSecureCookies: true,
+      //
+      // Every cookie is named `__Host-`, the session above all, which brings
+      // `Secure` and the path `/` without a domain (better-call sets both for
+      // such a name, and a test holds them): a browser keeps such a cookie
+      // for this very host alone, so a page on another subdomain of the same
+      // domain cannot set one beside it. Under the `__Secure-` of
+      // `useSecureCookies` it could, with the token of a session of its own,
+      // and better-auth reads the first cookie of a name it is sent.
+      // better-auth puts `__Secure-` in front of any name it is given, hence
+      // the switch off and the prefix spelt out instead.
+      useSecureCookies: false,
+      cookiePrefix: sessionCookiePrefix,
       // better-auth's own check of the origin on its routes, written out so
       // that nobody turns it off by accident. The routes of ours have theirs
       // in `SameOriginGuard`, against the same list.
