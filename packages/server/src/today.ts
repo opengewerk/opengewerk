@@ -1,5 +1,8 @@
 import type { IsoDate } from '@opengewerk/domain'
 
+/** Made once: making a format costs far more than using it. */
+const dayInGermany = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' })
+
 /**
  * Today as a date, in the time zone of the businesses this is written for.
  * Not the server's clock read as UTC: between midnight and two in the morning
@@ -7,7 +10,7 @@ import type { IsoDate } from '@opengewerk/domain'
  * different document.
  */
 export function todayInGermany(now: Date = new Date()): IsoDate {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin' }).format(now)
+  return dayInGermany.format(now)
 }
 
 /**

@@ -17,6 +17,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   unterschreibt. Warum: Eine Position, die im selben Moment geschrieben wurde, kam in den Beleg, aber nicht in seinen
   Schnappschuss, und ein Storno konnte eine Rechnung treffen, auf die gerade eine Zahlung oder eine abziehende
   Folgerechnung kam. Beides widerspricht der Festschreibung, die die GoBD verlangen.
+- Drei Wege gehen in einem Durchgang statt mit dem Quadrat ihrer Eingabe: der DATANORM-Leser findet die gefüllten
+  Zeilen ohne ein Muster, das eine lange Zeile aus Leerzeichen von jeder Stelle aus neu probierte; der Stromkreisplan
+  gruppiert Abschnitte und Stromkreise einmal, statt sie für jeden Verteiler und Abschnitt neu zu filtern; der Abruf
+  eines Geräts fragt je Zeile über einen Index, ob die Person sie angelegt hat, statt die Liste all ihrer Einträge zu
+  durchsuchen. Warum: Alle drei laufen im gemeinsamen Prozess oder auf dem gemeinsamen Pool, und eine Eingabe eines
+  Mandanten hielt so die Anfragen aller anderen über Sekunden bis Minuten auf.
 - Ablehnungen von Mailserver und Push-Dienst verraten nicht mehr, was der Resolver der Instanz geantwortet hat: ein
   Name, der nach innen zeigt, wird wie ein Name abgelehnt, der sich nicht auflösen lässt, beim Mailserver mit demselben
   Satz und derselben Art von Fehler (`unreachableName`, `EDNS`), beim Push mit `endpointNameRefused`, und keine

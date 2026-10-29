@@ -31,15 +31,44 @@ export interface ReadDelivery {
 
 const order: Readonly<Record<string, number>> = { A: 0, B: 0, D: 0, T: 0, P: 1, S: 2, R: 3 }
 
-/** A line with anything but blanks on it. */
-const filledLine = /[^\r\n]*\S[^\r\n]*/g
+/** Whether a line has anything but blanks on it. */
+const filled = /\S/
+
+/**
+ * The lines with anything but blanks on them, in order, at most `most`.
+ *
+ * Walked line by line. The pattern this replaces, a free run on either side of
+ * the one character that is not blank, tried a long blank line again from
+ * every position it could start at, and the time grew with the square of the
+ * line: a file of one long line of blanks held the process for minutes.
+ */
+export function filledLines(text: string, most = Number.POSITIVE_INFINITY): string[] {
+  const lines: string[] = []
+  let start = 0
+
+  while (start <= text.length && lines.length < most) {
+    let end = start
+
+    while (end < text.length && text.charCodeAt(end) !== 0x0a && text.charCodeAt(end) !== 0x0d) {
+      end += 1
+    }
+
+    const line = text.slice(start, end)
+
+    if (filled.test(line)) {
+      lines.push(line)
+    }
+
+    start = end + 1
+  }
+
+  return lines
+}
 
 /** The first letter after the header, which says what the file holds. */
 function kindOf(text: string): number | null {
   // The first two lines, found without splitting a whole catalogue.
-  const found = new RegExp(filledLine)
-  const head = found.exec(text)?.[0] ?? ''
-  const first = found.exec(text)?.[0] ?? ''
+  const [head = '', first = ''] = filledLines(text, 2)
 
   // The letter, then a blank or a separator: a readme that begins with "Viel
   // Erfolg" is no header.
@@ -81,7 +110,7 @@ export function readDelivery(
     files: read.map((file) => ({
       name: file.name,
       charset: file.charset,
-      lines: file.text.match(filledLine)?.length ?? 0,
+      lines: filledLines(file.text).length,
     })),
     skipped,
   }
