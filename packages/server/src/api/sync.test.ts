@@ -1824,7 +1824,7 @@ describe('the progress of a job from the site', () => {
 
   async function aCancelledJob() {
     const job = await aJob()
-    const cancelled = await push(office(), 'rechner-buero', [
+    const cancelled = await push(office(), 'rechner-zentrale', [
       change({
         entity: 'jobs',
         recordId: job.id,
@@ -1870,7 +1870,7 @@ describe('the progress of a job from the site', () => {
   it('lets the office take a cancelled job up again', async () => {
     const job = await aCancelledJob()
 
-    const answer = await push(office(), 'rechner-buero', [
+    const answer = await push(office(), 'rechner-zentrale', [
       change({
         entity: 'jobs',
         recordId: job.id,

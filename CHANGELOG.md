@@ -17,6 +17,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   unterschreibt. Warum: Eine Position, die im selben Moment geschrieben wurde, kam in den Beleg, aber nicht in seinen
   Schnappschuss, und ein Storno konnte eine Rechnung treffen, auf die gerade eine Zahlung oder eine abziehende
   Folgerechnung kam. Beides widerspricht der Festschreibung, die die GoBD verlangen.
+- Ein Monteur nimmt über den Abgleich keinen stornierten Auftrag mehr wieder auf, und eine Unterschrift landet nur
+  noch unter einem Regiebericht im Entwurf, der an keinem anderen Beleg hängt. Die Prüfung `jobProgress` fragt den
+  gespeicherten Status, `signatureRefusal` die Art und den Vorgänger, und die Migration `0090_sign_only_a_report`
+  lässt `sign_document` nur noch einen solchen Bericht festschreiben. Mail und Datei geben einen unterschriebenen
+  Beleg ohne Nummer nur noch als Bericht heraus. Warum: Das Recht für eine Statusänderung hing nur am neuen Status,
+  und eine Unterschrift unter einer Rechnung, einem Angebot oder einer Auftragsbestätigung schrieb den Entwurf mit
+  `document.write` fest, an `document.issue` vorbei.
 
 ## [0.6.2] - 2026-10-23
 
