@@ -70,12 +70,13 @@ export async function destinationOf(
   const vouched = listed(host) || addresses.every(listed)
 
   if (!vouched) {
-    const inside = addresses.find(isInternalAddress)
-
-    if (inside !== undefined) {
+    // Without the address the name resolved to: the sentence goes back to
+    // whoever set the mail server and into the outbox, and the address is what
+    // the resolver of the instance knows about the network it runs in.
+    if (addresses.some(isInternalAddress)) {
       throw new MailDeliveryError(
-        `Der Mailserver "${host}" liegt nicht im Internet, sondern in einem internen Netz ` +
-          `(${inside}). Mit einem solchen wird nur verbunden, wenn er in den Einstellungen der ` +
+        `Der Mailserver "${host}" liegt nicht im Internet, sondern in einem internen Netz. ` +
+          'Mit einem solchen wird nur verbunden, wenn er in den Einstellungen der ' +
           'Instanz unter „Mailserver im eigenen Netz“ freigegeben ist.',
         'EDESTINATION',
         null,

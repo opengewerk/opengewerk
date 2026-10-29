@@ -17,6 +17,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   unterschreibt. Warum: Eine Position, die im selben Moment geschrieben wurde, kam in den Beleg, aber nicht in seinen
   Schnappschuss, und ein Storno konnte eine Rechnung treffen, auf die gerade eine Zahlung oder eine abziehende
   Folgerechnung kam. Beides widerspricht der Festschreibung, die die GoBD verlangen.
+- Ablehnungen von Mailserver und Push-Dienst nennen nicht mehr, was der Resolver der Instanz geantwortet hat: die
+  Prüfung eines Mailservers sagt, dass er in einem internen Netz liegt, aber nicht mehr, unter welcher Adresse, und
+  ein Push-Abo, dessen Name sich nicht auflösen lässt oder nach innen zeigt, bekommt für beides denselben Satz
+  (`endpointNameRefused`). Warum: Wer einen Mailserver einträgt oder ein Gerät für Push anmeldet, konnte so Name für
+  Name erfragen, welche Adressen im Netz der Instanz liegen; beim Push genügte dafür jede Rolle.
 
 ## [0.6.2] - 2026-10-23
 

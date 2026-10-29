@@ -77,10 +77,17 @@ describe('the destination of a mail server', () => {
     }
   })
 
-  it('is refused when only one of the addresses of its name is internal', async () => {
+  /**
+   * The refusal named the internal address the name resolved to, and it went
+   * back to whoever set the mail server and into the outbox: a way of asking
+   * the resolver of the instance about its network, a name at a time.
+   */
+  it('is refused when only one of the addresses of its name is internal, without naming it', async () => {
     const refused = await refusal(destinationOf(settings({ host: 'halb.example' }), nobody, names))
 
-    expect(refused.message).toContain('10.0.0.8')
+    expect(refused.code).toBe('EDESTINATION')
+    expect(refused.message).toContain('internen Netz')
+    expect(refused.message).not.toContain('10.0.0.8')
   })
 
   it('is refused on a port that is not for mail', async () => {

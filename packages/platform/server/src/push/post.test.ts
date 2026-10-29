@@ -4,7 +4,13 @@ import { type AddressInfo, createServer, type Socket } from 'node:net'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { answerOf, checkedLookup, endpointProblem, endpointReachable } from './post.js'
+import {
+  answerOf,
+  checkedLookup,
+  endpointNameRefused,
+  endpointProblem,
+  endpointReachable,
+} from './post.js'
 
 /**
  * The server posts to whatever address a device subscribed with, so the
@@ -28,19 +34,26 @@ describe('the address of a push service', () => {
     expect(endpointProblem('kein Ort')).toMatch(/keine Adresse/)
   })
 
-  it('is refused when its name points inside a network, or nowhere', async () => {
+  /**
+   * With one sentence for each reason, a device told apart a name that does
+   * not resolve from one that points inside, and so learned what the resolver
+   * of the instance knows about its network. Now both get the same sentence,
+   * which names neither the host nor the network.
+   */
+  it('is refused when its name points inside a network, or nowhere, with one sentence', async () => {
     const resolve = (host: string) =>
       Promise.resolve(host === 'intern.example.com' ? ['192.168.1.20'] : ['142.250.185.74'])
 
     expect(await endpointReachable('https://fcm.googleapis.com/x', resolve)).toBeNull()
-    expect(await endpointReachable('https://intern.example.com/x', resolve)).toMatch(
-      /internen Netz/,
+
+    const inside = await endpointReachable('https://intern.example.com/x', resolve)
+    const nowhere = await endpointReachable('https://nirgends.example.com/x', () =>
+      Promise.reject(new Error('ENOTFOUND')),
     )
-    expect(
-      await endpointReachable('https://nirgends.example.com/x', () =>
-        Promise.reject(new Error('ENOTFOUND')),
-      ),
-    ).toMatch(/gibt es nicht/)
+
+    expect(inside).toBe(endpointNameRefused)
+    expect(nowhere).toBe(endpointNameRefused)
+    expect(inside).not.toMatch(/intern|example/)
   })
 })
 
