@@ -15,7 +15,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import { type Id, longestDeviceLabel } from '@opengewerk/platform-domain'
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, count, eq, ne } from 'drizzle-orm'
 
 import { RequiresPermission } from '../api/authorization.js'
 import { CurrentIdentity, type RequestIdentity } from '../api/identity.js'
@@ -97,6 +97,9 @@ const noPush =
 
 /** How long the test message is any use: a test that arrives an hour later tests nothing. */
 const testMinutes = 10
+
+/** The most devices one person has for push in one tenant: a phone, a tablet and many browsers. */
+export const mostPushDevices = 20
 
 /** The occasions the person asking may be told of, each with whether they want it. */
 function occasionsOf(
@@ -235,8 +238,28 @@ function pushController<Right extends string>(rights: PushRights<Right>): Type<u
 
       const { pushSubscriptions } = this.tables
       const now = new Date()
-      const [row] = await this.database.forTenant(identity, (tx) =>
-        tx
+      const [row] = await this.database.forTenant(identity, async (tx) => {
+        // Each device of a person is a row the job sends to and a value bound
+        // into its statements; without a number, one person could make the
+        // statements of the whole business too large to run.
+        const [held] = await tx
+          .select({ devices: count() })
+          .from(pushSubscriptions)
+          .where(
+            and(
+              eq(pushSubscriptions.userId, identity.userId),
+              ne(pushSubscriptions.endpoint, endpoint),
+            ),
+          )
+
+        if ((held?.devices ?? 0) >= mostPushDevices) {
+          throw new ConflictException(
+            `Für Push sind höchstens ${String(mostPushDevices)} Geräte je Person angemeldet. ` +
+              'Melden Sie zuerst ein Gerät ab, das nicht mehr gebraucht wird.',
+          )
+        }
+
+        return tx
           .insert(pushSubscriptions)
           .values({
             tenantId: identity.tenantId,
@@ -260,8 +283,8 @@ function pushController<Right extends string>(rights: PushRights<Right>): Type<u
               updatedAt: now,
             },
           })
-          .returning({ id: pushSubscriptions.id }),
-      )
+          .returning({ id: pushSubscriptions.id })
+      })
 
       if (!row) {
         throw new ConflictException('Das Gerät ließ sich nicht eintragen.')

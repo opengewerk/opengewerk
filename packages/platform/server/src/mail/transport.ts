@@ -104,9 +104,22 @@ export interface MailTimeouts {
   readonly connection: number
   readonly greeting: number
   readonly socket: number
+  /**
+   * How long one message has, from the connection to the server's answer
+   * that it took it. The other three wait for a step and for silence; a
+   * server that answers a little at a time never runs into them, and the job
+   * that sends the messages of every business one after the other waited for
+   * it without end.
+   */
+  readonly whole?: number
 }
 
-const defaultTimeouts: MailTimeouts = { connection: 15_000, greeting: 15_000, socket: 60_000 }
+const defaultTimeouts: Required<MailTimeouts> = {
+  connection: 15_000,
+  greeting: 15_000,
+  socket: 60_000,
+  whole: 120_000,
+}
 
 /**
  * The transport for a configured instance.
@@ -146,21 +159,43 @@ export function smtpTransport(
 
   return {
     async send(mail) {
+      const sending = transport.sendMail({
+        from: { name: mail.from.name, address: mail.from.address },
+        replyTo: mail.replyTo ?? undefined,
+        to: mail.to.name ? { name: mail.to.name, address: mail.to.address } : mail.to.address,
+        subject: mail.subject,
+        text: mail.text,
+        attachments: mail.attachments.map((attachment) => ({
+          filename: attachment.filename,
+          content: Buffer.from(attachment.content),
+          contentType: attachment.contentType,
+        })),
+      })
+      // Settled later or never once the deadline has answered; nobody waits
+      // for it then, and its end is no failure of the process.
+      sending.catch(() => undefined)
+
+      let deadline: NodeJS.Timeout | undefined
+
       try {
-        await transport.sendMail({
-          from: { name: mail.from.name, address: mail.from.address },
-          replyTo: mail.replyTo ?? undefined,
-          to: mail.to.name ? { name: mail.to.name, address: mail.to.address } : mail.to.address,
-          subject: mail.subject,
-          text: mail.text,
-          attachments: mail.attachments.map((attachment) => ({
-            filename: attachment.filename,
-            content: Buffer.from(attachment.content),
-            contentType: attachment.contentType,
-          })),
-        })
+        await Promise.race([
+          sending,
+          new Promise<never>((_, reject) => {
+            deadline = setTimeout(() => {
+              reject(
+                new MailDeliveryError(
+                  'Der Mailserver hat die Nachricht nicht in der Zeit angenommen, die eine Nachricht hat.',
+                  'ETIMEDOUT',
+                  null,
+                ),
+              )
+            }, timeouts.whole ?? defaultTimeouts.whole)
+          }),
+        ])
       } catch (error) {
         throw asDeliveryError(error)
+      } finally {
+        clearTimeout(deadline)
       }
     },
     async verify() {

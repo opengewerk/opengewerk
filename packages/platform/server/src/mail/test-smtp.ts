@@ -14,6 +14,8 @@ export interface FakeSmtpOptions {
   readonly silent?: boolean
   /** Recipients refused with a 550, the answer for a mailbox that does not exist. */
   readonly refuse?: readonly string[]
+  /** Takes a message and never says whether it took it, the way a server that hangs over one does. */
+  readonly stallAfterData?: boolean
 }
 
 export interface FakeSmtpServer {
@@ -71,7 +73,10 @@ export async function fakeSmtpServer(options: FakeSmtpOptions = {}): Promise<Fak
           if (line === '.') {
             inData = false
             received.push({ from, to, data: lines.join('\r\n') })
-            say('250 2.0.0 Ok: queued')
+
+            if (!options.stallAfterData) {
+              say('250 2.0.0 Ok: queued')
+            }
           } else {
             lines.push(line.startsWith('..') ? line.slice(1) : line)
           }

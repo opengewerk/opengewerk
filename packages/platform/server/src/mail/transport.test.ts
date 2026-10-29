@@ -106,6 +106,24 @@ describe('a message', () => {
     expect(failure.permanent).toBe(false)
   })
 
+  /**
+   * A server that takes the message and never says whether it took it, and
+   * keeps the connection: the timeouts for a step and for silence did not end
+   * that, and the job that sends the messages of every business waited for it.
+   */
+  it('is refused for now when the server does not take it within the time a message has', async () => {
+    server = await fakeSmtpServer({ stallAfterData: true })
+    const transport = smtpTransport(settings(server.port), { ...short, socket: 10_000, whole: 500 })
+    const started = performance.now()
+
+    const failure = await failureOf(transport.send(letter))
+    transport.close()
+
+    expect(failure.code).toBe('ETIMEDOUT')
+    expect(failure.permanent).toBe(false)
+    expect(performance.now() - started).toBeLessThan(3000)
+  })
+
   it('is refused for now when nothing listens on the port', async () => {
     const transport = smtpTransport(settings(await closedPort()), short)
 

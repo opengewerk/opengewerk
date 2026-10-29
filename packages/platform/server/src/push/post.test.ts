@@ -55,6 +55,20 @@ describe('the address of a push service', () => {
     expect(nowhere).toBe(endpointNameRefused)
     expect(inside).not.toMatch(/intern|example/)
   })
+
+  /**
+   * The name was waited for without end, and a name that never answers held
+   * the request and every lookup of the process queued behind it.
+   */
+  it('is refused when its name does not answer within the limit', async () => {
+    const started = performance.now()
+    const never = () => new Promise<readonly string[]>(() => undefined)
+
+    expect(await endpointReachable('https://langsam.example.com/x', never, 50)).toBe(
+      endpointNameRefused,
+    )
+    expect(performance.now() - started).toBeLessThan(1000)
+  })
 })
 
 describe('the connection', () => {

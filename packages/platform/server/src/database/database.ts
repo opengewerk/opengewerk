@@ -89,6 +89,24 @@ export interface Actor {
  * connection that kept the last tenant would hand its rows to the next request
  * that happens to get it.
  */
+
+/**
+ * How long the one pool of the process waits, in milliseconds. Without these
+ * a request waited for a connection without end, and one that kept a
+ * connection busy, a statement over the whole log of a large business or a
+ * transaction left open, kept it from every other business: a pool has ten.
+ *
+ * Half a minute to get a connection, two minutes for one statement, five for a
+ * transaction that waits on nothing in the database. Far above what a request
+ * of a person takes, a takeover of a catalogue and a check of the log
+ * included; a migration and a backup run on connections of their own.
+ */
+export const poolLimits = {
+  connectionTimeoutMillis: 30_000,
+  statement_timeout: 120_000,
+  idle_in_transaction_session_timeout: 300_000,
+} as const
+
 export class Database {
   private constructor(
     private readonly pool: Pool,
@@ -108,7 +126,7 @@ export class Database {
     connectionString: string,
     complain: (line: string, error: unknown) => void = console.error,
   ): Database {
-    const pool = new Pool({ connectionString })
+    const pool = new Pool({ connectionString, ...poolLimits })
 
     pool.on('error', (error) => {
       complain(

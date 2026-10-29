@@ -96,6 +96,27 @@ describe('a transaction for a tenant', () => {
    * The part that matters most. A connection that kept the last tenant would
    * hand its rows to the next request that happens to get it.
    */
+  /**
+   * The pool had no timeouts: a statement over the whole log of a large
+   * business or a transaction left open kept a connection from everybody else
+   * for as long as it took, and one of ten is a tenth of the instance.
+   */
+  it('ends a statement and an idle transaction after their time', async () => {
+    const limits = await database.forInstance(async (tx) => {
+      const statement = await tx.execute<{ statement_timeout: string }>(sql`show statement_timeout`)
+      const idle = await tx.execute<{ idle_in_transaction_session_timeout: string }>(
+        sql`show idle_in_transaction_session_timeout`,
+      )
+
+      return [
+        statement.rows[0]?.statement_timeout,
+        idle.rows[0]?.idle_in_transaction_session_timeout,
+      ]
+    })
+
+    expect(limits).toEqual(['2min', '5min'])
+  })
+
   it('leaves nothing on the connection when it ends', async () => {
     const single = Database.connect(kit.testDatabaseUrl())
 

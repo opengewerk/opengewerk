@@ -35,6 +35,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   eines Geräts fragt je Zeile über einen Index, ob die Person sie angelegt hat, statt die Liste all ihrer Einträge zu
   durchsuchen. Warum: Alle drei laufen im gemeinsamen Prozess oder auf dem gemeinsamen Pool, und eine Eingabe eines
   Mandanten hielt so die Anfragen aller anderen über Sekunden bis Minuten auf.
+- Fristen und Grenzen im Fundament: der Pool der Datenbank wartet höchstens 30 Sekunden auf eine Verbindung, eine
+  Anweisung hat zwei Minuten und eine untätige Transaktion fünf; eine Mail hat zwei Minuten bis zur Annahme; der Name
+  eines Push-Abos drei Sekunden zum Auflösen; eine Person höchstens 20 Geräte für Push; `GET /sync/conflicts` liefert
+  die ältesten 200 offenen Konflikte. Warum: Ohne sie konnte eine Anfrage oder ein Lauf eines Betriebs eine Verbindung,
+  den Versand der Mails oder die Auflösung von Namen für alle anderen ohne Ende festhalten.
 - Ablehnungen von Mailserver und Push-Dienst verraten nicht mehr, was der Resolver der Instanz geantwortet hat: ein
   Name, der nach innen zeigt, wird wie ein Name abgelehnt, der sich nicht auflösen lässt, beim Mailserver mit demselben
   Satz und derselben Art von Fehler (`unreachableName`, `EDNS`), beim Push mit `endpointNameRefused`, und keine

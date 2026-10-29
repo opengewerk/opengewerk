@@ -26,7 +26,7 @@ import { newId } from '../database/identifier.js'
 import { probePush } from '../database/probe-schema.js'
 import { PUSH, type PushContext } from './context.js'
 import { pushStore } from './outbox.js'
-import { type PushOverview, pushParts } from './push.controller.js'
+import { mostPushDevices, type PushOverview, pushParts } from './push.controller.js'
 import { aBrowser, recordingPost, testVapid } from './test-browser.js'
 
 /**
@@ -278,6 +278,32 @@ describe('a device', () => {
     expect((again.body as { id: string }).id).toBe((first.body as { id: string }).id)
     expect((await overview('mia')).devices).toEqual([])
     expect((await overview('lena')).devices).toHaveLength(1)
+  })
+
+  /**
+   * Each device is a row the job sends to and a value in its statements, and a
+   * person could subscribe any number of them, until the statements of the
+   * whole business were too large to run. A device already subscribed comes
+   * again whatever the number.
+   */
+  it('takes no more devices of one person than the limit, and the same one again', async () => {
+    for (let device = 0; device < mostPushDevices; device += 1) {
+      const { body } = subscription(`https://fcm.googleapis.com/fcm/send/device-${String(device)}`)
+
+      expect((await subscribe('lena', body)).status).toBe(200)
+    }
+
+    const { body: oneTooMany } = subscription('https://fcm.googleapis.com/fcm/send/one-too-many')
+    const refused = await subscribe('lena', oneTooMany)
+
+    expect(refused.status).toBe(409)
+    expect((refused.body as { message: string }).message).toContain(
+      `höchstens ${String(mostPushDevices)} Geräte`,
+    )
+
+    const { body: again } = subscription('https://fcm.googleapis.com/fcm/send/device-0')
+
+    expect((await subscribe('lena', again)).status).toBe(200)
   })
 
   it('is refused inside a network, without HTTPS, with keys that are no keys and in no entry', async () => {
