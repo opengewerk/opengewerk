@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { checkMailServer } from './check.js'
 import type { MailConfiguration } from './configuration.js'
-import { destinationOf, reachableOnly } from './reach.js'
+import { destinationOf, reachableOnly, unreachableName } from './reach.js'
 import { MailDeliveryError, type MailTransport, smtpTransport } from './transport.js'
 
 /**
@@ -67,8 +67,8 @@ describe('the destination of a mail server', () => {
     expect(destination.port).toBe(587)
   })
 
-  it('is refused inside a network, the database of the instance included', async () => {
-    for (const host of ['mail.lan', 'postgres', '127.0.0.1', '[::1]']) {
+  it('is refused at an address inside a network, said as what it is', async () => {
+    for (const host of ['127.0.0.1', '[::1]']) {
       const refused = await refusal(destinationOf(settings({ host }), nobody, names))
 
       expect(refused.code).toBe('EDESTINATION')
@@ -77,10 +77,38 @@ describe('the destination of a mail server', () => {
     }
   })
 
-  it('is refused when only one of the addresses of its name is internal', async () => {
+  /**
+   * A name inside and a name that does not resolve got two sentences and two
+   * kinds of error, and whoever may set the mail server learned, a name at a
+   * time, which names the resolver of the instance knows inside its network.
+   * Now both are refused alike, the database of the instance included.
+   */
+  it('is refused under a name inside a network as under a name that does not resolve', async () => {
+    const nowhere = await refusal(
+      destinationOf(settings({ host: 'kein-mailserver.invalid' }), nobody, names),
+    )
+
+    for (const host of ['mail.lan', 'postgres']) {
+      const refused = await refusal(destinationOf(settings({ host }), nobody, names))
+
+      expect(refused.code).toBe(nowhere.code)
+      expect(refused.permanent).toBe(nowhere.permanent)
+      expect(refused.message).toBe(unreachableName(host))
+    }
+
+    expect(nowhere.message).toBe(unreachableName('kein-mailserver.invalid'))
+  })
+
+  /**
+   * The refusal named the internal address the name resolved to, and it went
+   * back to whoever set the mail server and into the outbox: a way of asking
+   * the resolver of the instance about its network, a name at a time.
+   */
+  it('is refused when only one of the addresses of its name is internal, without naming it', async () => {
     const refused = await refusal(destinationOf(settings({ host: 'halb.example' }), nobody, names))
 
-    expect(refused.message).toContain('10.0.0.8')
+    expect(refused.message).toBe(unreachableName('halb.example'))
+    expect(refused.message).not.toContain('10.0.0.8')
   })
 
   it('is refused on a port that is not for mail', async () => {
