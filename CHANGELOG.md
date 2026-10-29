@@ -87,6 +87,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `document_lines_within_count` (OG007); vorhandene Belege bleiben, wie sie sind. Warum: Wer Belege schreiben darf,
   konnte die gemeinsame Datenbank mit Positionen beliebiger Länge und Zahl füllen, und das Prüfprotokoll hält jede davon
   für immer.
+- Abzüge und PDF eines Schlussrechnungsentwurfs gibt es nur noch mit dem Recht, Zahlungen einzusehen; ohne es antwortet
+  der Server mit 403 und einem Satz. Warum: Der Entwurf rechnet mit dem, was auf die Abschlagsrechnungen eingegangen
+  ist, und so sah ein Monteur Zahlungen, die ihm der Rechtekatalog ausdrücklich nicht zeigt.
 - Eine E-Rechnung über 10 MB wird nicht mehr geschrieben, sondern mit einem Satz abgelehnt (422), bevor ihr XML in den
   Parser kommt (`largestCiiBytes`). Warum: Die Schemaprüfung kopiert jede E-Rechnung in den einen Parser des Prozesses
   und baut einen Baum daraus, und ein Beleg mit langen Positionstexten, jedes `&` als `&amp;` geschrieben, kam auch

@@ -5,6 +5,7 @@ import {
   Controller,
   Get,
   Delete,
+  ForbiddenException,
   NotFoundException,
   Param,
   Patch,
@@ -27,6 +28,7 @@ import {
   documentTextProblem,
   type EInvoiceGap,
   type InstructionGap,
+  isAllowed,
   isCancellable,
   type IsoDate,
   type MissingDetail,
@@ -63,7 +65,7 @@ import {
 } from '../database/schema/index.js'
 import { articlePricesOn, type PriceOfDay, pricedFromArticle } from '../documents/article-prices.js'
 import { contentAndGapsOf, issuerOf } from '../documents/content.js'
-import { deductionsFor } from '../documents/deductions.js'
+import { deductionsFor, paymentsOfADraft, showsReceivedPayments } from '../documents/deductions.js'
 import { choicesOf } from '../documents/instructions.js'
 import { proposedTreatment } from '../documents/treatment.js'
 import { documentTitle } from '../documents/template.js'
@@ -697,6 +699,10 @@ export class DocumentsController {
 
       if (!document) {
         throw new NotFoundException()
+      }
+
+      if (showsReceivedPayments(document) && !isAllowed(identity, 'payment.read')) {
+        throw new ForbiddenException(paymentsOfADraft)
       }
 
       if (document.status === 'issued' || document.status === 'cancelled') {

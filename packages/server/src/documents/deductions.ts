@@ -15,6 +15,26 @@ import { receivedOn } from '../payments/payments.js'
 type DocumentRow = typeof documents.$inferSelect
 
 /**
+ * Whether the deductions of a document, worked out now, say what was received
+ * on its progress invoices: those of a final invoice that is not issued yet.
+ * They go out only to whoever may read payments (N16 of the security audit,
+ * decided on 29.10.2026). An issued one says what it froze, and that is the
+ * invoice the customer has.
+ */
+export function showsReceivedPayments(document: Pick<DocumentRow, 'kind' | 'status'>): boolean {
+  return (
+    document.kind === 'final_invoice' &&
+    document.status !== 'issued' &&
+    document.status !== 'cancelled'
+  )
+}
+
+/** The answer to whoever may not read payments and asks for such a draft. */
+export const paymentsOfADraft =
+  'Der Entwurf einer Schlussrechnung zeigt, was auf die Abschlagsrechnungen eingegangen ist. ' +
+  'Das sieht nur, wer Zahlungen einsehen darf.'
+
+/**
  * The progress invoices a document takes off: every issued progress invoice
  * up its chain of predecessors, oldest first, with the figures its snapshot
  * states.
