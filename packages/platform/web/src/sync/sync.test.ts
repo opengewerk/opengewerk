@@ -16,6 +16,8 @@ import {
   SyncClient as Client,
   exchangeRefusal,
   inTransmissions,
+  largestTransmission,
+  mostTransmittedOperations,
   noConnection,
   refusalFor,
   refusalText,
@@ -1473,6 +1475,23 @@ describe('a large outbox (#202)', () => {
     // One larger than a part goes alone rather than not at all.
     expect(inTransmissions([first, second], size - 1)).toEqual([[first], [second]])
     expect(inTransmissions([])).toEqual([])
+  })
+
+  /**
+   * The server takes a number of operations per transmission, however small
+   * they are, and refuses more with 413; an outbox of many small changes would
+   * otherwise stay on the device for good.
+   */
+  it('is cut after the most operations a transmission carries, as well', () => {
+    const many = Array.from({ length: 5 }, (_, index) =>
+      operation(String(index), '2026-10-02T08:00:00Z'),
+    )
+
+    expect(inTransmissions(many, largestTransmission, 2).map((part) => part.length)).toEqual([
+      2, 2, 1,
+    ])
+    expect(inTransmissions(many).map((part) => part.length)).toEqual([5])
+    expect(mostTransmittedOperations).toBe(1000)
   })
 
   it('goes out in parts, in the order it was written', async () => {

@@ -13,6 +13,7 @@ export {
   exchangeRefusal,
   inTransmissions,
   largestTransmission,
+  mostTransmittedOperations,
   noConnection,
   refusalFor,
   refusalText,

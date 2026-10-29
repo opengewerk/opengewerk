@@ -1286,4 +1286,46 @@ describe('what a device is sent', () => {
     expect([...seen].sort()).toEqual(['A', 'B', 'C', 'drei', 'eins', 'zwei'])
     expect(pulls).toBeGreaterThan(1)
   })
+
+  /**
+   * A pull reads its tables one after the other, each as it was committed
+   * when its statement began. A transaction that committed in between could
+   * leave a lower number in a table already read and a higher one in a table
+   * read after it, and a cursor taken from the higher one skipped the lower
+   * for good. The cursor goes no further than the last number handed out
+   * before the first read. Standing in for such a commit: a counter set back
+   * below a row that is already there.
+   */
+  it('does not move the cursor past the last number handed out before it read', async () => {
+    const shelf = newId<'shelf'>()
+
+    await send(north.id, [
+      operation({ entity: 'shelves', recordId: shelf, patches: [{ field: 'label', to: 'Spät' }] }),
+    ])
+
+    const { rows } = await admin.query<{ next_value: string }>(
+      'select next_value from sync_sequences where tenant_id = $1',
+      [north.id],
+    )
+    const handedOut = Number(rows[0]?.next_value)
+
+    await admin.query('update sync_sequences set next_value = $2 where tenant_id = $1', [
+      north.id,
+      handedOut - 1,
+    ])
+
+    try {
+      const pulled = await inTenant(north.id, (tx) => sync.changesSince(tx, handedOut - 1))
+      const shelves = pulled.changes.find((change) => change.entity === 'shelves')?.rows ?? []
+
+      // The row is sent, and the cursor stays below it, so it comes again.
+      expect(shelves.map((row) => row['id'])).toContain(shelf)
+      expect(pulled.cursor).toBe(handedOut - 1)
+    } finally {
+      await admin.query('update sync_sequences set next_value = $2 where tenant_id = $1', [
+        north.id,
+        handedOut,
+      ])
+    }
+  })
 })

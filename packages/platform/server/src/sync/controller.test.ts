@@ -14,7 +14,12 @@ import { type Authorization, AUTHORIZATION, AuthorizationGuard } from '../api/au
 import { databaseErrors } from '../api/database-errors.js'
 import { TRUSTED_ORIGINS } from '../api/handed-in.js'
 import { type FoundIdentity, IDENTITY_SOURCE } from '../api/identity.js'
-import { largestTransmissionBytes, readJsonBodiesOnly, SameOriginGuard } from '../api/origin.js'
+import {
+  largestTransmissionBytes,
+  mostOperationsPerTransmission,
+  readJsonBodiesOnly,
+  SameOriginGuard,
+} from '../api/origin.js'
 import { sentByHand } from '../api/probe-sending.js'
 import { headerIdentities, testIdentityHeader } from '../api/test-identity.js'
 import { accountsOf } from '../authentication/administration.js'
@@ -488,6 +493,27 @@ describe('sending an outbox', () => {
 
     expect(tooLarge.body).toMatchObject({
       message: 'Eine Übertragung des Postausgangs darf höchstens 8 MB groß sein.',
+    })
+  })
+
+  /**
+   * Eight megabytes of the smallest operations were tens of thousands, each a
+   * row, a receipt and a line in the log, in one transaction that holds the
+   * counter of the tenant. The number is bounded on its own, before a single
+   * operation is read.
+   */
+  it('takes no more operations in one transmission than its limit', async () => {
+    const tooMany = await request(app.getHttpServer())
+      .post('/sync')
+      .set(testIdentityHeader, olga())
+      .send({
+        deviceId: 'probe-phone',
+        operations: Array.from({ length: mostOperationsPerTransmission + 1 }, () => ({})),
+      })
+      .expect(413)
+
+    expect(tooMany.body).toMatchObject({
+      message: 'Eine Übertragung des Postausgangs darf höchstens 2000 Vorgänge enthalten.',
     })
   })
 
