@@ -32,6 +32,14 @@ und nichts gestartet. Ohne `cosign` auf der Maschine sagt der Start, wie man von
 Hand prüft, und läuft weiter. Ein solches Paket startet immer seine eigene
 Fassung: `OPENGEWERK_VERSION` in der `.env` gilt nur für einen Checkout.
 
+**Das Paket selbst ist ebenso signiert.** Es legt fest, welche Abbilder der
+Start prüft und gegen welchen Workflow, also gehört es vor dem Entpacken
+geprüft: neben `opengewerk-<fassung>.tar.gz` liegt auf der Release-Seite
+`opengewerk-<fassung>.tar.gz.sigstore.json`, und `cosign verify-blob` mit dem
+Befehl aus den Hinweisen jedes Releases bestätigt, dass das Paket aus dem
+Workflow "Release" genau dieses Tags stammt. Die Prüfsumme daneben sagt nur,
+dass beides zusammen hochgeladen wurde.
+
 **Beim ersten Start füllt er die `.env` selbst aus.** Er legt `docker/.env` aus
 der Vorlage an und erzeugt jedes Passwort und jeden Schlüssel darin, 32
 Zufallsbytes als Hex, jeden für sich, dazu den Einrichtungscode für die erste
@@ -704,7 +712,8 @@ jedem Fall sein.
 
 Ein Update ist das, was Leitentscheidung 6 verspricht: Abbild tauschen,
 Migration läuft, Dienst startet. Aus einem Release heißt das: das Paket der
-neuen Fassung an dieselbe Stelle entpacken, mit
+neuen Fassung mit `cosign verify-blob` prüfen (siehe oben), an dieselbe Stelle
+entpacken, mit
 `tar --no-same-owner -xzf opengewerk-<fassung>.tar.gz`, die `.env` bleibt, und
 derselbe Befehl wie beim ersten Start, `sh docker/start.sh`. Er ergänzt die
 `.env` um das, was die neue Fassung braucht, holt ihre Abbilder und macht dann
@@ -766,8 +775,9 @@ die erste war 0.1.0 am 24.09.2026. Der Workflow "Release" baut dann Anwendung
 und Sicherung für x86_64 und ARM64, legt beide unter dieser Fassung in
 `ghcr.io/opengewerk/opengewerk` und `ghcr.io/opengewerk/backup` ab, signiert
 sie ohne Schlüssel über Sigstore und
-schreibt die Release-Seite aus dem Abschnitt des CHANGELOG, mit dem Paket und
-seiner Prüfsumme. Im Paket steht die Fassung in `docker/compose.yaml` an der
+schreibt die Release-Seite aus dem Abschnitt des CHANGELOG, mit dem Paket,
+seiner Prüfsumme und seiner Signatur (`.sigstore.json`, ebenfalls ohne
+Schlüssel). Im Paket steht die Fassung in `docker/compose.yaml` an der
 Stelle von `source`; ist der Abschnitt länger, als eine Release-Seite fasst,
 verweist sie auf den CHANGELOG des Tags. Ohne einen Abschnitt `## [0.x.y]` im
 CHANGELOG oder für einen Tag, der nicht auf einem Stand von `main` steht,
