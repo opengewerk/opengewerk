@@ -13,6 +13,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
+import { chartBoards } from './circuit-chart.controller.js'
 import { binary } from './test-binary.js'
 import { as, testIdentities as identities } from './test-identity.js'
 import { boardOf, created, deleted, installationOf, push } from './test-structure.js'
@@ -296,5 +297,54 @@ describe('without a renderer', () => {
     const body = JSON.parse((answer.body as Buffer).toString()) as { message: string }
 
     expect(body.message).toBe('Der Renderer antwortet nicht.')
+  })
+})
+
+describe('the boards of a chart', () => {
+  /**
+   * The rows were filtered again for every board and for every section, and
+   * the time grew with the square of what one board holds: a board with as
+   * many sections and circuits as the sync carries held the process, and
+   * every tenant on it, for seconds per chart. Grouped once, it takes as long
+   * as the rows are.
+   */
+  it('are put together in the time it takes to read the rows once', () => {
+    const at = new Date('2026-10-01T10:00:00Z')
+    const count = 40_000
+    const board = {
+      id: 'board',
+      designation: 'UV Keller',
+      kind: 'sub',
+      location: null,
+      updatedAt: at,
+    }
+    const sections = Array.from({ length: count }, (_, index) => ({
+      id: `section-${index}`,
+      distributionBoardId: 'board',
+      designation: `Reihe ${index}`,
+      updatedAt: at,
+    }))
+    const lines = [
+      ...sections.map((section, index) => ({
+        id: `circuit-${index}`,
+        distributionBoardId: 'board',
+        boardSectionId: section.id,
+        updatedAt: at,
+      })),
+      // Its section is gone, so it hangs on the board directly.
+      { id: 'circuit-loose', distributionBoardId: 'board', boardSectionId: 'gone', updatedAt: at },
+    ]
+
+    const started = performance.now()
+    const [printed] = chartBoards([board] as never, sections as never, lines as never)
+    const took = performance.now() - started
+
+    expect(printed?.groups).toHaveLength(count + 1)
+    expect(printed?.groups[0]).toMatchObject({ section: null, circuits: [{ id: 'circuit-loose' }] })
+    expect(printed?.groups[count]).toMatchObject({
+      section: `Reihe ${count - 1}`,
+      circuits: [{ id: `circuit-${count - 1}` }],
+    })
+    expect(took).toBeLessThan(1000)
   })
 })

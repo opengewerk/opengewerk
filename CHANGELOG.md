@@ -7,6 +7,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Sicherheit
+
+- Drei Wege gehen in einem Durchgang statt mit dem Quadrat ihrer Eingabe: der DATANORM-Leser findet die gefüllten
+  Zeilen ohne ein Muster, das eine lange Zeile aus Leerzeichen von jeder Stelle aus neu probierte; der Stromkreisplan
+  gruppiert Abschnitte und Stromkreise einmal, statt sie für jeden Verteiler und Abschnitt neu zu filtern; der Abruf
+  eines Geräts fragt je Zeile über einen Index, ob die Person sie angelegt hat, statt die Liste all ihrer Einträge zu
+  durchsuchen. Warum: Alle drei laufen im gemeinsamen Prozess oder auf dem gemeinsamen Pool, und eine Eingabe eines
+  Mandanten hielt so die Anfragen aller anderen über Sekunden bis Minuten auf.
+
 ## [0.6.2] - 2026-10-23
 
 Eine Sicherheitsfassung. Das Abbild baut auf Node 24.22.1, und der Renderer für PDFs läuft auf 2.57.3, das dieselbe
