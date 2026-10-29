@@ -370,20 +370,25 @@ describe('starting with a network', () => {
    * An account that has the app, signed in with the password alone (#691):
    * the gate does not set the app up a second time, which better-auth
    * refuses, and the person would be stuck. It says that the sign in needs
-   * the second factor and offers the way out. Without the app, the setup.
+   * the second factor and offers the way out. The same for an account with a
+   * passkey, which sets up nothing from such a session (N6 of the security
+   * audit). Without either, the setup.
    */
   it.each([
-    ['has the app', { twoFactorEnabled: true }, true],
-    ['has no app', {}, false],
+    ['has the app', { twoFactorEnabled: true }, [], true],
+    ['has a passkey', {}, [{ id: 'p-1', name: 'Telefon' }], true],
+    ['has neither', {}, [], false],
   ] as const)(
     'sends an account that %s, signed in without the second factor, to sign in again or to the setup',
-    async (_has, signedIn, again) => {
+    async (_has, signedIn, keys, again) => {
       serverAnswers((path) =>
         path.endsWith('/get-session')
           ? session(null, signedIn)
           : path === '/auth/tenants'
             ? [aTenant({ id: 't-nord', roles: ['lead'], secondFactor: true })]
-            : null,
+            : path === '/auth/passkeys'
+              ? keys
+              : null,
       )
       start()
 

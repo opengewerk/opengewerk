@@ -258,6 +258,7 @@ export const foundationGuards: readonly TableGuard[] = [
   { table: 'member_passkeys', grants: noDelete, audited: true, synced: false },
   { table: 'account_corrections', grants: ['select', 'insert'], audited: true, synced: false },
   { table: 'password_resets', grants: ['select', 'insert'], audited: true, synced: false },
+  { table: 'second_factor_changes', grants: ['select', 'insert'], audited: true, synced: false },
   {
     table: 'account_mail_server_changes',
     grants: ['select', 'insert'],

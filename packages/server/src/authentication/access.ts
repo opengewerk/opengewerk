@@ -50,6 +50,10 @@ export const access: AccessRules<Permission> = {
     accountNotOnlyHere:
       'Dieses Konto arbeitet auch in einem anderen Betrieb dieser Instanz oder ist ihr ' +
       'Betreiber. Name und E-Mail ändert dann nur die Person selbst.',
+    secondFactorNotOnlyHere:
+      'Dieses Konto arbeitet auch in einem anderen Betrieb dieser Instanz oder ist ihr ' +
+      'Betreiber. Den zweiten Faktor setzt dann der Betreiber auf dem Server zurück, mit ' +
+      'reset-second-factor.',
     noSuchSessionHere: 'Diese Sitzung gibt es in diesem Betrieb nicht.',
     lastLead:
       'Das ist der letzte Inhaber dieses Betriebs. Erst einen zweiten Inhaber einsetzen, ' +

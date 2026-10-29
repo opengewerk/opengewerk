@@ -9,6 +9,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Sicherheit
 
+- Hat ein Konto einen zweiten Faktor, ändert eine Anmeldung ohne ihn nichts mehr daran: eine App einrichten, einen
+  Passkey hinzufügen oder löschen und sich unter „Konto“ bestätigen, etwa für Name und E-Mail, geht nur noch aus
+  einer Sitzung mit dem Passkey oder dem Code aus der App, sonst antwortet der Server mit 403. Das Tor schickt ein
+  solches Konto zur neuen Anmeldung statt zur Einrichtung der App. Wer seinen einzigen zweiten Faktor verloren hat,
+  bekommt ihn vom Inhaber unter „Zugänge“ zurückgesetzt („Faktor zurücksetzen“), ein Konto, das auch in einem
+  anderen Betrieb arbeitet oder die Instanz betreibt, mit `reset-second-factor` auf dem Server; die App und alle
+  Passkeys gehen, alle Geräte werden abgemeldet, das Passwort bleibt. Das Einrichten einer App und jedes Zurücksetzen
+  stehen als Zeile der neuen Tabelle `second_factor_changes` (Migration `0093_second_factor_changes`) im
+  Änderungsprotokoll jedes Betriebs, in dem der Zugang arbeitet, und das Konto bekommt eine Mail. Warum: Ein Konto,
+  dessen zweiter Faktor ein Passkey ist, meldet sich auch mit dem Passwort allein an, und aus einer solchen Sitzung
+  ließ sich eine App einrichten, deren Sitzung dann jede leitende Rolle und den Bereich der Instanz öffnete, ohne
+  dass der Passkey je vorgezeigt wurde; die Einrichtung der App stand nirgends und meldete sich nicht. Dabei fiel
+  auf, dass die Liste der Zugänge ein Konto, dessen zweiter Faktor ein Passkey ist, nie als „zweiter Faktor
+  eingerichtet“ zeigte: Ihre Abfrage verglich den Passkey mit seiner eigenen Kennung statt mit dem Konto.
 - Wer einen Passkey löscht oder neue Wiederherstellungscodes erzeugt, meldet damit alle anderen Geräte des Zugangs
   ab, wie mit einem neuen Passwort; was sie in einem Mandanten offen hatten, wird geschlossen. Warum: Eine Sitzung
   hält nicht fest, welcher Passkey oder welcher Code ihr den zweiten Faktor gab, und eine, die mit dem gelöschten

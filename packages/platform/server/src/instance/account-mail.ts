@@ -2,6 +2,8 @@ import type {
   PasskeyNotice,
   PasswordResetMail,
   RecoveryCodesNotice,
+  SecondFactorChange,
+  SecondFactorNotice,
 } from '../authentication/notices.js'
 import type { Database } from '../database/database.js'
 import type { MailContext } from '../mail/context.js'
@@ -73,6 +75,17 @@ export interface AccountMessages {
     readonly link: string
   }) => AccountMessageText
   /**
+   * To the account, once the app was set up on it or every second factor was
+   * taken away (N6 of the security audit); `link` is where the account is
+   * looked after.
+   */
+  readonly secondFactorChanged: (facts: {
+    readonly name: string
+    readonly change: SecondFactorChange
+    readonly changedAt: Date
+    readonly link: string
+  }) => AccountMessageText
+  /**
    * To everybody who runs the instance, once an account was named to run it or
    * taken off (opengewerk-haustechnik#360), and to the one taken off as well.
    * `person` and `personEmail` are the account named or taken off; `link` is
@@ -126,6 +139,7 @@ export function accountMails(
   readonly passwordResetMail: PasswordResetMail
   readonly passkeyNotice: PasskeyNotice
   readonly recoveryCodesNotice: RecoveryCodesNotice
+  readonly secondFactorNotice: SecondFactorNotice
 } {
   const send = async (
     to: { readonly name: string; readonly email: string },
@@ -178,6 +192,16 @@ export function accountMails(
         messages.recoveryCodesRenewed({
           name: owner.name,
           renewedAt: new Date(),
+          link: `${mail.origin}${messages.accountPath}`,
+        }),
+      ),
+    secondFactorNotice: (owner, change) =>
+      send(
+        owner,
+        messages.secondFactorChanged({
+          name: owner.name,
+          change,
+          changedAt: new Date(),
           link: `${mail.origin}${messages.accountPath}`,
         }),
       ),

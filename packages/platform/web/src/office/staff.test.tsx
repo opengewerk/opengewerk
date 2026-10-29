@@ -483,6 +483,50 @@ describe('the staff screen', () => {
     })
   })
 
+  /**
+   * The way back for somebody who has lost their second factor (N6 of the
+   * security audit): offered where there is one to take, never for oneself,
+   * and only after asking.
+   */
+  it('takes the second factor of somebody only after asking, where there is one and not their own', async () => {
+    server.answer('GET', '/staff', [
+      lea,
+      { ...max, hasPasskey: true },
+      { ...max, userId: 'u-3', name: 'Ole Ohne', email: 'ole@nord.example.de' },
+    ])
+    server.answer('DELETE', '/staff/u-2/second-factor', { userId: 'u-2', reset: true })
+
+    staffScreen()
+    await screen.findByText('Ole Ohne')
+
+    const person = userEvent.setup()
+
+    await mayChange()
+    expect(within(rowOf('Lea Leitung')).queryByRole('button', { name: /zurücksetzen$/ })).toBeNull()
+    expect(within(rowOf('Ole Ohne')).queryByRole('button', { name: /zurücksetzen$/ })).toBeNull()
+
+    await person.click(
+      screen.getByRole('button', { name: 'Zweiten Faktor von Max Mitglied zurücksetzen' }),
+    )
+
+    const asking = await screen.findByRole('alertdialog', {
+      name: 'Zweiten Faktor von Max Mitglied zurücksetzen?',
+    })
+
+    expect(asking.textContent).toContain('alle Geräte dieses Zugangs werden abgemeldet')
+    expect(server.heard.some((call) => call.path === '/staff/u-2/second-factor')).toBe(false)
+
+    await person.click(within(asking).getByRole('button', { name: 'Zurücksetzen' }))
+
+    await waitFor(() => {
+      expect(
+        server.heard.some(
+          (call) => call.method === 'DELETE' && call.path === '/staff/u-2/second-factor',
+        ),
+      ).toBe(true)
+    })
+  })
+
   it('unblocks somebody without asking, because that takes nothing away', async () => {
     server.answer('GET', '/staff', [lea, { ...max, blockedAt: '2026-09-30T12:00:00.000Z' }])
     server.answer('DELETE', '/staff/u-2/block', {})
@@ -582,6 +626,7 @@ describe('the staff screen', () => {
       { ...invitation, id: 'i-1', name: 'Lina Link', mail: null },
     ])
     server.answer('GET', '/staff/u-2/devices', devices)
+    server.answer('GET', '/staff', [lea, { ...max, hasPasskey: true }])
 
     staffScreen()
     await screen.findByText('Max Mitglied')
@@ -595,6 +640,7 @@ describe('the staff screen', () => {
 
     expect(screen.queryByRole('button', { name: 'Zugang anlegen' })).toBeNull()
     expect(screen.queryByRole('button', { name: /sperren$/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /zurücksetzen$/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /zurückziehen$/ })).toBeNull()
     expect(
       within(rowOf('Max Mitglied'))

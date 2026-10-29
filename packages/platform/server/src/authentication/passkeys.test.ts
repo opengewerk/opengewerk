@@ -6,7 +6,7 @@ import { newId } from '../database/identifier.js'
 import { applicationRole } from '../database/test-database.js'
 import { appointOperator } from '../instance/operators.js'
 import { authenticationPath } from './authentication.js'
-import type { PasskeyOwner } from './notices.js'
+import type { PasskeyOwner, SecondFactorChange } from './notices.js'
 import {
   cookiesOf,
   joined,
@@ -18,6 +18,8 @@ import {
   probeInstance,
   probeOrigin as origin,
 } from './probe-application.js'
+import { secondFactorSessionRequired } from './second-factor.js'
+import type { StaffEntry } from './administration.js'
 import { addStaffMember } from './staff.js'
 import { currentCode, type TestAuthenticator } from './test-authenticator.js'
 
@@ -51,6 +53,9 @@ let foundation: ProbeFoundation
 let admin: Pool
 let instance: ProbeInstance
 const notices: { owner: PasskeyOwner; passkey: { id: string; name: string } }[] = []
+const changes: { owner: PasskeyOwner; change: SecondFactorChange }[] = []
+/** Every authenticator a passkey was registered with here, by the id of its key. */
+const known = new Map<string, TestAuthenticator>()
 /** Set by the test in which the notice cannot be written. */
 let noticeFails = false
 const userIds = new Map<string, string>()
@@ -98,6 +103,8 @@ async function register(
   authenticator: TestAuthenticator,
   { name = 'Laptop am Empfang', userVerified = true, extra = {} as Record<string, unknown> } = {},
 ) {
+  known.set(authenticator.id, authenticator)
+
   const options = await http()
     .get(`${authenticationPath}/passkey/generate-register-options`)
     .set('cookie', cookies)
@@ -113,13 +120,40 @@ async function register(
 
 /** Confirms again with the password and adds a passkey, for tests that are about what follows. */
 async function addPasskey(email: string, name: string): Promise<TestAuthenticator> {
-  const cookies = await signIn(email)
+  const cookies = await sessionToChange(email)
   const authenticator = probeAuthenticator()
 
   await reconfirm(cookies, { password }).expect(200)
   expect((await register(cookies, authenticator, { name })).status).toBe(200)
 
   return authenticator
+}
+
+/**
+ * A session to change the passkeys of an account from, as "Konto" asks for
+ * one: with the password while it has none, with one of its passkeys once it
+ * has (N6 of the security audit).
+ */
+async function sessionToChange(email: string): Promise<string> {
+  const { rows } = await admin.query<{ credential: string }>(
+    `select p.credential_id as credential
+       from auth_passkeys p join auth_users u on u.id = p.user_id
+      where u.email = $1
+      order by p.created_at`,
+    [email],
+  )
+
+  if (rows.length === 0) {
+    return signIn(email)
+  }
+
+  const key = rows.map((row) => known.get(row.credential)).find((one) => one !== undefined)
+
+  if (!key) {
+    throw new Error(`No passkey of ${email} was registered here to sign in with.`)
+  }
+
+  return cookiesOf(await passkeySignIn(key))
 }
 
 /** Signs in with a passkey, without a session to start from, and hands back the new one. */
@@ -174,6 +208,11 @@ beforeAll(async () => {
       }
 
       notices.push({ owner, passkey })
+
+      return Promise.resolve()
+    },
+    secondFactorNotice: (owner, change) => {
+      changes.push({ owner, change })
 
       return Promise.resolve()
     },
@@ -232,7 +271,7 @@ describe('the app that shows a code', () => {
 
 describe('adding a passkey', () => {
   it('is refused without confirming again, however young the session', async () => {
-    const cookies = await signIn(worker.email)
+    const cookies = await sessionToChange(worker.email)
 
     const refused = await http()
       .get(`${authenticationPath}/passkey/generate-register-options`)
@@ -251,7 +290,7 @@ describe('adding a passkey', () => {
   })
 
   it('takes the password again, and a wrong one confirms nothing', async () => {
-    const cookies = await signIn(worker.email)
+    const cookies = await sessionToChange(worker.email)
 
     const refused = await reconfirm(cookies, { password: 'falsch-aber-lang-genug' }).expect(401)
 
@@ -264,7 +303,7 @@ describe('adding a passkey', () => {
   })
 
   it('works after confirming, and goes into the log of every tenant of the account', async () => {
-    const cookies = await signIn(worker.email)
+    const cookies = await sessionToChange(worker.email)
     const userId = userIds.get(worker.email) ?? ''
     const before = notices.length
 
@@ -297,7 +336,7 @@ describe('adding a passkey', () => {
   })
 
   it('refuses a passkey that was not confirmed on the device, naming the application', async () => {
-    const cookies = await signIn(worker.email)
+    const cookies = await sessionToChange(worker.email)
     const userId = userIds.get(worker.email) ?? ''
     const count = (await passkeyRows(userId)).length
 
@@ -319,7 +358,7 @@ describe('adding a passkey', () => {
   })
 
   it('needs a name, and makes no session of its own', async () => {
-    const cookies = await signIn(worker.email)
+    const cookies = await sessionToChange(worker.email)
 
     await reconfirm(cookies, { password }).expect(200)
 
@@ -375,7 +414,7 @@ describe('adding a passkey', () => {
    * the password.
    */
   it('adds one passkey for one confirmation, even when two arrive at once', async () => {
-    const cookies = await signIn(worker.email)
+    const cookies = await sessionToChange(worker.email)
     const userId = userIds.get(worker.email) ?? ''
     const count = (await passkeyRows(userId)).length
 
@@ -526,7 +565,7 @@ describe('adding a passkey', () => {
   })
 
   it('holds for ten minutes and not longer', async () => {
-    const cookies = await signIn(worker.email)
+    const cookies = await sessionToChange(worker.email)
 
     await reconfirm(cookies, { password }).expect(200)
     await admin.query(
@@ -546,7 +585,7 @@ describe('adding a passkey', () => {
    * and is the application's.
    */
   it('is taken back when it cannot be written into the log', async () => {
-    const cookies = await signIn(worker.email)
+    const cookies = await sessionToChange(worker.email)
     const userId = userIds.get(worker.email) ?? ''
     const count = (await passkeyRows(userId)).length
 
@@ -574,7 +613,7 @@ describe('adding a passkey', () => {
    * already wrote down closed as removed.
    */
   it('is taken back when the notice about it cannot be written', async () => {
-    const cookies = await signIn(worker.email)
+    const cookies = await sessionToChange(worker.email)
     const userId = userIds.get(worker.email) ?? ''
     const count = (await passkeyRows(userId)).length
 
@@ -702,18 +741,18 @@ describe('signing in with a passkey', () => {
     const authenticator = await addPasskey(owner.email, 'Telefon von Pia')
     const cookies = cookiesOf(await passkeySignIn(authenticator))
 
-    // The app, set up in a session of the password, as "Konto" does it.
-    const withPassword = await signIn(owner.email)
+    // The app, set up in another session of the passkey, as "Konto" does it.
+    const elsewhere = cookiesOf(await passkeySignIn(authenticator))
     const started = await http()
       .post(`${authenticationPath}/two-factor/enable`)
-      .set('cookie', withPassword)
+      .set('cookie', elsewhere)
       .set('origin', origin)
       .send({ password })
       .expect(200)
 
     await http()
       .post(`${authenticationPath}/two-factor/verify-totp`)
-      .set('cookie', withPassword)
+      .set('cookie', elsewhere)
       .set('origin', origin)
       .send({ code: await currentCode((started.body as { totpURI: string }).totpURI) })
       .expect(200)
@@ -806,7 +845,7 @@ describe('the passkeys of an account', () => {
 
     await http()
       .delete(`/auth/passkeys/${id}`)
-      .set('cookie', await signIn(worker.email))
+      .set('cookie', await sessionToChange(worker.email))
       .set('origin', origin)
       .expect(200)
 
@@ -837,7 +876,7 @@ describe('the passkeys of an account', () => {
 
     const session = await http().get(`${authenticationPath}/get-session`).set('cookie', opened)
     const openedId = (session.body as { session: { id: string } }).session.id
-    const here = await signIn(leader.email)
+    const here = await sessionToChange(leader.email)
 
     await http()
       .delete(`/auth/passkeys/${passkey?.id ?? ''}`)
@@ -877,7 +916,7 @@ describe('the passkeys of an account', () => {
     // The key went, the tenants did not learn of it, the sessions stayed.
     await admin.query('delete from auth_passkeys where id = $1', [id])
 
-    const cookies = await signIn(worker.email)
+    const cookies = await sessionToChange(worker.email)
 
     await http()
       .delete(`/auth/passkeys/${id}`)
@@ -902,7 +941,7 @@ describe('the passkeys of an account', () => {
   })
 
   it('leave the password to sign in with when the last one is gone', async () => {
-    const cookies = await signIn(worker.email)
+    const cookies = await sessionToChange(worker.email)
     const listed = await http().get('/auth/passkeys').set('cookie', cookies).expect(200)
 
     for (const passkey of listed.body as PasskeyEntry[]) {
@@ -939,3 +978,270 @@ describe('the passkeys of an account', () => {
     await http().get(`${authenticationPath}/list-sessions`).set('cookie', cookies).expect(404)
   })
 })
+
+/**
+ * A second factor guards the second factor (N6 of the security audit). On an
+ * account whose second factor is a passkey, a session of the password alone
+ * sets up no app, confirms nothing and deletes no passkey, which were each a
+ * way past that passkey to what a leading role and the area of the instance
+ * may do. Setting up the app goes into the log of every tenant, and the
+ * account is told.
+ */
+describe('a second factor', () => {
+  it('is changed only from a session that carries it, where the account has one', async () => {
+    const owner = { email: 'nur-passkey@example.de', name: 'Nora Nur-Passkey' }
+    const { userId } = await addStaffMember(instance.authentication, instance.database, {
+      ...owner,
+      password,
+      tenantId: north.id,
+      roles: ['lead'],
+    })
+
+    await appointOperator(instance.database, probeAccess.sentences.instance, userId, owner.email)
+
+    const authenticator = await addPasskey(owner.email, 'Telefon von Nora')
+    const [passkey] = await passkeyRows(userId)
+    const withPassword = await signIn(owner.email)
+    const attempts = [
+      () =>
+        http()
+          .post(`${authenticationPath}/two-factor/enable`)
+          .set('cookie', withPassword)
+          .set('origin', origin)
+          .send({ password }),
+      () => reconfirm(withPassword, { password }),
+      () =>
+        http()
+          .delete(`/auth/passkeys/${passkey?.id ?? ''}`)
+          .set('cookie', withPassword)
+          .set('origin', origin),
+    ]
+
+    for (const attempt of attempts) {
+      const refused = await attempt()
+
+      expect(refused.status).toBe(403)
+      expect((refused.body as { message: string }).message).toBe(secondFactorSessionRequired)
+    }
+
+    const { rows: apps } = await admin.query('select 1 from auth_two_factors where user_id = $1', [
+      userId,
+    ])
+
+    expect(apps).toEqual([])
+    expect(await passkeyRows(userId)).toHaveLength(1)
+
+    // With the passkey, the same steps go through.
+    const cookies = cookiesOf(await passkeySignIn(authenticator))
+
+    await reconfirm(cookies, { password }).expect(200)
+
+    const started = await http()
+      .post(`${authenticationPath}/two-factor/enable`)
+      .set('cookie', cookies)
+      .set('origin', origin)
+      .send({ password })
+      .expect(200)
+    const confirmed = await http()
+      .post(`${authenticationPath}/two-factor/verify-totp`)
+      .set('cookie', cookies)
+      .set('origin', origin)
+      .send({ code: await currentCode((started.body as { totpURI: string }).totpURI) })
+      .expect(200)
+    const replaced = cookiesOf(confirmed) || cookies
+
+    await instance.chooseTenant(replaced, north.id)
+    await http().get('/probe/members').set('cookie', replaced).expect(200)
+  })
+
+  it('goes into the log of every tenant and is told to the account when the app is set up, and not at a sign in with it', async () => {
+    const owner = { email: 'neue-app@example.de', name: 'Anton App' }
+    const { userId } = await addStaffMember(instance.authentication, instance.database, {
+      ...owner,
+      password,
+      tenantId: north.id,
+      roles: ['member'],
+    })
+
+    await joinTenant(userId, south.id)
+
+    // No second factor yet: the password sets the app up, as before.
+    const cookies = await signIn(owner.email)
+    const started = await http()
+      .post(`${authenticationPath}/two-factor/enable`)
+      .set('cookie', cookies)
+      .set('origin', origin)
+      .send({ password })
+      .expect(200)
+    const totpUri = (started.body as { totpURI: string }).totpURI
+
+    await http()
+      .post(`${authenticationPath}/two-factor/verify-totp`)
+      .set('cookie', cookies)
+      .set('origin', origin)
+      .send({ code: await currentCode(totpUri) })
+      .expect(200)
+
+    expect(changes.filter((one) => one.owner.email === owner.email)).toEqual([
+      { owner: { id: userId, email: owner.email, name: owner.name }, change: 'app' },
+    ])
+    expect(await changesLogged(userId)).toEqual([
+      { tenantId: north.id, reason: 'second-factor.app' },
+      { tenantId: south.id, reason: 'second-factor.app' },
+    ])
+
+    // A sign in with the code is no new app.
+    const answer = await http()
+      .post(`${authenticationPath}/sign-in/email`)
+      .set('origin', origin)
+      .send({ email: owner.email, password })
+      .expect(200)
+
+    await http()
+      .post(`${authenticationPath}/two-factor/verify-totp`)
+      .set('cookie', cookiesOf(answer))
+      .set('origin', origin)
+      .send({ code: await currentCode(totpUri) })
+      .expect(200)
+
+    expect(changes.filter((one) => one.owner.email === owner.email)).toHaveLength(1)
+    expect(await changesLogged(userId)).toHaveLength(2)
+  })
+})
+
+/**
+ * The way back for whoever has lost the only second factor (N6 of the
+ * security audit): whoever leads the tenant takes the app and every passkey
+ * away, for an account that works there and nowhere else.
+ */
+describe('taking a second factor away', () => {
+  it('leaves the account its password, signs it out everywhere and says so in the log', async () => {
+    const lost = { email: 'verloren@example.de', name: 'Lisa Verloren' }
+    const { userId } = await addStaffMember(instance.authentication, instance.database, {
+      ...lost,
+      password,
+      tenantId: north.id,
+      roles: ['member'],
+    })
+    const authenticator = await addPasskey(lost.email, 'Telefon, verloren')
+    const [passkey] = await passkeyRows(userId)
+    const theirs = cookiesOf(await passkeySignIn(authenticator))
+    const lead = await sessionToChange(leader.email)
+
+    await instance.chooseTenant(lead, north.id)
+
+    // The list says that there is one to take, and afterwards that there is none.
+    const listed = async () =>
+      ((await http().get('/staff').set('cookie', lead).expect(200)).body as StaffEntry[]).find(
+        (entry) => entry.userId === userId,
+      )?.hasPasskey
+
+    expect(await listed()).toBe(true)
+
+    const answer = await http()
+      .delete(`/staff/${userId}/second-factor`)
+      .set('cookie', lead)
+      .set('origin', origin)
+      .expect(200)
+
+    expect(answer.body).toEqual({ userId, reset: true })
+    expect(await listed()).toBe(false)
+    expect(await passkeyRows(userId)).toEqual([])
+    expect((await passkeySignIn(authenticator)).status).toBe(401)
+    await http().get('/auth/passkeys').set('cookie', theirs).expect(401)
+
+    const { rows: removed } = await admin.query<{ removed: boolean }>(
+      'select removed_at is not null as removed from member_passkeys where passkey_id = $1',
+      [passkey?.id ?? ''],
+    )
+
+    expect(removed).toEqual([{ removed: true }])
+    expect(await changesLogged(userId)).toEqual([
+      { tenantId: north.id, reason: 'second-factor.reset' },
+    ])
+    expect(await actorsOfReset(userId)).toEqual([userIds.get(leader.email)])
+
+    // The password signs in, and sets a new second factor up.
+    const again = await signIn(lost.email)
+
+    await http()
+      .post(`${authenticationPath}/two-factor/enable`)
+      .set('cookie', again)
+      .set('origin', origin)
+      .send({ password })
+      .expect(200)
+
+    // Nothing left to take: said, and not written down a second time.
+    await admin.query('delete from auth_two_factors where user_id = $1', [userId])
+
+    const nothing = await http()
+      .delete(`/staff/${userId}/second-factor`)
+      .set('cookie', lead)
+      .set('origin', origin)
+      .expect(200)
+
+    expect(nothing.body).toEqual({ userId, reset: false })
+    expect(await changesLogged(userId)).toHaveLength(1)
+  })
+
+  it('is refused for an account that works for another tenant as well, and for one’s own', async () => {
+    const lead = await sessionToChange(leader.email)
+
+    await instance.chooseTenant(lead, north.id)
+
+    const elsewhere = await http()
+      .delete(`/staff/${userIds.get(worker.email) ?? ''}/second-factor`)
+      .set('cookie', lead)
+      .set('origin', origin)
+      .expect(409)
+
+    expect((elsewhere.body as { message: string }).message).toBe(
+      probeAccess.sentences.secondFactorNotOnlyHere,
+    )
+
+    await http()
+      .delete(`/staff/${userIds.get(leader.email) ?? ''}/second-factor`)
+      .set('cookie', lead)
+      .set('origin', origin)
+      .expect(400)
+
+    expect(await changesLogged(userIds.get(worker.email) ?? '')).toEqual([])
+    expect(await changesLogged(userIds.get(leader.email) ?? '')).toEqual([])
+    expect(await passkeyRows(userIds.get(leader.email) ?? '')).not.toEqual([])
+  })
+})
+
+/** Puts an account into a further tenant, as a member. */
+async function joinTenant(userId: string, tenantId: TenantId): Promise<void> {
+  await admin.query(
+    `insert into memberships (tenant_id, user_id, roles) values ($1, $2, '{member}')`,
+    [tenantId, userId],
+  )
+}
+
+/** The changes of the second factor of an account in the logs, this tenant first. */
+async function changesLogged(userId: string): Promise<{ tenantId: string; reason: string }[]> {
+  const { rows } = await admin.query<{ tenantId: string; reason: string }>(
+    `select c.tenant_id as "tenantId", a.reason
+       from second_factor_changes c
+       join audit_entries a on a.table_name = 'second_factor_changes' and a.record_id = c.id
+      where c.user_id = $1 and a.field = 'user_id'
+      order by c.tenant_id = $2 desc, c.changed_at`,
+    [userId, north.id],
+  )
+
+  return rows
+}
+
+/** Who took the second factor of an account away, by the log. */
+async function actorsOfReset(userId: string): Promise<string[]> {
+  const { rows } = await admin.query<{ actor: string }>(
+    `select a.user_id as actor
+       from audit_entries a
+       join second_factor_changes c on a.record_id = c.id
+      where a.table_name = 'second_factor_changes' and a.field = 'user_id' and c.user_id = $1`,
+    [userId],
+  )
+
+  return rows.map((row) => row.actor)
+}

@@ -185,6 +185,12 @@ export interface AccessSentences {
    * where else somebody works than the refusal has to.
    */
   readonly accountNotOnlyHere: string
+  /**
+   * The refusal to take the second factor of such an account away, and where
+   * it is done instead: on the command line of the server
+   * (`reset-second-factor`). One answer for both, as above.
+   */
+  readonly secondFactorNotOnlyHere: string
   /** A session that is not working in this tenant, or is not there at all. */
   readonly noSuchSessionHere: string
   /**

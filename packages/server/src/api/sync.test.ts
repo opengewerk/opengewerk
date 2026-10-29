@@ -286,6 +286,8 @@ describe('the tables', () => {
       // A new password and a new mail server of the instance, as a business
       // learns of them (opengewerk-haustechnik#360), in its log and nowhere else.
       name === 'password_resets' ||
+      // A change of the second factor, as a business learns of it (N6).
+      name === 'second_factor_changes' ||
       name === 'account_mail_server_changes' ||
       name === 'tenant_roles' ||
       name === 'site_access_deliveries' ||

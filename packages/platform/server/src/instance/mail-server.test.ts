@@ -81,6 +81,10 @@ const messages: AccountMessages = {
     subject: 'Neue Wiederherstellungscodes',
     body: `Hallo ${name}, es gibt neue Codes. Ihr Konto: ${link}`,
   }),
+  secondFactorChanged: ({ name, change, link }) => ({
+    subject: change === 'app' ? 'Eine App als zweiter Faktor' : 'Der zweite Faktor ist weg',
+    body: `Hallo ${name}, Ihr zweiter Faktor hat sich geändert. Ihr Konto: ${link}`,
+  }),
   operatorsChanged: ({ name, appointed, person, link }) => ({
     subject: 'Die Verwaltung der Instanz',
     body: `Hallo ${name}, ${person} ${appointed ? 'verwaltet jetzt mit' : 'verwaltet nicht mehr'}. ${link}`,
@@ -576,18 +580,16 @@ describe('a mail to an account', () => {
   const otherwise = { id: 'user-1', email: 'mia@nord.example.de', name: 'Mia Mitglied' }
 
   it('goes out through the mail server of the instance, under the name of the application', async () => {
-    const { passwordResetMail, passkeyNotice, recoveryCodesNotice } = accountMails(
-      database,
-      mail,
-      messages,
-    )
+    const { passwordResetMail, passkeyNotice, recoveryCodesNotice, secondFactorNotice } =
+      accountMails(database, mail, messages)
     const before = smtp.received.length
 
     await passwordResetMail(otherwise, 'einmal-und-nie-wieder')
     await passkeyNotice(otherwise, { id: 'passkey-1', name: 'Telefon' })
     await recoveryCodesNotice(otherwise)
+    await secondFactorNotice(otherwise, 'app')
 
-    const [reset, notice, codes] = smtp.received.slice(before)
+    const [reset, notice, codes, app] = smtp.received.slice(before)
     // A long line is folded on its way, with an equals sign at the fold.
     const unfolded = (data: string | undefined) => (data ?? '').replace(/=\r?\n/g, '')
 
@@ -601,6 +603,9 @@ describe('a mail to an account', () => {
     expect(codes?.to).toEqual(['mia@nord.example.de'])
     expect(codes?.data).toContain('Subject: Neue Wiederherstellungscodes')
     expect(unfolded(codes?.data)).toContain(`${origin}/konto`)
+    // And the app set up on an account (N6 of the security audit).
+    expect(app?.to).toEqual(['mia@nord.example.de'])
+    expect(app?.data).toContain('Subject: Eine App als zweiter Faktor')
   })
 
   it('takes a passkey back with it where the mail server refuses the notice', async () => {
@@ -867,6 +872,69 @@ describe('trying the mail server of the instance over and over', () => {
     expect(message(refused ?? { body: {} })).toContain('In ein paar Minuten geht es wieder.')
     // Saving counts against the same allowance.
     await change('put', lea, typed()).expect(429)
+  })
+})
+
+/**
+ * Whoever leads a tenant takes the second factor of somebody who has lost it,
+ * and the person learns of it by mail (N6 of the security audit), through the
+ * mail server of the instance.
+ */
+describe('somebody whose second factor is taken away', () => {
+  let told: ProbeInstance
+
+  beforeAll(async () => {
+    told = await probeInstance(foundation.kit.applicationDatabaseUrl(), {
+      mail,
+      accountMessages: messages,
+    })
+  })
+
+  afterAll(async () => {
+    await told.close()
+  })
+
+  it('is told by mail', async () => {
+    const nina = { email: 'nina@nord.example.de', name: 'Nina Nord' }
+    const { rows: tenants } = await admin.query<{ id: TenantId }>(
+      `select tenant_id as id from memberships m join auth_users u on u.id = m.user_id
+        where u.email = $1`,
+      [lea.email],
+    )
+    const north = tenants[0]?.id as TenantId
+    const { userId } = await addStaffMember(told.authentication, told.database, {
+      ...nina,
+      password,
+      tenantId: north,
+      roles: ['member'],
+    })
+
+    await visitors.setUpSecondFactor(nina.email)
+    await visitors.reconfirm(lea.email, as(lea))
+    await told
+      .http()
+      .put('/instance/mail-server')
+      .set('cookie', as(lea))
+      .set('origin', origin)
+      .send(typed())
+      .expect(200)
+    await told.chooseTenant(as(lea), north)
+    await told
+      .http()
+      .delete(`/staff/${userId}/second-factor`)
+      .set('cookie', as(lea))
+      .set('origin', origin)
+      .expect(200)
+
+    await vi.waitFor(
+      () => {
+        const toNina = smtp.received.filter((mail) => mail.to.includes(nina.email))
+
+        expect(toNina).toHaveLength(1)
+        expect(toNina[0]?.data).toContain('Subject: Der zweite Faktor ist weg')
+      },
+      { timeout: 10_000 },
+    )
   })
 })
 

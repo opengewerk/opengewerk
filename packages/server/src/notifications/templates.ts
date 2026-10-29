@@ -454,6 +454,54 @@ export function recoveryCodesRenewedMessage(facts: {
 }
 
 /**
+ * The mail to an account once the app was set up on it, or every second
+ * factor of it was taken away (N6 of the security audit). The first needed
+ * nothing but a password on an account without one, the second is done by
+ * the owner of a business or on the server; the person should hear of both.
+ */
+export function secondFactorChangedMessage(facts: {
+  readonly name: string
+  readonly change: 'app' | 'reset'
+  readonly changedAt: Date
+  readonly link: string
+}): MessageText {
+  const what =
+    facts.change === 'app'
+      ? `wurde am ${momentOf(facts.changedAt)} Uhr eine Authenticator-App als zweiter ` +
+        'Faktor eingerichtet.'
+      : `wurde am ${momentOf(facts.changedAt)} Uhr der zweite Faktor zurückgesetzt: die ` +
+        'Authenticator-App und alle Passkeys sind entfernt, und alle Geräte sind abgemeldet. ' +
+        'Bei der nächsten Anmeldung richten Sie einen neuen ein.'
+  const yourself =
+    facts.change === 'app'
+      ? 'Wenn Sie die App nicht selbst eingerichtet haben, ändern Sie Ihr Passwort und sagen ' +
+        'Sie dem Inhaber Ihres Betriebs Bescheid.'
+      : 'Wenn Sie das nicht erwartet haben, sagen Sie dem Inhaber Ihres Betriebs Bescheid.'
+  const body = [
+    facts.name ? `Hallo ${facts.name},` : 'Hallo,',
+    '',
+    `für Ihren Zugang zu OpenGewerk ${what}`,
+    '',
+    'Ihren Zugang sehen Sie unter „Konto“:',
+    '',
+    facts.link,
+    '',
+    yourself,
+    '',
+    '-- ',
+    'OpenGewerk',
+  ].join('\n')
+
+  return {
+    subject:
+      facts.change === 'app'
+        ? 'Authenticator-App für OpenGewerk eingerichtet'
+        : 'Zweiter Faktor für OpenGewerk zurückgesetzt',
+    body,
+  }
+}
+
+/**
  * The mail to every operator of the instance when somebody was named one or
  * taken off (opengewerk-haustechnik#360), and to the one taken off.
  *

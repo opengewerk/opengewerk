@@ -15,6 +15,7 @@
     "migrate": "node dist/migrate.js",
     "add-staff": "node dist/add-staff.js",
     "reset-password": "node dist/reset-password.js",
+    "reset-second-factor": "node dist/reset-second-factor.js",
     "preview": "tsc -p tsconfig.preview.json && node --enable-source-maps preview-build/preview/preview.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

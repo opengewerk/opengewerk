@@ -405,8 +405,8 @@ export function SecondFactorSignInAgainScreen({ onDone }: { readonly onDone: () 
   return (
     <Gate title="Zweiter Faktor" width={600}>
       <GateText>
-        {sentences.required} Diese Anmeldung kam ohne ihn, obwohl das Konto eine Authenticator-App
-        hat. Melden Sie sich ab und wieder an, mit dem Code aus der App oder mit einem Passkey.
+        {sentences.required} Diese Anmeldung kam ohne ihn, obwohl das Konto schon einen hat. Melden
+        Sie sich ab und wieder an, mit dem Code aus der App oder mit einem Passkey.
       </GateText>
       <SignOutButton client={null} onSignedOut={onDone} wide primary />
     </Gate>

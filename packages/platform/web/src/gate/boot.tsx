@@ -8,6 +8,7 @@ import { useApplication } from '../application.js'
 import { Button } from '../components/button.js'
 import type { Entry } from '../components/surface.js'
 import { deviceIdentity } from '../session/device.js'
+import { passkeys } from '../session/passkeys.js'
 import { accountQuery, legalTextsQuery } from '../session/queries.js'
 import { unreachable } from '../session/remembered.js'
 import {
@@ -393,6 +394,14 @@ function ChooseTenant({
 }) {
   const { tenantChoice: sentences } = useApplication().sentences
   const tenants = useQuery({ queryKey: ['tenants'], queryFn: availableTenants, retry: false })
+  // Whether an account without the app has a passkey, asked only of a session
+  // without a second factor: see below.
+  const keys = useQuery({
+    queryKey: ['passkeys'],
+    queryFn: passkeys,
+    retry: false,
+    enabled: !hasSecondFactor(account) && !account.twoFactorEnabled,
+  })
 
   if (tenants.isPending) {
     return <GateWaiting>{sentences.loading}</GateWaiting>
@@ -431,12 +440,18 @@ function ChooseTenant({
    * a sign in with the code or with a passkey (#167) goes straight on to the
    * choice, one with the password alone does not. An account that has the app
    * already is not set up a second time, which better-auth refuses; it signs
-   * in again, with the code (opengewerk/opengewerk#691).
+   * in again, with the code (opengewerk/opengewerk#691). So does one with a
+   * passkey, which the server lets set up nothing from a session without it
+   * (N6 of the security audit).
    */
   const needed = tenants.data.some((tenant) => tenant.secondFactor)
 
   if (needed && !hasSecondFactor(account)) {
-    return account.twoFactorEnabled ? (
+    if (keys.isLoading) {
+      return <GateWaiting>{sentences.loading}</GateWaiting>
+    }
+
+    return account.twoFactorEnabled || (keys.data?.length ?? 0) > 0 ? (
       <SecondFactorSignInAgainScreen onDone={onDone} />
     ) : (
       <SecondFactorSetupScreen onDone={onDone} />
