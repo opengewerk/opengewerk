@@ -1,6 +1,6 @@
 import { type Catalogue, readCatalogue } from './catalogue.js'
 import { charsetOf, type DatanormCharset, decodeDatanorm } from './charset.js'
-import { isZip, unzip } from './zip.js'
+import { deliveryTooLarge, isZip, largestUnpackedBytes, unzip, ZipRefused } from './zip.js'
 
 /**
  * A delivery of a supplier as the office uploads it (#297): single files or a
@@ -81,13 +81,33 @@ function kindOf(text: string): number | null {
 
 /**
  * Reads what was uploaded. `charset` overrides what the bytes are found to be
- * in, for the rare file that fools the count of its umlauts.
+ * in, for the rare file that fools the count of its umlauts; `budget` is what
+ * the delivery may unpack to, smaller only in a test.
  */
 export function readDelivery(
   delivered: readonly DeliveredFile[],
   charset?: DatanormCharset,
+  budget = largestUnpackedBytes,
 ): ReadDelivery {
-  const plain = delivered.flatMap((file) => (isZip(file.bytes) ? unzip(file.bytes) : [file]))
+  // One budget for the whole delivery, not one for each archive: a delivery
+  // of twenty archives of 400 MB each would otherwise be held in memory as
+  // eight gigabytes at once. `unzip` refuses before it inflates what would
+  // pass what is left of it, and a file that came unpacked counts as well.
+  let left = budget
+  const plain: DeliveredFile[] = []
+
+  for (const file of delivered) {
+    for (const entry of isZip(file.bytes) ? unzip(file.bytes, left) : [file]) {
+      left -= entry.bytes.length
+
+      if (left < 0) {
+        throw new ZipRefused(deliveryTooLarge)
+      }
+
+      plain.push(entry)
+    }
+  }
+
   const read: { name: string; charset: DatanormCharset; text: string; kind: number }[] = []
   const skipped: string[] = []
 

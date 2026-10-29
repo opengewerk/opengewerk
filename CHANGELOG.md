@@ -36,6 +36,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Beleg ohne Nummer nur noch als Bericht heraus. Warum: Das Recht für eine Statusänderung hing nur am neuen Status,
   und eine Unterschrift unter einer Rechnung, einem Angebot oder einer Auftragsbestätigung schrieb den Entwurf mit
   `document.write` fest, an `document.issue` vorbei.
+- Die stündlichen Grenzen für Uploads zählen ein Konto für sich, in welchem Mandanten es auch ablegt, und dazu die
+  ganze Instanz (`instanceBytesPerHour`, 20 GB). Ein DATANORM-Import hat ein Budget von 400 MB für alle seine Dateien
+  und Archive zusammen statt eines je Archiv, nimmt jede Datei nur einmal an, und Importe laufen im Prozess
+  nacheinander statt einer je Mandant zugleich. Warum: Ein Mandant ist in einer Minute angelegt, und Grenzen je Konto
+  im Mandanten, je Archiv und je Mandant vervielfachten sich so mit der Zahl der Mandanten und Dateien, die eine
+  Person öffnet oder nennt.
 
 ## [0.6.2] - 2026-10-23
 

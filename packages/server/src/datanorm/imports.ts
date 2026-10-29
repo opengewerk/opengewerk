@@ -109,7 +109,7 @@ function filesFrom(value: unknown): readonly { readonly name: string; readonly s
     )
   }
 
-  return value.map((entry: unknown) => {
+  const named = value.map((entry: unknown) => {
     const { name, sha256 } = (entry ?? {}) as { name?: unknown; sha256?: unknown }
 
     if (typeof name !== 'string' || name.trim() === '' || name.length > importFileLimits.name) {
@@ -124,6 +124,15 @@ function filesFrom(value: unknown): readonly { readonly name: string; readonly s
 
     return { name: name.trim(), sha256: sha256 as string }
   })
+
+  // The store keeps the same bytes once, and a file named twice would be
+  // read and held twice: one upload of 400 MB named twenty times was twenty
+  // copies in memory.
+  if (new Set(named.map((file) => file.sha256)).size !== named.length) {
+    throw new BadRequestException('Jede Datei lässt sich in einem Import nur einmal nennen.')
+  }
+
+  return named
 }
 
 /** What went wrong while reading or taking over, in words for the office. */
@@ -192,6 +201,8 @@ export class ArticleImports {
   /** How far each takeover is, which is nowhere but here: it is written in one transaction. */
   private readonly progress = new Map<string, { done: number; total: number }>()
   private readonly running = new Set<Promise<void>>()
+  /** The end of the line the readings and takeovers of this process wait in. */
+  private queue: Promise<void> = Promise.resolve()
 
   constructor(
     private readonly database: Database,
@@ -208,11 +219,17 @@ export class ArticleImports {
     }
   }
 
+  /**
+   * One reading or takeover at a time in this process, whichever tenant
+   * started it. The instance is sized for one delivery in memory; one import
+   * running per tenant let as many run at once as there are tenants.
+   */
   private run(task: () => Promise<void>): void {
-    const running = task().finally(() => {
+    const running = this.queue.then(task).finally(() => {
       this.running.delete(running)
     })
 
+    this.queue = running.catch(() => undefined)
     this.running.add(running)
   }
 

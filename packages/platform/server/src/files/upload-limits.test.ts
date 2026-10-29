@@ -19,6 +19,7 @@ const minute = 60 * 1000
 const allowance: UploadAllowance = {
   accountBytesPerHour: 1000,
   tenantBytesPerHour: 1500,
+  instanceBytesPerHour: 1_000_000,
   leastCountedBytes: 0,
   keptFreeBytes: 0,
 }
@@ -78,6 +79,35 @@ describe('the limits of storing', () => {
     expect(await answer(limits, south, 'susi', 1000)).toBe(200)
   })
 
+  /**
+   * The hour of an account was counted per tenant of the session, and a tenant
+   * is opened in a minute: one person had as many hours as tenants. It is the
+   * account's hour now, in whichever tenant it stores.
+   */
+  it('count an account once, in whichever of its tenants it stores', async () => {
+    const { limits } = limitsAt()
+
+    expect(await answer(limits, north, 'mia', 1000)).toBe(200)
+    expect(await answer(limits, south, 'mia', 1)).toBe(429)
+  })
+
+  /**
+   * However many tenants and accounts there are, the instance stores no more
+   * within an hour than its own budget, and stores again an hour later.
+   */
+  it('stop everyone together at what an hour allows the instance', async () => {
+    const { limits, clock } = limitsAt({ instanceBytesPerHour: 3000 })
+    const tenants = ['eins', 'zwei', 'drei', 'vier'] as TenantId[]
+
+    expect(await answer(limits, tenants[0] as TenantId, 'anna', 1000)).toBe(200)
+    expect(await answer(limits, tenants[1] as TenantId, 'bert', 1000)).toBe(200)
+    expect(await answer(limits, tenants[2] as TenantId, 'carl', 1000)).toBe(200)
+    expect(await answer(limits, tenants[3] as TenantId, 'dora', 1)).toBe(429)
+
+    clock.now = 61 * minute
+    expect(await answer(limits, tenants[3] as TenantId, 'dora', 1000)).toBe(200)
+  })
+
   it('count a file sent without an account for its tenant', async () => {
     const { limits } = limitsAt()
 
@@ -122,7 +152,7 @@ describe('the limits of storing', () => {
   })
 
   it('say why they refuse, in a sentence of their own for each limit', async () => {
-    const { limits } = limitsAt({ keptFreeBytes: 5000 }, 5600)
+    const { limits } = limitsAt({ keptFreeBytes: 5000, instanceBytesPerHour: 1600 }, 5600)
     const sentence = async (tenantId: TenantId, userId: string, size: number) => {
       try {
         await limits.admit({ tenantId, userId }, size)
@@ -138,5 +168,7 @@ describe('the limits of storing', () => {
     expect(await sentence(north, 'mia', 500)).toMatch(/Von diesem Konto/)
     expect(await sentence(north, 'nina', 500)).toBeNull()
     expect(await sentence(north, 'otto', 500)).toMatch(/alle zusammen/)
+    expect(await sentence(south, 'susi', 500)).toBeNull()
+    expect(await sentence(south, 'tom', 1)).toMatch(/Auf dieser Instanz/)
   })
 })

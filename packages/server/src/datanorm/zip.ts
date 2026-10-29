@@ -16,12 +16,23 @@ export interface ZipEntry {
   readonly bytes: Uint8Array
 }
 
-/** The most an archive may unpack to: a full catalogue is a few hundred megabytes. */
+/**
+ * The most a delivery may unpack to, all its files and archives together: a
+ * full catalogue is a few hundred megabytes.
+ */
 export const largestUnpackedBytes = 400_000_000
 
-/** The entries of an archive that are files, in the order of its directory. */
+/** What is said when a delivery would unpack to more. */
+export const deliveryTooLarge = 'Die Lieferung entpackt sich zu mehr als 400 MB.'
+
+/**
+ * The entries of an archive that are files, in the order of its directory.
+ * `limit` is what is left of the delivery's budget when the archive is one of
+ * several.
+ */
 export function unzip(bytes: Uint8Array, limit = largestUnpackedBytes): ZipEntry[] {
-  return unzipArchive(bytes, limit, {
-    tooLarge: 'Das Archiv entpackt sich zu mehr als 400 MB.',
-  }).map((entry) => ({ name: entry.path.split('/').pop() ?? entry.path, bytes: entry.bytes }))
+  return unzipArchive(bytes, limit, { tooLarge: deliveryTooLarge }).map((entry) => ({
+    name: entry.path.split('/').pop() ?? entry.path,
+    bytes: entry.bytes,
+  }))
 }

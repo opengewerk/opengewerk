@@ -15,10 +15,15 @@ import type { FileStorage } from './store.js'
  * them.
  */
 export interface UploadAllowance {
-  /** The bytes one account stores within an hour. */
+  /** The bytes one account stores within an hour, in whichever tenants it stores into. */
   readonly accountBytesPerHour: number
   /** The bytes everyone of one tenant stores within an hour, together. */
   readonly tenantBytesPerHour: number
+  /**
+   * The bytes everyone on the instance stores within an hour, together: the
+   * one budget that no number of tenants or accounts multiplies.
+   */
+  readonly instanceBytesPerHour: number
   /**
    * What a file counts for at least. Each file is a row and a file on the
    * disk, whatever its size, and this keeps the number of them within bounds
@@ -39,6 +44,11 @@ export interface UploadAllowance {
  * gets five gigabytes in the same hour, for several people on a round on the
  * same day and an office filing the documents of a building beside them.
  *
+ * The instance gets twenty gigabytes an hour, all tenants together. An account
+ * counts for the account alone and not per tenant, and the instance counts
+ * once: a tenant can be opened in a minute, and an hour per tenant opened
+ * would let one person fill the volume with as many hours as tenants.
+ *
  * A file counts for 100 kB at least, so that an hour of one account is ten
  * thousand files at most, however small.
  *
@@ -49,6 +59,7 @@ export interface UploadAllowance {
 export const uploadAllowance: UploadAllowance = {
   accountBytesPerHour: 1_000_000_000,
   tenantBytesPerHour: 5_000_000_000,
+  instanceBytesPerHour: 20_000_000_000,
   leastCountedBytes: 100_000,
   keptFreeBytes: 2_000_000_000,
 }
@@ -62,6 +73,9 @@ export interface Uploader {
 
 const hour = 60 * 60 * 1000
 const minute = 60 * 1000
+
+/** The one key the budget of the instance is counted under. */
+const wholeInstance = 'instance'
 
 /**
  * The bytes counted against each key within the last hour, by the minute
@@ -133,6 +147,7 @@ class HourlyBytes {
 export class UploadLimits {
   private readonly accounts: HourlyBytes
   private readonly tenants: HourlyBytes
+  private readonly instance: HourlyBytes
 
   constructor(
     private readonly store: FileStorage,
@@ -141,13 +156,14 @@ export class UploadLimits {
   ) {
     this.accounts = new HourlyBytes(allowance.accountBytesPerHour)
     this.tenants = new HourlyBytes(allowance.tenantBytesPerHour)
+    this.instance = new HourlyBytes(allowance.instanceBytesPerHour, 1)
   }
 
   /**
    * Counts a file of this size for whoever stores it, or refuses it: with a
-   * 507 while the volume is too full for it, and with a 429 while the account
-   * or the tenant has stored as much as an hour allows. A refused file counts
-   * for nothing.
+   * 507 while the volume is too full for it, and with a 429 while the account,
+   * the tenant or the instance has stored as much as an hour allows. A refused
+   * file counts for nothing.
    */
   async admit(uploader: Uploader, sizeBytes: number): Promise<void> {
     const free = this.store.freeBytes ? await this.store.freeBytes() : null
@@ -170,7 +186,9 @@ export class UploadLimits {
     // question and the count.
     const now = this.now()
     const counted = Math.max(sizeBytes, this.allowance.leastCountedBytes)
-    const account = uploader.userId === null ? null : `${uploader.tenantId}/${uploader.userId}`
+    // The account alone, not the account in the tenant of the session: the
+    // same person in a second tenant is the same hour.
+    const account = uploader.userId
 
     if (account !== null && !this.accounts.fits(account, counted, now)) {
       throw tooMuch(
@@ -186,11 +204,19 @@ export class UploadLimits {
       )
     }
 
+    if (!this.instance.fits(wholeInstance, counted, now)) {
+      throw tooMuch(
+        'Auf dieser Instanz ist in der letzten Stunde schon so viel abgelegt worden, wie eine ' +
+          'Stunde zulässt. Weitere Dateien lassen sich in spätestens einer Stunde ablegen.',
+      )
+    }
+
     if (account !== null) {
       this.accounts.count(account, counted, now)
     }
 
     this.tenants.count(uploader.tenantId, counted, now)
+    this.instance.count(wholeInstance, counted, now)
   }
 }
 
