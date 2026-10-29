@@ -7,6 +7,25 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-10-29
+
+Eine Sicherheitsfassung mit den Korrekturen aus der Sicherheitsprüfung der Handwerkersoftware vom 27. bis
+29.10.2026: 16 bestätigte Befunde, keiner kritisch oder hoch, und 29 Hinweise, die behoben oder gehärtet sind. Sie
+betreffen vor allem Belege, die beim Ausstellen und Stornieren jetzt gesperrt werden, den Abgleich, die Anmeldung
+mit zweitem Faktor und Grenzen für alles, was sich die Betriebe einer Instanz teilen. Einer, die Bestätigung einer
+neuen E-Mail-Adresse, steht noch aus (#754).
+
+**Das Update meldet einmal jedes Gerät ab**, weil die Cookies der Anmeldung jetzt `__Host-better-auth.*` heißen;
+danach meldet sich jeder neu an. Wer einen Passkey als zweiten Faktor hat und sich mit dem Passwort anmeldet,
+richtet daraus keine App mehr ein und ändert nichts an seinen Passkeys, sondern meldet sich dafür mit dem Passkey
+an. Neu im Bereich der Instanz sind unter „Einstellungen“ die Grenzen eines Betriebs, ab Werk ohne Grenze für den
+Speicher. Das Installationspaket ist jetzt signiert und lässt sich vor dem Entpacken mit `cosign verify-blob`
+prüfen.
+
+Aktualisiert wird wie bei jeder Fassung, vorher gesichert. Sechs Migrationen kommen dazu,
+`0089_line_waits_for_its_document`, `0090_sign_only_a_report`, `0091_document_bounds`, `0092_audit_value_nonces`,
+`0093_second_factor_changes` und `0094_tenant_limits`.
+
 ### Sicherheit
 
 - Im Bereich der Instanz gibt es unter „Einstellungen“ die Karte „Betriebe“: „Speicher je Betrieb“ ist eine Grenze in
