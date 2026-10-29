@@ -26,7 +26,10 @@
 --    and its redaction keeps a witness of the whole entry. Only whoever leads
 --    the tenant blacks out a value, with a reason, which the policy of the
 --    redactions asks as the application, and the redaction itself stands in
---    the log.
+--    the log. From version 3 on the fingerprint of a value is taken over a
+--    nonce of its own and the value, and blacking out the value takes the
+--    nonce with it: what stays says nothing about the value, not even about
+--    one that is easy to guess.
 --
 -- What none of this reaches: a superuser can turn the trigger off, and no
 -- arrangement inside a database prevents that. What the chain does is make the
@@ -39,6 +42,18 @@ CREATE FUNCTION "audit_value_digest"(value text) RETURNS text
 	SET search_path = pg_catalog, public
 AS $$
 	SELECT CASE WHEN value IS NULL THEN NULL ELSE encode(sha256(convert_to(value, 'UTF8')), 'hex') END
+$$;--> statement-breakpoint
+
+-- The fingerprint of one value of an entry from version 3 on: SHA-256 of its
+-- nonce and its text. Without the nonce it says nothing about the value, and
+-- a value whose nonce is gone has no fingerprint left to fit.
+CREATE FUNCTION "audit_value_commitment"(nonce text, value text) RETURNS text
+	LANGUAGE sql
+	IMMUTABLE
+	SET search_path = pg_catalog, public
+AS $$
+	SELECT CASE WHEN value IS NULL OR nonce IS NULL THEN NULL
+		ELSE encode(sha256(decode(nonce, 'hex') || convert_to(value, 'UTF8')), 'hex') END
 $$;--> statement-breakpoint
 
 -- What an entry is hashed over: itself, minus its own hash. Taking the whole
@@ -87,7 +102,8 @@ $$;--> statement-breakpoint
 -- What is wrong with one entry by itself, or nothing: the check of the chain
 -- asks it of every entry, and a redaction of the entry it is about to change.
 -- A value present has to fit its fingerprint; a value missing beside a
--- fingerprint has to be one that was blacked out.
+-- fingerprint has to be one that was blacked out. From version 3 on a value
+-- fits only with its nonce, so a value whose nonce is gone fits nothing.
 CREATE FUNCTION "audit_entry_problem"(entry public.audit_entries) RETURNS text
 	LANGUAGE plpgsql
 	STABLE
@@ -96,6 +112,8 @@ AS $$
 DECLARE
 	kept_witness text;
 	is_redacted boolean;
+	old_nonce text;
+	new_nonce text;
 BEGIN
 	SELECT max(r.witness), count(*) > 0 INTO kept_witness, is_redacted
 	  FROM public.audit_redactions r
@@ -109,8 +127,18 @@ BEGIN
 		RETURN 'Der Eintrag wurde nachträglich verändert.';
 	END IF;
 
-	IF entry.fingerprint_version = 2 OR is_redacted THEN
-		IF (entry.old_value IS NOT NULL AND public.audit_value_digest(entry.old_value) IS DISTINCT FROM entry.old_value_digest)
+	IF entry.fingerprint_version >= 2 OR is_redacted THEN
+		IF entry.fingerprint_version >= 3 THEN
+			SELECT max(n.nonce) FILTER (WHERE n.side = 'old'), max(n.nonce) FILTER (WHERE n.side = 'new')
+			  INTO old_nonce, new_nonce
+			  FROM public.audit_value_nonces n
+			 WHERE n.entry_id = entry.id;
+
+			IF (entry.old_value IS NOT NULL AND public.audit_value_commitment(old_nonce, entry.old_value) IS DISTINCT FROM entry.old_value_digest)
+			   OR (entry.new_value IS NOT NULL AND public.audit_value_commitment(new_nonce, entry.new_value) IS DISTINCT FROM entry.new_value_digest) THEN
+				RETURN 'Der Eintrag wurde nachträglich verändert.';
+			END IF;
+		ELSIF (entry.old_value IS NOT NULL AND public.audit_value_digest(entry.old_value) IS DISTINCT FROM entry.old_value_digest)
 		   OR (entry.new_value IS NOT NULL AND public.audit_value_digest(entry.new_value) IS DISTINCT FROM entry.new_value_digest) THEN
 			RETURN 'Der Eintrag wurde nachträglich verändert.';
 		END IF;
@@ -145,7 +173,12 @@ $$;--> statement-breakpoint
 -- One row per field that genuinely differs, compared over the text form from
 -- to_jsonb rather than over a list of columns, and written one at a time in a
 -- fixed order, because each hash covers the one before it and the same change
--- has to produce the same chain. Every entry is written in version 2.
+-- has to produce the same chain. Every entry is written in version 3: each
+-- value gets a nonce of 32 random bytes, kept beside the entry in
+-- `audit_value_nonces`, and its fingerprint is taken over both, so that the
+-- fingerprint that stays when the value is blacked out says nothing about it.
+-- Two random uuids make the nonce, because PostgreSQL brings them without an
+-- extension.
 --
 -- Four columns stay out. All four move on every single write and say nothing
 -- the entry does not already say better: `updated_at`, `updated_by`, `version`
@@ -167,6 +200,8 @@ DECLARE
 	place bigint;
 	previous text;
 	changed text;
+	old_nonce text;
+	new_nonce text;
 BEGIN
 	IF tg_op <> 'INSERT' THEN
 		before_row := to_jsonb(old);
@@ -187,7 +222,7 @@ BEGIN
 	entry.user_id := nullif(current_setting('app.user_id', true), '');
 	entry.reason := nullif(current_setting('app.reason', true), '');
 	entry.database_role := session_user;
-	entry.fingerprint_version := 2;
+	entry.fingerprint_version := 3;
 
 	INSERT INTO public.audit_chains (tenant_id)
 	VALUES (entry.tenant_id)
@@ -210,11 +245,20 @@ BEGIN
 		entry.field := changed;
 		entry.old_value := before_row ->> changed;
 		entry.new_value := after_row ->> changed;
-		entry.old_value_digest := public.audit_value_digest(entry.old_value);
-		entry.new_value_digest := public.audit_value_digest(entry.new_value);
+		old_nonce := CASE WHEN entry.old_value IS NULL THEN NULL
+			ELSE encode(uuid_send(gen_random_uuid()) || uuid_send(gen_random_uuid()), 'hex') END;
+		new_nonce := CASE WHEN entry.new_value IS NULL THEN NULL
+			ELSE encode(uuid_send(gen_random_uuid()) || uuid_send(gen_random_uuid()), 'hex') END;
+		entry.old_value_digest := public.audit_value_commitment(old_nonce, entry.old_value);
+		entry.new_value_digest := public.audit_value_commitment(new_nonce, entry.new_value);
 		entry.hash := public.audit_fingerprint(entry);
 
 		INSERT INTO public.audit_entries VALUES (entry.*);
+
+		INSERT INTO public.audit_value_nonces (entry_id, tenant_id, side, nonce)
+		SELECT entry.id, entry.tenant_id, s.side, s.nonce
+		  FROM (VALUES ('old', old_nonce), ('new', new_nonce)) AS s(side, nonce)
+		 WHERE s.nonce IS NOT NULL;
 
 		previous := entry.hash;
 		place := place + 1;
@@ -362,8 +406,10 @@ $$;--> statement-breakpoint
 
 -- After it is written: the value goes, and an entry of version 1 keeps the
 -- fingerprints of its values. The bolt below lets exactly this change through
--- while `app.redacting` names the entry and the side. Both triggers of the
--- table are among its guards (`src/migration/guards.ts`).
+-- while `app.redacting` names the entry and the side. The nonce of the side
+-- goes with the value, so that its fingerprint is left without anything to
+-- open it. Both triggers of the table are among its guards
+-- (`src/migration/guards.ts`).
 CREATE FUNCTION "audit_redaction_applied"() RETURNS trigger
 	LANGUAGE plpgsql
 	SECURITY DEFINER
@@ -378,6 +424,9 @@ BEGIN
 	       old_value_digest = coalesce(e.old_value_digest, public.audit_value_digest(e.old_value)),
 	       new_value_digest = coalesce(e.new_value_digest, public.audit_value_digest(e.new_value))
 	 WHERE e.id = new.entry_id;
+
+	DELETE FROM public.audit_value_nonces n
+	 WHERE n.entry_id = new.entry_id AND n.side = new.side;
 
 	PERFORM set_config('app.redacting', '', true);
 

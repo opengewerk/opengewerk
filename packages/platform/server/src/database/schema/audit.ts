@@ -117,6 +117,35 @@ export const auditRedactions = pgTable(
 )
 
 /**
+ * The nonce of each value of an entry from version 3 on: 32 random bytes in
+ * hex, which the fingerprint of the value is taken over together with the
+ * value. Without it the fingerprint says nothing about the value, not even
+ * about one that is easy to guess, and blacking out the value takes its nonce
+ * with it (ADR 0013, amended on 29.10.2026). Written by the audit trigger
+ * alone and read by the check of the chain, which runs as the application:
+ * a nonce stands only beside a value the tenant reads in the entry anyway.
+ *
+ * Kept apart from `audit_entries`, whose columns are frozen: one more column
+ * there would change the text every entry is hashed over.
+ */
+export const auditValueNonces = pgTable(
+  'audit_value_nonces',
+  {
+    // No foreign key, as the redactions carry none, for the same reason.
+    entryId: uuid('entry_id').notNull(),
+    ...tenantColumn,
+    side: text('side').notNull(),
+    nonce: text('nonce').notNull(),
+  },
+  (table) => [
+    ...writtenByTriggerOnly(table.tenantId),
+    primaryKey({ columns: [table.entryId, table.side], name: 'audit_value_nonces_pk' }),
+    check('audit_value_nonces_side_known', sql`${table.side} in ('old', 'new')`),
+    check('audit_value_nonces_nonce_shaped', sql`${table.nonce} ~ '^[0-9a-f]{64}$'`),
+  ],
+)
+
+/**
  * The head of each tenant's chain, and the queue writers pass through.
  *
  * Its row is locked for the rest of the transaction as soon as a change is

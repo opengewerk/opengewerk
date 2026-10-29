@@ -423,8 +423,10 @@ export interface OutsideTheLog {
  *
  * The redactions of the log (ADR 0013) carry the prefix and are watched all
  * the same: a redaction is a change a person made, and its entry is the record
- * of who blacked out what and why. The two tables of the log are therefore
- * named one by one instead of by the prefix.
+ * of who blacked out what and why. The other tables of the log are therefore
+ * named one by one instead of by the prefix, the nonces of its values among
+ * them: in the log they would copy what opens a fingerprint into entries that
+ * a redaction does not reach.
  *
  * What belongs to the instance is out for the same reason as the accounts,
  * and is not without a record for it: it has a log of its own, written by a
@@ -441,7 +443,7 @@ export interface OutsideTheLog {
  */
 export const foundationOutsideTheLog: OutsideTheLog = {
   prefixes: ['sync_', 'auth_', 'instance_'],
-  tables: ['audit_chains', 'audit_entries', 'deadline_runs', 'file_uploads'],
+  tables: ['audit_chains', 'audit_entries', 'audit_value_nonces', 'deadline_runs', 'file_uploads'],
 }
 
 /** Which tables the audit trigger watches, held against which it should. */

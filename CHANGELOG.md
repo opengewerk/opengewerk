@@ -98,6 +98,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Beleg ohne Nummer nur noch als Bericht heraus. Warum: Das Recht für eine Statusänderung hing nur am neuen Status,
   und eine Unterschrift unter einer Rechnung, einem Angebot oder einer Auftragsbestätigung schrieb den Entwurf mit
   `document.write` fest, an `document.issue` vorbei.
+- Das Änderungsprotokoll schreibt jeden neuen Eintrag in Fassung 3: jeder Wert bekommt 32 zufällige Bytes in
+  `audit_value_nonces`, sein Fingerabdruck geht über diese und den Wert, und das Schwärzen löscht sie mit dem Wert
+  (Migration 0092, Nachtrag zu ADR 0013). Warum: Der Fingerabdruck war SHA-256 des Werts allein und blieb beim
+  Schwärzen stehen, sodass ein Name oder ein Datum aus Datenbank und Sicherung zu erraten war. Einträge, die schon
+  geschrieben sind, behalten ihren Fingerabdruck, weil kein Eintrag der Kette neu geschrieben wird.
 - Der Lauf der Fristen erinnert je Mandant und Durchgang an höchstens 100 Fristen, die früheste zuerst; die übrigen
   kommen im nächsten Durchgang eine Minute später (`mostRemindersPerPass`), der hinter der zuletzt versuchten Frist
   weitermacht, damit Fristen, deren Erinnerung jedes Mal scheitert, die späteren nicht aufhalten. Warum: Ein Durchgang

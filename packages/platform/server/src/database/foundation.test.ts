@@ -114,6 +114,7 @@ describe('the foundation, built from its building blocks alone', () => {
       'audit_fingerprint',
       'audit_redaction_applied',
       'audit_redaction_checked',
+      'audit_value_commitment',
       'audit_value_digest',
       'audit_witness',
       'create_first_tenant',
@@ -154,7 +155,7 @@ describe('the foundation, built from its building blocks alone', () => {
   it('keeps every table from the owner and opens it to the application', async () => {
     const tables = await tableProtections(admin)
 
-    expect(tables).toHaveLength(30)
+    expect(tables).toHaveLength(31)
     expect(unprotected(tables)).toEqual([])
   })
 
@@ -178,8 +179,8 @@ describe('the foundation, built from its building blocks alone', () => {
   it('lets the application past the tenant only where the list says why', async () => {
     const reading = await readPolicies(admin)
 
-    // The twenty tables of the foundation that carry a tenant, `tenants` among them.
-    expect(reading.tables).toBe(20)
+    // The twenty-one tables of the foundation that carry a tenant, `tenants` among them.
+    expect(reading.tables).toBe(21)
     expect(reading.violations).toEqual([])
     expect(reading.stale).toEqual([])
   })
@@ -616,6 +617,18 @@ describe('an instance that has nothing but the foundation', () => {
         new_value_digest: string | null
         fingerprint_version: number
       }
+    /** The sides of an entry that still have a nonce. */
+    const nonces = async (id: string) =>
+      (
+        await admin.query<{ side: string }>(
+          'select side from audit_value_nonces where entry_id = $1 order by side',
+          [id],
+        )
+      ).rows.map((row) => row.side)
+    const sha256 = (value: string | null) =>
+      createHash('sha256')
+        .update(value ?? '')
+        .digest('hex')
 
     it('is blacked out by whoever leads, with a reason, and the chain holds, for an entry of either version', async () => {
       await admin.query(
@@ -661,7 +674,7 @@ describe('an instance that has nothing but the foundation', () => {
       expect((await chain())?.problem).toBeNull()
 
       const { rows: written } = await admin.query<{ id: string }>(
-        `select id from audit_entries where tenant_id = $1 and fingerprint_version = 2 and field = 'roles' and old_value is not null
+        `select id from audit_entries where tenant_id = $1 and fingerprint_version = 3 and field = 'roles' and old_value is not null
           order by sequence desc limit 1`,
         [tenantId],
       )
@@ -669,6 +682,10 @@ describe('an instance that has nothing but the foundation', () => {
       newEntry = written[0]?.id ?? ''
 
       const before = await entry(oldEntry)
+      const fresh = await entry(newEntry)
+
+      expect(fresh.fingerprint_version).toBe(3)
+      expect(await nonces(newEntry)).toEqual(['new', 'old'])
 
       await redact(owner, oldEntry, 'new', 'Auskunft der Person')
       await redact(owner, newEntry, 'old', 'Auskunft der Person', reader)
@@ -690,7 +707,16 @@ describe('an instance that has nothing but the foundation', () => {
           .digest('hex'),
       )
       expect(gone.old_value).toBe(before.old_value)
-      expect((await entry(newEntry)).old_value).toBeNull()
+
+      // An entry of version 3 keeps nothing that opens what it lost: the nonce
+      // went with the value, and the fingerprint that stays is not the one of
+      // the value alone, so trying names and dates against it finds nothing.
+      const redacted = await entry(newEntry)
+
+      expect(redacted.old_value).toBeNull()
+      expect(redacted.old_value_digest).toBe(fresh.old_value_digest)
+      expect(redacted.old_value_digest).not.toBe(sha256(fresh.old_value))
+      expect(await nonces(newEntry)).toEqual(['new'])
 
       const checked = await chain()
 
@@ -711,7 +737,7 @@ describe('an instance that has nothing but the foundation', () => {
 
     it('is refused to whoever does not lead, without a reason, twice, and for an entry of another tenant', async () => {
       const { rows } = await admin.query<{ id: string }>(
-        `select id from audit_entries where tenant_id = $1 and fingerprint_version = 2 and new_value is not null
+        `select id from audit_entries where tenant_id = $1 and fingerprint_version = 3 and new_value is not null
            and id <> $2 order by sequence limit 1`,
         [tenantId, newEntry],
       )
@@ -783,7 +809,7 @@ describe('an instance that has nothing but the foundation', () => {
         expect((await chain())?.problem).toBeNull()
 
         const { rows } = await admin.query<{ id: string; new_value: string }>(
-          `select id, new_value from audit_entries where tenant_id = $1 and fingerprint_version = 2
+          `select id, new_value from audit_entries where tenant_id = $1 and fingerprint_version = 3
              and new_value is not null and id <> $2 and id <> $3 order by sequence limit 1`,
           [tenantId, newEntry, oldEntry],
         )
@@ -851,6 +877,66 @@ describe('an instance that has nothing but the foundation', () => {
         second.release()
       }
     })
+
+    it('finds a value of version 3 that no longer fits with its nonce, or whose nonce is gone', async () => {
+      const { rows } = await admin.query<{ id: string; new_value: string }>(
+        `select id, new_value from audit_entries where tenant_id = $1 and fingerprint_version = 3
+           and new_value is not null and id <> $2 order by sequence limit 1`,
+        [tenantId, newEntry],
+      )
+      const plain = rows[0]
+      const { rows: kept } = await admin.query<{ nonce: string }>(
+        `select nonce from audit_value_nonces where entry_id = $1 and side = 'new'`,
+        [plain?.id],
+      )
+
+      await admin.query('alter table audit_entries disable trigger audit_entries_stay')
+
+      try {
+        await admin.query(`update audit_entries set new_value = new_value || '!' where id = $1`, [
+          plain?.id,
+        ])
+        expect((await chain())?.problem).toBe('Der Eintrag wurde nachträglich verändert.')
+        await admin.query('update audit_entries set new_value = $2 where id = $1', [
+          plain?.id,
+          plain?.new_value,
+        ])
+        expect((await chain())?.problem).toBeNull()
+      } finally {
+        await admin.query('alter table audit_entries enable trigger audit_entries_stay')
+      }
+
+      await admin.query(`delete from audit_value_nonces where entry_id = $1 and side = 'new'`, [
+        plain?.id,
+      ])
+      expect((await chain())?.problem).toBe('Der Eintrag wurde nachträglich verändert.')
+      await admin.query(
+        `insert into audit_value_nonces (entry_id, tenant_id, side, nonce) values ($1, $2, 'new', $3)`,
+        [plain?.id, tenantId, kept[0]?.nonce],
+      )
+      expect((await chain())?.problem).toBeNull()
+    })
+
+    it('is read by the application in its own tenant only, and written by nobody but the trigger', async () => {
+      const read = await database.forTenant({ tenantId }, (tx) =>
+        tx.execute<{ count: string }>(sql`select count(*) from audit_value_nonces`),
+      )
+
+      expect(Number(read.rows[0]?.count)).toBeGreaterThan(0)
+
+      const elsewhere = await database.forTenant({ tenantId: newId() as never }, (tx) =>
+        tx.execute<{ count: string }>(sql`select count(*) from audit_value_nonces`),
+      )
+
+      expect(Number(elsewhere.rows[0]?.count)).toBe(0)
+      expect(
+        await errorCode(
+          database.forTenant({ tenantId }, (tx) =>
+            tx.execute(sql`delete from audit_value_nonces where entry_id = ${newEntry}`),
+          ),
+        ),
+      ).toBe(insufficientPrivilege)
+    })
   })
 })
 
@@ -880,6 +966,6 @@ describe('the rollback of the foundation', () => {
     expect(rows[0]?.schema).toBeNull()
 
     await kit.applyFoundation()
-    expect(await tableNames(admin)).toHaveLength(30)
+    expect(await tableNames(admin)).toHaveLength(31)
   })
 })

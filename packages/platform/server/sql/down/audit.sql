@@ -35,4 +35,5 @@ DROP FUNCTION IF EXISTS "record_change"();--> statement-breakpoint
 DROP FUNCTION IF EXISTS "audit_entry_problem"(public.audit_entries);--> statement-breakpoint
 DROP FUNCTION IF EXISTS "audit_witness"(public.audit_entries);--> statement-breakpoint
 DROP FUNCTION IF EXISTS "audit_fingerprint"(public.audit_entries);--> statement-breakpoint
+DROP FUNCTION IF EXISTS "audit_value_commitment"(text, text);--> statement-breakpoint
 DROP FUNCTION IF EXISTS "audit_value_digest"(text);
