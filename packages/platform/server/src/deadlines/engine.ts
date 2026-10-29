@@ -12,7 +12,7 @@ import {
   remindOn,
   type TenantId,
 } from '@opengewerk/platform-domain'
-import { and, eq, inArray, isNull, ne, or } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, ne, or } from 'drizzle-orm'
 
 import type { Actor, Database, TenantTransaction } from '../database/database.js'
 import { everyTenant } from '../database/every-tenant.js'
@@ -25,6 +25,16 @@ import { type RepeatingJob, startRepeating } from '../start/repeat.js'
 import { type MayAnswer, responsibleFor } from './responsible.js'
 import { recordDeadlinePass } from './runs.js'
 import { deadlineSettingsOf } from './settings.js'
+
+/**
+ * The most reminders one pass makes for one tenant; the others wait for the
+ * next pass, a minute later, the earliest due first. A pass goes over every
+ * tenant one after the other, and a change of an interval makes every open
+ * deadline of a kind due at once, each with a transaction and what its
+ * actions write: without a bound one tenant held up the reminders of all
+ * the others for as long as that took.
+ */
+export const mostRemindersPerPass = 100
 
 /**
  * A deadline as its source asks for it right now: what the engine compares
@@ -123,6 +133,8 @@ export interface DeadlineEngine<
     work: (tx: TenantTransaction) => Promise<Result>,
   ) => Promise<Result>
   readonly now?: () => Date
+  /** `mostRemindersPerPass`, unless a test asks for fewer. */
+  readonly mostRemindersPerPass?: number
   /** Where a failure is said; the log, unless a test listens. */
   readonly complain?: (line: string, error: unknown) => void
   /**
@@ -380,10 +392,13 @@ export async function runDeadlinesOf<
           eq(table.status, 'open'),
           or(isNull(table.remindedFor), ne(table.remindedFor, table.dueOn)),
         ),
-      )) as KeptDeadline[],
+      )
+      .orderBy(asc(table.dueOn), asc(table.id))) as KeptDeadline[],
     settings: await deadlineSettingsOf(tx),
   }))
 
+  const most = engine.mostRemindersPerPass ?? mostRemindersPerPass
+  let tried = 0
   let reminded = 0
   const failures: unknown[] = []
 
@@ -401,6 +416,14 @@ export async function runDeadlinesOf<
     if (remindOn(deadline.dueOn as IsoDate, leadOf(kind, setting, deadline.leadDays)) > today) {
       continue
     }
+
+    // The rest in the next pass, failed ones counted: a reminder that fails
+    // costs its transaction as well.
+    if (tried === most) {
+      break
+    }
+
+    tried += 1
 
     try {
       const done = await inTenant(actor, (tx) =>
