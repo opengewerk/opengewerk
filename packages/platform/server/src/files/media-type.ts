@@ -1,17 +1,4 @@
-import { fileMediaType } from '@opengewerk/platform-domain'
-
-/**
- * The types a browser may show in place, a picture or a PDF. Everything else
- * is handed out as a download, whatever it claims to be: a file somebody
- * uploaded is not a page this application should render.
- */
-export const shownInPlace = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'application/pdf',
-] as const
+import { fileMediaType, isShownInPlace, shownInPlace } from '@opengewerk/platform-domain'
 
 /**
  * The types the server knows by their bytes: the ones shown in place, and the
@@ -157,7 +144,7 @@ export function storedMediaType(bytes: Uint8Array, declared: string): string {
  * break in it cannot end the header early.
  */
 export function dispositionFor(mediaType: string, fileName: string): string {
-  const kind = (shownInPlace as readonly string[]).includes(mediaType) ? 'inline' : 'attachment'
+  const kind = isShownInPlace(mediaType) ? 'inline' : 'attachment'
   const ascii = fileName.replace(/[^\x20-\x7e]|["\\]/g, '_')
   const encoded = encodeURIComponent(fileName).replace(
     /['()*]/g,

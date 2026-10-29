@@ -432,6 +432,39 @@ describe('opening a version', () => {
 
     vi.restoreAllMocks()
   })
+
+  it('saves a file the device holds under its name, and opens nothing, when a browser would not show it safely', async () => {
+    const client = await start()
+    const opened = vi.fn()
+    const blobs: Blob[] = []
+    const saved: { readonly href: string; readonly download: string }[] = []
+
+    vi.stubGlobal('open', opened)
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+      blobs.push(blob as Blob)
+
+      return 'blob:local'
+    })
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      saved.push({ href: this.href, download: this.download })
+    })
+
+    const delivery = new File(['<?xml version="1.0"?><html/>'], 'Lieferung.xml', {
+      type: 'application/xml',
+    })
+
+    await addAttachment(client, { shelfId: 's-1' }, delivery, { shrink })
+    await openVersion(client, client.list('attachment_versions')[0] as RecordState)
+
+    expect(opened).not.toHaveBeenCalled()
+    expect(saved).toEqual([{ href: 'blob:local', download: 'Lieferung.xml' }])
+    expect(blobs.map((blob) => blob.type)).toEqual(['application/octet-stream'])
+
+    vi.restoreAllMocks()
+  })
 })
 
 describe('the preview of a version', () => {
@@ -498,6 +531,26 @@ describe('the preview of a version', () => {
       expect(second.result.current).toBe('blob:preview')
     })
     expect(fetched).toHaveBeenCalledTimes(1)
+  })
+
+  it('is neither kept nor shown when the server answers with something other than a picture', async () => {
+    const client = await start()
+    const other = new TextEncoder().encode('<?xml version="1.0"?><html/>')
+    const fetched = vi.fn(() =>
+      Promise.resolve(new Response(other, { headers: { 'Content-Type': 'application/xml' } })),
+    )
+    const version: RecordState = { id: 'v-8', attachmentId: 'd-8', previewSha256: hashOf(other) }
+
+    vi.stubGlobal('fetch', fetched)
+
+    const { result } = shown(client, version)
+
+    await waitFor(() => {
+      expect(fetched).toHaveBeenCalledTimes(1)
+    })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(result.current).toBeNull()
+    expect(await client.readFile(hashOf(other))).toBeNull()
   })
 
   it('is none for a version without one, and none while the server has no answer', async () => {
