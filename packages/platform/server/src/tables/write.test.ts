@@ -190,9 +190,32 @@ describe('a list as text with separated values', () => {
       "'+49 621 000",
       "'-5 Grad",
       "'@SUMME(A1)",
-      "'\t=1+1",
+      `"'\t=1+1"`,
       `"'\r=1+1"`,
       '',
+    ])
+  })
+
+  /**
+   * Only the semicolon this file is divided by was quoted for. A program that
+   * takes the comma or the tab for the separator began a cell in the middle
+   * of such a value, and a formula standing there was no longer behind an
+   * apostrophe.
+   */
+  it('quotes a value with a comma or a tab, so that no other separator splits it', () => {
+    const table: OutgoingTable = {
+      name: 'Liste',
+      columns: ['Notiz'],
+      rows: [['Halle,=HYPERLINK("x")'], ['Hof\t+1']],
+    }
+
+    expect(text(tableAsCsv(table))).toBe(
+      `${mark}Notiz\r\n"Halle,=HYPERLINK(""x"")"\r\n"Hof\t+1"\r\n`,
+    )
+    expect(readBack(tableAsCsv(table), 'Liste.csv')[0]?.rows).toEqual([
+      ['Notiz'],
+      ['Halle,=HYPERLINK("x")'],
+      ['Hof +1'],
     ])
   })
 

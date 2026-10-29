@@ -1,6 +1,6 @@
 import {
   cellText,
-  csvRows,
+  readCsv,
   tableLimits,
   type TableFile,
   type TableSheet,
@@ -66,10 +66,10 @@ function separatedValues(bytes: Uint8Array): TableSheet {
 
   const sheet = new SheetRows(tableBudget())
 
-  csvRows(text).forEach((row, line) => {
-    row.forEach((cell, column) => {
-      sheet.put(line, column, cell)
-    })
+  // A value at a time, so that the limits are asked while the file is read
+  // and not after every row of it was held in memory.
+  readCsv(text, (line, column, cell) => {
+    sheet.put(line, column, cell)
   })
 
   return { name: '', rows: sheet.rows }

@@ -29,6 +29,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Ablehnung nennt mehr die interne Adresse. Eine interne Adresse, die jemand selbst einträgt, wird weiter als solche
   benannt. Warum: Wer einen Mailserver einträgt oder ein Gerät für Push anmeldet, konnte so Name für Name erfragen,
   welche Namen und Adressen im Netz der Instanz liegen; beim Push genügte dafür jede Rolle.
+- Die Leser für Tabellen im Fundament gehen ihre Eingabe einmal durch: CSV wird Wert für Wert gelesen (`readCsv`),
+  sodass die Grenzen beim Lesen gelten; Formate einer Arbeitsmappe, ihre Attribute und Deklarationen werden ohne
+  Muster gelesen, die von jeder Stelle aus neu probierten; ein geteilter Text wird einmal zum Text einer Zelle statt
+  für jede Zelle, die auf ihn zeigt. Der CSV-Export setzt auch Werte mit Komma oder Tabulator in Anführungszeichen.
+  Warum: Eine hochgeladene Tabelle konnte den gemeinsamen Prozess mit dem Quadrat ihrer Größe beschäftigen oder ein
+  Vielfaches ihrer Größe in den Speicher legen, und ein Programm, das das Komma oder den Tabulator für das
+  Trennzeichen hält, begann mitten in einem exportierten Wert eine Zelle, vor der kein Apostroph mehr stand.
 
 ## [0.6.2] - 2026-10-23
 

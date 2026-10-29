@@ -17,25 +17,50 @@
  * the middle of a value is a character like any other.
  */
 export function csvRows(text: string): string[][] {
+  const rows: string[][] = []
+
+  readCsv(text, (line, _column, value) => {
+    while (rows.length <= line) {
+      rows.push([])
+    }
+
+    rows[line]?.push(value)
+  })
+
+  return rows
+}
+
+/**
+ * The same rows, handed over a value at a time, with the line and the column
+ * it stands at, both counted from 0, as they are read. Nothing is kept: a
+ * reader that has limits asks them at each value, and a file far over them
+ * is refused before it was held whole in memory, where a list of every row
+ * took many times the size of the file.
+ */
+export function readCsv(
+  text: string,
+  visit: (line: number, column: number, value: string) => void,
+): void {
   // The mark a file saved as Unicode begins with is no part of its first value.
   const content = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
   const separator = separatorOf(content)
-  const rows: string[][] = []
-  let row: string[] = []
+  let line = 0
+  let column = 0
   let cell = ''
   let quoted = false
   // Whether the cell began with a quote: only then does a quote close it.
   let opened = false
 
   const endCell = () => {
-    row.push(cell)
+    visit(line, column, cell)
+    column += 1
     cell = ''
     opened = false
   }
   const endRow = () => {
     endCell()
-    rows.push(row)
-    row = []
+    line += 1
+    column = 0
   }
 
   for (let at = 0; at < content.length; at += 1) {
@@ -67,11 +92,9 @@ export function csvRows(text: string): string[][] {
   }
 
   // A last line without a line break at its end is a line as well.
-  if (cell !== '' || opened || row.length > 0) {
+  if (cell !== '' || opened || column > 0) {
     endRow()
   }
-
-  return rows
 }
 
 /**

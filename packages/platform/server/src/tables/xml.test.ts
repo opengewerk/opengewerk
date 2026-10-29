@@ -228,3 +228,39 @@ describe('a reader of XML', () => {
     expect(names).toEqual(['a', 'b'])
   })
 })
+
+/**
+ * Two ways of reading that took the square of the text: a pattern that tried
+ * a long name without a value again from each of its characters, and every
+ * `<!` that looked for a bracket in all the rest of the text. Each is read in
+ * the time it takes to read it once.
+ */
+describe('a text of XML built to be slow', () => {
+  it('reads a tag with a long name and no value in the time it takes to read it once', () => {
+    const found: string[] = []
+    const started = performance.now()
+
+    readXml(`<a ${'x'.repeat(200_000)} b="1"/>`, {
+      open(name, attributes) {
+        found.push(`${name}:${attributes['b'] ?? ''}`)
+      },
+    })
+
+    expect(found).toEqual(['a:1'])
+    expect(performance.now() - started).toBeLessThan(1000)
+  })
+
+  it('passes over many declarations without brackets in the time it takes to read them once', () => {
+    const names: string[] = []
+    const started = performance.now()
+
+    readXml(`${'<!x>'.repeat(300_000)}<a/>`, {
+      open(name) {
+        names.push(name)
+      },
+    })
+
+    expect(names).toEqual(['a'])
+    expect(performance.now() - started).toBeLessThan(1000)
+  })
+})

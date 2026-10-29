@@ -51,7 +51,85 @@ const local = (name: string) => {
   return colon < 0 ? name : name.slice(colon + 1)
 }
 
-const attribute = /([^\s=/]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g
+const isSpace = (character: string | undefined) =>
+  character === ' ' || character === '\t' || character === '\n' || character === '\r'
+
+/**
+ * The attributes of a tag, `name="value"` or `name='value'`, read once from
+ * `from` to the end. A name is what stands up to a blank, `=` or `/`; a name
+ * without `=` and a value is passed over, and so is a value whose quote is
+ * never closed. A pattern did the same and tried a long name without `=`
+ * again from each of its characters, which took the square of its length.
+ */
+function readAttributes(inner: string, from: number, into: Record<string, string>): void {
+  let at = from
+
+  while (at < inner.length) {
+    const character = inner[at]
+
+    if (isSpace(character) || character === '=' || character === '/') {
+      at += 1
+      continue
+    }
+
+    const nameStart = at
+
+    while (at < inner.length) {
+      const next = inner[at]
+
+      if (isSpace(next) || next === '=' || next === '/') {
+        break
+      }
+
+      at += 1
+    }
+
+    const name = inner.slice(nameStart, at)
+    let after = at
+
+    while (isSpace(inner[after])) {
+      after += 1
+    }
+
+    if (inner[after] !== '=') {
+      continue
+    }
+
+    after += 1
+
+    while (isSpace(inner[after])) {
+      after += 1
+    }
+
+    const quote = inner[after]
+
+    if (quote !== '"' && quote !== "'") {
+      at = after
+      continue
+    }
+
+    const end = inner.indexOf(quote, after + 1)
+
+    if (end < 0) {
+      at = after + 1
+      continue
+    }
+
+    into[name] = xmlText(inner.slice(after + 1, end))
+    at = end + 1
+  }
+}
+
+/** Where `mark` first stands from `from` up to before `to`, or -1. */
+function indexBefore(xml: string, mark: string, from: number, to: number): number {
+  for (let at = from; at < to; at += 1) {
+    if (xml[at] === mark) {
+      return at
+    }
+  }
+
+  return -1
+}
 
 /** Reads `xml` from its beginning to its end and reports what it holds. Text that is no XML ends the reading. */
 export function readXml(xml: string, reader: XmlReader): void {
@@ -78,12 +156,13 @@ export function readXml(xml: string, reader: XmlReader): void {
     } else if (xml.startsWith('<?', tag)) {
       at = endAfter(xml, '?>', tag + 2)
     } else if (xml.startsWith('<!', tag)) {
-      // A document type may hold declarations between brackets, with `>` inside them.
-      const bracket = xml.indexOf('[', tag)
+      // A document type may hold declarations between brackets, with `>`
+      // inside them. The bracket is looked for up to the first `>` and no
+      // further: looked for in all the rest, every `<!` read to the end.
       const plain = xml.indexOf('>', tag)
+      const bracket = indexBefore(xml, '[', tag + 2, plain < 0 ? xml.length : plain)
 
-      at =
-        bracket >= 0 && bracket < plain ? endAfter(xml, ']>', bracket) : endAfter(xml, '>', tag + 2)
+      at = bracket >= 0 ? endAfter(xml, ']>', bracket) : endAfter(xml, '>', tag + 2)
     } else {
       const end = tagEnd(xml, tag)
 
@@ -101,11 +180,7 @@ export function readXml(xml: string, reader: XmlReader): void {
         const attributes = Object.create(null) as Record<string, string>
 
         if (space >= 0) {
-          attribute.lastIndex = 0
-
-          for (let found = attribute.exec(inner); found !== null; found = attribute.exec(inner)) {
-            attributes[found[1] ?? ''] = xmlText(found[2] ?? found[3] ?? '')
-          }
+          readAttributes(inner, space, attributes)
         }
 
         reader.open?.(local(space < 0 ? inner : inner.slice(0, space)), attributes, closed)
