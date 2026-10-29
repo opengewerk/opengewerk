@@ -18,6 +18,9 @@ import { refusePlaceholder } from '../configuration.js'
 /** What a caller gets instead of a PDF, phrased for whoever reads the log. */
 export class RendererUnavailableError extends Error {}
 
+/** The renderer is there and busy with the prints of others (`queuedRenderer`). */
+export class RendererBusyError extends RendererUnavailableError {}
+
 /**
  * What a printed page may load: nothing but what it carries itself
  * (opengewerk/opengewerk#686, found in the security review
@@ -229,18 +232,122 @@ export interface PrintJob {
  * Turns a print job into a PDF. A function rather than the service itself, so
  * the routes that print can be tested without a Chromium: a test hands in one
  * that answers with fixed bytes, or one that is not there.
+ *
+ * The tenant the job is printed for, where the caller knows it, so that one
+ * tenant cannot take every place in the queue (`queuedRenderer`).
  */
-export type Renderer = (job: PrintJob) => Promise<Uint8Array>
+export type Renderer = (
+  job: PrintJob,
+  printedFor?: { readonly tenantId: string },
+) => Promise<Uint8Array>
 
 /** The renderer an instance uses, the service from ADR 0007 behind `renderPdf`. */
 export function rendererFor(configuration: RendererConfiguration): Renderer {
-  return (job) =>
+  return queuedRenderer((job) =>
     renderPdf(job.html, configuration, {
       ...(job.footerHtml === undefined ? {} : { footerHtml: job.footerHtml }),
       ...(job.margin === undefined ? {} : { margin: job.margin }),
       ...(job.landscape === undefined ? {} : { landscape: job.landscape }),
       ...(job.size === undefined ? {} : { size: job.size }),
+    }),
+  )
+}
+
+/**
+ * How the prints of an instance queue for its renderer. One at a time, as the
+ * renderer of the compose file takes them (`CONCURRENT=1`); ten waiting at
+ * most, three of them for one tenant; and none waiting longer than a minute.
+ */
+export interface RenderQueueLimits {
+  readonly atOnce: number
+  readonly waiting: number
+  readonly waitingPerTenant: number
+  readonly waitMs: number
+}
+
+export const renderQueueLimits: RenderQueueLimits = {
+  atOnce: 1,
+  waiting: 10,
+  waitingPerTenant: 3,
+  waitMs: 60_000,
+}
+
+const busy =
+  'Der Renderer druckt gerade für andere, deshalb kann im Moment kein PDF erzeugt werden. ' +
+  'Bitte gleich noch einmal versuchen.'
+
+/**
+ * Puts a renderer behind a queue in this process. Every route that prints
+ * renders on each request, the instance has one renderer, and a job went to
+ * it the moment it came: whoever could open a print could keep it busy for
+ * every tenant, and the jobs piled up behind it. Now the queue holds what
+ * the renderer can take and a little more, a tenant only part of that, and
+ * whatever finds no place, or waits too long, is told the renderer is busy
+ * (`RendererBusyError`, which the routes answer as 503).
+ */
+export function queuedRenderer(
+  render: Renderer,
+  limits: RenderQueueLimits = renderQueueLimits,
+): Renderer {
+  let running = 0
+  const waiting: { readonly tenantId: string | null; readonly start: () => void }[] = []
+
+  function next(): void {
+    while (running < limits.atOnce) {
+      const first = waiting.shift()
+
+      if (!first) {
+        return
+      }
+
+      running += 1
+      first.start()
+    }
+  }
+
+  async function place(tenantId: string | null): Promise<void> {
+    if (running < limits.atOnce && waiting.length === 0) {
+      running += 1
+
+      return
+    }
+
+    const ofTenant = waiting.filter((entry) => entry.tenantId === tenantId).length
+
+    if (
+      waiting.length >= limits.waiting ||
+      (tenantId !== null && ofTenant >= limits.waitingPerTenant)
+    ) {
+      throw new RendererBusyError(busy)
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const entry = {
+        tenantId,
+        start: () => {
+          clearTimeout(timer)
+          resolve()
+        },
+      }
+      const timer = setTimeout(() => {
+        waiting.splice(waiting.indexOf(entry), 1)
+        reject(new RendererBusyError(busy))
+      }, limits.waitMs)
+
+      waiting.push(entry)
     })
+  }
+
+  return async (job, printedFor) => {
+    await place(printedFor?.tenantId ?? null)
+
+    try {
+      return await render(job, printedFor)
+    } finally {
+      running -= 1
+      next()
+    }
+  }
 }
 
 /**

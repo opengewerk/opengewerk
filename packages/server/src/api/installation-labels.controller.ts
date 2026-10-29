@@ -275,6 +275,7 @@ export class InstallationLabelsController {
     try {
       bytes = await this.render(
         installationLabelPrintJob({ ...facts.print, origin, format, count, start }),
+        identity,
       )
     } catch (error) {
       if (error instanceof RendererUnavailableError) {

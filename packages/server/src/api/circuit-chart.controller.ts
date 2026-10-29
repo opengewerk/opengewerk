@@ -79,7 +79,7 @@ export class CircuitChartController {
     let bytes: Uint8Array
 
     try {
-      bytes = await this.render(circuitChartJob(chart))
+      bytes = await this.render(circuitChartJob(chart), identity)
     } catch (error) {
       if (error instanceof RendererUnavailableError) {
         throw new ServiceUnavailableException(error.message)

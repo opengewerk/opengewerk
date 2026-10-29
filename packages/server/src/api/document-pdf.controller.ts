@@ -122,7 +122,7 @@ export class DocumentPdfController {
       }
     } else if (found.state === 'live') {
       printed = {
-        bytes: await this.files.print(found.content),
+        bytes: await this.files.print(found.content, identity),
         number: null,
         heading: headingOf(found.content),
         signed: found.content.signature !== null,
