@@ -167,6 +167,15 @@ export const disabledPaths: readonly string[] = [
   '/refresh-token',
   '/two-factor/send-otp',
   '/two-factor/verify-otp',
+  // The two routes with a part of the path as a value. better-auth cannot
+  // switch them off by name; `authenticationHandler` answers them in front of
+  // it, since `routes` leaves out every path here. The link to a new password
+  // goes to the page of the application with the token, which sends it in the
+  // body of `/reset-password`, and there is no sign in through another
+  // provider to come back from. Reachable, every value made up for them was a
+  // row of the rate limits.
+  '/reset-password/:token',
+  '/callback/:id',
 ]
 
 /** Where a sign in with a passkey happens, the one route that makes a passkey session. */
@@ -261,6 +270,12 @@ export interface FoundSession {
 export interface Authentication {
   /** better-auth's own routes, for `toNodeHandler`, in front of the body parser. */
   readonly handler: (request: Request) => Promise<Response>
+  /**
+   * The paths of the routes that are switched on, under the path of the
+   * authentication. A request for any other is answered before better-auth
+   * sees it (`authenticationHandler`).
+   */
+  readonly routes: readonly RegExp[]
   readonly api: {
     /** The session a request carries, or null. */
     getSession(context: { readonly headers: Headers }): Promise<FoundSession | null>
@@ -811,7 +826,29 @@ export function createAuthentication({
     }
   }
 
-  return authentication
+  return Object.assign(authentication, { routes: routesOf(authentication.api) })
+}
+
+/**
+ * Each path better-auth answers on, as a pattern: a part like `:token` stands
+ * for one part of the path, whatever it is. The routes that are switched off
+ * are left out.
+ */
+function routesOf(api: object): RegExp[] {
+  return Object.values(api as Record<string, { readonly path?: unknown }>)
+    .map((endpoint) => endpoint.path)
+    .filter((path): path is string => typeof path === 'string' && !disabledPaths.includes(path))
+    .map(
+      (path) =>
+        new RegExp(
+          `^${path
+            .split('/')
+            .map((part) =>
+              part.startsWith(':') ? '[^/]+' : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+            )
+            .join('/')}$`,
+        ),
+    )
 }
 
 /**

@@ -201,6 +201,21 @@ describe('the logo', () => {
     expect(Buffer.compare(logo.body as Buffer, png)).toBe(0)
   })
 
+  /**
+   * A parser in front of the route read and unpacked the body of every
+   * request with an image type, before anybody had asked who sent it. The
+   * route reads it now, after the guards: a request without a session is
+   * refused for that and nothing else, however its body is packed.
+   */
+  it('is refused without a session before its body is read', async () => {
+    await http()
+      .put('/settings/letterhead/logo')
+      .set('content-type', 'image/png')
+      .set('content-encoding', 'gzip')
+      .send(Buffer.from('kein gzip, und es fragt auch niemand danach'))
+      .expect(401)
+  })
+
   it('is judged by its bytes, not by the type it was sent with', async () => {
     const refused = await http()
       .put('/settings/letterhead/logo')
@@ -223,12 +238,20 @@ describe('the logo', () => {
       .expect(413)
     expect((byTheController.body as { message: string }).message).toContain('MB')
 
-    await http()
+    // Far over the limit the route stops reading and ends the connection
+    // rather than read megabytes nobody keeps; a client that is still
+    // writing sees its write cut off, one that waits gets the 413.
+    const farOver = await http()
       .put('/settings/letterhead/logo')
       .set('x-test-identity', owner())
       .set('content-type', 'image/png')
       .send(Buffer.concat([png, Buffer.alloc(3_000_000)]))
-      .expect(413)
+      .then(
+        (answer) => answer.status,
+        (error: { code?: string; status?: number }) => error.status ?? error.code,
+      )
+
+    expect([413, 'ECANCELED', 'EPIPE', 'ECONNRESET']).toContain(farOver)
   })
 
   it('is refused while the volume of the files has no room left, and nothing is kept', async () => {

@@ -20,8 +20,6 @@ import {
   type TenantChoice,
   type TenantId,
 } from '@opengewerk/platform-domain'
-import { toNodeHandler } from 'better-auth/node'
-import type { RequestHandler } from 'express'
 import type { Pool } from 'pg'
 import request from 'supertest'
 
@@ -55,7 +53,7 @@ import { SIGNING, type SigningContext } from '../instance/signing.js'
 import { MAIL, type MailContext } from '../mail/context.js'
 import type { MadeByTheApplication } from '../migration/guards.js'
 import { memberships } from '../schema.js'
-import { mountAuthentication } from '../start/server.js'
+import { authenticationHandler, mountAuthentication } from '../start/server.js'
 import type { AccessRules, MembershipAdditions } from './access.js'
 import {
   type Authentication,
@@ -493,7 +491,7 @@ export async function probeInstance(
     // As an instance mounts it: behind the limit of its bodies, which hands
     // it every body as text, and in front of Nest's body parser, which would
     // hand it a body it had made something else of.
-    mountAuthentication(app, toNodeHandler(authentication) as RequestHandler)
+    mountAuthentication(app, authenticationHandler(authentication))
   }
 
   await app.init()
