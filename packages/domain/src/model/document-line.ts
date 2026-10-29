@@ -160,6 +160,37 @@ export function linePositionProblem(position: unknown): string | null {
 }
 
 /**
+ * The most characters the texts of a line hold, and the most lines a
+ * document holds. Far above what a document is written with, a long text of
+ * an article included; what they keep out is a line or a document that only
+ * fills the database every business shares, kept for good by the log. The
+ * checks `document_lines_designation_fits` and `document_lines_description_fits`
+ * and the trigger `document_lines_within_count` hold the same.
+ */
+export const lineLimits = {
+  designation: 1000,
+  description: 30_000,
+  lines: 2000,
+} as const
+
+/** What is wrong with a text of a line, or null; a text left out is nothing wrong. */
+export function lineTextProblem(
+  field: 'designation' | 'description',
+  value: unknown,
+): string | null {
+  if (typeof value !== 'string' || [...value].length <= lineLimits[field]) {
+    return null
+  }
+
+  const name = field === 'designation' ? 'Die Bezeichnung' : 'Die Beschreibung'
+
+  return `${name} einer Position hat höchstens ${lineLimits[field].toLocaleString('de-DE')} Zeichen.`
+}
+
+/** What is said when a document would hold more lines than it may. */
+export const tooManyLines = `Ein Beleg hat höchstens ${lineLimits.lines.toLocaleString('de-DE')} Positionen.`
+
+/**
  * What is wrong with the amount on a title, or null when nothing is. A title
  * carries neither a quantity nor a price, which the check
  * `document_lines_title_has_no_amount` holds; a position may carry anything.

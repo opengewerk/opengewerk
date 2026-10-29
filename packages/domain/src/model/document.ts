@@ -443,3 +443,32 @@ export function servicePeriodProblem(from: unknown, until: unknown): string | nu
 function asDay(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value.slice(0, 10) : null
 }
+
+/**
+ * The most characters the texts of a document hold: the subject a line, the
+ * texts before and after the lines a letter each. The check
+ * `documents_texts_fit` holds the same, for the same reason as `lineLimits`.
+ */
+export const documentTextLimits = {
+  subject: 500,
+  introText: 30_000,
+  closingText: 30_000,
+} as const
+
+const documentTextNames: Readonly<Record<keyof typeof documentTextLimits, string>> = {
+  subject: 'Der Betreff',
+  introText: 'Der Text vor den Positionen',
+  closingText: 'Der Text nach den Positionen',
+}
+
+/** What is wrong with a text of a document, or null; a text left out is nothing wrong. */
+export function documentTextProblem(
+  field: keyof typeof documentTextLimits,
+  value: unknown,
+): string | null {
+  if (typeof value !== 'string' || [...value].length <= documentTextLimits[field]) {
+    return null
+  }
+
+  return `${documentTextNames[field]} hat höchstens ${documentTextLimits[field].toLocaleString('de-DE')} Zeichen.`
+}

@@ -14,11 +14,14 @@ import {
   type DocumentId,
   type DocumentLineId,
   lineKinds,
+  lineLimits,
   lineNetCents,
+  lineTextProblem,
   lineUnits,
   lumpSumPriceBaseProblem,
   priceBaseProblem,
   shippedRules,
+  tooManyLines,
   totalsFor,
   vatRates,
   whyFixed,
@@ -30,7 +33,7 @@ import {
   requireSomething,
   type TenantTransaction,
 } from '@opengewerk/platform-server'
-import { and, asc, eq, isNull } from 'drizzle-orm'
+import { and, asc, count, eq, isNull } from 'drizzle-orm'
 
 import { documentLines, documents } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
@@ -123,6 +126,20 @@ function oneOf(name: string, value: unknown, allowed: readonly string[]): void {
   }
 }
 
+/** Refuses a text longer than a line holds (`lineLimits`), as the checks in the database do. */
+function textsFit(values: {
+  readonly designation?: unknown
+  readonly description?: unknown
+}): void {
+  const problem =
+    lineTextProblem('designation', values.designation) ??
+    lineTextProblem('description', values.description)
+
+  if (problem !== null) {
+    throw new BadRequestException(problem)
+  }
+}
+
 /**
  * The positions of a document.
  *
@@ -207,9 +224,25 @@ export class DocumentLinesController {
     oneOf('unit', values.unit, lineUnits)
     oneOf('vatRate', values.vatRate, vatRates)
     knownPriceBase(values)
+    textsFit(values)
 
     return await this.database.forTenant(identity, async (tx) => {
       await this.draftOf(tx, documentId)
+
+      // Said here with the sentence, before the trigger refuses the line.
+      const [held] = await tx
+        .select({ lines: count() })
+        .from(documentLines)
+        .where(
+          and(
+            eq(documentLines.documentId, documentId as DocumentId),
+            isNull(documentLines.deletedAt),
+          ),
+        )
+
+      if ((held?.lines ?? 0) >= lineLimits.lines) {
+        throw new ConflictException(tooManyLines)
+      }
       // Only the article is asked here; the document came from the path.
       await requireReferences(tx, documentLines, { articleId: values.articleId }, false)
 
@@ -244,6 +277,7 @@ export class DocumentLinesController {
     oneOf('unit', values.unit, lineUnits)
     oneOf('vatRate', values.vatRate, vatRates)
     knownPriceBase(values)
+    textsFit(values)
 
     return await this.database.forTenant(identity, async (tx) => {
       await this.draftOf(tx, documentId)

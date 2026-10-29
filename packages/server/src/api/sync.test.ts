@@ -1190,6 +1190,39 @@ describe('a rule over the fields of one record', () => {
     expect(await period(document.id)).toEqual({ from: '2026-09-01', until: '2026-09-05' })
   })
 
+  /**
+   * A line from a device with a text longer than a line holds (0091), in the
+   * words of the route; left to the check in the database, the whole
+   * transmission went with a sentence written for a developer.
+   */
+  it('turns a line away whose designation is longer than a line holds, in its words', async () => {
+    const document = await invoice('2026-09-01', '2026-09-05')
+
+    const refused = await transmit(
+      app,
+      office(),
+      [
+        change({
+          entity: 'document_lines',
+          recordId: newId<'document-line'>(),
+          kind: 'create',
+          patches: [
+            { field: 'documentId', from: null, to: document.id },
+            { field: 'kind', from: null, to: 'item' },
+            { field: 'position', from: null, to: 1 },
+            { field: 'designation', from: null, to: 'x'.repeat(1001) },
+            { field: 'quantityMilli', from: null, to: 1000 },
+            { field: 'unit', from: null, to: 'piece' },
+            { field: 'unitPriceCents', from: null, to: 100 },
+          ],
+        }),
+      ],
+      400,
+    )
+
+    expect(refused.message).toBe('Die Bezeichnung einer Position hat höchstens 1.000 Zeichen.')
+  })
+
   it('makes a conflict of two changes that each fit and do not fit together, and the rest lands', async () => {
     const document = await invoice('2026-09-01', '2026-09-05')
 

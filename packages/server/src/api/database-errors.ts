@@ -1,3 +1,4 @@
+import { tooManyLines } from '@opengewerk/domain'
 import { databaseErrors } from '@opengewerk/platform-server'
 
 /**
@@ -13,4 +14,6 @@ import { databaseErrors } from '@opengewerk/platform-server'
  */
 export const { answerFor, DatabaseExceptionFilter } = databaseErrors({
   OG001: 'Der Beleg ist festgeschrieben.',
+  // The trigger `document_lines_within_count` (0091).
+  OG007: tooManyLines,
 })

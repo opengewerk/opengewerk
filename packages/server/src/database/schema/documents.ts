@@ -1,6 +1,7 @@
 import {
   documentKinds,
   documentStatuses,
+  documentTextLimits,
   longestFormValues,
   longestPaymentTermDays,
   taxTreatments,
@@ -178,6 +179,13 @@ export const documents = pgTable(
       sql`${table.fieldValues} is null
         or (${table.fieldsVersion} > 0
           and char_length(${table.fieldValues}) <= ${sql.raw(String(longestFormValues))})`,
+    ),
+    // `documentTextLimits`, asked by the routes and the sync before.
+    check(
+      'documents_texts_fit',
+      sql`coalesce(char_length(${table.subject}), 0) <= ${sql.raw(String(documentTextLimits.subject))}
+        and coalesce(char_length(${table.introText}), 0) <= ${sql.raw(String(documentTextLimits.introText))}
+        and coalesce(char_length(${table.closingText}), 0) <= ${sql.raw(String(documentTextLimits.closingText))}`,
     ),
   ],
 )

@@ -29,6 +29,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Ablehnung nennt mehr die interne Adresse. Eine interne Adresse, die jemand selbst einträgt, wird weiter als solche
   benannt. Warum: Wer einen Mailserver einträgt oder ein Gerät für Push anmeldet, konnte so Name für Name erfragen,
   welche Namen und Adressen im Netz der Instanz liegen; beim Push genügte dafür jede Rolle.
+- Ein Beleg hat Grenzen: die Bezeichnung einer Position höchstens 1000 Zeichen, ihre Beschreibung 30.000, der Betreff
+  500, die Texte vor und nach den Positionen je 30.000, und ein Beleg höchstens 2000 Positionen. Routen und Abgleich
+  lehnen mit einem Satz ab, die Migration `0091_document_bounds` hält dasselbe mit Checks und dem Trigger
+  `document_lines_within_count` (OG007); vorhandene Belege bleiben, wie sie sind. Warum: Wer Belege schreiben darf,
+  konnte die gemeinsame Datenbank mit Positionen beliebiger Länge und Zahl füllen, und das Prüfprotokoll hält jede davon
+  für immer.
 - Ein Monteur nimmt über den Abgleich keinen stornierten Auftrag mehr wieder auf, und eine Unterschrift landet nur
   noch unter einem Regiebericht im Entwurf, der an keinem anderen Beleg hängt. Die Prüfung `jobProgress` fragt den
   gespeicherten Status, `signatureRefusal` die Art und den Vorgänger, und die Migration `0090_sign_only_a_report`
