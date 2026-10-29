@@ -82,6 +82,25 @@ export function fileMediaType(declared: string): string {
     : 'application/octet-stream'
 }
 
+/**
+ * The types a browser may show in place, a picture or a PDF. Everything else
+ * is handed out as a download, whatever it claims to be: a file somebody
+ * uploaded is not a page this application should render. The server asks it
+ * of what it hands out, the interface of what a device holds.
+ */
+export const shownInPlace = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'application/pdf',
+] as const
+
+/** Whether a file of this type may be shown in place (`shownInPlace`). */
+export function isShownInPlace(mediaType: string): boolean {
+  return (shownInPlace as readonly string[]).includes(mediaType)
+}
+
 /** Why a value is not the SHA-256 a stored file is named by, or null when it is. */
 export function fileHashProblem(hash: unknown): string | null {
   return typeof hash === 'string' && sha256Pattern.test(hash)

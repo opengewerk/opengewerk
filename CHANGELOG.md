@@ -27,6 +27,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   unterschreibt. Warum: Eine Position, die im selben Moment geschrieben wurde, kam in den Beleg, aber nicht in seinen
   Schnappschuss, und ein Storno konnte eine Rechnung treffen, auf die gerade eine Zahlung oder eine abziehende
   Folgerechnung kam. Beides widerspricht der Festschreibung, die die GoBD verlangen.
+- Ein Anhang, den das Gerät hält, öffnet nur noch als Bild oder PDF in einem neuen Fenster; jede andere Datei wird
+  unter ihrem Namen gespeichert, wie der Server sie ausgibt (`shownInPlace`, jetzt im Fundament der Domäne). Eine
+  Vorschau, die kein Bild ist, wird weder behalten noch gezeigt. Warum: Geöffnet wurde jede Datei vom Gerät als
+  blob-Seite im Ursprung der Anwendung, unter dem Typ, den ein Browser beim Hochladen angab, eine XML-Datei
+  eingeschlossen, und über eine Version, die eine andere Datei des Mandanten als Vorschau nennt, kam so eine auch auf
+  die Geräte anderer.
 - Die Leser für Tabellen im Fundament gehen ihre Eingabe einmal durch: CSV wird Wert für Wert gelesen (`readCsv`),
   sodass die Grenzen beim Lesen gelten; Formate einer Arbeitsmappe, ihre Attribute und Deklarationen werden ohne
   Muster gelesen, die von jeder Stelle aus neu probierten; ein geteilter Text wird einmal zum Text einer Zelle statt

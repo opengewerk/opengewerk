@@ -6,6 +6,7 @@ import {
   fileSizeProblem,
   isPhoto,
   isPicture,
+  isShownInPlace,
   photoLongEdge,
   photoQuality,
   previewLongEdge,
@@ -237,9 +238,13 @@ export function usePreview(version: RecordState | undefined): string | null {
             headers: workingInHeaders(),
           })
 
-          if (response.ok) {
+          const mediaType = fileMediaType(response.headers.get('content-type') ?? '')
+
+          // A preview is a picture. Whatever else the route answers with, for
+          // a version that names some other file of the tenant as its
+          // preview, is neither kept nor shown.
+          if (response.ok && isPicture(mediaType)) {
             const bytes = await response.arrayBuffer()
-            const mediaType = response.headers.get('content-type') ?? 'image/jpeg'
 
             await client.rememberFile(hash, bytes, mediaType)
             file = { sha256: hash, bytes, mediaType }
@@ -310,12 +315,33 @@ export async function holdVersion(client: SyncClient, version: RecordState): Pro
  * Opens a version: from this device when it holds the file, which it does for
  * everything made here and so works without a network, and from the server
  * otherwise. In a new window, from the click that asked for it.
+ *
+ * In place only a picture or a PDF, as the server hands files out
+ * (`shownInPlace`); every other file this device holds is saved under its
+ * name. Opened, it would be a page of this application, an XML file of
+ * somebody else's making among them, and the type a device holds a file
+ * under is only what a browser declared for it.
  */
 export async function openVersion(client: SyncClient, version: RecordState): Promise<void> {
   const local = await client.readFile(text(version, 'sha256'))
 
   if (!local) {
     window.open(versionPath(String(version['id']), 'content'), '_blank', 'noopener')
+
+    return
+  }
+
+  if (!isShownInPlace(local.mediaType)) {
+    const saved = URL.createObjectURL(new Blob([local.bytes], { type: 'application/octet-stream' }))
+    const link = document.createElement('a')
+
+    link.href = saved
+    link.download = maybeText(version, 'fileName') ?? 'Datei'
+    link.click()
+    // The browser has taken the file once the click is through.
+    window.setTimeout(() => {
+      URL.revokeObjectURL(saved)
+    }, 0)
 
     return
   }
