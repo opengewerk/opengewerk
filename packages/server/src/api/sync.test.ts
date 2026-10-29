@@ -3,10 +3,11 @@ import { Test } from '@nestjs/testing'
 import {
   contactFamilyNameMissing,
   contactParentText,
+  longestFormValues,
   missingPermission,
   syncEntities,
 } from '@opengewerk/domain'
-import { Database, newId } from '@opengewerk/platform-server'
+import { Database, longestSyncText, newId } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -15,7 +16,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { changesSince } from '../database/sync.js'
 import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
 import { ApiModule } from './api.module.js'
-import { permissionFor } from './sync-routes.js'
+import { permissionFor, syncRoutes } from './sync-routes.js'
 import { as, testIdentities as identities } from './test-identity.js'
 import { invoiceable, issuableDraft, readyToInvoice } from './test-invoice.js'
 import { created, push as transmit } from './test-structure.js'
@@ -2281,5 +2282,22 @@ describe('the country of an address from a device', () => {
       .set('x-test-identity', office())
       .send({ country: 'Deutschland' })
       .expect(400)
+  })
+})
+
+describe('a text sent through the sync', () => {
+  it('is held to the length of the foundation, the values of a form to the length of their check', async () => {
+    const long = created('customers', newId<'customer'>(), {
+      kind: 'private',
+      name: 'x'.repeat(longestSyncText + 1),
+    })
+    const refused = await transmit(app, office(), [long], 400)
+
+    expect(refused.operationId).toBe(long.id)
+    expect(refused.message).toMatch(/länger als 100\.000 Zeichen/)
+    expect(syncRoutes(null).longerTexts).toEqual({
+      documents: { fieldValues: longestFormValues },
+      form_records: { values: longestFormValues },
+    })
   })
 })

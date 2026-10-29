@@ -47,6 +47,17 @@ import {
 export const SYNC_ROUTES = Symbol('SyncRoutes')
 
 /**
+ * How long a text an operation carries may be, in characters, unless the
+ * application names its field as one that holds more (`longerTexts`).
+ *
+ * As long as a route lets it be: the parser in front of the routes reads
+ * 100 kB of JSON at most, and a transmission of eight megabytes would
+ * otherwise put a text into a single field that no form could ever have
+ * written, for every device that pulls it to read back whole.
+ */
+export const longestSyncText = 100_000
+
+/**
  * What a pull is narrowed to, for the person and the device asking.
  *
  * Worked out once per pull, inside its transaction and before the changes are
@@ -150,6 +161,12 @@ export interface SyncRouteParts<Who extends MemberIdentity, Right extends string
   answerFor(error: unknown): HttpException
   /** What the device of somebody holds. Left out, every device holds everything. */
   scope?(context: PullContext<Who, Right>): Promise<PullScope> | PullScope
+  /**
+   * The fields that hold a longer text than `longestSyncText`, by entity and
+   * field, with the length each may have, as the checks of their columns
+   * hold it. Left out, every text is held to `longestSyncText`.
+   */
+  readonly longerTexts?: Readonly<Record<string, Readonly<Record<string, number>>>>
 }
 
 /**
@@ -186,6 +203,27 @@ function asRecord(value: unknown, what: string): Record<string, unknown> {
   }
 
   return value as Record<string, unknown>
+}
+
+/** The sentence for a text of an operation longer than its field may hold, or nothing. */
+function textTooLong(
+  operation: Operation,
+  longer: Readonly<Record<string, Readonly<Record<string, number>>>> | undefined,
+): string | null {
+  for (const patch of operation.patches) {
+    const longest = longer?.[operation.entity]?.[patch.field] ?? longestSyncText
+
+    for (const value of [patch.from, patch.to]) {
+      if (typeof value === 'string' && value.length > longest) {
+        return (
+          `Der Text im Feld ${patch.field} ist länger als ${longest.toLocaleString('de-DE')} ` +
+          'Zeichen und wird nicht abgeglichen.'
+        )
+      }
+    }
+  }
+
+  return null
 }
 
 function asSyncValue(value: unknown, what: string): SyncValue {
@@ -394,6 +432,13 @@ export class SyncController {
           // In words, as the conflict screen shows it under the refused change.
           new BadRequestException(this.authorization.missingPermission(needed)),
         )
+      }
+
+      // Named too: a device shows the one entry and throws it away.
+      const tooLong = textTooLong(operation, this.routes.longerTexts)
+
+      if (tooLong) {
+        throw naming(operation.id, new BadRequestException(tooLong))
       }
     }
 

@@ -92,6 +92,7 @@ export * from './api/handed-in.js'
 export * from './api/health.controller.js'
 export * from './api/identity.js'
 export * from './api/origin.js'
+export * from './api/write-limits.js'
 export * from './api/security-headers.js'
 
 // What is on the internet and what is inside a network.

@@ -87,6 +87,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `document_lines_within_count` (OG007); vorhandene Belege bleiben, wie sie sind. Warum: Wer Belege schreiben darf,
   konnte die gemeinsame Datenbank mit Positionen beliebiger Länge und Zahl füllen, und das Prüfprotokoll hält jede davon
   für immer.
+- Ein Text, den der Abgleich in einer Operation bringt, ist höchstens 100.000 Zeichen lang, so lang, wie eine Route
+  ihn annimmt; die Werte eines Formulars dürfen bis zu ihrer Prüfung reichen. Dazu zählt jedes Konto, was es in einer
+  Stunde als JSON ändert, über alle Mandanten zusammen, und über 100 MB antwortet jede Route mit 429. Warum: Über den
+  Abgleich kam in ein einzelnes Feld ein Text von fast 8 MB, und wie oft jemand schrieb, hatte keine Grenze; ein
+  Mitglied konnte so die Datenbank füllen, die alle Mandanten teilen.
 - Eine E-Rechnung über 10 MB wird nicht mehr geschrieben, sondern mit einem Satz abgelehnt (422), bevor ihr XML in den
   Parser kommt (`largestCiiBytes`). Warum: Die Schemaprüfung kopiert jede E-Rechnung in den einen Parser des Prozesses
   und baut einen Baum daraus, und ein Beleg mit langen Positionstexten, jedes `&` als `&amp;` geschrieben, kam auch
