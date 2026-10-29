@@ -5,7 +5,7 @@ import { centsOf, headerOf, recordOf } from './records.js'
 import { filledLines, readDelivery } from './read.js'
 import { cp850, header, windows1252, zipOf } from './test-files.js'
 import { unitOf } from './units.js'
-import { unzip, ZipRefused } from './zip.js'
+import { deliveryTooLarge, unzip, ZipRefused } from './zip.js'
 
 /**
  * Reading DATANORM 4 (#297): the characters, the records, the articles put
@@ -358,9 +358,46 @@ describe('an archive', () => {
     damaged[44] = (damaged[44] ?? 0) ^ 0xff
 
     expect(() => unzip(damaged)).toThrow(ZipRefused)
-    expect(() => unzip(archive, 10)).toThrow('Das Archiv entpackt sich zu mehr als 400 MB.')
+    expect(() => unzip(archive, 10)).toThrow('Die Lieferung entpackt sich zu mehr als 400 MB.')
     expect(() => unzip(archive.subarray(0, 30))).toThrow(
       'Die Datei ist kein vollständiges ZIP-Archiv.',
     )
+  })
+
+  /**
+   * The limit counted each archive on its own, and a delivery of twenty
+   * archives just under it was held in memory twenty times over. It is one
+   * budget for the delivery now, the files that come unpacked included.
+   */
+  it('counts every archive and file of a delivery against one budget', () => {
+    const file = cp850([header(), 'A;N;4711;00;Kabelbinder;;1;0;Stck;100;;;;'])
+    const archive = zipOf([{ name: 'DATANORM.001', bytes: file }])
+    const budget = file.length * 2
+
+    expect(
+      readDelivery([{ name: 'eins.zip', bytes: archive }], undefined, budget).files,
+    ).toHaveLength(1)
+    expect(() =>
+      readDelivery(
+        [
+          { name: 'eins.zip', bytes: archive },
+          { name: 'zwei.zip', bytes: archive },
+          { name: 'drei.zip', bytes: archive },
+        ],
+        undefined,
+        budget,
+      ),
+    ).toThrow(deliveryTooLarge)
+    expect(() =>
+      readDelivery(
+        [
+          { name: 'eins.zip', bytes: archive },
+          { name: 'DATPREIS.001', bytes: file },
+          { name: 'DATANORM.WRG', bytes: file },
+        ],
+        undefined,
+        budget,
+      ),
+    ).toThrow(deliveryTooLarge)
   })
 })

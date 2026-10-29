@@ -598,6 +598,27 @@ describe('an import that cannot start or run', () => {
     await send('post', `/suppliers/${hansa}/imports`, { files: [] }, 400)
   })
 
+  /**
+   * Each file named was read and held on its own, so one upload of the
+   * largest size named twenty times was twenty copies in memory.
+   */
+  it('is refused when it names the same file twice', async () => {
+    const sha256 = await upload(catalogue)
+    const twice = await send(
+      'post',
+      `/suppliers/${hansa}/imports`,
+      {
+        files: [
+          { name: 'DATANORM.001', sha256 },
+          { name: 'DATANORM.002', sha256 },
+        ],
+      },
+      400,
+    )
+
+    expect(twice.message).toBe('Jede Datei lässt sich in einem Import nur einmal nennen.')
+  })
+
   it('is refused for a file somebody else stored, until an import in reach names it or the person stores it too', async () => {
     const colleague = JSON.stringify({ userId: 'kollegin', tenantId: north.id, roles: ['office'] })
     const start = (sha256: string, who: string, status: number) =>

@@ -23,6 +23,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   eines Geräts fragt je Zeile über einen Index, ob die Person sie angelegt hat, statt die Liste all ihrer Einträge zu
   durchsuchen. Warum: Alle drei laufen im gemeinsamen Prozess oder auf dem gemeinsamen Pool, und eine Eingabe eines
   Mandanten hielt so die Anfragen aller anderen über Sekunden bis Minuten auf.
+- Die stündlichen Grenzen für Uploads zählen ein Konto für sich, in welchem Mandanten es auch ablegt, und dazu die
+  ganze Instanz (`instanceBytesPerHour`, 20 GB). Ein DATANORM-Import hat ein Budget von 400 MB für alle seine Dateien
+  und Archive zusammen statt eines je Archiv, nimmt jede Datei nur einmal an, und Importe laufen im Prozess
+  nacheinander statt einer je Mandant zugleich. Warum: Ein Mandant ist in einer Minute angelegt, und Grenzen je Konto
+  im Mandanten, je Archiv und je Mandant vervielfachten sich so mit der Zahl der Mandanten und Dateien, die eine
+  Person öffnet oder nennt.
 
 ## [0.6.2] - 2026-10-23
 

@@ -85,6 +85,7 @@ let fullRoot: string
 const smallAllowance: UploadAllowance = {
   accountBytesPerHour: 300_000,
   tenantBytesPerHour: 500_000,
+  instanceBytesPerHour: 100_000_000,
   leastCountedBytes: 100_000,
   keptFreeBytes: 0,
 }
