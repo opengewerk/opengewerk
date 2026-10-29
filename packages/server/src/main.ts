@@ -24,6 +24,7 @@ import {
   startFileSweep,
   stopOnSignals,
   takeOverFromEnvironment,
+  UploadLimits,
   vapidKeysFrom,
 } from '@opengewerk/platform-server'
 
@@ -151,8 +152,13 @@ async function start(): Promise<void> {
   // The trusted origins too: they open nothing, they only say which pages a
   // request that changes something may come from. And the record of the last
   // backup, which says when one ran and nothing else (#130).
+  // One count of what goes into the store, for the routes and the mail
+  // worker together: a print the worker makes for a message counts for its
+  // tenant like the one somebody downloads.
+  const files = new FileStore(configuration.storagePath)
   const output = {
-    files: new FileStore(configuration.storagePath),
+    files,
+    limits: new UploadLimits(files),
     renderer: rendererFor(readRendererConfiguration()),
     trustedOrigins: configuration.trustedOrigins,
     backupStatus: configuration.backupStatusPath,
@@ -262,7 +268,9 @@ async function start(): Promise<void> {
       origin,
       // The same store and renderer the routes use, so that the file a
       // message carries is the file the document keeps.
-      attachments: documentAttachments(new DocumentFiles(database, output.files, output.renderer)),
+      attachments: documentAttachments(
+        new DocumentFiles(database, output.files, output.renderer, output.limits),
+      ),
       invitationLinks: invitationLinks(database, origin),
     })
   }

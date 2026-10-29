@@ -33,6 +33,7 @@ import {
   StoredFileDamagedError,
   StoredFileMissingError,
   type TenantTransaction,
+  UploadLimits,
 } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
@@ -192,6 +193,9 @@ async function numberedDocument(
   return { id: document.id, kind: document.kind, number: document.number }
 }
 
+/** Thrown in the transaction of `keep` that lost the link, to take back the row of its file. */
+class LinkedBefore extends Error {}
+
 /**
  * The files an issued document keeps: its PDF, its XRechnung and its ZUGFeRD
  * PDF.
@@ -211,6 +215,7 @@ export class DocumentFiles {
     private readonly database: Database,
     @Inject(FILE_STORE) private readonly store: FileStorage,
     @Inject(RENDERER) private readonly render: Renderer,
+    private readonly limits: UploadLimits,
   ) {}
 
   /** The hash of the file a document keeps for a purpose, or null while it keeps none. */
@@ -238,7 +243,13 @@ export class DocumentFiles {
    * The bytes go into the store before the row goes into the database. The
    * other order would, on a failure between the two, leave a row pointing at a
    * file that does not exist; this order leaves at worst a file nothing points
-   * at, which harms nobody.
+   * at, which harms nobody: no row names it, and the sweep takes it out.
+   *
+   * Before the store, the limits: a file the server makes counts for its
+   * tenant and leaves the last room on the volume to the database. And the
+   * one who loses the link takes back the row of its file as well, so that a
+   * document holds a file per purpose and not one per request that came at
+   * the same moment.
    */
   async keep(
     identity: Actor,
@@ -247,18 +258,33 @@ export class DocumentFiles {
     bytes: Uint8Array,
     mediaType: string,
   ): Promise<Uint8Array> {
+    await this.limits.admitMade(identity.tenantId, bytes.byteLength)
+
     const blob = await this.store.put(bytes)
 
-    const linked = await this.database.forTenant(identity, async (tx) => {
-      const fileId = await fileRowFor(tx, identity.tenantId, blob, mediaType)
+    const linked = await this.database
+      .forTenant(identity, async (tx) => {
+        const fileId = await fileRowFor(tx, identity.tenantId, blob, mediaType)
 
-      await tx
-        .insert(documentFiles)
-        .values({ tenantId: identity.tenantId, documentId, purpose, fileId })
-        .onConflictDoNothing({ target: [documentFiles.documentId, documentFiles.purpose] })
+        const [link] = await tx
+          .insert(documentFiles)
+          .values({ tenantId: identity.tenantId, documentId, purpose, fileId })
+          .onConflictDoNothing({ target: [documentFiles.documentId, documentFiles.purpose] })
+          .returning({ fileId: documentFiles.fileId })
 
-      return this.stored(tx, documentId, purpose)
-    })
+        if (!link) {
+          throw new LinkedBefore()
+        }
+
+        return blob.sha256
+      })
+      .catch(async (error: unknown) => {
+        if (!(error instanceof LinkedBefore)) {
+          throw error
+        }
+
+        return this.database.forTenant(identity, (tx) => this.stored(tx, documentId, purpose))
+      })
 
     return linked === null || linked === blob.sha256 ? bytes : await this.read(linked)
   }

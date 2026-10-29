@@ -149,6 +149,12 @@ export interface FileParts<Right extends string> {
    * foundation's numbers unless the application has its own.
    */
   readonly allowance?: UploadAllowance
+  /**
+   * The limits themselves, where the application asks them outside these
+   * routes as well, for the files it makes: one count for both. Left out, the
+   * module counts with limits of its own, built from the allowance.
+   */
+  readonly limits?: UploadLimits
 }
 
 /**
@@ -180,7 +186,7 @@ export function fileParts<Right extends string>(
       { provide: FILE_STORE, useValue: store },
       {
         provide: UploadLimits,
-        useValue: new UploadLimits(store, parts.allowance ?? uploadAllowance),
+        useValue: parts.limits ?? new UploadLimits(store, parts.allowance ?? uploadAllowance),
       },
     ],
   }

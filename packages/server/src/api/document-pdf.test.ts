@@ -8,10 +8,13 @@ import { Test } from '@nestjs/testing'
 import {
   Database,
   FileStore,
+  type FileStorage,
   newId,
   type PrintJob,
   type Renderer,
   RendererUnavailableError,
+  uploadAllowance,
+  UploadLimits,
 } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -45,6 +48,9 @@ let database: Database
 let app: INestApplication
 let storageRoot: string
 let customerId: string
+let limits: UploadLimits
+/** What the store says is free on its volume, plenty unless a test says otherwise. */
+let freeBytes = Number.MAX_SAFE_INTEGER
 
 const jobs: PrintJob[] = []
 let renderer: 'working' | 'missing' | 'slow' = 'working'
@@ -102,10 +108,19 @@ beforeAll(async () => {
   storageRoot = mkdtempSync(join(tmpdir(), 'opengewerk-pdf-'))
   database = Database.connect(applicationDatabaseUrl())
 
+  const kept = new FileStore(storageRoot)
+  const store: FileStorage = {
+    put: (bytes) => kept.put(bytes),
+    get: (sha256) => kept.get(sha256),
+    freeBytes: () => Promise.resolve(freeBytes),
+  }
+  limits = new UploadLimits(store)
+
   const built = await Test.createTestingModule({
     imports: [
       ApiModule.create(database, identities, {
-        files: new FileStore(storageRoot),
+        files: store,
+        limits,
         renderer: standIn,
       }),
     ],
@@ -131,6 +146,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   renderer = 'working'
+  freeBytes = Number.MAX_SAFE_INTEGER
 })
 
 describe('an issued invoice', () => {
@@ -204,11 +220,23 @@ describe('an issued invoice', () => {
     const document = await issued()
     renderer = 'slow'
 
+    const filesOfNorth = async () => {
+      const { rows } = await admin.query<{ count: string }>(
+        'select count(*) from files where tenant_id = $1',
+        [north.id],
+      )
+
+      return Number(rows[0]?.count)
+    }
+    const before = await filesOfNorth()
+
     const [one, two] = await Promise.all([pdfOf(document), pdfOf(document)])
 
     expect(one.status).toBe(200)
     expect(two.status).toBe(200)
     expect(Buffer.compare(one.body as Buffer, two.body as Buffer)).toBe(0)
+    // Both were printed, and differ, so each would have left a row of its own.
+    expect(jobs.length).toBeGreaterThanOrEqual(2)
 
     const { rows } = await admin.query<{ count: string }>(
       "select count(*) from document_files where document_id = $1 and purpose = 'pdf'",
@@ -216,6 +244,33 @@ describe('an issued invoice', () => {
     )
 
     expect(Number(rows[0]?.count)).toBe(1)
+    expect(await filesOfNorth()).toBe(before + 1)
+  })
+
+  it('is not kept while the volume has no more than its last room free, and is once it has', async () => {
+    const document = await issued()
+    freeBytes = uploadAllowance.lastFreeBytes
+
+    const refused = await pdfOf(document).expect(507)
+
+    expect(String(JSON.parse((refused.body as Buffer).toString()).message)).toContain(
+      'kein Platz mehr',
+    )
+
+    const { rows } = await admin.query<{ count: string }>(
+      'select count(*) from document_files where document_id = $1',
+      [document],
+    )
+
+    expect(Number(rows[0]?.count)).toBe(0)
+
+    freeBytes = Number.MAX_SAFE_INTEGER
+
+    await pdfOf(document).expect(200)
+  })
+
+  it('counts with the limits it is handed, the ones the mail worker counts with as well', () => {
+    expect(app.get(UploadLimits)).toBe(limits)
   })
 
   it('is not found from another business, which is the same answer as not there at all', async () => {

@@ -13,6 +13,7 @@ import {
   type OutgoingMail,
   type Renderer,
   smtpTransport,
+  UploadLimits,
 } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -230,7 +231,7 @@ beforeAll(async () => {
 
   const store = new FileStore(storageRoot)
 
-  files = new DocumentFiles(database, store, standIn)
+  files = new DocumentFiles(database, store, standIn, new UploadLimits(store))
 
   const built = await Test.createTestingModule({
     imports: [
