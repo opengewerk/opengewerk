@@ -70,6 +70,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nacheinander statt einer je Mandant zugleich. Warum: Ein Mandant ist in einer Minute angelegt, und Grenzen je Konto
   im Mandanten, je Archiv und je Mandant vervielfachten sich so mit der Zahl der Mandanten und Dateien, die eine
   Person öffnet oder nennt.
+- nodemailer 10.2.1 statt 10.0.10 im Server, mit der Sperrdatei (Dependabot-Alerts 3 bis 7). Die älteren Fassungen
+  zerlegten eine Adresse mit Kommentar, Anführungszeichen oder spitzer Klammer an der falschen Stelle, sodass aus
+  Anzeigetext ein Empfänger werden konnte, und erkannten die Anmeldeverfahren eines Mailservers mit einem Ausdruck,
+  der bei einer langen Antwort quadratisch lief. 10.3.1 ist erst seit heute erschienen und noch nicht alt genug für
+  die Wartezeit der Sperrdatei. Dazu happy-dom 21.0.4 in beiden Oberflächen (Alerts 8 bis 13); das läuft nur in
+  den Tests, nicht im gebauten Paket.
 
 ## [0.6.2] - 2026-10-23
 
