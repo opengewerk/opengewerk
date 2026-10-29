@@ -2,6 +2,7 @@ import {
   type Identity,
   isAllowed,
   isJobProgress,
+  longestFormValues,
   type Operation,
   type OperationKind,
   type Permission,
@@ -261,6 +262,13 @@ export function syncRoutes(key: SecretKey | null): SyncRoutes<Identity, Permissi
     sync,
     permissionFor,
     answerFor,
+    // The values of a form, in a report and on a document, hold more than any
+    // other text, as long as their checks let them (#78); every other text a
+    // device sends is held to the length of the foundation.
+    longerTexts: {
+      documents: { fieldValues: longestFormValues },
+      form_records: { values: longestFormValues },
+    },
     async scope({ tx, identity, query }) {
       // The working time of the others only for whoever may read it (#76), and
       // only their part of the business for whoever may not hold all of it

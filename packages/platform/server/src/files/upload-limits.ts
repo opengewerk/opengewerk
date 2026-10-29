@@ -98,7 +98,7 @@ const wholeInstance = 'instance'
  * The bytes counted against each key within the last hour, by the minute
  * they were counted in: sixty numbers a key at most, however many files.
  */
-class HourlyBytes {
+export class HourlyBytes {
   private readonly counted = new Map<string, Map<number, number>>()
 
   constructor(

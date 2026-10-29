@@ -33,7 +33,7 @@ import { Database } from '../database/database.js'
 import { newId } from '../database/identifier.js'
 import { standingInLine } from '../database/test-database.js'
 import { serverSync } from './apply.js'
-import { syncParts, type SyncRoutes } from './controller.js'
+import { longestSyncText, syncParts, type SyncRoutes } from './controller.js'
 import { fingerprintOf } from './narrowing.js'
 import {
   letterLines,
@@ -502,6 +502,33 @@ describe('sending an outbox', () => {
    * counter of the tenant. The number is bounded on its own, before a single
    * operation is read.
    */
+  it('takes a text up to its length, and a longer one where the application names its field', async () => {
+    const label = (to: string) =>
+      operation({ entity: 'shelves', patches: [{ field: 'label', to }] })
+    const note = (to: string) => operation({ entity: 'notes', patches: [{ field: 'text', to }] })
+    const tooLong = label('x'.repeat(longestSyncText + 1))
+    const refused = await push(lena(), [note('Davor'), tooLong]).expect(400)
+
+    expect(refused.body).toMatchObject({
+      message: 'Der Text im Feld label ist länger als 100.000 Zeichen und wird nicht abgeglichen.',
+      operationId: tooLong.id,
+    })
+
+    const longNote = note('y'.repeat(2 * longestSyncText + 1))
+
+    expect((await push(lena(), [longNote]).expect(400)).body).toMatchObject({
+      operationId: longNote.id,
+    })
+    expect(
+      await database.forTenant({ tenantId: north.id, userId: 'lena', reason: 'probe' }, (tx) =>
+        tx.select().from(notes),
+      ),
+    ).toEqual([])
+
+    await push(lena(), [label('x'.repeat(longestSyncText))]).expect(201)
+    await push(lena(), [note('y'.repeat(2 * longestSyncText))]).expect(201)
+  })
+
   it('takes no more operations in one transmission than its limit', async () => {
     const tooMany = await request(app.getHttpServer())
       .post('/sync')
