@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { charsetOf, decodeDatanorm } from './charset.js'
 import { centsOf, headerOf, recordOf } from './records.js'
-import { readDelivery } from './read.js'
+import { filledLines, readDelivery } from './read.js'
 import { cp850, header, windows1252, zipOf } from './test-files.js'
 import { unitOf } from './units.js'
 import { unzip, ZipRefused } from './zip.js'
@@ -313,6 +313,29 @@ describe('a delivery read into a catalogue', () => {
         reason: 'Die Datei ist DATANORM 5. Gelesen wird bisher DATANORM 4.',
       },
     ])
+  })
+
+  it('finds the same filled lines as splitting the text, blanks and both line ends included', () => {
+    const text = '  \r\nV 010926\r\n\r\n   \nA;N;1;00;Text;\r  B;N;1;\n\t\n'
+
+    expect(filledLines(text)).toEqual(text.split(/[\r\n]/).filter((line) => /\S/.test(line)))
+    expect(filledLines(text, 2)).toEqual(['V 010926', 'A;N;1;00;Text;'])
+  })
+
+  /**
+   * The lines were found with a pattern that tried a long line of blanks
+   * again from every position, and the time grew with the square of the line:
+   * one upload of a file like this held the process, and every tenant on it,
+   * for minutes. Walked line by line it takes as long as the file is.
+   */
+  it('reads a long line of blanks in the time it takes to read it once', () => {
+    const blanks = new TextEncoder().encode(`V 010926\n${' '.repeat(200_000)}\n`)
+    const started = performance.now()
+
+    const { files } = readDelivery([{ name: 'DATANORM.001', bytes: blanks }])
+
+    expect(files.map((file) => file.lines)).toEqual([1])
+    expect(performance.now() - started).toBeLessThan(1000)
   })
 
   it('names each line of a file without separators, as DATANORM 3 writes it', () => {

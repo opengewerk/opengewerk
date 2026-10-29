@@ -174,9 +174,14 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
 
   const table = sql.identifier(entity)
   const column = (name: string) => sql`${table}.${sql.identifier(name)}`
-  const createdBy = (name: string) => sql`(select record_id from audit_entries
-    where table_name = ${name} and operation = 'insert' and user_id = ${scope.userId})`
-  const created = sql`${column('id')} in ${createdBy(entity)}`
+  // Asked per row, through `audit_entries_record_idx` (tenant, table, record).
+  // As a list of everything the person ever created under an `or`, PostgreSQL
+  // walked that list for every row of the table, and the first pull of a
+  // device whose person had created a lot took minutes on the shared pool.
+  const createdBy = (name: string, key: SQL) => sql`exists (select 1 from audit_entries a
+    where a.tenant_id = ${column('tenant_id')} and a.table_name = ${name}
+      and a.record_id = ${key} and a.operation = 'insert' and a.user_id = ${scope.userId})`
+  const created = createdBy(entity, column('id'))
 
   const own: Readonly<Record<string, SQL>> = {
     jobs: sql`${column('id')} in ${jobs}`,
@@ -186,14 +191,14 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
     // The tags of every customer and site the device holds, those its person
     // created without a job among them.
     customer_tags: sql`(${column('customer_id')} in ${customers}
-      or ${column('customer_id')} in ${createdBy('customers')})`,
+      or ${createdBy('customers', column('customer_id'))})`,
     // The people of every supplier as well (#296): the suppliers go to every
     // device whole, and the desk that holds the material ready is who a
     // technician calls on the way.
     contacts: sql`(${column('customer_id')} in ${customers} or ${column('site_id')} in ${sites}
       or ${column('supplier_id')} is not null)`,
     sites: sql`${column('id')} in ${sites}`,
-    site_tags: sql`(${column('site_id')} in ${sites} or ${column('site_id')} in ${createdBy('sites')})`,
+    site_tags: sql`(${column('site_id')} in ${sites} or ${createdBy('sites', column('site_id'))})`,
     installations: sql`${column('id')} in ${installations}`,
     // The labels of the installations the device holds (#308), so that a scan
     // opens one of them without a network, and says nothing of any other.

@@ -17,6 +17,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   unterschreibt. Warum: Eine Position, die im selben Moment geschrieben wurde, kam in den Beleg, aber nicht in seinen
   Schnappschuss, und ein Storno konnte eine Rechnung treffen, auf die gerade eine Zahlung oder eine abziehende
   Folgerechnung kam. Beides widerspricht der Festschreibung, die die GoBD verlangen.
+- Drei Wege gehen in einem Durchgang statt mit dem Quadrat ihrer Eingabe: der DATANORM-Leser findet die gefüllten
+  Zeilen ohne ein Muster, das eine lange Zeile aus Leerzeichen von jeder Stelle aus neu probierte; der Stromkreisplan
+  gruppiert Abschnitte und Stromkreise einmal, statt sie für jeden Verteiler und Abschnitt neu zu filtern; der Abruf
+  eines Geräts fragt je Zeile über einen Index, ob die Person sie angelegt hat, statt die Liste all ihrer Einträge zu
+  durchsuchen. Warum: Alle drei laufen im gemeinsamen Prozess oder auf dem gemeinsamen Pool, und eine Eingabe eines
+  Mandanten hielt so die Anfragen aller anderen über Sekunden bis Minuten auf.
 - Ein Monteur nimmt über den Abgleich keinen stornierten Auftrag mehr wieder auf, und eine Unterschrift landet nur
   noch unter einem Regiebericht im Entwurf, der an keinem anderen Beleg hängt. Die Prüfung `jobProgress` fragt den
   gespeicherten Status, `signatureRefusal` die Art und den Vorgänger, und die Migration `0090_sign_only_a_report`
