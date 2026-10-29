@@ -212,6 +212,37 @@ describe('signing in', () => {
     )
     expect(created).toEqual([])
   })
+
+  /**
+   * A page on another subdomain of the same domain could set a cookie under
+   * the `__Secure-` name of before, with the token of a session of its own,
+   * and better-auth reads the first cookie of a name it is sent. A browser
+   * keeps a `__Host-` cookie for its own host alone, and one under the old
+   * name is nobody's session any more.
+   */
+  it('keeps the session in a cookie of this host alone, beside which one from a neighbour counts for nothing', async () => {
+    const raw = await signInRaw(member.email)
+    const session = raw.find((cookie) => cookie.includes('session_token=')) ?? ''
+    const attributes = session.split(';').map((part) => part.trim().toLowerCase())
+
+    expect(session.split('=')[0]).toBe('__Host-better-auth.session_token')
+    expect(attributes).toEqual(expect.arrayContaining(['secure', 'path=/', 'httponly']))
+    expect(attributes.filter((part) => part.startsWith('domain='))).toEqual([])
+    expect(raw.filter((cookie) => !cookie.startsWith('__Host-'))).toEqual([])
+
+    // The token of somebody else's session, under the old name and first.
+    const elsewhere = (await signInRaw(both.email)).find((cookie) =>
+      cookie.includes('session_token='),
+    )
+    const token = elsewhere?.split(';')[0]?.split('=').slice(1).join('=') ?? ''
+    const seen = await http()
+      .get(`${authenticationPath}/get-session`)
+      .set('origin', origin)
+      .set('cookie', `__Secure-better-auth.session_token=${token}; ${withCookies(raw)}`)
+      .expect(200)
+
+    expect((seen.body as { user: { email: string } }).user.email).toBe(member.email)
+  })
 })
 
 describe('putting somebody into a tenant', () => {
@@ -850,8 +881,8 @@ describe('an instance reached at more than one address (#551)', () => {
       const session = cookies.find((cookie) => cookie.includes('session_token='))
 
       // The name an update must not change: a new one would end every session
-      // an instance holds.
-      expect(session?.split('=')[0]).toBe('__Secure-better-auth.session_token')
+      // an instance holds, as the move from `__Secure-` to `__Host-` did once.
+      expect(session?.split('=')[0]).toBe('__Host-better-auth.session_token')
 
       const seen = await twice
         .http()
