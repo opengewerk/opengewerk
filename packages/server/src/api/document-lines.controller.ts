@@ -141,11 +141,12 @@ export class DocumentLinesController {
    * that a line can never be reached through a document of another tenant:
    * row level security answers that question once, and the rest follows.
    */
-  private async documentOf(tx: TenantTransaction, documentId: string) {
-    const [document] = await tx
+  private async documentOf(tx: TenantTransaction, documentId: string, lock = false) {
+    const query = tx
       .select()
       .from(documents)
       .where(and(eq(documents.id, documentId as DocumentId), isNull(documents.deletedAt)))
+    const [document] = lock ? await query.for('no key update') : await query
 
     if (!document) {
       throw new NotFoundException()
@@ -154,8 +155,12 @@ export class DocumentLinesController {
     return document
   }
 
+  /**
+   * Locked like the parent in the sync (#582): a line waits for a transaction
+   * that is issuing or signing its document and then finds it fixed.
+   */
   private async draftOf(tx: TenantTransaction, documentId: string) {
-    const document = await this.documentOf(tx, documentId)
+    const document = await this.documentOf(tx, documentId, true)
 
     const reason = whyFixed(document)
 

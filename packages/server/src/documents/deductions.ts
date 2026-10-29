@@ -36,10 +36,16 @@ type DocumentRow = typeof documents.$inferSelect
  * recorded is nothing received, and the office confirms that before the final
  * invoice is issued. A progress invoice keeps taking off what the ones before
  * it billed, which is what the cumulative progress invoice of section 4.2 does.
+ *
+ * Issuing passes `lock`: each predecessor is then read with a share lock, so
+ * cancelling one of them waits until the successor is issued and then refuses,
+ * and the successor never takes off an invoice that a cancellation took back
+ * in the meantime. Read paths run in read only transactions and lock nothing.
  */
 export async function deductionsFor(
   tx: TenantTransaction,
   document: Pick<DocumentRow, 'id' | 'kind' | 'predecessorDocumentId'>,
+  { lock = false }: { readonly lock?: boolean } = {},
 ): Promise<DeductionContent[]> {
   if (!deducts(document.kind)) {
     return []
@@ -52,7 +58,7 @@ export async function deductionsFor(
   while (next !== null && !walked.has(next)) {
     walked.add(next)
 
-    const [row] = await tx
+    const query = tx
       .select({
         id: documents.id,
         kind: documents.kind,
@@ -62,6 +68,7 @@ export async function deductionsFor(
       })
       .from(documents)
       .where(eq(documents.id, next))
+    const [row] = lock ? await query.for('share') : await query
 
     if (!row) {
       break

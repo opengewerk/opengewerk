@@ -94,7 +94,12 @@ async function contentForIssuing(
   document: typeof documents.$inferSelect,
 ): Promise<{ content: DocumentContent; missing: readonly Missing[] }> {
   try {
-    const { content, gaps } = await contentAndGapsOf(tx, document, shippedRules)
+    // The predecessors a successor takes off are read with a share lock, so a
+    // cancellation of one of them waits for the issuing and then sees the
+    // successor that builds on it.
+    const { content, gaps } = await contentAndGapsOf(tx, document, shippedRules, {
+      lockPredecessors: true,
+    })
 
     return {
       content,
@@ -380,10 +385,15 @@ export class DocumentsController {
     @Body() body: unknown,
   ) {
     return this.database.forTenant(identity, async (tx) => {
+      // Locked before anything is read that the snapshot freezes: a line
+      // route, a change to the head and the trigger on the lines wait for
+      // this row, so the snapshot holds what the document says when it is
+      // issued, and a write that comes later finds it fixed.
       const [existing] = await tx
         .select()
         .from(documents)
         .where(and(eq(documents.id, id as DocumentId), isNull(documents.deletedAt)))
+        .for('update')
 
       if (!existing) {
         throw new NotFoundException()
@@ -416,12 +426,12 @@ export class DocumentsController {
       const issuedAt = new Date()
       const number = await assignDocumentNumber(tx, identity.tenantId, existing.kind, issuedAt)
 
-      // `deletedAt` a second time, and not out of habit: between the read
-      // above and this write somebody can delete the document, and the two
-      // conditions that are here anyway would both still hold. What comes out
-      // of that race cannot be repaired on a running installation. The number
-      // is spent, the entry is in the hash chain, and the document is fixed
-      // and out of every list at the same time.
+      // `deletedAt` a second time, and not out of habit. The lock above keeps
+      // a deletion out since the read, and this condition still holds if the
+      // lock is ever taken away: what comes out of that race cannot be
+      // repaired on a running installation. The number is spent, the entry is
+      // in the hash chain, and the document is fixed and out of every list at
+      // the same time.
       const [issued] = await tx
         .update(documents)
         .set({ status: 'issued', number, issuedAt, issuedBy: identity.userId, updatedAt: issuedAt })
@@ -724,10 +734,15 @@ export class DocumentsController {
   @RequiresPermission('document.issue')
   async cancel(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
     return this.database.forTenant(identity, async (tx) => {
+      // Locked before the checks below, which guard state that others write:
+      // issuing a successor reads this invoice with a share lock and a
+      // payment locks it for update, so the cancellation waits for them or
+      // they wait for it, and whichever comes second sees what the first left.
       const [original] = await tx
         .select()
         .from(documents)
         .where(and(eq(documents.id, id as DocumentId), isNull(documents.deletedAt)))
+        .for('update')
 
       if (!original) {
         throw new NotFoundException()

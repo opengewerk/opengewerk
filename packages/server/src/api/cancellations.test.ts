@@ -13,16 +13,22 @@ import {
   type PrintJob,
   type Renderer,
 } from '@opengewerk/platform-server'
+import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { assignDocumentNumber } from '../database/number-ranges.js'
+import { documents } from '../database/schema/index.js'
 import {
   applicationDatabaseUrl,
   connect,
   refusedBy,
   resetToMigrated,
 } from '../database/test-database.js'
+import { heldOpen, untilWaiting } from '../database/test-locks.js'
+import { deductionsFor } from '../documents/deductions.js'
+import { recordPayment } from '../payments/payments.js'
 import { ApiModule } from './api.module.js'
 import { binary } from './test-binary.js'
 import { as, testIdentities as identities } from './test-identity.js'
@@ -450,6 +456,71 @@ describe('cancelling an invoice', () => {
 
     await cancel(invoice.id, technician()).expect(403)
     expect((await documentRow(invoice.id)).status).toBe('issued')
+  })
+})
+
+/**
+ * The checks of a cancellation guard state that other transactions write. It
+ * read the invoice without a lock, found no payment and no successor because
+ * neither was committed yet, and cancelled an invoice that money had come in
+ * on or that a later invoice takes off. Since it locks the invoice first, it
+ * waits for them and then refuses, as it does when they came before.
+ */
+describe('cancelling while somebody else writes to the invoice', () => {
+  it('waits for a payment being recorded, then refuses', async () => {
+    const invoice = await issuedInvoice()
+    const paying = heldOpen(database, north.id, (tx) =>
+      recordPayment(
+        tx,
+        north.id,
+        invoice.id as never,
+        { amountCents: 50_000, receivedOn: '2026-09-20' },
+        '2026-09-25' as never,
+      ),
+    )
+    await paying.open
+
+    const cancelling = Promise.resolve(cancel(invoice.id))
+    await untilWaiting(admin, cancelling)
+    paying.release()
+    await paying.done
+
+    const answer = await cancelling
+    expect(answer.status).toBe(409)
+    expect((answer.body as { message: string }).message).toContain('Zahlungseingänge')
+    expect((await documentRow(invoice.id)).status).toBe('issued')
+  })
+
+  it('waits for a successor being issued that takes it off, then refuses', async () => {
+    const first = await draft('progress_invoice')
+    await add(first.id, { ...hours, quantityMilli: 2000 })
+    await issue(first.id)
+    const second = await successor(first.id, 'progress_invoice')
+
+    // What the route does when it issues the second one: the predecessors it
+    // takes off are read with a lock, then it gets its number.
+    const issuing = heldOpen(database, north.id, async (tx) => {
+      expect(await deductionsFor(tx, second as never, { lock: true })).toHaveLength(1)
+
+      const issuedAt = new Date()
+      const number = await assignDocumentNumber(tx, north.id, 'progress_invoice', issuedAt)
+
+      await tx
+        .update(documents)
+        .set({ status: 'issued', number, issuedAt, updatedAt: issuedAt })
+        .where(eq(documents.id, second.id as never))
+    })
+    await issuing.open
+
+    const cancelling = Promise.resolve(cancel(first.id))
+    await untilWaiting(admin, cancelling)
+    issuing.release()
+    await issuing.done
+
+    const answer = await cancelling
+    expect(answer.status).toBe(409)
+    expect((answer.body as { message: string }).message).toContain('Erst jene stornieren')
+    expect((await documentRow(first.id)).status).toBe('issued')
   })
 })
 
