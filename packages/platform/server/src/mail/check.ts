@@ -1,4 +1,5 @@
 import type { MailConfiguration } from './configuration.js'
+import { unreachableName } from './reach.js'
 import { MailDeliveryError, type MailTransport } from './transport.js'
 
 /** What asking a mail server found. */
@@ -83,7 +84,7 @@ export async function checkMailServer(
       case 'EDNS':
         return {
           outcome: 'refused',
-          reason: `Den Mailserver "${configuration.host}" gibt es nicht, der Name lässt sich nicht auflösen.`,
+          reason: unreachableName(configuration.host),
         }
       case 'ETLS':
       case 'EREQUIRETLS':

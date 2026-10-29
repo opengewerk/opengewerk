@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { checkMailServer } from './check.js'
+import { unreachableName } from './reach.js'
 import type { MailConfiguration } from './configuration.js'
 import { closedPort, type FakeSmtpServer, fakeSmtpServer } from './test-smtp.js'
 import { MailDeliveryError, type OutgoingMail, smtpTransport } from './transport.js'
@@ -157,7 +158,9 @@ describe('the check of a mail server', () => {
     const check = await checkMailServer(smtpTransport(configuration, short), configuration)
 
     expect(check.outcome).toBe('refused')
-    expect(check.outcome === 'refused' ? check.reason : '').toContain('lässt sich nicht auflösen')
+    expect(check.outcome === 'refused' ? check.reason : '').toBe(
+      unreachableName('kein-mailserver.invalid'),
+    )
   })
 
   it('says that nobody answers, and that server or port may be wrong', async () => {
