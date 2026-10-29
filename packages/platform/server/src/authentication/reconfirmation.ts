@@ -6,6 +6,7 @@ import { and, eq, gte, isNull, lte, or, sql } from 'drizzle-orm'
 
 import type { Database } from '../database/database.js'
 import { authAccounts, authSessions, authTwoFactors } from '../schema.js'
+import { lacksSecondFactor, secondFactorSessionRequired } from './second-factor.js'
 
 /**
  * How long a confirmation holds, in seconds: long enough to name a passkey
@@ -92,6 +93,17 @@ export function reconfirmation(database: Database): BetterAuthPlugin {
         { method: 'POST', use: [sessionMiddleware] },
         async (ctx) => {
           const { session, user } = ctx.context.session
+
+          // Before the password: a session without the second factor its
+          // account has confirms nothing, whatever it knows (N6 of the
+          // security audit). What this confirmation opens, a new passkey and
+          // the name and the address, is no less than the second factor.
+          if (await lacksSecondFactor(database, user.id, session.id)) {
+            throw new APIError('FORBIDDEN', {
+              code: 'SECOND_FACTOR_REQUIRED',
+              message: secondFactorSessionRequired,
+            })
+          }
           const body = (ctx.body ?? {}) as { password?: unknown; code?: unknown }
           const password = typeof body.password === 'string' ? body.password : ''
           const code = typeof body.code === 'string' ? body.code.replace(/\s/g, '') : ''

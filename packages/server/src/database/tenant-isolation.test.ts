@@ -811,6 +811,12 @@ const crossings: readonly {
       sql`insert into password_resets (tenant_id, user_id) values (${own.tenant}, ${other.user})`,
   },
   {
+    // The same for a change of the second factor (N6 of the security audit).
+    key: 'second_factor_changes_person_works_here',
+    write: (own, other) =>
+      sql`insert into second_factor_changes (tenant_id, user_id) values (${own.tenant}, ${other.user})`,
+  },
+  {
     key: 'push_outbox_subscription_in_tenant',
     write: (own, other) =>
       repoint('push_outbox', 'subscription_id', own.pushMessage, other.pushDevice),

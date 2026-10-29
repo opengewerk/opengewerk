@@ -25,6 +25,7 @@ import {
   type PasswordResetMail,
   passwordResetLifetime,
   type RecoveryCodesNotice,
+  type SecondFactorNotice,
 } from './notices.js'
 import { endOtherSessions } from './other-sessions.js'
 import { markUsed, recordAdded, recordWithdrawn } from './passkeys.js'
@@ -36,6 +37,11 @@ import {
   reconfirmationPath,
   recentlyReconfirmed,
 } from './reconfirmation.js'
+import {
+  lacksSecondFactor,
+  recordSecondFactorChange,
+  secondFactorSessionRequired,
+} from './second-factor.js'
 import { renewSession, sessionLifetimes } from './session-lifetime.js'
 import { clearCodesAtSignIn, reserveCodeAtSignIn } from './sign-in-codes.js'
 
@@ -116,6 +122,11 @@ export interface AuthenticationOptions {
    * (opengewerk-haustechnik#360). Left out, nothing is sent.
    */
   readonly recoveryCodesNotice?: RecoveryCodesNotice
+  /**
+   * Tells an account that the app was set up on it (N6 of the security
+   * audit). Left out, nothing is sent.
+   */
+  readonly secondFactorNotice?: SecondFactorNotice
 }
 
 /**
@@ -209,6 +220,9 @@ const confirmingSecondFactor: ReadonlySet<string> = new Set([
  * hold the account (`sign-in-codes.ts`), and the cookie better-auth names the
  * account in between with.
  */
+/** Where the code that sets up the app is confirmed, as well as one at a sign in. */
+const confirmingTheApp = '/two-factor/verify-totp'
+
 const codesAtSignIn: ReadonlySet<string> = new Set([
   '/two-factor/verify-totp',
   '/two-factor/verify-backup-code',
@@ -341,6 +355,7 @@ export function createAuthentication({
   passwordResetMail,
   passkeyNotice,
   recoveryCodesNotice,
+  secondFactorNotice,
 }: AuthenticationOptions): Authentication {
   const party = relyingParty(trustedOrigins)
 
@@ -564,6 +579,17 @@ export function createAuthentication({
           })
         }
 
+        // On an account that has a second factor, only a session that carries
+        // it sets up another one (N6 of the security audit): a passkey is the
+        // second factor of many an account that signs in with the password as
+        // well, and the app set up from such a session would be a way past it.
+        if (await lacksSecondFactor(database, found.user.id, found.session.id)) {
+          throw new APIError('FORBIDDEN', {
+            code: 'SECOND_FACTOR_REQUIRED',
+            message: secondFactorSessionRequired,
+          })
+        }
+
         if (ctx.path === renewingRecoveryCodes) {
           // The password better-auth asks for in the body is checked after
           // this; the confirmation is the code as well, and it is spent here,
@@ -632,6 +658,13 @@ export function createAuthentication({
           // A right code, at a sign in or where the app is set up.
           if (!isAPIError(ctx.context.returned) && ctx.context.newSession) {
             await clearCodesAtSignIn(database, ctx.context.newSession.user.id)
+
+            // Where the app is set up the request came with a session, and the
+            // code that confirms it makes a new one; at a sign in there was
+            // none yet.
+            if (ctx.path === confirmingTheApp && ctx.context.session) {
+              await afterAppSetUp(ctx.context.newSession.user)
+            }
           }
 
           return
@@ -826,6 +859,34 @@ export function createAuthentication({
       reconfirmation(database),
     ],
   })
+
+  /**
+   * Once the app is set up, it goes into the log of every tenant of the
+   * account, and the account is told by mail without waiting for it (N6 of
+   * the security audit).
+   *
+   * Unlike a passkey, an app that cannot be put into the log stays: by now
+   * the session it was set up in has taken the place of the old one, and
+   * taking the app back would leave the device with neither. The failure is
+   * written to the console of the server instead.
+   */
+  async function afterAppSetUp(user: { id: string; email: string; name: string }): Promise<void> {
+    try {
+      await recordSecondFactorChange(database, user.id, 'app')
+    } catch (error) {
+      console.error('Die eingerichtete App ließ sich nicht im Protokoll festhalten.', error)
+    }
+
+    if (!secondFactorNotice) {
+      return
+    }
+
+    const owner = { id: user.id, email: user.email, name: user.name }
+
+    void secondFactorNotice(owner, 'app').catch((error: unknown) => {
+      console.error('Die Nachricht über die eingerichtete App ging nicht hinaus.', error)
+    })
+  }
 
   /**
    * Once a new set of recovery codes is kept, every other session of the

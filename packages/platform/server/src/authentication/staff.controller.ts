@@ -6,6 +6,7 @@ import {
   Get,
   Header,
   Inject,
+  Optional,
   Param,
   Patch,
   Post,
@@ -28,6 +29,8 @@ import { RequiresPermission } from '../api/authorization.js'
 import { pick, requireFields } from '../api/body.js'
 import { CurrentIdentity, type RequestIdentity } from '../api/identity.js'
 import { Database } from '../database/database.js'
+import { ACCOUNT_MESSAGES, type AccountMessages, accountMails } from '../instance/account-mail.js'
+import { MAIL, type MailContext } from '../mail/context.js'
 import { tableAnswer, tableFormatOf } from '../tables/write.js'
 import { ACCESS_RULES, type AccessRules } from './access.js'
 import {
@@ -40,6 +43,8 @@ import {
   type IssuedInvitation,
   listInvitations,
   listStaff,
+  accountsOf,
+  resetSecondFactorOf,
   revokeDeviceOf,
   revokeInvitation,
   setBlocked,
@@ -74,6 +79,8 @@ export class StaffController {
     private readonly database: Database,
     @Inject(ACCESS_RULES) private readonly access: AccessRules,
     @Inject(INVITATION_MAILING) private readonly mailing: InvitationMailing | null,
+    @Optional() @Inject(MAIL) private readonly mail?: MailContext | null,
+    @Optional() @Inject(ACCOUNT_MESSAGES) private readonly messages?: AccountMessages | null,
   ) {}
 
   @Get()
@@ -322,6 +329,37 @@ export class StaffController {
     await setBlocked(this.access, this.database, identity, userId, false)
 
     return { userId, blocked: false }
+  }
+
+  /**
+   * Takes the second factor of somebody who has lost theirs, the app and every
+   * passkey (N6 of the security audit), and signs them out everywhere. They
+   * are told by mail where the instance sends any, without waiting for it.
+   */
+  @Delete(':userId/second-factor')
+  @RequiresPermission(accessRights.write)
+  async resetSecondFactor(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('userId') userId: string,
+  ): Promise<{ userId: string; reset: boolean }> {
+    const reset = await resetSecondFactorOf(this.access, this.database, identity, userId)
+
+    if (reset && this.mail && this.messages) {
+      const account = (await accountsOf(this.database, [userId], identity.userId)).get(userId)
+
+      if (account) {
+        void accountMails(this.database, this.mail, this.messages)
+          .secondFactorNotice({ id: userId, email: account.email, name: account.name }, 'reset')
+          .catch((error: unknown) => {
+            console.error(
+              'Die Nachricht über den zurückgesetzten zweiten Faktor ging nicht hinaus.',
+              error,
+            )
+          })
+      }
+    }
+
+    return { userId, reset }
   }
 
   /** The devices this person is signed in on, in this tenant and no other. */

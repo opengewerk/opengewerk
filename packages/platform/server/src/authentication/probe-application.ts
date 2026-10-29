@@ -183,6 +183,10 @@ export const probeAccess: AccessRules<ProbeRight> = {
     accountNotOnlyHere:
       'Dieses Konto arbeitet auch bei einem anderen Mandanten dieser Instanz oder gehört zu ' +
       'ihrer Hausmeisterei. Name und E-Mail ändert dann nur die Person selbst.',
+    secondFactorNotOnlyHere:
+      'Dieses Konto arbeitet auch bei einem anderen Mandanten dieser Instanz oder gehört zu ' +
+      'ihrer Hausmeisterei. Den zweiten Faktor setzt dann die Hausmeisterei auf dem Server ' +
+      'zurück, mit reset-second-factor.',
     noSuchSessionHere: 'Diese Sitzung gibt es bei diesem Mandanten nicht.',
     lastLead:
       'Das ist die letzte Leitung dieses Mandanten. Erst eine zweite einsetzen, sonst ' +
@@ -372,7 +376,11 @@ export function probeIdentities(
 /** What an instance of the probe application is started with. */
 export interface ProbeInstanceOptions extends Pick<
   AuthenticationOptions,
-  'rateLimited' | 'passwordResetMail' | 'passkeyNotice' | 'recoveryCodesNotice'
+  | 'rateLimited'
+  | 'passwordResetMail'
+  | 'passkeyNotice'
+  | 'recoveryCodesNotice'
+  | 'secondFactorNotice'
 > {
   /** Where the instance is reached. Left out, at the one probe origin. */
   readonly trustedOrigins?: readonly string[]

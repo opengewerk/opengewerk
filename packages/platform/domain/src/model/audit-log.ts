@@ -363,6 +363,7 @@ export const foundationAuditTables = [
   'push_opt_outs',
   'push_outbox',
   'push_subscriptions',
+  'second_factor_changes',
   'tenant_parameters',
   'tenant_roles',
   'tenant_sessions',
@@ -536,6 +537,11 @@ function foundationTables(
       label: 'Passwort zurückgesetzt',
       fields: { reset_at: 'Zurückgesetzt am' },
     },
+    // The app set up or every second factor taken away; which, says the reason.
+    second_factor_changes: {
+      label: 'Zweiter Faktor',
+      fields: { changed_at: 'Geändert am' },
+    },
     push_opt_outs: { label: 'Abgeschalteter Anlass für Push', fields: { occasion: 'Anlass' } },
     push_outbox: {
       label: 'Push-Nachricht',
@@ -648,6 +654,7 @@ const foundationTitles: Readonly<Record<string, AuditTitleRule>> = {
   // now, and by the one it sent through when it was removed.
   account_mail_server_changes: ['host_after', 'host_before'],
   password_resets: ['user_id'],
+  second_factor_changes: ['user_id'],
   // A redaction by its reason.
   audit_redactions: ['reason'],
   // A version by the name its file came with; the file itself has a title.
@@ -684,6 +691,8 @@ const foundationReasonWords: Readonly<Record<string, string>> = {
   'recovery-codes.renew': 'Neue Wiederherstellungscodes',
   'account.own': 'Eigene Angaben geändert',
   'password.reset': 'Passwort zurückgesetzt',
+  'second-factor.app': 'Authenticator-App eingerichtet',
+  'second-factor.reset': 'Zweiter Faktor zurückgesetzt',
   'instance.mail-server': 'Mailserver der Instanz geändert',
   authentication: 'Anmeldung und Konten',
   'instance.setup': 'Ersteinrichtung',

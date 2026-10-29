@@ -568,6 +568,11 @@ export async function setBlocked(userId: string, blocked: boolean): Promise<void
   })
 }
 
+/** Takes the second factor of somebody who has lost theirs, the app and every passkey (N6). */
+export async function resetSecondFactor(userId: string): Promise<void> {
+  await request(`/staff/${encodeURIComponent(userId)}/second-factor`, { method: 'DELETE' })
+}
+
 export function staffDevices(userId: string): Promise<readonly DeviceEntry[]> {
   return request<readonly DeviceEntry[]>(`/staff/${encodeURIComponent(userId)}/devices`)
 }

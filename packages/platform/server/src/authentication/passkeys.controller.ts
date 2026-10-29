@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   NotFoundException,
   Param,
@@ -15,6 +16,7 @@ import { pick } from '../api/body.js'
 import { CurrentUser, type SignedInUser } from '../api/identity.js'
 import { Database } from '../database/database.js'
 import { passkeysOf, removePasskey, renamePasskey } from './passkeys.js'
+import { lacksSecondFactor, secondFactorSessionRequired } from './second-factor.js'
 
 /** One answer for a passkey that is not there and one that is somebody else's. */
 const notFound = 'Diesen Passkey gibt es für dieses Konto nicht.'
@@ -73,6 +75,12 @@ export class PasskeysController {
     @CurrentUser() user: SignedInUser,
     @Param('passkeyId') passkeyId: string,
   ): Promise<{ removed: string }> {
+    // A passkey is a second factor, and only a session that carries the one
+    // the account has takes it away (N6 of the security audit).
+    if (await lacksSecondFactor(this.database, user.userId, user.sessionId)) {
+      throw new ForbiddenException(secondFactorSessionRequired)
+    }
+
     const removed = await removePasskey(this.database, user.userId, passkeyId, user.sessionId)
 
     if (!removed) {

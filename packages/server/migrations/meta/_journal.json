@@ -652,6 +652,13 @@
       "when": 1793287257344,
       "tag": "0092_audit_value_nonces",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1793304796245,
+      "tag": "0093_second_factor_changes",
+      "breakpoints": true
     }
   ]
 }

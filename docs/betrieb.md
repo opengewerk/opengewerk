@@ -228,6 +228,23 @@ Einen zweiten Faktor kann jedes Konto auch später einrichten, auf dem Bildschir
 "Konto" im Büro. Für `owner` ist er Pflicht und die Anwendung fragt von selbst
 danach, für alle anderen ist er eine Empfehlung.
 
+Hat ein Konto einen zweiten Faktor, ändert es ihn nur aus einer Anmeldung mit
+ihm: eine App einrichten, einen Passkey hinzufügen oder löschen und Name oder
+E-Mail ändern geht nicht mit dem Passwort allein. Wer seinen einzigen zweiten
+Faktor verloren hat, bekommt ihn vom Inhaber seines Betriebs unter "Zugänge"
+zurückgesetzt. Arbeitet das Konto auch in einem anderen Betrieb der Instanz
+oder betreibt es die Instanz, geht das nur auf dem Server:
+
+```bash
+docker compose -f docker/compose.yaml exec app node dist/reset-second-factor.js monteur@betrieb.de
+```
+
+Die App und alle Passkeys des Kontos sind danach entfernt und alle Geräte
+abgemeldet, das Passwort bleibt. Bei der nächsten Anmeldung richtet der Zugang
+einen neuen zweiten Faktor ein, wo eine Rolle ihn verlangt. Das Zurücksetzen
+steht wie das Einrichten einer App im Änderungsprotokoll jedes Betriebs, in dem
+der Zugang arbeitet.
+
 `TRUSTED_ORIGINS` ist die Liste der Adressen, von denen aus ein Browser eine
 Anfrage schicken darf, die etwas ändert, und damit der Schutz davor, dass ein
 Formular auf einer fremden Seite hier etwas auslöst. Das gilt für die Anmeldung

@@ -30,6 +30,7 @@ import { mintToken } from './invitation.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
 import { beforeItsEnd, hasEnded, refuseWithoutLastDay, stillWorks } from './last-day.js'
 import { holdRoles, leadsItsTenant, rolesOfTenant } from './roles.js'
+import { removeSecondFactor } from './second-factor.js'
 
 /**
  * Who works in one tenant, and everything whoever leads it can do about it.
@@ -670,6 +671,43 @@ async function worksOnlyHere(
   }, userId)
 }
 
+/**
+ * Takes every second factor of somebody's account away, the app and every
+ * passkey, for the person who has lost the only one (N6 of the security
+ * audit). They sign in with the password afterwards and set up a new one.
+ *
+ * The same fence as for correcting an account, and for the same reason: the
+ * account is the instance's. Taking the second factor of one that works here
+ * and nowhere else hands whoever leads the tenant nothing they did not have.
+ * Taking that of one that also works next door, or runs the instance, would
+ * lower the guard of what is not theirs; that is done on the command line of
+ * the server. Not one's own: that takes a session with the second factor,
+ * and whoever has one deletes a passkey under "Konto".
+ *
+ * Says whether there was anything to take away.
+ */
+export async function resetSecondFactorOf(
+  access: Pick<AccessRules, 'sentences'>,
+  database: Database,
+  identity: TenantIdentity,
+  userId: string,
+): Promise<boolean> {
+  await database.forTenant(identity, (tx) => membershipOf(access, tx, identity.tenantId, userId))
+
+  if (userId === identity.userId) {
+    throw new BadRequestException(
+      'Den eigenen zweiten Faktor setzt niemand hier zurück. Einen Passkey löschen Sie unter ' +
+        '"Konto".',
+    )
+  }
+
+  if (!(await worksOnlyHere(database, identity.tenantId, userId))) {
+    throw new ConflictException(access.sentences.secondFactorNotOnlyHere)
+  }
+
+  return removeSecondFactor(database, userId, identity.userId)
+}
+
 /** Writes the name and the address of an account, outside any tenant, where accounts are. */
 export async function writeAccount(
   database: Database,
@@ -955,8 +993,12 @@ export async function accountsOf(
           name: authUsers.name,
           email: authUsers.email,
           twoFactorEnabled: authUsers.twoFactorEnabled,
+          // The account named with its table: drizzle leaves the table off a
+          // column when a query reads one table only, and inside the subquery
+          // a bare `id` is the passkey's own, which made this false for every
+          // account until N6 of the security audit.
           hasPasskey: sql<boolean>`exists (
-            select 1 from auth_passkeys where auth_passkeys.user_id = ${authUsers.id})`,
+            select 1 from auth_passkeys where auth_passkeys.user_id = auth_users.id)`,
         })
         .from(authUsers)
         .where(inArray(authUsers.id, [...userIds])),

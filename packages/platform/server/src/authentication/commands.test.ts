@@ -7,7 +7,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import type { CommandSurroundings } from '../command-line.js'
 import { ConfigurationError, type Environment } from '../configuration.js'
 import { newId } from '../database/identifier.js'
-import { addStaff, addStaffCommand, resetPassword, resetPasswordCommand } from './commands.js'
+import {
+  addStaff,
+  addStaffCommand,
+  resetPassword,
+  resetPasswordCommand,
+  resetSecondFactor,
+} from './commands.js'
 import {
   probeAccess,
   type ProbeFoundation,
@@ -69,6 +75,7 @@ async function said(
 const adding = (surroundings: CommandSurroundings) => addStaff(probewerk, probeAccess, surroundings)
 const resetting = (surroundings: CommandSurroundings) =>
   resetPassword(probewerk, probeAccess, surroundings)
+const takingAway = (surroundings: CommandSurroundings) => resetSecondFactor(probewerk, surroundings)
 
 async function refusal(work: Promise<unknown>): Promise<string> {
   const error: unknown = await work.then(
@@ -234,6 +241,66 @@ describe('a new password from the command line', () => {
     await instance.http().get('/auth/tenants').set('cookie', open).expect(401)
     expect(await instance.signIn('neu@example.de', first)).toBe('')
     expect(await instance.signIn('neu@example.de', second)).not.toBe('')
+  })
+})
+
+describe('taking a second factor away from the command line', () => {
+  it('says how it is called, and that there is no such account', async () => {
+    expect(await refusal(said(takingAway, []))).toBe('Aufruf: reset-second-factor <e-mail>')
+    expect(await refusal(said(takingAway, ['niemand@example.de']))).toBe(
+      'Auf dieser Instanz gibt es keinen Zugang für niemand@example.de.',
+    )
+  })
+
+  it('takes the app away, ends every session, writes it into the log and says so', async () => {
+    await said(adding, [north.id, 'app-weg@example.de', 'Anna App-Weg', 'member'], first)
+
+    const { rows } = await admin.query<{ id: string }>(
+      `update auth_users set two_factor_enabled = true where email = 'app-weg@example.de'
+       returning id`,
+    )
+    const userId = rows[0]?.id ?? ''
+
+    await admin.query(
+      `insert into auth_two_factors (id, user_id, secret, backup_codes, verified)
+       values ('app-von-anna', $1, 'versiegelt', 'versiegelt', true)`,
+      [userId],
+    )
+    await admin.query(
+      `insert into auth_sessions (id, token, user_id, expires_at, created_at, updated_at, second_factor)
+       values ('sitzung-von-anna', 'token-von-anna', $1, now() + interval '1 hour', now(), now(), true)`,
+      [userId],
+    )
+
+    expect(await said(takingAway, ['App-Weg@example.de'])).toEqual([
+      'Der zweite Faktor von App-Weg@example.de ist zurückgesetzt: die App und alle Passkeys ' +
+        'sind entfernt, und alle Geräte dieses Zugangs sind abgemeldet. Bei der nächsten ' +
+        'Anmeldung richtet der Zugang einen neuen ein, wo eine Rolle ihn verlangt.',
+    ])
+
+    const { rows: left } = await admin.query<{ app: boolean; codes: number; sessions: number }>(
+      `select u.two_factor_enabled as app,
+              (select count(*)::int from auth_two_factors where user_id = u.id) as codes,
+              (select count(*)::int from auth_sessions where user_id = u.id) as sessions
+         from auth_users u where u.id = $1`,
+      [userId],
+    )
+
+    expect(left).toEqual([{ app: false, codes: 0, sessions: 0 }])
+
+    const { rows: logged } = await admin.query<{ actor: string; reason: string }>(
+      `select a.user_id as actor, a.reason
+         from audit_entries a join second_factor_changes c on a.record_id = c.id
+        where a.table_name = 'second_factor_changes' and a.field = 'user_id' and c.user_id = $1`,
+      [userId],
+    )
+
+    expect(logged).toEqual([{ actor: userId, reason: 'second-factor.reset' }])
+
+    // A second time there is nothing left, and it says so.
+    expect(await said(takingAway, ['app-weg@example.de'])).toEqual([
+      'app-weg@example.de hat keinen zweiten Faktor, es gab nichts zurückzusetzen.',
+    ])
   })
 })
 

@@ -255,6 +255,40 @@ export const passwordResets = pgTable(
 )
 
 /**
+ * A change of the second factor of somebody who works in this tenant: the
+ * app set up, or every second factor of the account taken away so that a new
+ * one can be set up (N6 of the security audit).
+ *
+ * The app lives in `auth_two_factors` and the passkeys in `auth_passkeys`, on
+ * the instance, where no audit trigger can reach them. A passkey comes into
+ * the log through `member_passkeys`; the app came nowhere, and a password was
+ * enough to set it up on an account without one. So whoever leads the tenant
+ * should see every such change: a row per change and tenant the account works
+ * in, and the audit trigger puts it into the log. Which change it was is the
+ * reason of that entry, `second-factor.app` or `second-factor.reset`; the row
+ * says whose and when.
+ *
+ * Written once and never changed or removed, like a new password.
+ */
+export const secondFactorChanges = pgTable(
+  'second_factor_changes',
+  {
+    id: primaryId<'second-factor-change'>(),
+    ...tenantColumn,
+    userId: text('user_id').notNull(),
+    changedAt: timestamp('changed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    tenantIsolation(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.userId],
+      foreignColumns: [memberships.tenantId, memberships.userId],
+      name: 'second_factor_changes_person_works_here',
+    }).onDelete('cascade'),
+  ],
+)
+
+/**
  * A change of the mail server of the instance, as every tenant on it learns
  * of it (opengewerk-haustechnik#360).
  *

@@ -4,11 +4,12 @@ import { eq } from 'drizzle-orm'
 import { type CommandSurroundings, reach, runCommand, surroundingsOf } from '../command-line.js'
 import { ConfigurationError, readConfiguration, type ServerApplication } from '../configuration.js'
 import { isUuid } from '../database/identifier.js'
-import { tenants } from '../schema.js'
+import { authUsers, tenants } from '../schema.js'
 import type { AccessRules } from './access.js'
 import { createAuthentication } from './authentication.js'
 import { readNewPassword } from './password.js'
 import { rolesOfTenant } from './roles.js'
+import { removeSecondFactor } from './second-factor.js'
 import { accountExists, addStaffMember, replacePassword } from './staff.js'
 
 /**
@@ -217,5 +218,71 @@ export async function resetPasswordCommand(
   await runCommand(
     () => resetPassword(application, access, surroundings),
     'Das Passwort konnte nicht ersetzt werden.',
+  )
+}
+
+/**
+ * Takes every second factor of an account away, from the command line (N6 of
+ * the security audit).
+ *
+ * The way back for whoever has lost the only one and works for more than one
+ * tenant, or runs the instance, which nobody who leads a tenant may do for
+ * them (`resetSecondFactorOf`), and for whoever leads the only tenant there
+ * is. The app and every passkey go, every session ends, the password stays;
+ * every tenant the account works in has it in its log.
+ *
+ * Throws where the command stops, like `addStaff`.
+ */
+export async function resetSecondFactor(
+  application: ServerApplication,
+  surroundings: CommandSurroundings = {},
+): Promise<void> {
+  const { arguments: given, environment, say } = surroundingsOf(surroundings)
+  const [email] = given
+
+  if (!email) {
+    throw new ConfigurationError('Aufruf: reset-second-factor <e-mail>')
+  }
+
+  const configuration = readConfiguration(application, environment)
+  const database = await reach(configuration.databaseUrl)
+
+  try {
+    const [account] = await database.forInstance((tx) =>
+      tx
+        .select({ id: authUsers.id })
+        .from(authUsers)
+        .where(eq(authUsers.email, email.trim().toLowerCase()))
+        .limit(1),
+    )
+
+    if (!account) {
+      throw new ConfigurationError(`Auf dieser Instanz gibt es keinen Zugang für ${email}.`)
+    }
+
+    if (!(await removeSecondFactor(database, account.id))) {
+      say(`${email} hat keinen zweiten Faktor, es gab nichts zurückzusetzen.`)
+
+      return
+    }
+
+    say(
+      `Der zweite Faktor von ${email} ist zurückgesetzt: die App und alle Passkeys sind ` +
+        'entfernt, und alle Geräte dieses Zugangs sind abgemeldet. Bei der nächsten Anmeldung ' +
+        'richtet der Zugang einen neuen ein, wo eine Rolle ihn verlangt.',
+    )
+  } finally {
+    await database.close()
+  }
+}
+
+/** The whole of the command an application starts as `reset-second-factor`. */
+export async function resetSecondFactorCommand(
+  application: ServerApplication,
+  surroundings: CommandSurroundings = {},
+): Promise<void> {
+  await runCommand(
+    () => resetSecondFactor(application, surroundings),
+    'Der zweite Faktor konnte nicht zurückgesetzt werden.',
   )
 }

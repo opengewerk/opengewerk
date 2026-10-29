@@ -81,12 +81,20 @@ async function signIn(email: string, target: INestApplication = app): Promise<st
 }
 
 /** Confirms again with the password and adds a passkey, as the browser would. */
+/** The last passkey added here for each account. */
+const keysOf = new Map<string, TestAuthenticator>()
+
+/**
+ * Adds a passkey, from a session of the password while the account has none
+ * and from one of its last passkey once it has (N6 of the security audit).
+ */
 async function addPasskey(
   email: string,
   name: string,
   target: INestApplication = app,
 ): Promise<TestAuthenticator> {
-  const cookies = await signIn(email, target)
+  const earlier = keysOf.get(email)
+  const cookies = earlier ? await passkeySignIn(earlier) : await signIn(email, target)
   const authenticator = new TestAuthenticator(site)
 
   await http(target)
@@ -108,6 +116,8 @@ async function addPasskey(
     .set('origin', origin)
     .send({ response: authenticator.register(challenge), name })
     .expect(200)
+
+  keysOf.set(email, authenticator)
 
   return authenticator
 }

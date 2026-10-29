@@ -61,3 +61,17 @@ export type PasskeyNotice = (
  * only time they see them.
  */
 export type RecoveryCodesNotice = (owner: PasskeyOwner) => Promise<void>
+
+/** What became of the second factor of an account: the app set up, or every one taken away. */
+export type SecondFactorChange = 'app' | 'reset'
+
+/**
+ * Tells an account that its second factor changed (N6 of the security audit),
+ * or does nothing when nothing sends mail for it: the app was set up, and a
+ * password had been enough for that, or whoever leads its tenant took every
+ * second factor away. Neither should go unnoticed by the person.
+ *
+ * Not awaited, like the notice of new recovery codes: the change is done and
+ * written into the log by then.
+ */
+export type SecondFactorNotice = (owner: PasskeyOwner, change: SecondFactorChange) => Promise<void>

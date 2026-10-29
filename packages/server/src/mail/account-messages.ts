@@ -6,12 +6,14 @@ import {
   passkeyAddedMessage,
   passwordResetMessage,
   recoveryCodesRenewedMessage,
+  secondFactorChangedMessage,
 } from '../notifications/templates.js'
 
 /**
  * What this application says in the mails to an account
  * (opengewerk-haustechnik#81): the link to a new password and the notice of a
- * new passkey and of new recovery codes, in its words and under its name, to
+ * new passkey, of new recovery codes and of a second factor set up or taken
+ * away (N6 of the security audit), in its words and under its name, to
  * whoever owns a business when the mail server of the instance changes, and
  * to every operator when somebody is named one or taken off
  * (opengewerk-haustechnik#360).
@@ -30,6 +32,7 @@ export const accountMessages: AccountMessages = {
   passwordReset: passwordResetMessage,
   passkeyAdded: passkeyAddedMessage,
   recoveryCodesRenewed: recoveryCodesRenewedMessage,
+  secondFactorChanged: secondFactorChangedMessage,
   operatorsChanged: operatorsChangedMessage,
   mailServerChanged: mailServerChangedMessage,
 }
