@@ -22,6 +22,20 @@ export interface MailReach {
   readonly internalHosts: readonly string[]
 }
 
+/**
+ * What is said of a name the instance does not connect to: one sentence
+ * whether it does not resolve or points inside a network that is not allowed.
+ * Two sentences, or two kinds of error, would tell whoever sets the mail
+ * server which names the resolver of the instance knows inside its network.
+ */
+export function unreachableName(host: string): string {
+  return (
+    `Den Mailserver "${host}" erreicht die Instanz nicht. Entweder lässt sich der Name nicht ` +
+    'auflösen, oder er liegt in einem internen Netz; mit einem solchen wird nur verbunden, ' +
+    'wenn er in den Einstellungen der Instanz unter „Mailserver im eigenen Netz“ freigegeben ist.'
+  )
+}
+
 /** Every address a name stands for, the way the system resolves it. */
 async function addressesOf(host: string): Promise<readonly string[]> {
   const found = await lookup(host, { all: true, verbatim: true })
@@ -60,19 +74,22 @@ export async function destinationOf(
   const [first] = addresses
 
   if (first === undefined) {
-    throw new MailDeliveryError(
-      `Den Mailserver "${host}" gibt es nicht, der Name lässt sich nicht auflösen.`,
-      'EDNS',
-      null,
-    )
+    throw new MailDeliveryError(unreachableName(host), 'EDNS', null)
   }
 
   const vouched = listed(host) || addresses.every(listed)
 
   if (!vouched) {
-    // Without the address the name resolved to: the sentence goes back to
-    // whoever set the mail server and into the outbox, and the address is what
-    // the resolver of the instance knows about the network it runs in.
+    // A name inside is answered like a name that does not resolve, with the
+    // same sentence and the same kind (`EDNS`), so that neither the check nor
+    // the outbox tells the two apart. Whatever it says goes back to whoever
+    // set the mail server, and what the resolver of the instance knows about
+    // its network is not theirs to learn. An address given as such is no
+    // question to the resolver, and is told as what it is.
+    if (!isIP(host) && addresses.some(isInternalAddress)) {
+      throw new MailDeliveryError(unreachableName(host), 'EDNS', null)
+    }
+
     if (addresses.some(isInternalAddress)) {
       throw new MailDeliveryError(
         `Der Mailserver "${host}" liegt nicht im Internet, sondern in einem internen Netz. ` +
