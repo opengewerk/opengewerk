@@ -367,6 +367,21 @@ async function chainToTheEnd() {
 }
 
 describe('cumulative progress invoices', () => {
+  it('show what was received on them in the draft of a final invoice only to whoever reads payments', async () => {
+    const { final } = await chainToTheEnd()
+    const technician = as(north.id, 'technician')
+
+    for (const path of [`/documents/${final.id}/deductions`, `/documents/${final.id}/pdf`]) {
+      const refused = await http().get(path).set('x-test-identity', technician).expect(403)
+
+      expect(String((refused.body as { message: string }).message)).toContain(
+        'wer Zahlungen einsehen darf',
+      )
+    }
+
+    expect(await deductionsOf(final.id)).toHaveLength(2)
+  })
+
   it('each bill the progress less what the ones before them billed', async () => {
     const { first, second } = await chainToTheEnd()
 

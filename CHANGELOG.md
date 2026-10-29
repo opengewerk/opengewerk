@@ -87,6 +87,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `document_lines_within_count` (OG007); vorhandene Belege bleiben, wie sie sind. Warum: Wer Belege schreiben darf,
   konnte die gemeinsame Datenbank mit Positionen beliebiger Länge und Zahl füllen, und das Prüfprotokoll hält jede davon
   für immer.
+- Abzüge und PDF eines Schlussrechnungsentwurfs gibt es nur noch mit dem Recht, Zahlungen einzusehen; ohne es antwortet
+  der Server mit 403 und einem Satz. Warum: Der Entwurf rechnet mit dem, was auf die Abschlagsrechnungen eingegangen
+  ist, und so sah ein Monteur Zahlungen, die ihm der Rechtekatalog ausdrücklich nicht zeigt.
 - Ein Text, den der Abgleich in einer Operation bringt, ist höchstens 100.000 Zeichen lang, so lang, wie eine Route
   ihn annimmt; die Werte eines Formulars dürfen bis zu ihrer Prüfung reichen. Dazu zählt jedes Konto, was es in einer
   Stunde als JSON ändert, über alle Mandanten zusammen, und über 100 MB antwortet jede Route mit 429. Warum: Über den

@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Controller,
+  ForbiddenException,
   Get,
   NotFoundException,
   Param,
@@ -13,6 +14,7 @@ import {
   type DocumentContent,
   type DocumentId,
   type DocumentKind,
+  isAllowed,
   RuleError,
   shippedRules,
 } from '@opengewerk/domain'
@@ -22,6 +24,7 @@ import type { Response } from 'express'
 
 import { documents, documentSnapshots } from '../database/schema/index.js'
 import { contentOf } from '../documents/content.js'
+import { paymentsOfADraft, showsReceivedPayments } from '../documents/deductions.js'
 import { headingOf } from '../documents/template.js'
 import { RequiresPermission } from './authorization.js'
 import { DocumentFiles, issuedHeading } from './document-files.js'
@@ -109,7 +112,9 @@ export class DocumentPdfController {
     @Param('documentId') documentId: string,
     @Res({ passthrough: true }) response: Response,
   ): Promise<StreamableFile> {
-    const found = await this.database.forTenant(identity, (tx) => this.find(tx, documentId))
+    const found = await this.database.forTenant(identity, (tx) =>
+      this.find(tx, documentId, identity),
+    )
 
     let printed: Printed
 
@@ -147,7 +152,11 @@ export class DocumentPdfController {
     })
   }
 
-  private async find(tx: TenantTransaction, documentId: string): Promise<Found> {
+  private async find(
+    tx: TenantTransaction,
+    documentId: string,
+    identity: RequestIdentity,
+  ): Promise<Found> {
     const [document] = await tx
       .select()
       .from(documents)
@@ -161,6 +170,11 @@ export class DocumentPdfController {
     // from: a draft, because it may still change, and a signed report, because
     // it has no number yet and so no snapshot. Neither is kept.
     if (document.status === 'draft' || document.status === 'signed') {
+      // What its deductions take off, as received now, is not for everybody.
+      if (showsReceivedPayments(document) && !isAllowed(identity, 'payment.read')) {
+        throw new ForbiddenException(paymentsOfADraft)
+      }
+
       try {
         return { state: 'live', content: await contentOf(tx, document, shippedRules) }
       } catch (error) {
