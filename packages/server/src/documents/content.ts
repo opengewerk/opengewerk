@@ -113,6 +113,7 @@ export async function contentAndGapsOf(
   tx: TenantTransaction,
   document: DocumentRow,
   rules: RuleSet,
+  { lockPredecessors = false }: { readonly lockPredecessors?: boolean } = {},
 ): Promise<{ readonly content: DocumentContent; readonly gaps: readonly InstructionGap[] }> {
   const rows = await tx
     .select()
@@ -190,7 +191,7 @@ export async function contentAndGapsOf(
       : null,
     cashAccounting:
       (await parameterAt(tx, 'cash_accounting.permitted', document.documentDate))?.value === 1,
-    deductions: await deductionsFor(tx, document),
+    deductions: await deductionsFor(tx, document, { lock: lockPredecessors }),
     paymentTermDays: await paymentTermDaysOf(tx, document),
     instructions: instructions.contents,
     jobNumber: job?.number ?? null,

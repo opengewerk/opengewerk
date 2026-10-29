@@ -2,16 +2,19 @@ import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import type { DocumentContent } from '@opengewerk/domain'
 import { Database, newId } from '@opengewerk/platform-server'
+import { eq } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { documentLines } from '../database/schema/index.js'
 import {
   applicationDatabaseUrl,
   connect,
   refusedBy,
   resetToMigrated,
 } from '../database/test-database.js'
+import { heldOpen, untilWaiting } from '../database/test-locks.js'
 import { ApiModule } from './api.module.js'
 import { as, testIdentities as identities } from './test-identity.js'
 import { finalInvoice, invoiceable, oneLine } from './test-invoice.js'
@@ -286,5 +289,33 @@ describe('the snapshot written at issuing', () => {
     )
 
     expect(Number(rows[0]?.count)).toBe(1)
+  })
+
+  /**
+   * Issuing read the lines without a lock on the document, while a change to
+   * one of them was still open, and froze the line as it was before. The
+   * table then held the line as changed, and the snapshot did not. Since the
+   * route locks the document first, it waits for the change and freezes what
+   * was committed.
+   */
+  it('waits for a line that is being changed, and holds it as changed', async () => {
+    const document = await draft(await customer(invoiceable))
+    const changing = heldOpen(database, north.id, (tx) =>
+      tx
+        .update(documentLines)
+        .set({ designation: 'Unterverteilung und Zählerplatz erneuert' })
+        .where(eq(documentLines.documentId, document as never)),
+    )
+    await changing.open
+
+    const issuing = Promise.resolve(issue(document))
+    await untilWaiting(admin, issuing)
+    changing.release()
+    await changing.done
+
+    expect((await issuing).status).toBe(201)
+    expect((await snapshotOf(document))?.lines.map((line) => line.designation)).toEqual([
+      'Unterverteilung und Zählerplatz erneuert',
+    ])
   })
 })

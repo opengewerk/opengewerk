@@ -7,6 +7,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Sicherheit
+
+- Ein Beleg wird beim Ausstellen, beim Stornieren und beim Schreiben seiner Positionen gesperrt. Das Ausstellen liest
+  den Beleg mit einer Zeilensperre, bevor es festhält, was in den Schnappschuss kommt, und die Vorgänger, die es
+  abzieht, mit einer geteilten Sperre; das Stornieren sperrt die Rechnung vor seinen Prüfungen; die Routen der
+  Positionen sperren den Entwurf wie der Abgleich seit #582, und der Trigger an den Positionen wartet mit der
+  Migration `0089_line_waits_for_its_document` auf eine Transaktion, die den Beleg gerade ausstellt oder
+  unterschreibt. Warum: Eine Position, die im selben Moment geschrieben wurde, kam in den Beleg, aber nicht in seinen
+  Schnappschuss, und ein Storno konnte eine Rechnung treffen, auf die gerade eine Zahlung oder eine abziehende
+  Folgerechnung kam. Beides widerspricht der Festschreibung, die die GoBD verlangen.
+
 ## [0.6.2] - 2026-10-23
 
 Eine Sicherheitsfassung. Das Abbild baut auf Node 24.22.1, und der Renderer für PDFs läuft auf 2.57.3, das dieselbe
