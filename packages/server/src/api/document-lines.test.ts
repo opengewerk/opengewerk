@@ -674,3 +674,96 @@ describe('the stored line total', () => {
     expect(line.netCents).toBe(25)
   })
 })
+
+/**
+ * How much a document holds (migration 0091). The texts of a line and of a
+ * document had no length and a document no number of lines, and a member who
+ * may write documents could fill the database every business shares, kept for
+ * good by the log.
+ */
+describe('what a document holds', () => {
+  function lineOf(documentId: string, designation: string, position: number) {
+    return database.forTenant({ tenantId: north.id }, (tx) =>
+      tx.insert(documentLines).values({
+        tenantId: north.id,
+        documentId: documentId as never,
+        position,
+        designation,
+        quantityMilli: 1000,
+        unit: 'piece',
+        unitPriceCents: 100,
+        netCents: 100,
+      }),
+    )
+  }
+
+  it('refuses a line with a text longer than a line holds, at the route and in the database', async () => {
+    const document = await draft()
+
+    const long = await http()
+      .post(`/documents/${document.id}/lines`)
+      .set('x-test-identity', office())
+      .send({
+        designation: 'x'.repeat(1001),
+        quantityMilli: 1000,
+        unit: 'hour',
+        unitPriceCents: 100,
+      })
+      .expect(400)
+
+    expect(long.body.message).toBe('Die Bezeichnung einer Position hat höchstens 1.000 Zeichen.')
+    await addLine(document.id, { description: 'x'.repeat(30_001) }, 400)
+    await addLine(document.id, { designation: 'x'.repeat(1000), description: 'x'.repeat(30_000) })
+
+    expect(await refusedBy(lineOf(document.id, 'x'.repeat(1001), 9))).toMatchObject({
+      code: '23514',
+      constraint: 'document_lines_designation_fits',
+    })
+  })
+
+  it('refuses a text of a document longer than it holds, at the route and in the database', async () => {
+    const document = await draft()
+
+    const long = await http()
+      .patch(`/documents/${document.id}`)
+      .set('x-test-identity', office())
+      .send({ subject: 'x'.repeat(501) })
+      .expect(400)
+
+    expect(long.body.message).toBe('Der Betreff hat höchstens 500 Zeichen.')
+    await http()
+      .patch(`/documents/${document.id}`)
+      .set('x-test-identity', office())
+      .send({ introText: 'x'.repeat(30_000) })
+      .expect(200)
+
+    expect(
+      await refusedBy(
+        admin.query('update documents set closing_text = $1 where id = $2', [
+          'x'.repeat(30_001),
+          document.id,
+        ]),
+      ),
+    ).toMatchObject({ code: '23514', constraint: 'documents_texts_fit' })
+  })
+
+  it('takes no line more than a document holds, at the route and in the database', async () => {
+    const document = await draft()
+
+    await admin.query(
+      `insert into document_lines
+         (tenant_id, document_id, position, designation, quantity_milli, unit, unit_price_cents, net_cents)
+       select $1, $2, n, 'Zeile ' || n, 1000, 'piece', 100, 100 from generate_series(1, 2000) n`,
+      [north.id, document.id],
+    )
+
+    const refused = await http()
+      .post(`/documents/${document.id}/lines`)
+      .set('x-test-identity', office())
+      .send({ designation: 'Eine zu viel', quantityMilli: 1000, unit: 'hour', unitPriceCents: 100 })
+      .expect(409)
+
+    expect(refused.body.message).toBe('Ein Beleg hat höchstens 2.000 Positionen.')
+    expect((await refusedBy(lineOf(document.id, 'Eine zu viel', 2001))).code).toBe('OG007')
+  })
+})

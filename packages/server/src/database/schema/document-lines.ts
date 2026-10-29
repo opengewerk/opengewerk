@@ -1,4 +1,4 @@
-import { type PriceBase, priceBases, quantityFactor } from '@opengewerk/domain'
+import { lineLimits, type PriceBase, priceBases, quantityFactor } from '@opengewerk/domain'
 import {
   primaryId,
   reference,
@@ -101,6 +101,16 @@ export const documentLines = pgTable(
       .on(table.tenantId, table.createdAt)
       .where(sql`${table.articleId} is not null and ${table.deletedAt} is null`),
     check('document_lines_position_positive', sql`${table.position} >= 1`),
+    // `lineLimits`, asked by the routes and the sync before.
+    check(
+      'document_lines_designation_fits',
+      sql`char_length(${table.designation}) <= ${sql.raw(String(lineLimits.designation))}`,
+    ),
+    check(
+      'document_lines_description_fits',
+      sql`${table.description} is null
+        or char_length(${table.description}) <= ${sql.raw(String(lineLimits.description))}`,
+    ),
     // A title is a heading and nothing else. With an amount on it, a total
     // would contain a figure nobody sees as a position.
     check(

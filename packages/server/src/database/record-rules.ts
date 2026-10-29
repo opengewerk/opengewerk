@@ -4,9 +4,11 @@ import {
   locationProblem,
   timeEntryProblem,
   deviceInfoProblem,
+  documentTextProblem,
   inverterLinkProblem,
   jobNoteProblem,
   linePositionProblem,
+  lineTextProblem,
   lumpSumPriceBaseProblem,
   priceBaseProblem,
   noteTimeProblem,
@@ -119,9 +121,24 @@ const rules: RecordRules = {
       fields: ['serviceFrom', 'serviceUntil'],
       problem: (at) => servicePeriodProblem(at('serviceFrom'), at('serviceUntil')),
     },
+    // Their lengths, which `documents_texts_fit` holds as well.
+    { fields: ['subject'], problem: (at) => documentTextProblem('subject', at('subject')) },
+    { fields: ['introText'], problem: (at) => documentTextProblem('introText', at('introText')) },
+    {
+      fields: ['closingText'],
+      problem: (at) => documentTextProblem('closingText', at('closingText')),
+    },
   ],
   document_lines: [
     { fields: ['position'], problem: (at) => linePositionProblem(at('position')) },
+    {
+      fields: ['designation'],
+      problem: (at) => lineTextProblem('designation', at('designation')),
+    },
+    {
+      fields: ['description'],
+      problem: (at) => lineTextProblem('description', at('description')),
+    },
     // Left out, the column gives one: a device of a version before #456 sends none.
     {
       fields: ['priceBase'],

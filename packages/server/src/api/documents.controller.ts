@@ -24,6 +24,7 @@ import {
   type DocumentKind,
   documentKinds,
   type DocumentStatus,
+  documentTextProblem,
   type EInvoiceGap,
   type InstructionGap,
   isCancellable,
@@ -245,6 +246,18 @@ function checkPaymentTerm(values: Partial<Record<string, unknown>>): void {
   }
 }
 
+/** Refuses a text longer than a document holds (`documentTextLimits`), as the check in the database does. */
+function checkTexts(values: Partial<Record<string, unknown>>): void {
+  const problem =
+    documentTextProblem('subject', values['subject']) ??
+    documentTextProblem('introText', values['introText']) ??
+    documentTextProblem('closingText', values['closingText'])
+
+  if (problem !== null) {
+    throw new BadRequestException(problem)
+  }
+}
+
 @Controller('documents')
 export class DocumentsController {
   constructor(private readonly database: Database) {}
@@ -263,6 +276,7 @@ export class DocumentsController {
     const values = pick(body, writableFields)
     requireFields(values, ['customerId', 'kind', 'documentDate'])
     checkPaymentTerm(values)
+    checkTexts(values)
 
     const [created] = await this.database.forTenant(identity, async (tx) => {
       // Before the proposal, which reads the customer: one of another
@@ -301,6 +315,7 @@ export class DocumentsController {
     const values = pick(body, writableFields)
     requireSomething(values)
     checkPaymentTerm(values)
+    checkTexts(values)
 
     return this.database.forTenant(identity, async (tx) => {
       await requireReferences(tx, documents, values, false)
