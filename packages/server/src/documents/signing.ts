@@ -1,4 +1,9 @@
-import { type ConflictReason, type DocumentId, signedContentFingerprint } from '@opengewerk/domain'
+import {
+  type ConflictReason,
+  type DocumentId,
+  isSignable,
+  signedContentFingerprint,
+} from '@opengewerk/domain'
 import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
@@ -24,6 +29,12 @@ export interface SignatureRefusal {
  * rules find a parent by id whether it is deleted or not, and the trigger that
  * signs the document would then refuse inside the transaction, taking the
  * whole transmission with it. A conflict takes only this one operation.
+ *
+ * And the place that keeps a signature to the report it is for (`isSignable`).
+ * Signing fixes a document, and the right to write documents is not the right
+ * to fix one: a signature under an invoice, a quote or an order confirmation
+ * is refused, and so is one under a draft that continues a chain. The trigger
+ * that signs holds the same since migration 0090, for the whole transmission.
  */
 export async function signatureRefusal(
   tx: TenantTransaction,
@@ -33,6 +44,8 @@ export async function signatureRefusal(
 
   const [document] = await tx
     .select({
+      kind: documents.kind,
+      predecessorDocumentId: documents.predecessorDocumentId,
       introText: documents.introText,
       fieldValues: documents.fieldValues,
       deletedAt: documents.deletedAt,
@@ -42,6 +55,10 @@ export async function signatureRefusal(
 
   if (!document || document.deletedAt) {
     return { reason: 'record_missing', fields: ['documentId'] }
+  }
+
+  if (!isSignable(document)) {
+    return { reason: 'record_is_fixed', fields: ['documentId'] }
   }
 
   const lines = await tx
