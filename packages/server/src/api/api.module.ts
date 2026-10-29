@@ -29,6 +29,8 @@ import {
   type SecretKey,
   StampInterceptor,
   type UploadLimits,
+  WriteLimitInterceptor,
+  WriteLimits,
   syncParts,
   TRUSTED_ORIGINS,
   VERSION,
@@ -116,6 +118,11 @@ export interface ApiOptions {
    * the module has limits of its own on the store above.
    */
   readonly limits?: UploadLimits
+  /**
+   * How much one account writes within an hour (B5 of the security audit).
+   * Left out, the foundation's numbers; a test hands in smaller ones.
+   */
+  readonly writeLimits?: WriteLimits
   /**
    * What prints a document. Left out, it is the renderer of an instance that
    * has none configured, and a request for a PDF gets the message saying so.
@@ -335,6 +342,10 @@ export class ApiModule {
         { provide: APP_GUARD, useClass: SameOriginGuard },
         { provide: APP_GUARD, useClass: AuthorizationGuard },
         { provide: APP_FILTER, useClass: DatabaseExceptionFilter },
+        // What an account writes within an hour, asked behind the guards,
+        // which know the account, before the route writes anything.
+        { provide: WriteLimits, useValue: options.writeLimits ?? new WriteLimits() },
+        { provide: APP_INTERCEPTOR, useClass: WriteLimitInterceptor },
         // No answer says who changed a record last, from which device and
         // when; the change log keeps it for the owner.
         { provide: APP_INTERCEPTOR, useClass: StampInterceptor },

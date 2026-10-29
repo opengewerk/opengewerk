@@ -38,7 +38,7 @@ import {
   type TableGuard,
 } from '../migration/guards.js'
 import type { ServerSync } from './apply.js'
-import type { SyncRoutes } from './controller.js'
+import { longestSyncText, type SyncRoutes } from './controller.js'
 import { fingerprintOf, idArray } from './narrowing.js'
 
 // Records of the probe application that travel to devices, for the tests of
@@ -345,6 +345,9 @@ export function probeSyncRoutes(
     sync,
     permissionFor: probePermissionFor,
     answerFor,
+    // A note holds twice the text of every other field, as a form of an
+    // application holds more than a name.
+    longerTexts: { notes: { text: 2 * longestSyncText } },
     async scope({ tx, identity, query }) {
       const writesLetters = identity.rights.includes('letters.write')
       const openOnly = query['shelves'] === 'open'
