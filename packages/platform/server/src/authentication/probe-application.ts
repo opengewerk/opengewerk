@@ -494,7 +494,11 @@ export async function probeInstance(
     mountAuthentication(app, authenticationHandler(authentication))
   }
 
-  await app.init()
+  // Listening once, for every request of a test. Handed a server that does
+  // not listen, supertest opens and closes it around each request, and a
+  // request sent while another one closes it is reset: 25 codes at once
+  // showed it (ECONNRESET).
+  await app.listen(0, '127.0.0.1')
 
   const http = () => request(app.getHttpServer())
 
