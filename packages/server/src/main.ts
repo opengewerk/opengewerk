@@ -24,6 +24,8 @@ import {
   startFileSweep,
   stopOnSignals,
   takeOverFromEnvironment,
+  tenantStorage,
+  uploadAllowance,
   UploadLimits,
   vapidKeysFrom,
 } from '@opengewerk/platform-server'
@@ -158,7 +160,12 @@ async function start(): Promise<void> {
   const files = new FileStore(configuration.storagePath)
   const output = {
     files,
-    limits: new UploadLimits(files),
+    limits: new UploadLimits(
+      files,
+      uploadAllowance,
+      Date.now,
+      tenantStorage(database, instanceSettings),
+    ),
     renderer: rendererFor(readRendererConfiguration()),
     trustedOrigins: configuration.trustedOrigins,
     backupStatus: configuration.backupStatusPath,

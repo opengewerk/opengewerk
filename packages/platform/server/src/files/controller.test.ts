@@ -30,6 +30,8 @@ import {
 } from '../authentication/probe-application.js'
 import { Database } from '../database/database.js'
 import { newId } from '../database/identifier.js'
+import { INSTANCE_SETTINGS } from '../instance/instance.controller.js'
+import { InstanceSettingsCache } from '../instance/settings.js'
 import { fileParts } from './controller.js'
 import { FileStore } from './store.js'
 import { testHeicPhoto } from './test-pictures.js'
@@ -143,10 +145,14 @@ async function recorded(bytes: Buffer): Promise<boolean> {
   return rows.length > 0
 }
 
-async function started(store: FileStore, allowance?: UploadAllowance) {
+async function started(
+  store: FileStore,
+  allowance?: UploadAllowance,
+  settings?: InstanceSettingsCache,
+) {
   const started = (
     await Test.createTestingModule({
-      imports: [ProbeFilesModule.create(database, store, allowance)],
+      imports: [ProbeFilesModule.create(database, store, allowance, settings)],
     }).compile()
   ).createNestApplication()
 
@@ -161,7 +167,12 @@ async function started(store: FileStore, allowance?: UploadAllowance) {
  */
 @Module({})
 class ProbeFilesModule {
-  static create(database: Database, store: FileStore, allowance?: UploadAllowance): DynamicModule {
+  static create(
+    database: Database,
+    store: FileStore,
+    allowance?: UploadAllowance,
+    settings?: InstanceSettingsCache,
+  ): DynamicModule {
     const parts = fileParts({
       access: probeAccess,
       upload: 'notes.write',
@@ -174,6 +185,7 @@ class ProbeFilesModule {
       controllers: parts.controllers,
       providers: [
         { provide: Database, useValue: database },
+        ...(settings ? [{ provide: INSTANCE_SETTINGS, useValue: settings }] : []),
         ...parts.providers,
         { provide: IDENTITY_SOURCE, useValue: headerIdentities<MemberIdentity<ProbeRight>>() },
         { provide: AUTHORIZATION, useValue: probeAuthorization },
@@ -419,5 +431,49 @@ describe('storing on a volume without the room it keeps free', () => {
     expect(refused.message).toMatch(/kaum noch Platz/)
     expect(kept(fullRoot, file)).toBe(false)
     expect(await recorded(file)).toBe(false)
+  })
+})
+
+/**
+ * The budget of a tenant in the store (B9 of the security audit), as the
+ * settings of the instance give it: a tenant at its budget is refused, every
+ * other tenant goes on storing.
+ */
+describe('storing beyond the budget of a tenant', () => {
+  it('is refused for that tenant alone, with a sentence, and nothing is kept', async () => {
+    const { rows } = await admin.query<{ bytes: string }>(
+      'select coalesce(sum(size_bytes), 0) as bytes from files where tenant_id = $1',
+      [north.id],
+    )
+    const root = mkdtempSync(join(tmpdir(), 'file-route-budget-'))
+    const budgeted = await started(
+      new FileStore(root),
+      undefined,
+      InstanceSettingsCache.fixed({
+        mailInternalHosts: [],
+        backupTime: '02:30',
+        takenOverAt: null,
+        tenantStorageBytes: Number(rows[0]?.bytes ?? 0) + 60,
+        ownTenantsAllowed: true,
+      }),
+    )
+
+    try {
+      const first = Buffer.from('Vierzig Bytes, die noch hineinpassen.\n')
+      const second = Buffer.from('Vierzig Bytes, die nicht mehr passen.\n')
+
+      await upload(first, 'text/plain', 'mia', 200, budgeted)
+
+      const refused = await upload(second, 'text/plain', 'mia', 507, budgeted)
+
+      expect(refused.message).toMatch(/aufgebraucht/)
+      expect(kept(root, second)).toBe(false)
+      expect(await recorded(second)).toBe(false)
+
+      await upload(second, 'text/plain', 'susi', 200, budgeted)
+    } finally {
+      await budgeted.close()
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })

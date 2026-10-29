@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm'
 import {
+  bigint,
+  boolean,
   check,
   index,
   integer,
@@ -134,6 +136,19 @@ export const instanceSettings = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    /**
+     * What one tenant may keep in the file store, in bytes (B9 of the
+     * security audit), asked with every file somebody puts there. Null for no
+     * limit, as it was before, and as it stays until whoever runs the
+     * instance sets one (Moritz, 29.10.2026).
+     */
+    tenantStorageBytes: bigint('tenant_storage_bytes', { mode: 'number' }),
+    /**
+     * Whether whoever leads a tenant may make further tenants of their own
+     * (N11 of the security audit), at most `ownTenantsPerAccount` each. On
+     * until whoever runs the instance switches it off (Moritz, 29.10.2026).
+     */
+    ownTenantsAllowed: boolean('own_tenants_allowed').notNull().default(true),
     ...timestamps,
   },
   (table) => [
@@ -168,6 +183,10 @@ export const instanceSettings = pgTable(
     check(
       'instance_settings_mail_server_port',
       sql`${table.mailServerPort} is null or ${table.mailServerPort} between 1 and 65535`,
+    ),
+    check(
+      'instance_settings_tenant_storage',
+      sql`${table.tenantStorageBytes} is null or ${table.tenantStorageBytes} > 0`,
     ),
   ],
 )

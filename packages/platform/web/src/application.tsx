@@ -508,6 +508,20 @@ export interface InstanceAreaSentences {
     readonly accountMail: string
     /** While the instance has none: what does not happen then, and the ways back into an account that remain. */
     readonly accountMailMissing: ReactNode
+    /**
+     * The card with the budget of a tenant in the file store and whether
+     * whoever leads one makes further ones (B9 and N11 of the security
+     * audit): its title, what it is for, its field and its box, and what is
+     * said under each.
+     */
+    readonly tenantLimits: {
+      readonly title: string
+      readonly what: string
+      readonly storageLabel: string
+      readonly storageHint: string
+      readonly ownLabel: string
+      readonly ownHint: string
+    }
   }
   readonly legal: {
     /** Beside where the legal notice stands: for whom it holds, with the application's word for a tenant. */

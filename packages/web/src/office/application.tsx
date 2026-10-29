@@ -177,7 +177,7 @@ const instance = {
     what: 'Die Betriebe auf dieser Instanz. Jeder ist vom anderen getrennt wie zwei fremde.',
     create: 'Betrieb anlegen',
     caption: 'Die Betriebe auf dieser Instanz',
-    note: 'Was in einem Betrieb steht, sieht hier niemand, auch wer die Instanz betreibt nicht: nur sein Name, der Tag der Anlage und wer darin Inhaber ist.',
+    note: 'Was in einem Betrieb steht, sieht hier niemand, auch wer die Instanz betreibt nicht: nur sein Name, der Tag der Anlage, wer darin Inhaber ist und wie viel er im Dateispeicher belegt.',
     tenantColumn: 'Betrieb',
     leadsColumn: 'Inhaber',
     nameLabel: 'Name des Betriebs',
@@ -210,6 +210,16 @@ const instance = {
     what: 'Was für alle Betriebe auf dieser Instanz gilt.',
     mailOwnServer: 'Ein Betrieb verschickt seine E-Mails über seinen eigenen Mailserver.',
     mailNoWayIn: 'So greift kein Betrieb über die Instanz in das Netz dahinter.',
+    tenantLimits: {
+      title: 'Betriebe',
+      what: 'Wie viel ein Betrieb im Dateispeicher ablegen darf, alles zusammen, was er hat. Arbeiten mehrere Betriebe auf dieser Instanz, hält eine Grenze einen davon ab, den Speicher für alle zu füllen.',
+      storageLabel: 'Speicher je Betrieb',
+      storageHint:
+        'In GB. Leer heißt ohne Grenze. Wie viel jeder Betrieb belegt, steht unter „Betriebe“.',
+      ownLabel: 'Inhaber dürfen weitere Betriebe anlegen',
+      ownHint:
+        'Höchstens fünf je Konto. Ohne den Haken legt einen weiteren Betrieb nur noch an, wer die Instanz betreibt, unter „Betriebe“.',
+    },
     accountMail:
       'Über diesen Mailserver gehen die E-Mails an ein Konto: der Link zu einem neuen Passwort und der Hinweis auf einen neuen Passkey. Ein Konto gehört der Instanz und keinem Betrieb, deshalb gehen diese E-Mails nie über den Mailserver eines Betriebs. Jede Änderung hier steht im Änderungsprotokoll jedes Betriebs, und die Inhaber aller Betriebe bekommen eine E-Mail darüber, noch über den Mailserver von vorher.',
     accountMailMissing: (

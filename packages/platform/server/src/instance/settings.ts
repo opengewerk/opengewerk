@@ -28,6 +28,8 @@ function view(row: Row): InstanceSettingsView {
     // The database writes a time with seconds, the screen asks for minutes.
     backupTime: row.backupTime.slice(0, 5),
     takenOverAt: row.importedFromEnvironmentAt?.toISOString() ?? null,
+    tenantStorageBytes: row.tenantStorageBytes,
+    ownTenantsAllowed: row.ownTenantsAllowed,
   }
 }
 
@@ -47,11 +49,22 @@ export async function readInstanceSettings(database: Database): Promise<Instance
 export interface InstanceSettingsChange {
   readonly mailInternalHosts?: readonly string[]
   readonly backupTime?: string
+  /** Null for no limit. */
+  readonly tenantStorageBytes?: number | null
+  readonly ownTenantsAllowed?: boolean
 }
+
+/** The largest store budget of a tenant in bytes, the petabyte the screen allows. */
+const largestTenantStorageBytes = 1_000_000_000_000_000
 
 export function checkedChange(body: unknown): InstanceSettingsChange {
   const record = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
-  const change: { mailInternalHosts?: string[]; backupTime?: string } = {}
+  const change: {
+    mailInternalHosts?: string[]
+    backupTime?: string
+    tenantStorageBytes?: number | null
+    ownTenantsAllowed?: boolean
+  } = {}
 
   if ('mailInternalHosts' in record) {
     const hosts = record['mailInternalHosts']
@@ -90,6 +103,34 @@ export function checkedChange(body: unknown): InstanceSettingsChange {
     change.backupTime = time as string
   }
 
+  if ('tenantStorageBytes' in record) {
+    const bytes = record['tenantStorageBytes']
+
+    if (
+      bytes !== null &&
+      (typeof bytes !== 'number' ||
+        !Number.isSafeInteger(bytes) ||
+        bytes < 1 ||
+        bytes > largestTenantStorageBytes)
+    ) {
+      throw new BadRequestException(
+        'tenantStorageBytes ist eine ganze Zahl von Bytes, mindestens 1, oder null für ohne Grenze.',
+      )
+    }
+
+    change.tenantStorageBytes = bytes
+  }
+
+  if ('ownTenantsAllowed' in record) {
+    const allowed = record['ownTenantsAllowed']
+
+    if (typeof allowed !== 'boolean') {
+      throw new BadRequestException('ownTenantsAllowed ist wahr oder falsch.')
+    }
+
+    change.ownTenantsAllowed = allowed
+  }
+
   return change
 }
 
@@ -105,6 +146,12 @@ export async function saveInstanceSettings(
         .set({
           ...(change.mailInternalHosts ? { mailInternalHosts: [...change.mailInternalHosts] } : {}),
           ...(change.backupTime ? { backupTime: change.backupTime } : {}),
+          ...(change.tenantStorageBytes !== undefined
+            ? { tenantStorageBytes: change.tenantStorageBytes }
+            : {}),
+          ...(change.ownTenantsAllowed !== undefined
+            ? { ownTenantsAllowed: change.ownTenantsAllowed }
+            : {}),
           updatedAt: new Date(),
         })
         .where(eq(instanceSettings.id, 1))

@@ -222,6 +222,10 @@ export const probeAccess: AccessRules<ProbeRight> = {
       tenantNameMissing: 'Ein Mandant braucht einen Namen.',
       leadNameMissing: 'Der Name der Leitung fehlt.',
       leadEmailNotOne: 'Die E-Mail-Adresse der Leitung sieht nicht wie eine aus.',
+      ownTenantsOff: 'Weitere Mandanten legt auf dieser Instanz nur die Hausmeisterei an.',
+      ownTenantsLimit:
+        'Mehr als fünf eigene Mandanten legt ein Konto nicht an. Einen weiteren legt die ' +
+        'Hausmeisterei an.',
       appointOperator: {
         usage: 'Aufruf: appoint-operator <e-mail>',
         appointed: (email) => `${email} gehört jetzt zur Hausmeisterei dieser Instanz.`,

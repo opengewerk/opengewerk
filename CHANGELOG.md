@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Sicherheit
 
+- Im Bereich der Instanz gibt es unter „Einstellungen“ die Karte „Betriebe“: „Speicher je Betrieb“ ist eine Grenze in
+  GB für alles, was ein Betrieb im Dateispeicher ablegt, ab Werk ohne Grenze; „Inhaber dürfen weitere Betriebe
+  anlegen“ ist ab Werk an, und ein Konto legt höchstens fünf eigene Betriebe an. Ein Betrieb an seiner Grenze
+  bekommt beim Hochladen 507 mit einem Satz, alle anderen legen weiter ab. Die Liste der Betriebe zeigt in der neuen
+  Spalte „Belegt“, wie viel jeder belegt. Beide Einstellungen stehen in der Migration `0094_tenant_limits`. Warum:
+  Der Dateispeicher ist einer für alle Betriebe der Instanz, und nur die freie Reserve für Datenbank, Drucke und
+  Sicherung begrenzte, was einer behält; der erste Betrieb, der sie erreichte, sperrte das Hochladen für alle
+  anderen. Und jeder Inhaber konnte beliebig viele eigene Betriebe anlegen, die keiner löscht und die jeden
+  Durchgang der Hintergrundläufe und jeden Start der Instanz verlängern.
 - Hat ein Konto einen zweiten Faktor, ändert eine Anmeldung ohne ihn nichts mehr daran: eine App einrichten, einen
   Passkey hinzufügen oder löschen und sich unter „Konto“ bestätigen, etwa für Name und E-Mail, geht nur noch aus
   einer Sitzung mit dem Passkey oder dem Code aus der App, sonst antwortet der Server mit 403. Das Tor schickt ein

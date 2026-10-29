@@ -24,6 +24,13 @@ export interface InstanceSentences {
   readonly leadNameMissing: string
   /** A tenant for somebody else, and the address of who is to lead it is not one. */
   readonly leadEmailNotOne: string
+  /**
+   * A tenant of one's own, where whoever runs the instance has switched that
+   * off (N11 of the security audit), and who makes one then.
+   */
+  readonly ownTenantsOff: string
+  /** A tenant of one's own beyond the most one account makes, and who makes one then. */
+  readonly ownTenantsLimit: string
   /** What the command that names somebody to run the instance says on the terminal. */
   readonly appointOperator: {
     /** How it is called, and what comes of it: the whole of its help. */

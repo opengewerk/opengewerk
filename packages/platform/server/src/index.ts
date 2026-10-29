@@ -162,6 +162,7 @@ export * from './files/naming.js'
 export * from './files/rows.js'
 export * from './files/store.js'
 export * from './files/sweep.js'
+export * from './files/tenant-storage.js'
 export * from './files/upload-limits.js'
 export * from './files/zip.js'
 

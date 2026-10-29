@@ -322,6 +322,7 @@ const tenants: readonly InstanceTenantView[] = [
     leads: [{ name: 'Mia Mitglied', email: 'Mia@Nord.example.de' }],
     members: 4,
     invitedLeads: [],
+    storedBytes: 3_200_000_000,
   },
   {
     id: 't-3',
@@ -330,6 +331,7 @@ const tenants: readonly InstanceTenantView[] = [
     leads: [],
     members: 1,
     invitedLeads: ['anna@sued.example.de'],
+    storedBytes: 410_000_000,
   },
   {
     id: 't-4',
@@ -338,6 +340,7 @@ const tenants: readonly InstanceTenantView[] = [
     leads: [],
     members: 0,
     invitedLeads: [],
+    storedBytes: 0,
   },
 ]
 
@@ -353,7 +356,11 @@ describe('the tenants on the instance', () => {
       within(rows[0] as HTMLElement)
         .getAllByRole('columnheader')
         .map((cell) => cell.textContent),
-    ).toEqual(['Mandant', 'Angelegt', 'Leitung', 'Zugänge'])
+    ).toEqual(['Mandant', 'Angelegt', 'Leitung', 'Zugänge', 'Belegt'])
+    // What each keeps in the file store (B9), and nothing of what it is.
+    expect(rows[1]?.textContent).toContain('3,2 GB')
+    expect(rows[2]?.textContent).toContain('410 MB')
+    expect(rows[3]?.textContent).toContain('0 Byte')
     expect(rows[1]?.textContent).toContain('Probewerk Nord')
     expect(rows[1]?.textContent).toContain('24.09.2026')
     // "du" beside oneself, whatever the address is written like.
@@ -383,12 +390,16 @@ describe('the tenants on the instance', () => {
     expect(boxes).toHaveLength(3)
     expect(within(boxes[0] as HTMLElement).getByText('Probewerk Nord')).toBeTruthy()
     expect(
-      within(boxes[0] as HTMLElement).getByText('Angelegt am 24.09.2026 · 4 Zugänge'),
+      within(boxes[0] as HTMLElement).getByText(
+        'Angelegt am 24.09.2026 · 4 Zugänge · 3,2 GB belegt',
+      ),
     ).toBeTruthy()
     expect(within(boxes[0] as HTMLElement).getByText('Sie')).toBeTruthy()
     expect(within(boxes[1] as HTMLElement).getByText('Probewerk Süd')).toBeTruthy()
     expect(
-      within(boxes[1] as HTMLElement).getByText('Angelegt am 27.09.2026 · 1 Zugang'),
+      within(boxes[1] as HTMLElement).getByText(
+        'Angelegt am 27.09.2026 · 1 Zugang · 410 MB belegt',
+      ),
     ).toBeTruthy()
     expect(within(boxes[1] as HTMLElement).getByText('Einladung offen')).toBeTruthy()
     expect(within(boxes[2] as HTMLElement).getByText('Probewerk West')).toBeTruthy()
@@ -519,6 +530,8 @@ const settings: InstanceSettingsView = {
   mailInternalHosts: ['mail.intern.example'],
   backupTime: '02:30',
   takenOverAt: '2026-09-27T14:05:00.000Z',
+  tenantStorageBytes: null,
+  ownTenantsAllowed: true,
 }
 
 describe('the settings of the instance', () => {
@@ -609,6 +622,44 @@ describe('the settings of the instance', () => {
 
     await waitFor(() => {
       expect(sent('PUT', '/instance/settings')).toEqual([{ backupTime: '03:15' }])
+    })
+  })
+
+  /**
+   * The budget of a tenant in the store and the box for tenants of one's own
+   * (B9 and N11 of the security audit): typed in gigabytes, sent in bytes,
+   * and nothing typed is no limit.
+   */
+  it('save the budget of a tenant in gigabytes and the box for tenants of one’s own', async () => {
+    server.answer('GET', '/instance/settings', settings)
+    server.answer('PUT', '/instance/settings', {
+      ...settings,
+      tenantStorageBytes: 50_000_000_000,
+      ownTenantsAllowed: false,
+    })
+    await area('/instanz/einstellungen')
+    const user = userEvent.setup()
+
+    const storage = await screen.findByLabelText('Speicher je Mandant')
+    const own = screen.getByRole('checkbox', { name: /Leitungen dürfen weitere Mandanten anlegen/ })
+
+    expect((storage as HTMLInputElement).value).toBe('')
+    expect((own as HTMLInputElement).checked).toBe(true)
+
+    const form = storage.closest('form') as HTMLFormElement
+
+    await user.type(storage, '5,5')
+    expect(within(form).getByRole('button', { name: 'Speichern' })).toHaveProperty('disabled', true)
+
+    await user.clear(storage)
+    await user.type(storage, '50')
+    await user.click(own)
+    await user.click(within(form).getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(sent('PUT', '/instance/settings')).toEqual([
+        { tenantStorageBytes: 50_000_000_000, ownTenantsAllowed: false },
+      ])
     })
   })
 

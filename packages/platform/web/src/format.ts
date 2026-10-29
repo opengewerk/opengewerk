@@ -53,9 +53,14 @@ export function fileSize(bytes: number): string {
     return `${String(bytes)} Byte`
   }
 
-  return bytes < 1_000_000
-    ? `${sizes.format(Math.round(bytes / 1_000))} kB`
-    : `${sizes.format(bytes / 1_000_000)} MB`
+  if (bytes < 1_000_000) {
+    return `${sizes.format(Math.round(bytes / 1_000))} kB`
+  }
+
+  // What a tenant keeps in the store goes past a thousand megabytes (B9).
+  return bytes < 1_000_000_000
+    ? `${sizes.format(bytes / 1_000_000)} MB`
+    : `${sizes.format(bytes / 1_000_000_000)} GB`
 }
 
 /** Thousandths into a countable amount, as `quantityMilli` holds them. */

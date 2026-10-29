@@ -2,6 +2,7 @@ import {
   backupTimeProblem,
   type InstanceSettingsView,
   mailHostProblem,
+  tenantStorageProblem,
 } from '@opengewerk/platform-domain'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
@@ -59,6 +60,7 @@ export function InstanceSettingsScreen() {
           <InstanceMailServer />
           <MailHosts settings={settings.data} />
           <BackupTime settings={settings.data} />
+          <TenantLimits settings={settings.data} />
           <InstanceSigning />
         </>
       )}
@@ -214,6 +216,114 @@ function BackupTime({ settings }: { readonly settings: InstanceSettingsView }) {
         <SettingsText small muted>
           Nach deutscher Zeit, Europe/Berlin. Eine Änderung gilt ab dem nächsten Termin.
         </SettingsText>
+        {trouble ? (
+          <p role="alert" className="text-[13px] font-semibold text-conflict">
+            {trouble}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {saved ? <Saved /> : null}
+          <div className="grow" />
+          <Button
+            tone="primary"
+            type="submit"
+            icon={Check}
+            disabled={!changed || problem !== undefined || save.isPending}
+          >
+            Speichern
+          </Button>
+        </div>
+      </form>
+    </Panel>
+  )
+}
+
+/** A budget in bytes as the field shows it, in whole gigabytes; none is an empty field. */
+function gigabytesOf(bytes: number | null): string {
+  return bytes === null ? '' : String(Math.round(bytes / 1_000_000_000))
+}
+
+/**
+ * The budget of a tenant in the file store and whether whoever leads one
+ * makes further ones of their own (B9 and N11 of the security audit). The
+ * budget is typed in whole gigabytes and kept in bytes; nothing typed is no
+ * limit, which is what an instance starts with.
+ */
+function TenantLimits({ settings }: { readonly settings: InstanceSettingsView }) {
+  const sentences = useInstanceSentences().settings.tenantLimits
+  const save = useSave()
+  const [gigabytes, setGigabytes] = useState(gigabytesOf(settings.tenantStorageBytes))
+  const [own, setOwn] = useState(settings.ownTenantsAllowed)
+  const [saved, setSaved] = useState(false)
+  const [trouble, setTrouble] = useState<string | null>(null)
+  const problem = tenantStorageProblem(gigabytes) ?? undefined
+  const changed =
+    gigabytes.trim() !== gigabytesOf(settings.tenantStorageBytes) ||
+    own !== settings.ownTenantsAllowed
+
+  function submit(event: FormEvent) {
+    event.preventDefault()
+    setSaved(false)
+    setTrouble(null)
+
+    if (problem) {
+      return
+    }
+
+    const typed = gigabytes.trim()
+
+    save.mutate(
+      {
+        tenantStorageBytes: typed === '' ? null : Number(typed) * 1_000_000_000,
+        ownTenantsAllowed: own,
+      },
+      {
+        onSuccess: (answer) => {
+          setGigabytes(gigabytesOf(answer.tenantStorageBytes))
+          setOwn(answer.ownTenantsAllowed)
+          setSaved(true)
+        },
+        onError: (error) => {
+          setTrouble(saidWhy(error, 'Die Grenzen ließen sich nicht speichern.'))
+        },
+      },
+    )
+  }
+
+  return (
+    <Panel title={sentences.title} roomy>
+      <form noValidate onSubmit={submit} className="flex flex-col gap-3">
+        <SettingsText muted>{sentences.what}</SettingsText>
+        <div className="max-w-[160px] max-sm:max-w-none">
+          <Field
+            label={sentences.storageLabel}
+            inputMode="numeric"
+            value={gigabytes}
+            {...(problem ? { problem } : {})}
+            onChange={(event) => {
+              setSaved(false)
+              setGigabytes(event.target.value)
+            }}
+          />
+        </div>
+        <SettingsText small muted>
+          {sentences.storageHint}
+        </SettingsText>
+        <label className="flex items-start gap-2.5">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 shrink-0 accent-copper-solid"
+            checked={own}
+            onChange={(event) => {
+              setSaved(false)
+              setOwn(event.target.checked)
+            }}
+          />
+          <span className="text-[14px] leading-[1.4]">
+            {sentences.ownLabel}
+            <span className="block text-[13px] text-ink-muted">{sentences.ownHint}</span>
+          </span>
+        </label>
         {trouble ? (
           <p role="alert" className="text-[13px] font-semibold text-conflict">
             {trouble}

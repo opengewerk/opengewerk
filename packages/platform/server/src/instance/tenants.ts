@@ -1,6 +1,11 @@
-import { BadRequestException } from '@nestjs/common'
-import { type InstanceTenantView, invitationDays, type TenantId } from '@opengewerk/platform-domain'
-import { sql } from 'drizzle-orm'
+import { BadRequestException, ForbiddenException } from '@nestjs/common'
+import {
+  type InstanceTenantView,
+  invitationDays,
+  ownTenantsPerAccount,
+  type TenantId,
+} from '@opengewerk/platform-domain'
+import { and, eq, sql } from 'drizzle-orm'
 
 import type { AccessRules } from '../authentication/access.js'
 import { accountsOf, normalise } from '../authentication/administration.js'
@@ -10,7 +15,8 @@ import { firstRoleOf, writeRoles } from '../authentication/roles.js'
 import { createAccount, grantMembership } from '../authentication/staff.js'
 import type { Database, StraddlingTransaction } from '../database/database.js'
 import { newId } from '../database/identifier.js'
-import { invitations } from '../schema.js'
+import { storedBytes } from '../files/tenant-storage.js'
+import { instanceChanges, instanceSettings, invitations } from '../schema.js'
 
 /**
  * Further tenants on an instance (#142). Somebody who leads a tenant creates
@@ -82,10 +88,48 @@ export async function createOwnTenant(
 ): Promise<{ readonly tenantId: TenantId; readonly name: string }> {
   const checked = checkedName(access, name)
 
+  // Whoever runs the instance may switch this off, and nobody makes more than
+  // a few of their own (N11 of the security audit): every tenant makes each
+  // pass of the background work and every start of the instance longer, and
+  // no tenant is ever deleted.
+  const [settings] = await database.forInstance(
+    (tx) =>
+      tx
+        .select({ allowed: instanceSettings.ownTenantsAllowed })
+        .from(instanceSettings)
+        .where(eq(instanceSettings.id, 1)),
+    userId,
+  )
+
+  if (settings?.allowed === false) {
+    throw new ForbiddenException(access.sentences.instance.ownTenantsOff)
+  }
+
   const tenantId = await database.forInstanceAndTenant(
     'tenant.create',
     async (straddling: StraddlingTransaction) => {
       const { tx } = straddling
+
+      // One account at a time, so that two at once count each other. What it
+      // made before stands in the log of the instance, which nobody changes.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`own-tenants:${userId}`}))`)
+
+      const [made] = await tx
+        .select({ count: sql<number>`count(distinct ${instanceChanges.recordId})::int` })
+        .from(instanceChanges)
+        .where(
+          and(
+            eq(instanceChanges.tableName, 'tenants'),
+            eq(instanceChanges.operation, 'insert'),
+            eq(instanceChanges.userId, userId),
+            eq(instanceChanges.reason, 'tenant.create'),
+          ),
+        )
+
+      if ((made?.count ?? 0) >= ownTenantsPerAccount) {
+        throw new ForbiddenException(access.sentences.instance.ownTenantsLimit)
+      }
+
       const created = await createTenantRow(tx, checked)
 
       await enterNew(access, straddling, created, userId)
@@ -213,9 +257,19 @@ export async function listInstanceTenants(
     asUser,
   )
 
+  // What each keeps in the file store (B9 of the security audit), so that
+  // whoever runs the instance sees what a budget would mean before setting
+  // one. A sum per tenant and nothing of what the files are.
+  const stored = new Map<string, number>()
+
+  for (const row of rows) {
+    stored.set(row.id, await storedBytes(database, row.id as TenantId, asUser))
+  }
+
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
+    storedBytes: stored.get(row.id) ?? 0,
     createdAt: new Date(row.created_at).toISOString(),
     leads: row.leads.flatMap((lead) => {
       const account = accounts.get(lead)
