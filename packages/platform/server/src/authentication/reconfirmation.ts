@@ -16,11 +16,11 @@ export const reconfirmationWindow = 10 * 60
 
 /**
  * Wrong codes in a row before the account is held, and for how long. The
- * same budget better-auth's second factor keeps at a sign in (NIST SP
- * 800-63B, 5.2.2), and the same counter: a guess here is a guess there.
+ * same budget a sign in keeps (NIST SP 800-63B, 5.2.2, `sign-in-codes.ts`),
+ * and the same counter: a guess here is a guess there.
  */
-const allowedFailures = 10
-const lockSeconds = 15 * 60
+export const allowedFailures = 10
+export const lockSeconds = 15 * 60
 
 /** Where the confirmation is asked, below better-auth's mount point. */
 export const reconfirmationPath = '/reconfirm'
@@ -160,7 +160,8 @@ export function reconfirmation(database: Database): BetterAuthPlugin {
 /** The key better-auth seals the secrets of the app with, however it was configured. */
 type SecretConfig = Parameters<typeof symmetricDecrypt>[0]['key']
 
-const held = () =>
+/** The answer while the account is held, here and at a sign in. */
+export const held = () =>
   new APIError('TOO_MANY_REQUESTS', {
     code: 'ACCOUNT_TEMPORARILY_LOCKED',
     message: 'Zu viele falsche Codes hintereinander. Bitte in einer Viertelstunde noch einmal.',

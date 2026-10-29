@@ -36,6 +36,7 @@ import {
   recentlyReconfirmed,
 } from './reconfirmation.js'
 import { renewSession, sessionLifetimes } from './session-lifetime.js'
+import { clearCodesAtSignIn, reserveCodeAtSignIn } from './sign-in-codes.js'
 
 export { sessionLifetimes } from './session-lifetime.js'
 
@@ -194,6 +195,17 @@ const confirmingSecondFactor: ReadonlySet<string> = new Set([
   '/two-factor/verify-backup-code',
   passkeySignIn,
 ])
+
+/**
+ * The routes that take a code after the password, whose wrong ones in a row
+ * hold the account (`sign-in-codes.ts`), and the cookie better-auth names the
+ * account in between with.
+ */
+const codesAtSignIn: ReadonlySet<string> = new Set([
+  '/two-factor/verify-totp',
+  '/two-factor/verify-backup-code',
+])
+const twoFactorCookie = 'two_factor'
 
 /**
  * Where better-auth puts a new session in the place of the one the request
@@ -495,8 +507,34 @@ export function createAuthentication({
        *
        * Setting up the app and adding a passkey both wait a day after a reset
        * of the password, which this hook asks first.
+       *
+       * And a code at a sign in is counted before better-auth looks at it
+       * (`sign-in-codes.ts`).
        */
       before: createAuthMiddleware(async (ctx) => {
+        if (codesAtSignIn.has(ctx.path)) {
+          // Only at a sign in: no session yet, but the cookie better-auth set
+          // after the password, which names the account. Where the app is set
+          // up a session asks, and better-auth counted nothing there either.
+          if (await getSessionFromCtx(ctx)) {
+            return
+          }
+
+          const challenge = await ctx.getSignedCookie(
+            ctx.context.createAuthCookie(twoFactorCookie).name,
+            ctx.context.secret,
+          )
+          const verification = challenge
+            ? await ctx.context.internalAdapter.findVerificationValue(challenge)
+            : null
+
+          if (verification) {
+            await reserveCodeAtSignIn(database, verification.value)
+          }
+
+          return
+        }
+
         if (!settingUpASecondFactor.has(ctx.path)) {
           return
         }
@@ -582,6 +620,15 @@ export function createAuthentication({
        * (`SessionIdentitySource`).
        */
       after: createAuthMiddleware(async (ctx) => {
+        if (codesAtSignIn.has(ctx.path)) {
+          // A right code, at a sign in or where the app is set up.
+          if (!isAPIError(ctx.context.returned) && ctx.context.newSession) {
+            await clearCodesAtSignIn(database, ctx.context.newSession.user.id)
+          }
+
+          return
+        }
+
         if (ctx.path === '/passkey/verify-registration') {
           await afterRegistration(ctx.context.returned, await getSessionFromCtx(ctx))
 
@@ -700,12 +747,14 @@ export function createAuthentication({
       twoFactor({
         issuer: application.name,
         // Ten wrong codes in a row hold the account for a quarter of an hour,
-        // from whichever address they come (opengewerk-haustechnik#360). The
-        // plugin does that by itself; written out so that nobody turns it off
-        // by accident, because it is the one limit of the sign in that counts
-        // per account and not per address. The confirmation again counts on
-        // the same column with the same numbers (`reconfirmation.ts`).
-        accountLockout: { enabled: true, maxFailedAttempts: 10, durationSeconds: 15 * 60 },
+        // from whichever address they come (opengewerk-haustechnik#360), the
+        // one limit of the sign in that counts per account and not per
+        // address. The hooks above keep it (`sign-in-codes.ts`), on the column
+        // the confirmation counts on as well (`reconfirmation.ts`), and the
+        // plugin's own is off: it looked at the hold before the code and
+        // counted after it, so guesses sent together all got past the hold,
+        // and beside the hooks it would count every wrong code twice.
+        accountLockout: { enabled: false },
       }),
       /**
        * Passkeys (#167, #248), back since they can be listed, renamed and

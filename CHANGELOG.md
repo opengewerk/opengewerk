@@ -34,6 +34,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   statt eines Parsers davor. Warum: Die Ratengrenzen von better-auth legten für jeden ausgedachten Pfad eine Zeile in
   der Datenbank an, von jedem und ohne Sitzung, und der Parser vor dem Logo las und entpackte den Body jeder Anfrage
   mit einem Bildtyp, bevor gefragt war, wer sie schickt.
+- Die Sperre nach zehn falschen Codes bei der Anmeldung zählt jeden Versuch, bevor der Code geprüft wird, und der
+  zehnte setzt sie im selben Schritt; das gilt für den Code aus der App und für Wiederherstellungscodes. Die Sperre von
+  better-auth ist dafür abgeschaltet. Warum: better-auth sah vor dem Code nach, ob das Konto gesperrt ist, und zählte
+  erst danach, sodass gleichzeitig geschickte Versuche alle bis zum Code kamen; im Test waren es 25 von 25 statt 10.
 - Drei Wege gehen in einem Durchgang statt mit dem Quadrat ihrer Eingabe: der DATANORM-Leser findet die gefüllten
   Zeilen ohne ein Muster, das eine lange Zeile aus Leerzeichen von jeder Stelle aus neu probierte; der Stromkreisplan
   gruppiert Abschnitte und Stromkreise einmal, statt sie für jeden Verteiler und Abschnitt neu zu filtern; der Abruf

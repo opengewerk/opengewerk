@@ -269,6 +269,105 @@ describe('the code from the app at a sign in', () => {
       [userId],
     )
   })
+
+  /**
+   * Guesses sent together. better-auth looked at the hold before the code
+   * and counted after it, so every guess of a run got as far as the code.
+   * Each is counted before now, and only the first ten are looked at.
+   */
+  it('looks at no more than ten codes of a run sent at once', async () => {
+    const email = 'zugleich@nord.example.de'
+    const userId = await leader(email)
+    const { totpUri } = await setUpApp(email)
+    const asked = await Promise.all(Array.from({ length: 25 }, () => codeAsked(email)))
+    const answers = await Promise.all(
+      asked.map((cookies, index) =>
+        post('/two-factor/verify-totp', cookies)
+          .set('x-forwarded-for', `203.0.113.${String(index + 1)}`)
+          .send({ code: '000000' }),
+      ),
+    )
+    const statuses = answers.map((answer) => answer.status)
+
+    expect(statuses.filter((status) => status === 401)).toHaveLength(10)
+    expect(statuses.filter((status) => status === 429)).toHaveLength(15)
+
+    const right = await post('/two-factor/verify-totp', await codeAsked(email)).send({
+      code: await currentCode(totpUri),
+    })
+
+    expect(right.status).toBe(429)
+
+    // For a quarter of an hour.
+    const { rows } = await admin.query<{ held: boolean }>(
+      `select locked_until between now() + interval '14 minutes' and now() + interval '16 minutes' as held
+         from auth_two_factors where user_id = $1`,
+      [userId],
+    )
+
+    expect(rows).toEqual([{ held: true }])
+  })
+
+  it('looks at no code past the tenth the confirmation counted beside it', async () => {
+    const email = 'nebenher@nord.example.de'
+    const userId = await leader(email)
+    const { totpUri } = await setUpApp(email)
+
+    // Ten guesses at the confirmation, the last of them still being looked at.
+    await admin.query(
+      'update auth_two_factors set failed_verification_count = 10, locked_until = null where user_id = $1',
+      [userId],
+    )
+
+    const answer = await post('/two-factor/verify-totp', await codeAsked(email)).send({
+      code: await currentCode(totpUri),
+    })
+
+    expect(answer.status).toBe(429)
+  })
+
+  it('counts from nothing again after a right code', async () => {
+    const email = 'wieder-null@nord.example.de'
+    const userId = await leader(email)
+    const { totpUri } = await setUpApp(email)
+
+    for (let attempt = 1; attempt <= 9; attempt += 1) {
+      await post('/two-factor/verify-totp', await codeAsked(email))
+        .send({ code: '000000' })
+        .expect(401)
+    }
+
+    await post('/two-factor/verify-totp', await codeAsked(email))
+      .send({ code: await currentCode(totpUri) })
+      .expect(200)
+
+    const { rows } = await admin.query<{ count: number; locked_until: Date | null }>(
+      'select failed_verification_count as count, locked_until from auth_two_factors where user_id = $1',
+      [userId],
+    )
+
+    expect(rows).toEqual([{ count: 0, locked_until: null }])
+  })
+
+  it('holds the account after ten wrong recovery codes in a row as well', async () => {
+    const email = 'falsche-codes@nord.example.de'
+
+    await leader(email)
+
+    const { backupCodes } = await setUpApp(email)
+
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      await post('/two-factor/verify-backup-code', await codeAsked(email))
+        .send({ code: 'falsch-0000' })
+        .expect(401)
+    }
+
+    const held = await post('/two-factor/verify-backup-code', await codeAsked(email)).send({
+      code: backupCodes[0],
+    })
+
+    expect(held.status).toBe(429)
+  })
 })
 
 /**
