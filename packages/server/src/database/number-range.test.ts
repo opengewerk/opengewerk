@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { assignDocumentNumber } from './number-ranges.js'
 import * as schema from './schema/index.js'
 import { applicationDatabaseUrl, connect, refusedBy, resetToMigrated } from './test-database.js'
+import { heldOpen, untilWaiting } from './test-locks.js'
 
 /**
  * The numbering has to hold under the two conditions that break it in
@@ -231,7 +232,90 @@ describe('an issued document', () => {
     )
     expect(again.code).toBe(documentIsFixed)
   })
+
+  /**
+   * The trigger on the lines read the status last committed and did not wait
+   * for a transaction that was fixing the document at that moment: the line
+   * went in, and the document was fixed with a line its snapshot does not
+   * hold. Since migration 0089 each read of the document waits, then finds it
+   * issued. Inserting reads the document a line goes to, moving it away reads
+   * the one it comes from, and changing it reads both.
+   */
+  it.each([
+    ['inserted', 'insert'],
+    ['changed', 'change'],
+    ['moved to another draft', 'move'],
+  ] as const)(
+    'refuses a line %s while it is being issued, once the issuing is through',
+    async (_, write) => {
+      const draft = await createDraft()
+      const other = await createDraft()
+      const lineId = await addLine(draft.id, 'Arbeitszeit')
+
+      const issuing = heldOpen(database, tenant.id, async (tx) => {
+        const number = await assignDocumentNumber(tx, tenant.id, draft.kind, new Date())
+
+        await tx
+          .update(schema.documents)
+          .set({ status: 'issued', number, issuedAt: new Date() })
+          .where(eq(schema.documents.id, draft.id))
+      })
+      await issuing.open
+
+      const writing =
+        write === 'insert'
+          ? addLine(draft.id, 'Nachzügler', 2)
+          : database.forTenant({ tenantId: tenant.id }, (tx) =>
+              tx
+                .update(schema.documentLines)
+                .set(
+                  write === 'change' ? { designation: 'Nachträglich' } : { documentId: other.id },
+                )
+                .where(eq(schema.documentLines.id, lineId)),
+            )
+
+      await untilWaiting(admin, writing)
+      issuing.release()
+      await issuing.done
+
+      expect((await refusedBy(writing)).code).toBe(documentIsFixed)
+
+      const lines = await admin.query<{ id: string; designation: string }>(
+        'select id, designation from document_lines where document_id = $1',
+        [draft.id],
+      )
+      expect(lines.rows).toEqual([{ id: lineId, designation: 'Arbeitszeit' }])
+    },
+  )
 })
+
+async function addLine(
+  documentId: string,
+  designation: string,
+  position = 1,
+): Promise<typeof schema.documentLines.$inferSelect.id> {
+  return database.forTenant({ tenantId: tenant.id }, async (tx) => {
+    const [line] = await tx
+      .insert(schema.documentLines)
+      .values({
+        tenantId: tenant.id,
+        documentId: documentId as never,
+        position,
+        designation,
+        quantityMilli: 1000,
+        unit: 'piece',
+        unitPriceCents: 100,
+        netCents: 100,
+      })
+      .returning({ id: schema.documentLines.id })
+
+    if (!line) {
+      throw new Error('The insert returned no line')
+    }
+
+    return line.id
+  })
+}
 
 async function nextCounter(): Promise<number> {
   const [range] = await database.forTenant({ tenantId: tenant.id }, (tx) =>

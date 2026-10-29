@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Sicherheit
 
+- Ein Beleg wird beim Ausstellen, beim Stornieren und beim Schreiben seiner Positionen gesperrt. Das Ausstellen liest
+  den Beleg mit einer Zeilensperre, bevor es festhält, was in den Schnappschuss kommt, und die Vorgänger, die es
+  abzieht, mit einer geteilten Sperre; das Stornieren sperrt die Rechnung vor seinen Prüfungen; die Routen der
+  Positionen sperren den Entwurf wie der Abgleich seit #582, und der Trigger an den Positionen wartet mit der
+  Migration `0089_line_waits_for_its_document` auf eine Transaktion, die den Beleg gerade ausstellt oder
+  unterschreibt. Warum: Eine Position, die im selben Moment geschrieben wurde, kam in den Beleg, aber nicht in seinen
+  Schnappschuss, und ein Storno konnte eine Rechnung treffen, auf die gerade eine Zahlung oder eine abziehende
+  Folgerechnung kam. Beides widerspricht der Festschreibung, die die GoBD verlangen.
 - Drei Wege gehen in einem Durchgang statt mit dem Quadrat ihrer Eingabe: der DATANORM-Leser findet die gefüllten
   Zeilen ohne ein Muster, das eine lange Zeile aus Leerzeichen von jeder Stelle aus neu probierte; der Stromkreisplan
   gruppiert Abschnitte und Stromkreise einmal, statt sie für jeden Verteiler und Abschnitt neu zu filtern; der Abruf
