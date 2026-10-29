@@ -681,6 +681,7 @@ const foundationReasonWords: Readonly<Record<string, string>> = {
   'passkey.add': 'Passkey hinzugefügt',
   'passkey.rename': 'Passkey umbenannt',
   'passkey.remove': 'Passkey gelöscht',
+  'recovery-codes.renew': 'Neue Wiederherstellungscodes',
   'account.own': 'Eigene Angaben geändert',
   'password.reset': 'Passwort zurückgesetzt',
   'instance.mail-server': 'Mailserver der Instanz geändert',

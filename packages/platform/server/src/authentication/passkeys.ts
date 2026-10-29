@@ -4,6 +4,7 @@ import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
 
 import type { Database } from '../database/database.js'
 import { authPasskeys, memberPasskeys, memberships } from '../schema.js'
+import { endOtherSessions } from './other-sessions.js'
 
 /**
  * The passkeys of an account (#167, #248): the list under "Konto", renaming
@@ -197,11 +198,17 @@ export async function recordWithdrawn(
  * the route answers with an error and the same request again finishes it:
  * the key is gone, but tenants still holding it as present are closed, and
  * only when there is nothing left to close is the answer "not there".
+ *
+ * Every other session of the account ends with the key, before the
+ * tenants are told: one of them may have been opened with it, and nothing
+ * on a session says which key that was (`endOtherSessions`). The session
+ * that deletes it stays.
  */
 export async function removePasskey(
   database: Database,
   userId: string,
   passkeyId: string,
+  sessionId: string,
 ): Promise<{ readonly id: string } | null> {
   const [removed] = await database.forInstance(
     (tx) =>
@@ -213,6 +220,7 @@ export async function removePasskey(
   )
 
   if (removed) {
+    await endOtherSessions(database, userId, sessionId, 'passkey.remove')
     await recordChange(
       database,
       userId,
@@ -224,7 +232,15 @@ export async function removePasskey(
     return { id: removed.id }
   }
 
-  return (await recordWithdrawn(database, userId, passkeyId)) > 0 ? { id: passkeyId } : null
+  if ((await recordWithdrawn(database, userId, passkeyId)) === 0) {
+    return null
+  }
+
+  // The same request again, after it failed: the sessions may not have
+  // ended the first time.
+  await endOtherSessions(database, userId, sessionId, 'passkey.remove')
+
+  return { id: passkeyId }
 }
 
 /** Notes that a passkey has just signed somebody in, for the list. */

@@ -26,6 +26,7 @@ import {
   passwordResetLifetime,
   type RecoveryCodesNotice,
 } from './notices.js'
+import { endOtherSessions } from './other-sessions.js'
 import { markUsed, recordAdded, recordWithdrawn } from './passkeys.js'
 import { shortestPassword } from './password.js'
 import { recordPasswordReset, waitingAfterReset, waitsAfterReset } from './password-resets.js'
@@ -760,14 +761,22 @@ export function createAuthentication({
   })
 
   /**
-   * Once a new set of recovery codes is kept, the account is told by mail,
+   * Once a new set of recovery codes is kept, every other session of the
+   * account ends, before the answer: one of them may have begun with a code
+   * of the old set (`endOtherSessions`). Then the account is told by mail,
    * without waiting for it: see `RecoveryCodesNotice`.
    */
   async function afterRenewal(
     returned: unknown,
     found: Awaited<ReturnType<typeof getSessionFromCtx>>,
   ): Promise<void> {
-    if (!found || !recoveryCodesNotice || isAPIError(returned)) {
+    if (!found || isAPIError(returned)) {
+      return
+    }
+
+    await endOtherSessions(database, found.user.id, found.session.id, 'recovery-codes.renew')
+
+    if (!recoveryCodesNotice) {
       return
     }
 

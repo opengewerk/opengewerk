@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Sicherheit
 
+- Wer einen Passkey löscht oder neue Wiederherstellungscodes erzeugt, meldet damit alle anderen Geräte des Zugangs
+  ab, wie mit einem neuen Passwort; was sie in einem Mandanten offen hatten, wird geschlossen. Warum: Eine Sitzung
+  hält nicht fest, welcher Passkey oder welcher Code ihr den zweiten Faktor gab, und eine, die mit dem gelöschten
+  Passkey oder einem Code des alten Satzes begann, kam so weiter in jede Rolle, die einen zweiten Faktor verlangt,
+  solange sie benutzt wurde. Die Dialoge unter „Konto“ sagen es dazu.
 - Der Cursor eines Abrufs geht nicht mehr über die Nummer hinaus, die der Zähler des Mandanten vor der ersten Tabelle
   zeigte, und eine Übertragung des Postausgangs trägt höchstens 2000 Vorgänge (413 darüber); der Web-Client teilt
   seinen Postausgang zusätzlich in Teile von höchstens 1000. Warum: Bestätigte während eines Abrufs eine Transaktion

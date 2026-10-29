@@ -73,7 +73,7 @@ export class PasskeysController {
     @CurrentUser() user: SignedInUser,
     @Param('passkeyId') passkeyId: string,
   ): Promise<{ removed: string }> {
-    const removed = await removePasskey(this.database, user.userId, passkeyId)
+    const removed = await removePasskey(this.database, user.userId, passkeyId, user.sessionId)
 
     if (!removed) {
       throw new NotFoundException(notFound)

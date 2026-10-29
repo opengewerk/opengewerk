@@ -268,7 +268,9 @@ describe('the passkeys under "Konto"', () => {
 
     const dialog = screen.getByRole('alertdialog', { name: 'Passkey löschen?' })
 
-    expect(dialog.textContent).toContain('„Laptop am Schreibtisch“ meldet danach nicht mehr an.')
+    expect(dialog.textContent).toContain(
+      '„Laptop am Schreibtisch“ meldet danach nicht mehr an, und alle anderen Geräte dieses Zugangs werden abgemeldet.',
+    )
     expect(calls.some((call) => call.method === 'DELETE')).toBe(false)
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Löschen' }))

@@ -336,6 +336,49 @@ describe('the second factor of an account', () => {
       .expect(200)
   })
 
+  /**
+   * A session says it carries a second factor, not which code gave it, so
+   * one opened with a code of the old set would keep the leading role for as
+   * long as it is used. With the new set every other session of the account
+   * ends, and what it had open in a tenant is closed.
+   */
+  it('ends every other session of the account with new recovery codes, the one an old code opened included', async () => {
+    const email = 'alte-codes@nord.example.de'
+    const userId = await leader(email)
+    const { totpUri, backupCodes } = await setUpApp(email)
+    const recovered = cookiesOf(
+      await post('/two-factor/verify-backup-code', await codeAsked(email))
+        .send({ code: backupCodes[0] })
+        .expect(200),
+    )
+
+    expect(await reach(recovered)).toEqual(allowed)
+
+    const here = await withCode(email, totpUri)
+
+    await post('/reconfirm', here)
+      .send({ password, code: await currentCode(totpUri) })
+      .expect(200)
+    await post('/two-factor/generate-backup-codes', here).send({ password }).expect(200)
+
+    expect(await reach(recovered)).toEqual(signedOut)
+    expect(await reach(here)).toEqual(allowed)
+
+    const { rows } = await admin.query<{ open: number; renewed: number }>(
+      `select count(*) filter (where t.ended_at is null)::int as open,
+              count(*) filter (where exists (
+                select 1 from audit_entries a
+                 where a.table_name = 'tenant_sessions' and a.record_id = t.id
+                   and a.field = 'ended_at' and a.reason = 'recovery-codes.renew'))::int as renewed
+         from tenant_sessions t
+        where t.user_id = $1`,
+      [userId],
+    )
+
+    // The one of `here`, chosen after the renewal, is the only one open.
+    expect(rows).toEqual([{ open: 1, renewed: 1 }])
+  })
+
   it('makes no new recovery codes for a day after a reset of the password', async () => {
     const email = 'zurueckgesetzt@nord.example.de'
     const userId = await leader(email)

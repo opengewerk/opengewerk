@@ -388,7 +388,8 @@ function RecoveryCodes() {
         <div className="flex flex-col gap-2">
           <p className="text-[13px] leading-[1.45] font-semibold">
             Die neuen Codes. Jetzt ausdrucken oder aufschreiben, danach sind sie nicht mehr zu
-            sehen; die alten gelten nicht mehr.
+            sehen; die alten gelten nicht mehr, und alle anderen Geräte dieses Zugangs sind
+            abgemeldet.
           </p>
           <ul className="grid grid-cols-2 gap-2">
             {fresh.map((code) => (
