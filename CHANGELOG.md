@@ -9,6 +9,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Sicherheit
 
+- Der Cursor eines Abrufs geht nicht mehr über die Nummer hinaus, die der Zähler des Mandanten vor der ersten Tabelle
+  zeigte, und eine Übertragung des Postausgangs trägt höchstens 2000 Vorgänge (413 darüber); der Web-Client teilt
+  seinen Postausgang zusätzlich in Teile von höchstens 1000. Warum: Bestätigte während eines Abrufs eine Transaktion
+  Zeilen in zwei Tabellen, sah der Abruf nur die höhere Nummer, und das Gerät bekam die niedrigere nie; und acht
+  Megabyte der kleinsten Vorgänge waren Zehntausende Zeilen in einer Transaktion, die den Zähler des Mandanten hält.
 - Ein Beleg wird beim Ausstellen, beim Stornieren und beim Schreiben seiner Positionen gesperrt. Das Ausstellen liest
   den Beleg mit einer Zeilensperre, bevor es festhält, was in den Schnappschuss kommt, und die Vorgänger, die es
   abzieht, mit einer geteilten Sperre; das Stornieren sperrt die Rechnung vor seinen Prüfungen; die Routen der
@@ -29,11 +34,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Ablehnung nennt mehr die interne Adresse. Eine interne Adresse, die jemand selbst einträgt, wird weiter als solche
   benannt. Warum: Wer einen Mailserver einträgt oder ein Gerät für Push anmeldet, konnte so Name für Name erfragen,
   welche Namen und Adressen im Netz der Instanz liegen; beim Push genügte dafür jede Rolle.
-- Der Cursor eines Abrufs geht nicht mehr über die Nummer hinaus, die der Zähler des Mandanten vor der ersten Tabelle
-  zeigte, und eine Übertragung des Postausgangs trägt höchstens 2000 Vorgänge (413 darüber); der Web-Client teilt
-  seinen Postausgang zusätzlich in Teile von höchstens 1000. Warum: Bestätigte während eines Abrufs eine Transaktion
-  Zeilen in zwei Tabellen, sah der Abruf nur die höhere Nummer, und das Gerät bekam die niedrigere nie; und acht
-  Megabyte der kleinsten Vorgänge waren Zehntausende Zeilen in einer Transaktion, die den Zähler des Mandanten hält.
+- Ein Monteur nimmt über den Abgleich keinen stornierten Auftrag mehr wieder auf, und eine Unterschrift landet nur
+  noch unter einem Regiebericht im Entwurf, der an keinem anderen Beleg hängt. Die Prüfung `jobProgress` fragt den
+  gespeicherten Status, `signatureRefusal` die Art und den Vorgänger, und die Migration `0090_sign_only_a_report`
+  lässt `sign_document` nur noch einen solchen Bericht festschreiben. Mail und Datei geben einen unterschriebenen
+  Beleg ohne Nummer nur noch als Bericht heraus. Warum: Das Recht für eine Statusänderung hing nur am neuen Status,
+  und eine Unterschrift unter einer Rechnung, einem Angebot oder einer Auftragsbestätigung schrieb den Entwurf mit
+  `document.write` fest, an `document.issue` vorbei.
 
 ## [0.6.2] - 2026-10-23
 

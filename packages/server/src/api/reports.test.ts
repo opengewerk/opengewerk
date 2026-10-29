@@ -119,8 +119,14 @@ interface WrittenReport {
   readonly introText: string
 }
 
-/** A report as the device writes it: the head, the hours, the material. */
-async function writeReport(documentDate = '2026-09-21'): Promise<WrittenReport> {
+/**
+ * A report as the device writes it: the head, the hours, the material. Or a
+ * draft of another kind written the same way, for what may not be signed.
+ */
+async function writeReport(
+  documentDate = '2026-09-21',
+  kind = 'time_and_material_report',
+): Promise<WrittenReport> {
   const id = newId<'document'>()
   const introText = 'Zwei Leitungsschutzschalter im Keller getauscht.'
   const lines = [
@@ -144,7 +150,7 @@ async function writeReport(documentDate = '2026-09-21'): Promise<WrittenReport> 
     creating('documents', id, {
       customerId,
       jobId,
-      kind: 'time_and_material_report',
+      kind,
       documentDate,
       introText,
     }),
@@ -423,6 +429,68 @@ describe('the signature', () => {
 
     expect((await documentRow(report.id)).status).toBe('draft')
   })
+
+  /**
+   * Signing fixes a document, and only a report is signed. Under an invoice or
+   * a quote a signature fixed a draft past `document.issue`, which a
+   * technician does not hold, and under a draft that continues a chain it
+   * fixed a link of that chain.
+   */
+  it.each(['final_invoice', 'quote', 'order_confirmation'])(
+    'is refused under a %s, which stays a draft',
+    async (kind) => {
+      const draft = await writeReport('2026-09-21', kind)
+      const { receipts } = await push([signing(draft)])
+
+      expect(receipts[0]).toMatchObject({ outcome: 'conflict', reason: 'record_is_fixed' })
+      expect((await documentRow(draft.id)).status).toBe('draft')
+    },
+  )
+
+  it('is refused under a report that continues a chain', async () => {
+    const earlier = await writeReport()
+    const report = await writeReport()
+
+    await admin.query('update documents set predecessor_document_id = $1 where id = $2', [
+      earlier.id,
+      report.id,
+    ])
+
+    const { receipts } = await push([signing(report)])
+
+    expect(receipts[0]).toMatchObject({ outcome: 'conflict', reason: 'record_is_fixed' })
+    expect((await documentRow(report.id)).status).toBe('draft')
+  })
+
+  it.each([
+    ['an invoice', 'final_invoice', false],
+    ['a report that continues a chain', 'time_and_material_report', true],
+  ] as const)(
+    'is refused by the database under %s, past the check of the sync',
+    async (_, kind, chained) => {
+      const earlier = await writeReport()
+      const draft = await writeReport('2026-09-21', kind)
+
+      if (chained) {
+        await admin.query('update documents set predecessor_document_id = $1 where id = $2', [
+          earlier.id,
+          draft.id,
+        ])
+      }
+
+      const refused = await refusedBy(
+        admin.query(
+          `insert into document_signatures
+             (tenant_id, document_id, signer_name, signed_at, device_info, path, content_fingerprint)
+           values ($1, $2, 'Erika Berg', now(), 'Test', $3, $4)`,
+          [north.id, draft.id, scribble, fingerprintOf(draft)],
+        ),
+      )
+
+      expect(refused.code).toBe('OG001')
+      expect((await documentRow(draft.id)).status).toBe('draft')
+    },
+  )
 
   /**
    * The right to write a document, not the right to issue one. The customer
