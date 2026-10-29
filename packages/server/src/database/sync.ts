@@ -1,7 +1,9 @@
 import {
   type CustomerId,
   formRecordProblem,
+  isAllowed,
   type IsoDate,
+  leavesByProgress,
   lineNetCents,
   locationFields,
   offlineRules,
@@ -285,6 +287,29 @@ const followUp: Check = async ({ tx, operation, values, current }) => {
 }
 
 /**
+ * A report from the site moves a job on and does not take a cancelled one up
+ * again (#128). The route asked for `job.progress` on the status the change
+ * sets, before the record was read; whether the job may leave the status it
+ * holds is asked here. Whoever holds `job.write` decides about the order and
+ * may take a cancelled job up again.
+ */
+const jobProgress: Check = ({ operation, values, current, sender }) => {
+  if (
+    operation.entity !== 'jobs' ||
+    operation.kind !== 'update' ||
+    !('status' in values) ||
+    current === null ||
+    isAllowed(sender, 'job.write')
+  ) {
+    return null
+  }
+
+  return leavesByProgress(current['status'])
+    ? null
+    : { kind: 'conflict', reason: 'record_is_fixed', fields: ['status'] }
+}
+
+/**
  * A cancellation invoice is made by the server out of the invoice it cancels
  * and nowhere else. The database refuses one written by hand, and it would do
  * so for the whole transmission; refused here first, it is a conflict about
@@ -400,6 +425,7 @@ export const sync = serverSync<FoundIdentity>({
     // one contact, as the foundation asks it (opengewerk-haustechnik#85).
     // Left to the check in the database, it took the whole transmission along.
     contactWithoutParent(tradeContacts),
+    jobProgress,
     followUp,
     cancellation,
   ],

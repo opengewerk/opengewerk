@@ -30,6 +30,26 @@ export const documentKinds = [
 export type DocumentKind = (typeof documentKinds)[number]
 
 /**
+ * The kinds a customer signs on site (#73). Signing fixes a document without a
+ * number, which every other kind gets only by being issued (`document.issue`),
+ * so a signature on any other kind would fix it past that right.
+ */
+export const signableKinds: readonly DocumentKind[] = ['time_and_material_report']
+
+/**
+ * Whether a document can be signed: a draft of a signable kind that continues
+ * no chain. A report is never made out of another document (`successorKinds`),
+ * and a draft that names a predecessor but had its kind changed to a report is
+ * a link of that chain all the same.
+ */
+export function isSignable(document: {
+  readonly kind: DocumentKind
+  readonly predecessorDocumentId: string | null
+}): boolean {
+  return signableKinds.includes(document.kind) && document.predecessorDocumentId === null
+}
+
+/**
  * The kinds that are an invoice in the sense of section 14 UStG, and only
  * these have to carry its mandatory details. A quote or a delivery note is
  * business correspondence, not a claim for payment, and nobody deducts input

@@ -29,6 +29,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Ablehnung nennt mehr die interne Adresse. Eine interne Adresse, die jemand selbst einträgt, wird weiter als solche
   benannt. Warum: Wer einen Mailserver einträgt oder ein Gerät für Push anmeldet, konnte so Name für Name erfragen,
   welche Namen und Adressen im Netz der Instanz liegen; beim Push genügte dafür jede Rolle.
+- Ein Monteur nimmt über den Abgleich keinen stornierten Auftrag mehr wieder auf, und eine Unterschrift landet nur
+  noch unter einem Regiebericht im Entwurf, der an keinem anderen Beleg hängt. Die Prüfung `jobProgress` fragt den
+  gespeicherten Status, `signatureRefusal` die Art und den Vorgänger, und die Migration `0090_sign_only_a_report`
+  lässt `sign_document` nur noch einen solchen Bericht festschreiben. Mail und Datei geben einen unterschriebenen
+  Beleg ohne Nummer nur noch als Bericht heraus. Warum: Das Recht für eine Statusänderung hing nur am neuen Status,
+  und eine Unterschrift unter einer Rechnung, einem Angebot oder einer Auftragsbestätigung schrieb den Entwurf mit
+  `document.write` fest, an `document.issue` vorbei.
 - Die stündlichen Grenzen für Uploads zählen ein Konto für sich, in welchem Mandanten es auch ablegt, und dazu die
   ganze Instanz (`instanceBytesPerHour`, 20 GB). Ein DATANORM-Import hat ein Budget von 400 MB für alle seine Dateien
   und Archive zusammen statt eines je Archiv, nimmt jede Datei nur einmal an, und Importe laufen im Prozess
