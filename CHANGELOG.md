@@ -93,6 +93,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Beleg ohne Nummer nur noch als Bericht heraus. Warum: Das Recht für eine Statusänderung hing nur am neuen Status,
   und eine Unterschrift unter einer Rechnung, einem Angebot oder einer Auftragsbestätigung schrieb den Entwurf mit
   `document.write` fest, an `document.issue` vorbei.
+- Der Lauf der Fristen erinnert je Mandant und Durchgang an höchstens 100 Fristen, die früheste zuerst; die übrigen
+  kommen im nächsten Durchgang eine Minute später (`mostRemindersPerPass`), der hinter der zuletzt versuchten Frist
+  weitermacht, damit Fristen, deren Erinnerung jedes Mal scheitert, die späteren nicht aufhalten. Warum: Ein Durchgang
+  geht die Mandanten nacheinander durch, und ein geändertes Intervall macht jede offene Frist einer Art auf einmal
+  fällig, jede mit einer eigenen Transaktion und einer Aufgabe. Ohne Grenze hielt ein Mandant damit die Erinnerungen
+  aller anderen auf.
 - Die stündlichen Grenzen für Uploads zählen ein Konto für sich, in welchem Mandanten es auch ablegt, und dazu die
   ganze Instanz (`instanceBytesPerHour`, 20 GB). Ein DATANORM-Import hat ein Budget von 400 MB für alle seine Dateien
   und Archive zusammen statt eines je Archiv, nimmt jede Datei nur einmal an, und Importe laufen im Prozess
