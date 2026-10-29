@@ -1,12 +1,14 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { UnprocessableEntityException } from '@nestjs/common'
 import { eInvoiceGaps, RuleError } from '@opengewerk/domain'
 import { XmlDocument } from 'libxml2-wasm'
 import { describe, expect, it } from 'vitest'
 
+import { eInvoiceXml } from '../api/document-files.js'
 import { ciiInvoice } from './cii.js'
-import { checkedCii, SchemaCheckError } from './cii-schema.js'
+import { checkedCii, CiiTooLargeError, largestCiiBytes, SchemaCheckError } from './cii-schema.js'
 import {
   acrossTheChange,
   cancellation,
@@ -393,5 +395,29 @@ describe('the check against the schema', () => {
 
   it('refuses what is not XML at all', () => {
     expect(() => checkedCii('<rsm:CrossIndustryInvoice>')).toThrow(SchemaCheckError)
+  })
+
+  it('takes a file of ten megabytes and refuses one a byte larger before it is parsed', () => {
+    const valid = checkedCii(ciiInvoice(finalInvoice, 'xrechnung'))
+    // Whitespace after the declaration, which the schema does not see.
+    const padded = (bytes: number) =>
+      valid.replace('?>', `?>${' '.repeat(bytes - Buffer.byteLength(valid, 'utf8'))}`)
+
+    expect(() => checkedCii(padded(largestCiiBytes))).not.toThrow()
+    expect(() => checkedCii(padded(largestCiiBytes + 1))).toThrow(CiiTooLargeError)
+  })
+
+  it('answers a document whose lines would make it larger with what to do', () => {
+    const long = content(
+      { number: 'RE-2026-0099' },
+      {
+        lines: Array.from({ length: 80 }, (_, index) =>
+          item(`Position ${String(index + 1)}`, 1000, 10_000, { description: '&'.repeat(30_000) }),
+        ),
+      },
+    )
+
+    expect(() => eInvoiceXml(long, 'xrechnung')).toThrow(UnprocessableEntityException)
+    expect(() => eInvoiceXml(long, 'xrechnung')).toThrow(/größer als 10 MB/)
   })
 })

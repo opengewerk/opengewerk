@@ -44,6 +44,19 @@ const base = 'opengewerk-schema:/cii-d16b/'
 
 export class SchemaCheckError extends Error {}
 
+/**
+ * The most an e-invoice may weigh, in bytes of UTF-8: ten megabytes, a
+ * hundred times what an invoice of a thousand lines comes to. The check
+ * below copies the file into the one parser of the process and builds a
+ * tree of it, and a document's lines, each up to the length a line may have
+ * and every `&` written as `&amp;`, would come to hundreds of megabytes; the
+ * process would stand for every tenant while it did.
+ */
+export const largestCiiBytes = 10_000_000
+
+/** An e-invoice over `largestCiiBytes`, refused before it is parsed. */
+export class CiiTooLargeError extends Error {}
+
 let validator: XsdValidator | null = null
 
 /**
@@ -122,6 +135,13 @@ function compiled(): XsdValidator {
  * reads them is the one who fixes the writer.
  */
 export function checkedCii(xml: string): string {
+  if (Buffer.byteLength(xml, 'utf8') > largestCiiBytes) {
+    throw new CiiTooLargeError(
+      'Die E-Rechnung zu diesem Beleg wäre größer als 10 MB und wird nicht geschrieben. ' +
+        'Bitte die Texte der Positionen kürzen.',
+    )
+  }
+
   const schema = compiled()
   let document: XmlDocument
 
