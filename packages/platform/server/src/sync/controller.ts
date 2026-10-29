@@ -29,7 +29,7 @@ import type { Request } from 'express'
 import { AUTHORIZATION, type Authorization, RequiresPermission } from '../api/authorization.js'
 import { bodyBytesOf } from '../api/body-bytes.js'
 import { CurrentIdentity, type FoundIdentity, type RequestIdentity } from '../api/identity.js'
-import { largestTransmissionBytes } from '../api/origin.js'
+import { largestTransmissionBytes, mostOperationsPerTransmission } from '../api/origin.js'
 import type { AccessRules } from '../authentication/access.js'
 import { Database, type TenantTransaction } from '../database/database.js'
 import {
@@ -274,6 +274,13 @@ function parseOperations(
 
   if (!Array.isArray(raw)) {
     throw new BadRequestException('Es fehlt die Liste der Vorgänge.')
+  }
+
+  if (raw.length > mostOperationsPerTransmission) {
+    throw new PayloadTooLargeException(
+      `Eine Übertragung des Postausgangs darf höchstens ${String(mostOperationsPerTransmission)} ` +
+        'Vorgänge enthalten.',
+    )
   }
 
   return {

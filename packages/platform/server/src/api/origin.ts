@@ -160,6 +160,16 @@ export class SameOriginGuard implements CanActivate {
  */
 export const largestTransmissionBytes = 8 * 1024 * 1024
 
+/**
+ * The most operations one transmission of the outbox carries. Eight megabytes
+ * of the smallest operations are tens of thousands, each a row written, a
+ * receipt and a line in the log, and all of them in one transaction that holds
+ * the counter of the tenant until it ends. A device sends parts of at most a
+ * thousand (`mostTransmittedOperations` in the web client); this leaves twice
+ * that for a client of an older version.
+ */
+export const mostOperationsPerTransmission = 2000
+
 /** A transmission of the outbox, the one JSON body the parser in front leaves to its route. */
 function isOutbox(request: Request): boolean {
   return request.method === 'POST' && request.path === '/sync'

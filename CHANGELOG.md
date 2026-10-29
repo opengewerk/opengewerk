@@ -29,6 +29,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Ablehnung nennt mehr die interne Adresse. Eine interne Adresse, die jemand selbst einträgt, wird weiter als solche
   benannt. Warum: Wer einen Mailserver einträgt oder ein Gerät für Push anmeldet, konnte so Name für Name erfragen,
   welche Namen und Adressen im Netz der Instanz liegen; beim Push genügte dafür jede Rolle.
+- Der Cursor eines Abrufs geht nicht mehr über die Nummer hinaus, die der Zähler des Mandanten vor der ersten Tabelle
+  zeigte, und eine Übertragung des Postausgangs trägt höchstens 2000 Vorgänge (413 darüber); der Web-Client teilt
+  seinen Postausgang zusätzlich in Teile von höchstens 1000. Warum: Bestätigte während eines Abrufs eine Transaktion
+  Zeilen in zwei Tabellen, sah der Abruf nur die höhere Nummer, und das Gerät bekam die niedrigere nie; und acht
+  Megabyte der kleinsten Vorgänge waren Zehntausende Zeilen in einer Transaktion, die den Zähler des Mandanten hält.
 
 ## [0.6.2] - 2026-10-23
 

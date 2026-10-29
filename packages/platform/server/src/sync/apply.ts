@@ -24,7 +24,7 @@ import {
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core'
 
 import type { TenantTransaction } from '../database/database.js'
-import { syncConflicts, syncOperations } from '../database/schema/sync.js'
+import { syncConflicts, syncOperations, syncSequences } from '../database/schema/sync.js'
 import { carriesJson, forColumn, inJsonText, toRecordState, travellingRows } from './tables.js'
 
 /**
@@ -534,6 +534,16 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
       let highest = since
       let stoppedAt: number | null = null
 
+      // The last number handed out before the first read. Each statement
+      // below sees what was committed when it began, and a number is handed
+      // out under the lock of the counter, held until its transaction
+      // commits: every number up to this one is committed, and every
+      // statement sees its row. A row above it that one statement saw may
+      // belong to a transaction that committed after an earlier statement
+      // had read its table, with a lower number in that table still unseen.
+      // The cursor stays at this number, and such a row comes a second time.
+      const [counter] = await tx.select({ value: syncSequences.nextValue }).from(syncSequences)
+
       for (const [entity, table] of tables) {
         const columns = getTableColumns(table) as Record<string, PgColumn>
         const sequence = columns['changeSequence']
@@ -572,7 +582,10 @@ export function serverSync<Sender>(application: SyncApplication<Sender>): Server
         }
       }
 
-      return { changes, cursor: stoppedAt ?? highest, hasMore: stoppedAt !== null }
+      const reached = stoppedAt ?? highest
+      const cursor = counter === undefined ? reached : Math.min(reached, counter.value)
+
+      return { changes, cursor, hasMore: stoppedAt !== null }
     },
   }
 }

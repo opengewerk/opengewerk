@@ -230,13 +230,23 @@ function cursorStands(known: string | number | null, entities: readonly string[]
 export const largestTransmission = 1_000_000
 
 /**
+ * The most operations one transmission carries, however small they are. The
+ * server takes twice as many (`mostOperationsPerTransmission`) and refuses
+ * more, because each is a row, a receipt and a line in the log written in one
+ * transaction.
+ */
+export const mostTransmittedOperations = 1000
+
+/**
  * The outbox, in the order it is sent, cut into transmissions of at most
- * `largest` characters. Never reordered: a part ends where the next operation
- * would not fit, and an operation that is larger on its own goes alone.
+ * `largest` characters and `most` operations. Never reordered: a part ends
+ * where the next operation would not fit, and an operation that is larger on
+ * its own goes alone.
  */
 export function inTransmissions(
   operations: readonly Operation[],
   largest = largestTransmission,
+  most = mostTransmittedOperations,
 ): readonly (readonly Operation[])[] {
   const parts: Operation[][] = []
   let part: Operation[] = []
@@ -245,7 +255,7 @@ export function inTransmissions(
   for (const operation of operations) {
     const length = JSON.stringify(operation).length
 
-    if (part.length > 0 && size + length > largest) {
+    if (part.length > 0 && (size + length > largest || part.length >= most)) {
       parts.push(part)
       part = []
       size = 0
