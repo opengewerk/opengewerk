@@ -1,17 +1,6 @@
-import {
-  type DynamicModule,
-  type MiddlewareConsumer,
-  Module,
-  type NestModule,
-  RequestMethod,
-} from '@nestjs/common'
+import { type DynamicModule, Module } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
-import {
-  auditVocabulary,
-  largestLogoBytes,
-  logoMediaTypes,
-  numberRangeKeys,
-} from '@opengewerk/domain'
+import { auditVocabulary, numberRangeKeys } from '@opengewerk/domain'
 import {
   attachmentParts,
   auditLogParts,
@@ -43,7 +32,6 @@ import {
   TRUSTED_ORIGINS,
   VERSION,
 } from '@opengewerk/platform-server'
-import { raw } from 'express'
 
 import { access } from '../authentication/access.js'
 import { ArticleImports } from '../datanorm/imports.js'
@@ -173,23 +161,7 @@ export interface ApiOptions {
  * waved through.
  */
 @Module({})
-export class ApiModule implements NestModule {
-  /**
-   * The one route here that takes a body that is not JSON: the logo, as the
-   * image itself. Read as raw bytes there and nowhere else, so that no other
-   * route can be sent megabytes of something it does not expect. The bytes of
-   * a file for the records (#77) need no parser: the route of the foundation
-   * reads them itself, after its guards.
-   *
-   * The limit sits above the one the controller enforces, so that a logo
-   * just over it gets the controller's sentence and not the parser's.
-   */
-  configure(consumer: MiddlewareConsumer): void {
-    consumer
-      .apply(raw({ type: [...logoMediaTypes], limit: largestLogoBytes * 2 }))
-      .forRoutes({ path: 'settings/letterhead/logo', method: RequestMethod.PUT })
-  }
-
+export class ApiModule {
   static create(
     database: Database,
     identities: IdentitySource,

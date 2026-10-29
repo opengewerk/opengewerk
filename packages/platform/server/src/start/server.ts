@@ -38,9 +38,29 @@ export interface Server {
   readonly interfaceDirectory: string | null
 }
 
-/** better-auth as the handler of the authentication, for an instance that is open. */
+/**
+ * better-auth as the handler of the authentication, for an instance that is
+ * open, and for the paths it has a route for alone.
+ *
+ * Its rate limits count by the address and the whole path, in a row each,
+ * before its router finds that a path has no route: every made-up path under
+ * the authentication was a new row in the database, from anybody, without a
+ * session. A path no route answers is answered here, before it gets there.
+ */
 export function authenticationHandler(authentication: Authentication): RequestHandler {
-  return toNodeHandler(authentication) as RequestHandler
+  const handle = toNodeHandler(authentication) as RequestHandler
+
+  return (request, response, next) => {
+    if (!authentication.routes.some((route) => route.test(request.path))) {
+      response
+        .status(404)
+        .json({ statusCode: 404, message: 'Diesen Weg der Anmeldung gibt es nicht.' })
+
+      return
+    }
+
+    handle(request, response, next)
+  }
 }
 
 /**

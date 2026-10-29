@@ -26,6 +26,7 @@ import {
 } from '@opengewerk/domain'
 import {
   AcceptsBody,
+  bodyBytesOf,
   Database,
   FILE_STORE,
   fileRowFor,
@@ -255,9 +256,12 @@ export class LetterheadController {
 
   /**
    * Replaces the logo. The body is the image itself, sent with its media
-   * type; `api.module.ts` reads bodies of these two types as raw bytes on this
-   * route and on no other, and it is the one route that takes a body other
-   * than JSON (`AcceptsBody`).
+   * type, and it is the one route that takes a body other than JSON
+   * (`AcceptsBody`).
+   *
+   * The route reads the body itself, after the guards, as it comes and
+   * without unpacking it. A parser in front of the route read and unpacked it
+   * for anybody who sent an image type, before it was asked who sent it.
    */
   @Put('logo')
   @RequiresPermission('settings.write')
@@ -266,9 +270,16 @@ export class LetterheadController {
     'Das Logo wird als Bild geschickt, als PNG oder JPEG, mit dem passenden Content-Type.',
   )
   async uploadLogo(@CurrentIdentity() identity: RequestIdentity, @Req() request: Request) {
-    const body: unknown = request.body
+    const body = await bodyBytesOf(request, largestLogoBytes)
 
-    if (!Buffer.isBuffer(body) || body.byteLength === 0) {
+    if (body === null) {
+      throw new PayloadTooLargeException(
+        `Das Logo ist größer als ${String(largestLogoBytes / 1_000_000)} MB. Ein Logo für den ` +
+          'Briefkopf kommt mit einem Bruchteil davon aus.',
+      )
+    }
+
+    if (body.byteLength === 0) {
       throw new UnsupportedMediaTypeException(
         'Das Logo wird als Bild geschickt, als PNG oder JPEG, mit dem passenden Content-Type.',
       )

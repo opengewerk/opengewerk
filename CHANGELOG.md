@@ -29,6 +29,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Warum: Eine hochgeladene Tabelle konnte den gemeinsamen Prozess mit dem Quadrat ihrer Größe beschäftigen oder ein
   Vielfaches ihrer Größe in den Speicher legen, und ein Programm, das das Komma oder den Tabulator für das
   Trennzeichen hält, begann mitten in einem exportierten Wert eine Zelle, vor der kein Apostroph mehr stand.
+- Die Anmeldung reicht nur noch Pfade an better-auth weiter, für die es eine Route gibt; jeder andere unter `/api/auth`
+  bekommt vorher eine 404. Die Route für das Logo liest ihren Body selbst, nach den Guards und ohne ihn zu entpacken,
+  statt eines Parsers davor. Warum: Die Ratengrenzen von better-auth legten für jeden ausgedachten Pfad eine Zeile in
+  der Datenbank an, von jedem und ohne Sitzung, und der Parser vor dem Logo las und entpackte den Body jeder Anfrage
+  mit einem Bildtyp, bevor gefragt war, wer sie schickt.
 - Drei Wege gehen in einem Durchgang statt mit dem Quadrat ihrer Eingabe: der DATANORM-Leser findet die gefüllten
   Zeilen ohne ein Muster, das eine lange Zeile aus Leerzeichen von jeder Stelle aus neu probierte; der Stromkreisplan
   gruppiert Abschnitte und Stromkreise einmal, statt sie für jeden Verteiler und Abschnitt neu zu filtern; der Abruf

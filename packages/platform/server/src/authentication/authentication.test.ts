@@ -952,6 +952,52 @@ describe('the rate limits', () => {
   })
 
   /**
+   * The limits count by the address and the whole path, a row each, and they
+   * counted before better-auth found that a path had no route: every made-up
+   * path was a new row, from anybody, without a session. A path no route
+   * answers is answered in front of it now, and leaves nothing behind.
+   */
+  it('leave nothing behind for a path no route answers', async () => {
+    const limited = await probeInstance(foundation.kit.applicationDatabaseUrl(), {
+      secret: 'z'.repeat(64),
+      rateLimited: true,
+    })
+
+    others.push(limited)
+
+    for (const made of ['ausgedacht-1', 'ausgedacht-2', 'sign-in/ausgedacht']) {
+      await limited
+        .http()
+        .post(`${authenticationPath}/${made}`)
+        .set('origin', origin)
+        .set('x-forwarded-for', '203.0.113.22')
+        .send({})
+        .expect(404)
+    }
+
+    const { rows } = await admin.query<{ rows: number }>(
+      "select count(*)::int as rows from auth_rate_limits where key like '%ausgedacht%'",
+    )
+
+    expect(rows[0]?.rows).toBe(0)
+
+    // A route that is there is still reached, and counted.
+    await limited
+      .http()
+      .post(`${authenticationPath}/sign-in/email`)
+      .set('origin', origin)
+      .set('x-forwarded-for', '203.0.113.22')
+      .send({ email: member.email, password: 'falsch' })
+      .expect(401)
+
+    const { rows: counted } = await admin.query<{ rows: number }>(
+      "select count(*)::int as rows from auth_rate_limits where key like '%sign-in/email%'",
+    )
+
+    expect(counted[0]?.rows).toBeGreaterThan(0)
+  })
+
+  /**
    * A recovery code is a second factor as much as the code from the app, and
    * an account has ten of them (#125). better-auth's plugin limits its routes
    * to three in ten seconds, which is eighteen guesses a minute; the rule of
