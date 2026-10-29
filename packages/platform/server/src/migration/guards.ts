@@ -318,6 +318,10 @@ export const foundationGuards: readonly TableGuard[] = [
       { name: 'audit_redaction_applied', fires: 'AFTER INSERT', calls: 'audit_redaction_applied' },
     ],
   },
+  // The nonces of the values of the log: written by its trigger, read by the
+  // check of the chain. In the log themselves they would copy what opens a
+  // fingerprint into the entries a redaction cannot reach.
+  { table: 'audit_value_nonces', grants: ['select'], audited: false, synced: false },
   { table: 'sync_sequences', grants: ['select'], audited: false, synced: false },
   { table: 'sync_operations', grants: ['select', 'insert'], audited: false, synced: false },
   { table: 'sync_conflicts', grants: noDelete, audited: false, synced: false },

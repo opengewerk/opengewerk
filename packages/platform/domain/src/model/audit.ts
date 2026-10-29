@@ -69,10 +69,15 @@ export interface AuditEntry {
   /**
    * How the entry is hashed (ADR 0013): 1 over its values, as every entry
    * written before the redactions; 2 over the fingerprints of its values,
-   * which stay when a value is blacked out.
+   * which stay when a value is blacked out; 3 the same, each fingerprint
+   * taken with a nonce of its own that goes with the value.
    */
   readonly fingerprintVersion: number
-  /** SHA-256 of each value in hex, empty for an empty value and for an entry of version 1 nobody redacted. */
+  /**
+   * The fingerprint of each value in hex, SHA-256 of the value up to version
+   * 2 and of its nonce and the value from version 3 on; empty for an empty
+   * value and for an entry of version 1 nobody redacted.
+   */
   readonly oldValueDigest: string | null
   readonly newValueDigest: string | null
 }

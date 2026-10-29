@@ -1234,6 +1234,107 @@ describe('the log of an instance from before 0078', () => {
   })
 })
 
+/**
+ * The log of an instance from before 0092 (B13 of the security audit, amending
+ * ADR 0013): its entries are of version 2, fingerprinted over their values
+ * alone. After the update they check through as before and a value of them is
+ * blacked out as before; what changes is written in version 3, with a nonce
+ * for each value. The rollback leaves a chain that still checks through.
+ */
+describe('the log of an instance from before 0092', () => {
+  const before = () =>
+    readMigrationIndex().findIndex((entry) => entry.tag === '0092_audit_value_nonces')
+  const customer = newId<'customer'>()
+
+  async function chain(): Promise<string | null> {
+    const { rows } = await admin.query<{ problem: string | null }>(
+      'select problem from verify_audit_chain($1)',
+      [tenant.id],
+    )
+
+    const row = rows[0]
+
+    return row ? row.problem : 'nothing'
+  }
+
+  async function versions(): Promise<number[]> {
+    const { rows } = await admin.query<{ fingerprint_version: number }>(
+      'select distinct fingerprint_version from audit_entries order by fingerprint_version',
+    )
+
+    return rows.map((row) => row.fingerprint_version)
+  }
+
+  it('checks its entries of version 2 through the update and writes version 3 from then on', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name) values ($1, $2, 'business', 'Bauherr Nord')",
+      [customer, tenant.id],
+    )
+
+    expect(await chain()).toBeNull()
+
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+
+    expect(await versions()).toEqual([2])
+    expect(await chain()).toBeNull()
+
+    // Somebody who leads blacks out the name as the trigger of 0091 logged it.
+    await admin.query(
+      `insert into auth_users (id, name, email) values ('lead', 'Lena Leitung', 'lena@example.de')`,
+    )
+    await admin.query(
+      `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+       values ($1, 'lead', 'Leitung', '{}', true, false)`,
+      [tenant.id],
+    )
+    await admin.query(
+      "insert into memberships (tenant_id, user_id, roles) values ($1, 'lead', '{lead}')",
+      [tenant.id],
+    )
+
+    const { rows: named } = await admin.query<{ id: string }>(
+      "select id from audit_entries where table_name = 'customers' and field = 'name'",
+    )
+    const client = await admin.connect()
+
+    try {
+      await client.query('begin')
+      await client.query('set local role "opengewerk_app"')
+      await client.query("select set_config('app.tenant_id', $1, true)", [tenant.id])
+      await client.query("select set_config('app.user_id', 'lead', true)")
+      await client.query(
+        `insert into audit_redactions (tenant_id, entry_id, side, reason, redacted_by)
+         values ($1, $2, 'new', 'Auskunft der Person', 'lead')`,
+        [tenant.id, named[0]?.id],
+      )
+      await client.query('commit')
+    } finally {
+      client.release()
+    }
+
+    expect(await chain()).toBeNull()
+
+    // A change after the update, written with nonces.
+    await admin.query("update customers set name = 'Bauherr Süd' where id = $1", [customer])
+
+    expect(await versions()).toEqual([2, 3])
+    expect(
+      Number((await admin.query('select count(*) from audit_value_nonces')).rows[0]?.count),
+    ).toBeGreaterThan(0)
+    expect(await chain()).toBeNull()
+
+    await revertMigration(admin, '0092_audit_value_nonces')
+
+    expect(await tableNames(admin)).not.toContain('audit_value_nonces')
+    expect(await chain()).toBeNull()
+  })
+})
+
 describe('the migration run', () => {
   it('refuses a migration that was changed after it had run', async () => {
     await olderInstallation()
