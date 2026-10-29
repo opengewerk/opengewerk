@@ -88,6 +88,8 @@ const smallAllowance: UploadAllowance = {
   instanceBytesPerHour: 100_000_000,
   leastCountedBytes: 100_000,
   keptFreeBytes: 0,
+  lastFreeBytes: 0,
+  tenantMadeBytesPerHour: 0,
 }
 
 /** No volume has this much free, so nothing goes in. */

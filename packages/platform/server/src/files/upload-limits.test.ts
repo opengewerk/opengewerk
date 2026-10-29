@@ -22,6 +22,8 @@ const allowance: UploadAllowance = {
   instanceBytesPerHour: 1_000_000,
   leastCountedBytes: 0,
   keptFreeBytes: 0,
+  lastFreeBytes: 0,
+  tenantMadeBytesPerHour: 1000,
 }
 
 /** A store that keeps nothing and says how much room it has. */
@@ -38,6 +40,21 @@ function limitsAt(given: Partial<UploadAllowance> = {}, free: number | null = nu
   const limits = new UploadLimits(volume(free), { ...allowance, ...given }, () => clock.now)
 
   return { limits, clock }
+}
+
+/** The status a file the server makes is answered with, 200 for one that is let through. */
+async function made(limits: UploadLimits, tenantId: TenantId, size: number) {
+  try {
+    await limits.admitMade(tenantId, size)
+
+    return 200
+  } catch (error) {
+    if (error instanceof HttpException) {
+      return error.getStatus()
+    }
+
+    throw error
+  }
 }
 
 /** The status a file of this size is answered with, 200 for one that is let through. */
@@ -151,6 +168,40 @@ describe('the limits of storing', () => {
     expect(await answer(limits, north, 'mia', 601)).toBe(507)
   })
 
+  it('let a print into the room they keep free from people, but never into the last of it', async () => {
+    const { limits } = limitsAt(
+      { keptFreeBytes: 5000, lastFreeBytes: 2000, tenantMadeBytesPerHour: 1_000_000 },
+      5600,
+    )
+
+    expect(await answer(limits, north, 'mia', 601)).toBe(507)
+    expect(await made(limits, north, 3600)).toBe(200)
+    expect(await made(limits, north, 3601)).toBe(507)
+  })
+
+  it('count the prints of a tenant for that tenant, and apart from what people store', async () => {
+    const { limits, clock } = limitsAt()
+
+    expect(await made(limits, north, 1000)).toBe(200)
+    expect(await made(limits, north, 1)).toBe(429)
+    expect(await made(limits, south, 1000)).toBe(200)
+    expect(await answer(limits, north, 'mia', 1000)).toBe(200)
+
+    clock.now += 61 * minute
+
+    expect(await made(limits, north, 1000)).toBe(200)
+  })
+
+  it('count a small print for the least a file counts for, and nothing for one they refuse', async () => {
+    const { limits } = limitsAt({ leastCountedBytes: 300 })
+
+    expect(await made(limits, north, 1)).toBe(200)
+    expect(await made(limits, north, 1)).toBe(200)
+    expect(await made(limits, north, 500)).toBe(429)
+    expect(await made(limits, north, 100)).toBe(200)
+    expect(await made(limits, north, 1)).toBe(429)
+  })
+
   it('say why they refuse, in a sentence of their own for each limit', async () => {
     const { limits } = limitsAt({ keptFreeBytes: 5000, instanceBytesPerHour: 1600 }, 5600)
     const sentence = async (tenantId: TenantId, userId: string, size: number) => {
@@ -170,5 +221,19 @@ describe('the limits of storing', () => {
     expect(await sentence(north, 'otto', 500)).toMatch(/alle zusammen/)
     expect(await sentence(south, 'susi', 500)).toBeNull()
     expect(await sentence(south, 'tom', 1)).toMatch(/Auf dieser Instanz/)
+
+    const print = async (size: number) => {
+      try {
+        await limits.admitMade(north, size)
+
+        return null
+      } catch (error) {
+        return (error as HttpException).message
+      }
+    }
+
+    expect(await print(5601)).toMatch(/kein Platz mehr/)
+    expect(await print(1000)).toBeNull()
+    expect(await print(1)).toMatch(/Dateien erzeugt/)
   })
 })

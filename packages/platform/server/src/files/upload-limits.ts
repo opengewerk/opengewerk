@@ -32,6 +32,17 @@ export interface UploadAllowance {
   readonly leastCountedBytes: number
   /** The bytes left free on the volume of the store, below which nothing more is stored. */
   readonly keptFreeBytes: number
+  /**
+   * The bytes left free even by a file the server makes itself, a print: the
+   * part of the room kept free that stays for the database and the dump of a
+   * backup, which no file ever takes.
+   */
+  readonly lastFreeBytes: number
+  /**
+   * The bytes of the files the server makes for one tenant within an hour,
+   * so that the prints of one tenant leave room for the prints of the others.
+   */
+  readonly tenantMadeBytesPerHour: number
 }
 
 /**
@@ -54,7 +65,11 @@ export interface UploadAllowance {
  *
  * And 2 GB stay free on the volume: room for the database to grow, for the
  * prints of a day and for the dump of a backup, all of which share the disk
- * with the files on an installation from the package.
+ * with the files on an installation from the package. Prints may go into the
+ * first of these, never into the last: below 1 GB nothing is stored at all,
+ * and a tenant has its prints stored at 500 MB an hour, which is a few hundred
+ * documents even with a large logo in each, and takes one tenant two hours,
+ * not minutes, to fill the gigabyte that prints may use.
  */
 export const uploadAllowance: UploadAllowance = {
   accountBytesPerHour: 1_000_000_000,
@@ -62,6 +77,8 @@ export const uploadAllowance: UploadAllowance = {
   instanceBytesPerHour: 20_000_000_000,
   leastCountedBytes: 100_000,
   keptFreeBytes: 2_000_000_000,
+  lastFreeBytes: 1_000_000_000,
+  tenantMadeBytesPerHour: 500_000_000,
 }
 
 /** Who stores a file: an account of a tenant, or nobody signed in for a tenant. */
@@ -141,13 +158,14 @@ class HourlyBytes {
  *
  * Counted in the memory of the process. An instance is one process, and a
  * restart that forgets the last hour hands out one more hour, nothing worse.
- * A file the server makes itself, a print, asks nothing: the room that stays
- * free is kept for it.
+ * A file the server makes itself, a print, asks `admitMade` instead: it may
+ * go into the room the routes leave free, down to the last of it.
  */
 export class UploadLimits {
   private readonly accounts: HourlyBytes
   private readonly tenants: HourlyBytes
   private readonly instance: HourlyBytes
+  private readonly madeForTenants: HourlyBytes
 
   constructor(
     private readonly store: FileStorage,
@@ -157,6 +175,44 @@ export class UploadLimits {
     this.accounts = new HourlyBytes(allowance.accountBytesPerHour)
     this.tenants = new HourlyBytes(allowance.tenantBytesPerHour)
     this.instance = new HourlyBytes(allowance.instanceBytesPerHour, 1)
+    this.madeForTenants = new HourlyBytes(allowance.tenantMadeBytesPerHour)
+  }
+
+  /**
+   * Counts a file the server makes for a tenant, a print, or refuses it: with
+   * a 507 while it would go into the last room on the volume, and with a 429
+   * while the tenant has had as much made as an hour allows. Nothing a person
+   * stores counts here, and nothing made counts against what a person may
+   * store.
+   */
+  async admitMade(tenantId: TenantId, sizeBytes: number): Promise<void> {
+    const free = this.store.freeBytes ? await this.store.freeBytes() : null
+
+    if (free !== null && free - sizeBytes < this.allowance.lastFreeBytes) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.INSUFFICIENT_STORAGE,
+          message:
+            'Auf dem Speicher für Dateien ist kein Platz mehr frei. Damit Datenbank und ' +
+            'Sicherung weiterlaufen, wird keine Datei mehr erzeugt, bis auf dem Server Platz ' +
+            'geschaffen ist.',
+          error: 'Insufficient Storage',
+        },
+        HttpStatus.INSUFFICIENT_STORAGE,
+      )
+    }
+
+    const now = this.now()
+    const counted = Math.max(sizeBytes, this.allowance.leastCountedBytes)
+
+    if (!this.madeForTenants.fits(tenantId, counted, now)) {
+      throw tooMuch(
+        'In der letzten Stunde sind für alle zusammen schon so viele Dateien erzeugt worden, ' +
+          'wie eine Stunde zulässt. Weitere lassen sich in spätestens einer Stunde erzeugen.',
+      )
+    }
+
+    this.madeForTenants.count(tenantId, counted, now)
   }
 
   /**

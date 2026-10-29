@@ -28,6 +28,7 @@ import {
   SameOriginGuard,
   type SecretKey,
   StampInterceptor,
+  type UploadLimits,
   syncParts,
   TRUSTED_ORIGINS,
   VERSION,
@@ -109,6 +110,13 @@ export interface ApiOptions {
    */
   readonly files?: FileStorage
   /**
+   * What may go into the store, for the routes that take files and for the
+   * files a document keeps. Handed in where something outside the routes, the
+   * mail worker, keeps files as well, so that both count together. Left out,
+   * the module has limits of its own on the store above.
+   */
+  readonly limits?: UploadLimits
+  /**
    * What prints a document. Left out, it is the renderer of an instance that
    * has none configured, and a request for a PDF gets the message saying so.
    */
@@ -172,6 +180,7 @@ export class ApiModule {
       setupCode = null,
       trustedOrigins = [],
       files,
+      limits,
       renderer = rendererFor({ url: undefined, token: undefined }),
       mail = null,
       backupStatus = null,
@@ -205,7 +214,7 @@ export class ApiModule {
     const auditing = auditLogParts({ access, vocabulary: auditVocabulary })
     // The bytes of the files in the records go into the store through the
     // route of the foundation, under the right of the records (#77).
-    const storing = fileParts({ access, upload: 'attachment.write', store: files })
+    const storing = fileParts({ access, upload: 'attachment.write', store: files, limits })
     // And come out again by version, on the routes of the foundation
     // (opengewerk-haustechnik#97), for whoever may read the records.
     const filing = attachmentParts({

@@ -110,6 +110,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nacheinander statt einer je Mandant zugleich. Warum: Ein Mandant ist in einer Minute angelegt, und Grenzen je Konto
   im Mandanten, je Archiv und je Mandant vervielfachten sich so mit der Zahl der Mandanten und Dateien, die eine
   Person öffnet oder nennt.
+- Belegdateien, die der Server selbst erzeugt (PDF, XRechnung, ZUGFeRD), lassen das letzte Gigabyte auf dem Speicher
+  frei (`lastFreeBytes`) und zählen je Mandant höchstens 500 MB in der Stunde (`tenantMadeBytesPerHour`); darüber
+  antwortet der Beleg mit 507 oder 429, und die Mail mit dem Beleg versucht es später wieder. Von zwei gleichzeitigen
+  ersten Anfragen nimmt die, die den Beleg nicht verknüpft, ihre Zeile in `files` zurück. Warum: Drucke fragten keine
+  Grenze, und die Drucke eines Mandanten konnten den Speicher bis zum letzten Byte füllen, auf dem auch Datenbank und
+  Sicherung liegen.
 - nodemailer 10.2.1 statt 10.0.10 im Server, mit der Sperrdatei (Dependabot-Alerts 3 bis 7). Die älteren Fassungen
   zerlegten eine Adresse mit Kommentar, Anführungszeichen oder spitzer Klammer an der falschen Stelle, sodass aus
   Anzeigetext ein Empfänger werden konnte, und erkannten die Anmeldeverfahren eines Mailservers mit einem Ausdruck,
