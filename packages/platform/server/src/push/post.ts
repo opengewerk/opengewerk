@@ -64,6 +64,9 @@ async function addressesOf(host: string): Promise<readonly string[]> {
  */
 export const endpointNameRefused = 'Diese Adresse eines Push-Dienstes wird nicht angenommen.'
 
+/** How long the name of an endpoint has to resolve while a device subscribes. */
+export const endpointLookupLimitMs = 3000
+
 /**
  * The same question as `endpointProblem`, asked of the name as well: whether
  * a device may subscribe with this endpoint at all. Asked when it subscribes,
@@ -74,6 +77,7 @@ export const endpointNameRefused = 'Diese Adresse eines Push-Dienstes wird nicht
 export async function endpointReachable(
   endpoint: string,
   resolve: (host: string) => Promise<readonly string[]> = addressesOf,
+  limitMs = endpointLookupLimitMs,
 ): Promise<string | null> {
   const problem = endpointProblem(endpoint)
 
@@ -88,11 +92,27 @@ export async function endpointReachable(
   }
 
   let addresses: readonly string[]
+  let deadline: NodeJS.Timeout | undefined
+
+  // A name that does not answer within the limit is one that does not
+  // resolve. Waited for without end, a name somebody chose held the request,
+  // and the lookups that queue behind it held every other name of the process.
+  const lookup = resolve(host)
+  lookup.catch(() => undefined)
 
   try {
-    addresses = await resolve(host)
+    addresses = await Promise.race([
+      lookup,
+      new Promise<readonly string[]>((answer) => {
+        deadline = setTimeout(() => {
+          answer([])
+        }, limitMs)
+      }),
+    ])
   } catch {
     addresses = []
+  } finally {
+    clearTimeout(deadline)
   }
 
   if (addresses.length === 0 || addresses.some(isInternalAddress)) {

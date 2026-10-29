@@ -10,6 +10,7 @@ import { standingInLine } from '../database/test-database.js'
 import {
   closeConflict,
   OperationRefused,
+  mostOpenConflicts,
   openConflicts,
   serverSync,
   type SyncCheck,
@@ -384,6 +385,46 @@ describe('applying what a device queued up', () => {
     expect(
       await inTenant(north.id, (tx) => openConflicts(tx, olgaOn('phone-b'), tablesOfTheSync)),
     ).toEqual([])
+  })
+
+  /**
+   * All open conflicts of a device went out in one answer, each with the
+   * values of its fields, and nothing limited how many there were. The list
+   * holds the oldest up to its limit; the next come when these are decided.
+   */
+  it('lists the oldest open conflicts of a device up to the limit, and the next ones after', async () => {
+    const recorded = ['2026-10-01T08:00:00Z', '2026-10-01T09:00:00Z', '2026-10-01T10:00:00Z']
+
+    for (const at of recorded) {
+      await admin.query(
+        `insert into sync_conflicts
+           (tenant_id, operation_id, entity, record_id, reason, fields, wanted, seen, found,
+            device_id, user_id, recorded_at)
+         values ($1, $2, 'notes', $3, 'changed_elsewhere', '{}', '{}', '{}', '{}', 'phone-z', 'olga', $4)`,
+        [north.id, newId<'operation'>(), newId<'note'>(), at],
+      )
+    }
+
+    const first = await inTenant(north.id, (tx) =>
+      openConflicts(tx, olgaOn('phone-z'), tablesOfTheSync, 2),
+    )
+
+    expect(first.map((conflict) => conflict.recordedAt.toISOString())).toEqual([
+      '2026-10-01T08:00:00.000Z',
+      '2026-10-01T09:00:00.000Z',
+    ])
+
+    await inTenant(north.id, (tx) => closeConflict(tx, first[0]!.id, olgaOn('phone-z')))
+
+    const next = await inTenant(north.id, (tx) =>
+      openConflicts(tx, olgaOn('phone-z'), tablesOfTheSync, 2),
+    )
+
+    expect(next.map((conflict) => conflict.recordedAt.toISOString())).toEqual([
+      '2026-10-01T09:00:00.000Z',
+      '2026-10-01T10:00:00.000Z',
+    ])
+    expect(mostOpenConflicts).toBe(200)
   })
 
   it('keeps master data to a connection: a change from a device is a conflict, online only', async () => {

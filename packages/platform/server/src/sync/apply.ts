@@ -718,6 +718,9 @@ async function seenRecords(
   return seen
 }
 
+/** The most open conflicts one answer lists, the oldest first. */
+export const mostOpenConflicts = 200
+
 /**
  * The conflicts one device and the person on it still have to decide, oldest
  * first.
@@ -739,16 +742,23 @@ async function seenRecords(
  * closed and says no more than that it is there. A conflict without a value
  * of the server keeps what the person put in.
  */
+
 export async function openConflicts(
   tx: TenantTransaction,
   owner: ConflictOwner,
   tableFor: (entity: string) => PgTable | null,
+  most = mostOpenConflicts,
 ): Promise<SyncConflictRow[]> {
+  // The oldest first and no more than `most`: each carries the values of the
+  // fields it is about, and a device with thousands of them got them all in
+  // one answer, held in memory at once. Those after them come when these are
+  // decided.
   const open = await tx
     .select()
     .from(syncConflicts)
     .where(and(isNull(syncConflicts.resolvedAt), ownedBy(owner)))
     .orderBy(asc(syncConflicts.recordedAt))
+    .limit(most)
   const seen = await seenRecords(tx, open, tableFor)
 
   return open.map((conflict) =>
