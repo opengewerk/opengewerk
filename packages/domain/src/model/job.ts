@@ -78,6 +78,23 @@ export interface JobAssignment extends Synced {
  */
 export const jobProgressStatuses: readonly JobStatus[] = ['active', 'completed']
 
+/**
+ * The statuses a report from the site may move a job out of: every one but
+ * cancelled. A cancelled job was the office's decision about the order, and
+ * taking it up again is one as well (`job.write`), not progress.
+ */
+export const jobProgressSources: readonly JobStatus[] = ['draft', 'active', 'completed']
+
+/**
+ * Whether a job may leave the status it has by a report from the site. The
+ * other half of `isJobProgress`: which right a change asks for is decided on
+ * the status it sets, before the record is read, and this is asked of the
+ * status the record holds.
+ */
+export function leavesByProgress(held: unknown): boolean {
+  return jobProgressSources.some((status) => status === held)
+}
+
 /** One change to one field, as an outbox operation carries it. */
 interface FieldChange {
   readonly field: string

@@ -17,6 +17,7 @@ import {
   type DocumentId,
   eInvoiceGaps,
   formatFor,
+  isSignable,
   RuleError,
   shippedRules,
 } from '@opengewerk/domain'
@@ -144,8 +145,10 @@ export class DocumentMailController {
       }
 
       // A signed report has no number yet and is fixed all the same: the
-      // customer's signature is on it, and nothing changes after that.
-      if (document.number === null && document.status !== 'signed') {
+      // customer's signature is on it, and nothing changes after that. Only a
+      // report: another kind that was signed before migration 0090 refused it
+      // is no proper document without its number.
+      if (document.number === null && !(document.status === 'signed' && isSignable(document))) {
         throw new ConflictException(
           'Verschickt wird ein festgeschriebener Beleg. Ein Entwurf hat noch keine Nummer, und ' +
             'was der Kunde bekommt, soll sich danach nicht mehr ändern.',

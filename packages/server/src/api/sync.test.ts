@@ -1822,6 +1822,67 @@ describe('the progress of a job from the site', () => {
     expect(refused.body.message).toBe(missingPermission('job.write'))
   })
 
+  async function aCancelledJob() {
+    const job = await aJob()
+    const cancelled = await push(office(), 'rechner-buero', [
+      change({
+        entity: 'jobs',
+        recordId: job.id,
+        baseVersion: job.version,
+        patches: [{ field: 'status', from: job.status, to: 'cancelled' }],
+      }),
+    ])
+    expect(cancelled.receipts[0]?.outcome).toBe('applied')
+
+    const { rows } = await admin.query<{ version: number }>(
+      'select version from jobs where id = $1',
+      [job.id],
+    )
+
+    return { id: job.id, version: rows[0]?.version ?? 0 }
+  }
+
+  /**
+   * The right was asked on the status a change sets, and a cancelled job set
+   * to completed or active looked like progress: a technician took up again
+   * what the office had called off. Whether a job may leave its status is now
+   * asked of the stored row.
+   */
+  it.each(['completed', 'active'])(
+    'does not take a cancelled job up again as %s, which is the office’s to decide',
+    async (to) => {
+      const job = await aCancelledJob()
+
+      const answer = await push(technician(), 'telefon-anna', [
+        change({
+          entity: 'jobs',
+          recordId: job.id,
+          baseVersion: job.version,
+          patches: [{ field: 'status', from: 'cancelled', to }],
+        }),
+      ])
+
+      expect(answer.receipts[0]).toMatchObject({ outcome: 'conflict', reason: 'record_is_fixed' })
+      expect(await row(job.id)).toMatchObject({ status: 'cancelled' })
+    },
+  )
+
+  it('lets the office take a cancelled job up again', async () => {
+    const job = await aCancelledJob()
+
+    const answer = await push(office(), 'rechner-buero', [
+      change({
+        entity: 'jobs',
+        recordId: job.id,
+        baseVersion: job.version,
+        patches: [{ field: 'status', from: 'cancelled', to: 'active' }],
+      }),
+    ])
+
+    expect(answer.receipts[0]?.outcome).toBe('applied')
+    expect(await row(job.id)).toMatchObject({ status: 'active' })
+  })
+
   it('does not create a job either; the office takes the order', async () => {
     const refused = await http()
       .post('/sync')

@@ -16,6 +16,7 @@ import {
   eInvoiceGaps,
   type EInvoiceProfile,
   formatFor,
+  isSignable,
   missingDetails,
   RuleError,
   shippedRules,
@@ -444,7 +445,8 @@ export class DocumentFiles {
           throw new NotFoundException()
         }
 
-        return document.number === null && document.status === 'signed'
+        // A signed report, as the mail route lets it go out without a number.
+        return document.number === null && document.status === 'signed' && isSignable(document)
           ? contentOf(tx, document, shippedRules)
           : null
       })
