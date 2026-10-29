@@ -176,35 +176,7 @@ async function chartOf(
             .where(and(inArray(circuits.distributionBoardId, ids), isNull(circuits.deletedAt)))
         ).sort(inStructureOrder)
 
-  const printed: ChartBoard[] = boards.map((row) => {
-    const own = sections.filter((section) => section.distributionBoardId === row.id)
-    const onBoard = lines.filter((circuit) => circuit.distributionBoardId === row.id)
-    // A circuit whose section is gone hangs on the board directly. The
-    // migration empties the column when a section is removed for real, and
-    // one that is only marked is left out of `own`.
-    const known = new Set(own.map((section) => section.id))
-    const direct = onBoard.filter(
-      (circuit) => circuit.boardSectionId === null || !known.has(circuit.boardSectionId),
-    )
-    const changed = [row, ...own, ...onBoard].reduce(
-      (latest, part) => (part.updatedAt > latest ? part.updatedAt : latest),
-      row.updatedAt,
-    )
-
-    return {
-      designation: row.designation,
-      kind: row.kind,
-      location: row.location,
-      changedOn: todayInGermany(changed),
-      groups: [
-        ...(direct.length > 0 || own.length === 0 ? [{ section: null, circuits: direct }] : []),
-        ...own.map((section) => ({
-          section: section.designation,
-          circuits: onBoard.filter((circuit) => circuit.boardSectionId === section.id),
-        })),
-      ],
-    }
-  })
+  const printed = chartBoards(boards, sections, lines)
 
   const place = site
     ? [site.designation, ...addressLines(site, 'DE')].filter(present).join(', ')
@@ -222,4 +194,73 @@ async function chartOf(
     site: place,
     boards: printed,
   }
+}
+
+/** The rows under each key, in the order they come. */
+function groupedBy<T>(rows: readonly T[], key: (row: T) => string | null): Map<string | null, T[]> {
+  const grouped = new Map<string | null, T[]>()
+
+  for (const row of rows) {
+    const at = key(row)
+    const list = grouped.get(at)
+
+    if (list) {
+      list.push(row)
+    } else {
+      grouped.set(at, [row])
+    }
+  }
+
+  return grouped
+}
+
+/**
+ * The boards as the chart prints them, each with its sections and their
+ * circuits, all in structure order.
+ *
+ * Grouped once, by board and then by section. Filtering the rows again for
+ * every board and every section took the square of what an installation
+ * holds, and a technician can give one board as many sections and circuits
+ * as the sync carries: one chart then held the process for every tenant.
+ */
+export function chartBoards(
+  boards: readonly (typeof distributionBoards.$inferSelect)[],
+  sections: readonly (typeof boardSections.$inferSelect)[],
+  lines: readonly (typeof circuits.$inferSelect)[],
+): ChartBoard[] {
+  const sectionsOf = groupedBy(sections, (section) => section.distributionBoardId)
+  const circuitsOf = groupedBy(lines, (circuit) => circuit.distributionBoardId)
+
+  return boards.map((row) => {
+    const own = sectionsOf.get(row.id) ?? []
+    const onBoard = circuitsOf.get(row.id) ?? []
+    // A circuit whose section is gone hangs on the board directly. The
+    // migration empties the column when a section is removed for real, and
+    // one that is only marked is left out of `own`.
+    const known = new Set<string>(own.map((section) => section.id))
+    const inSection = groupedBy(onBoard, (circuit) =>
+      circuit.boardSectionId !== null && known.has(circuit.boardSectionId)
+        ? circuit.boardSectionId
+        : null,
+    )
+    const direct = inSection.get(null) ?? []
+    const changed = [row, ...own, ...onBoard].reduce(
+      (latest, part) => (part.updatedAt > latest ? part.updatedAt : latest),
+      row.updatedAt,
+    )
+
+    return {
+      designation: row.designation,
+      kind: row.kind,
+      location: row.location,
+      changedOn: todayInGermany(changed),
+      groups: [
+        ...(direct.length > 0 || own.length === 0 ? [{ section: null, circuits: direct }] : []),
+        ...own.map((section) => ({
+          section: section.designation,
+          circuits: inSection.get(section.id) ?? [],
+        })),
+      ],
+    }
+  })
 }
