@@ -56,10 +56,20 @@ async function addressesOf(host: string): Promise<readonly string[]> {
 }
 
 /**
+ * What a device hears when the name of its endpoint is refused, for every
+ * reason there is. Whether the name does not resolve or points inside a
+ * network is what the resolver of the instance knows about the network it
+ * runs in, and anybody who may subscribe a device would otherwise learn it a
+ * name at a time.
+ */
+export const endpointNameRefused = 'Diese Adresse eines Push-Dienstes wird nicht angenommen.'
+
+/**
  * The same question as `endpointProblem`, asked of the name as well: whether
  * a device may subscribe with this endpoint at all. Asked when it subscribes,
- * so that the device hears the reason at once and not a minute later from the
- * job; the connection asks again (`checkedLookup`).
+ * so that the device hears it at once and not a minute later from the job;
+ * the connection asks again (`checkedLookup`). The answer about the name is
+ * one sentence for every reason (`endpointNameRefused`).
  */
 export async function endpointReachable(
   endpoint: string,
@@ -85,12 +95,8 @@ export async function endpointReachable(
     addresses = []
   }
 
-  if (addresses.length === 0) {
-    return `Den Push-Dienst "${host}" gibt es nicht, der Name lässt sich nicht auflösen.`
-  }
-
-  if (addresses.some(isInternalAddress)) {
-    return 'Die Adresse des Push-Dienstes liegt in einem internen Netz.'
+  if (addresses.length === 0 || addresses.some(isInternalAddress)) {
+    return endpointNameRefused
   }
 
   return null

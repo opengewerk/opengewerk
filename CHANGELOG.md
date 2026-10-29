@@ -23,6 +23,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   eines Geräts fragt je Zeile über einen Index, ob die Person sie angelegt hat, statt die Liste all ihrer Einträge zu
   durchsuchen. Warum: Alle drei laufen im gemeinsamen Prozess oder auf dem gemeinsamen Pool, und eine Eingabe eines
   Mandanten hielt so die Anfragen aller anderen über Sekunden bis Minuten auf.
+- Ablehnungen von Mailserver und Push-Dienst verraten nicht mehr, was der Resolver der Instanz geantwortet hat: ein
+  Name, der nach innen zeigt, wird wie ein Name abgelehnt, der sich nicht auflösen lässt, beim Mailserver mit demselben
+  Satz und derselben Art von Fehler (`unreachableName`, `EDNS`), beim Push mit `endpointNameRefused`, und keine
+  Ablehnung nennt mehr die interne Adresse. Eine interne Adresse, die jemand selbst einträgt, wird weiter als solche
+  benannt. Warum: Wer einen Mailserver einträgt oder ein Gerät für Push anmeldet, konnte so Name für Name erfragen,
+  welche Namen und Adressen im Netz der Instanz liegen; beim Push genügte dafür jede Rolle.
 
 ## [0.6.2] - 2026-10-23
 
