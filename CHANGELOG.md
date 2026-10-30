@@ -37,7 +37,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   wird je Betrieb eine solche Datei zur Zeit und auf der Instanz höchstens zwei, eine weitere bekommt 429, bevor ihr
   Inhalt gelesen ist, weil die Budgets erst nach dem Lesen zählen (Security-Review von #777). Wer langsam sendet,
   hält keine Stelle: nach 30 Sekunden ohne Daten oder 10 Minuten insgesamt bricht die Route ab, und Konto und Betrieb
-  warten danach 5 Minuten.
+  warten danach 5 Minuten, ebenso nach einer Datei, die ihr Absender selbst abbricht.
 
 ### Behoben
 

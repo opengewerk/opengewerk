@@ -16,7 +16,6 @@ import {
   Post,
   Put,
   Req,
-  RequestTimeoutException,
   UnprocessableEntityException,
 } from '@nestjs/common'
 import {
@@ -52,6 +51,9 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
  * Reading and taking over run in the background; the routes answer at once
  * with the import, and the screen asks again until its state moves on.
  */
+/** A file of a delivery that did not come in whole: too slow, or broken off by its sender. */
+class FileNotReceived extends HttpException {}
+
 @Controller('suppliers/:supplierId/imports')
 export class ArticleImportsController {
   /**
@@ -95,7 +97,7 @@ export class ArticleImportsController {
       this.cutAt.has(`account:${identity.userId}`) || this.cutAt.has(`tenant:${identity.tenantId}`)
 
     if (waiting) {
-      return 'Die letzte Datei kam zu langsam an. Bitte in ein paar Minuten noch einmal versuchen.'
+      return 'Die letzte Datei kam nicht vollständig an. Bitte in ein paar Minuten noch einmal versuchen.'
     }
 
     if (this.readingFor.has(identity.tenantId)) {
@@ -154,7 +156,10 @@ export class ArticleImportsController {
     const busy = this.busyFor(identity)
 
     if (busy) {
-      throw new HttpException(busy, HttpStatus.TOO_MANY_REQUESTS)
+      throw new HttpException(
+        { statusCode: HttpStatus.TOO_MANY_REQUESTS, message: busy },
+        HttpStatus.TOO_MANY_REQUESTS,
+      )
     }
 
     this.readingFor.add(identity.tenantId)
@@ -162,7 +167,7 @@ export class ArticleImportsController {
     try {
       return await this.stored(identity, sha256, request)
     } catch (error) {
-      if (error instanceof RequestTimeoutException) {
+      if (error instanceof FileNotReceived) {
         const now = Date.now()
 
         this.cutAt.set(`account:${identity.userId}`, now)
@@ -180,18 +185,43 @@ export class ArticleImportsController {
     const late = new Error('The file came in too slowly')
     const cut = () => request.destroy(late)
     const deadline = setTimeout(cut, this.readLimits.wholeMs)
+    // A sender that breaks off ends the request with `close` and not always
+    // with an error; the place is given back either way.
+    let closed: () => void = () => undefined
+    const brokenOff = new Promise<never>((_, reject) => {
+      closed = () => {
+        if (!request.complete) {
+          reject(new Error('The sender broke off'))
+        }
+      }
+      request.once('close', closed)
+    })
 
     request.setTimeout(this.readLimits.quietMs, cut)
 
     try {
-      return await bodyBytesOf(request, importFileBytes)
+      return await Promise.race([bodyBytesOf(request, importFileBytes), brokenOff])
     } catch (error) {
-      throw error === late
-        ? new RequestTimeoutException('Die Datei kam zu langsam an und wurde nicht gespeichert.')
-        : error
+      // Whether cut off for being slow or broken off by the sender: a file
+      // that did not come in whole counts the same, so that breaking off
+      // just before the deadline is no way around the wait.
+      const status = error === late ? HttpStatus.REQUEST_TIMEOUT : HttpStatus.BAD_REQUEST
+
+      throw new FileNotReceived(
+        {
+          statusCode: status,
+          message:
+            error === late
+              ? 'Die Datei kam zu langsam an und wurde nicht gespeichert.'
+              : 'Die Datei kam nicht vollständig an und wurde nicht gespeichert.',
+        },
+        status,
+      )
     } finally {
       clearTimeout(deadline)
       request.setTimeout(0)
+      request.off('close', closed)
+      brokenOff.catch(() => undefined)
     }
   }
 
