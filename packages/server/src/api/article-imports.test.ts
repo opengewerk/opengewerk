@@ -661,18 +661,24 @@ describe('an import from DATANORM', () => {
       ),
     ).toBeGreaterThanOrEqual(3)
 
-    // Every synced row has its own number after the run it took, none is left below zero.
+    // No device holds an article of this import, so its synced rows carry 1,
+    // below every cursor, and take no number of the counter (#297): with the
+    // catalogue of a wholesaler that run held every device for two minutes.
     const { rows: numbers } = await admin.query<{ change_sequence: string }>(
       `select change_sequence from articles where import_id = $1
         union all
        select change_sequence from article_prices where import_id = $1`,
       [first],
     )
-    const taken = numbers.map((row) => Number(row.change_sequence))
 
-    expect(taken).toHaveLength(4)
-    expect(new Set(taken).size).toBe(4)
-    expect(Math.min(...taken)).toBeGreaterThan(cursor)
+    expect(numbers.map((row) => Number(row.change_sequence))).toEqual([1, 1, 1, 1])
+    expect(
+      await count(
+        `select count(*) from (select id from articles where change_sequence > $1
+          union all select id from article_prices where change_sequence > $1) as numbered`,
+        [cursor],
+      ),
+    ).toBe(0)
     expect(await count('select count(*) from articles where change_sequence < 0')).toBe(0)
     expect(await count('select count(*) from article_prices where change_sequence < 0')).toBe(0)
 
@@ -781,6 +787,92 @@ describe('an import from DATANORM', () => {
         [cable],
       ),
     ).toBe(0)
+  })
+
+  it('numbers the rows of an article the devices hold, and leaves the others below every cursor (#297)', async () => {
+    const idOf = async (number: string) =>
+      String(
+        (await admin.query<{ id: string }>('select id from articles where number = $1', [number]))
+          .rows[0]?.id,
+      )
+    const held = await idOf('6200002')
+    const unheld = await idOf('5709912-ELE')
+    const pricesOf = async (article: string) =>
+      (
+        await admin.query<{ id: string; sequence: string; deleted: boolean }>(
+          `select id, change_sequence as sequence, deleted_at is not null as deleted
+             from article_prices where article_id = $1
+            order by valid_from, deleted_at is null`,
+          [article],
+        )
+      ).rows.map((row) => ({ ...row, sequence: Number(row.sequence) }))
+
+    // A device holds a frequent article; the other one only the office's routes.
+    await send('patch', `/articles/${held}`, { frequent: true }, 200)
+
+    const cursor = await count(
+      'select next_value as count from sync_sequences where tenant_id = $1',
+      [north.id],
+    )
+    const prices = await preview([
+      {
+        name: 'DATPREIS.001',
+        bytes: cp850([
+          header('011026'),
+          'P;A;6200002;1;200;0;RG30;;;;;',
+          'P;A;5709912;1;400;0;RG30;;;;;',
+        ]),
+      },
+    ])
+
+    await takeOver(prices.id)
+
+    // The held article's new selling price and the one it marked as replaced
+    // took numbers of the counter, above every cursor, so that a device that
+    // holds the article fetches both.
+    const ofHeld = await pricesOf(held)
+
+    expect(ofHeld.map((price) => price.deleted)).toEqual([true, false])
+    for (const price of ofHeld) {
+      expect(price.sequence).toBeGreaterThan(cursor)
+    }
+
+    const pulled = (
+      await http()
+        .get(`/sync?since=${String(cursor)}`)
+        .set('x-test-identity', technician)
+        .expect(200)
+    ).body as { changes: { entity: string; rows: Record<string, unknown>[] }[] }
+    const sent = pulled.changes.find((change) => change.entity === 'article_prices')?.rows ?? []
+
+    expect(sent.map((row) => row['id']).sort()).toEqual(ofHeld.map((price) => price.id).sort())
+
+    // The other one's carry 1, and a device that later holds the article finds
+    // them when it fetches the set anew from 0.
+    const ofUnheld = await pricesOf(unheld)
+
+    expect(ofUnheld.map((price) => [price.deleted, price.sequence])).toEqual([
+      [true, 1],
+      [false, 1],
+    ])
+
+    const fromStart = async () =>
+      (
+        (await http().get('/sync?since=0').set('x-test-identity', technician).expect(200)).body as {
+          changes: { entity: string; rows: Record<string, unknown>[] }[]
+        }
+      ).changes.find((change) => change.entity === 'article_prices')?.rows ?? []
+
+    expect((await fromStart()).filter((row) => row['articleId'] === unheld)).toEqual([])
+
+    await send('patch', `/articles/${unheld}`, { frequent: true }, 200)
+
+    expect(
+      (await fromStart())
+        .filter((row) => row['articleId'] === unheld)
+        .map((row) => row['id'])
+        .sort(),
+    ).toEqual(ofUnheld.map((price) => price.id).sort())
   })
 
   it('writes the copper anew where the catalogue changes it, and leaves a metal entered by hand (#462)', async () => {

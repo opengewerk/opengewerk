@@ -100,6 +100,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Row-Level Security nimmt PostgreSQL für `LIKE` keinen Index, und jede Eingabe las den ganzen Katalog. Die
   Suchtabelle ist deshalb die einzige Tabelle ohne FORCE; die Anwendung hat kein Recht an ihr und erreicht sie nur
   über eine Funktion, die selbst nach dem Betrieb fragt. Entschieden von Moritz am 30.10.2026, festgehalten in ADR 0015.
+- Ein Import aus DATANORM hält die Geräte nicht mehr auf (#297, Punkt 4): Artikel und Verkaufspreise, die kein Gerät
+  hält, bekommen beim Schreiben die feste Nummer 1 des Abgleichs statt am Ende eine eigene. Ein Gerät holt sie, sobald
+  der Artikel in seine Menge kommt, wie bisher beim Neuholen der Menge ab 0. Nummeriert werden am Ende nur noch die
+  Zeilen der Artikel, die Geräte halten. Warum: beim Sortiment eines Großhändlers lief das Nummerieren 128 s, und so
+  lange konnte kein Gerät des Betriebs Änderungen senden. Entschieden von Moritz am 30.10.2026, mit dem Restrisiko,
+  dass ein Artikel, der in den Millisekunden vor dem Abschluss erstmals in einer Position steht, auf einem Gerät, das
+  genau dann seine Menge neu holt, bis zu seiner nächsten Änderung in der alten Fassung bleibt.
 - Die Feature-Gliederung (v2.37) trägt die Preisbildung ein, die Moritz am 28.09.2026 nach dem Test mit einer echten
   Lieferung aus DATANORM entschieden hat: der Listenpreis wird Einkaufspreis des Lieferanten, ein Nettopreis geht ihm
   vor; der Verkaufspreis entsteht aus dem Einkaufspreis des Hauptlieferanten und einem Aufschlag für den Betrieb, je

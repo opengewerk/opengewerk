@@ -10,7 +10,7 @@ import type {
   SupplierId,
   TenantId,
 } from '@opengewerk/domain'
-import type { TenantTransaction } from '@opengewerk/platform-server'
+import { idArray, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 
 import {
@@ -22,6 +22,7 @@ import {
   supplierArticleMetals,
   supplierArticles,
 } from '../database/schema/index.js'
+import { articlesOnDevices } from '../database/device-scope.js'
 import type { ImportPlan } from './plan.js'
 
 /**
@@ -30,12 +31,22 @@ import type { ImportPlan } from './plan.js'
  * the sync pass over these rows then (migration 0062), and what they would
  * have written is written here.
  *
- * The five columns of the stamp go in with each synced row, the number as a
- * placeholder below zero. The real numbers come at the very end, as one run
- * of the counter, because the counter row stays locked from the first number
- * a transaction takes until it commits, and every exchange of a device in the
- * business waits for it. Taken at the end, they wait for the renumbering and
- * not for the whole takeover.
+ * The five columns of the stamp go in with each synced row, the number of
+ * the sync as 1 (#297, decided by Moritz on 30.10.2026). Below every cursor, a
+ * device never fetches such a row by its number, only when the article joins
+ * the set the devices hold and each fetches the set anew from 0. That is all a
+ * row of an article no device holds needs, and in a catalogue that is nearly
+ * every row: numbered at the end like the others, the 1.4 million rows of a
+ * wholesaler's catalogue held the counter for two minutes, and every device
+ * waited that long to send.
+ *
+ * The rows of the articles the devices do hold get real numbers at the very
+ * end, as one run of the counter, because the counter row stays locked from
+ * the first number a transaction takes until it commits. The set is read
+ * there and not before, so that an article that joined it while the takeover
+ * ran is numbered as well; one that joins between that and the commit keeps
+ * its 1, and a device that fetched the set in those milliseconds keeps the
+ * article as it was until it next changes.
  */
 
 export interface Takeover {
@@ -83,18 +94,10 @@ export async function takeOver(
   const { tenantId, importId, supplierId, userId, validFrom } = takeover
   const total = rowsOf(plan)
   let done = 0
-  let placeholders = 0
 
   const advance = (rows: number) => {
     done += rows
     takeover.progress?.(done, total)
-  }
-
-  /** A number below zero for each synced row, which the run of the counter replaces. */
-  const placeholder = () => {
-    placeholders += 1
-
-    return -placeholders
   }
 
   const now = new Date()
@@ -103,7 +106,7 @@ export async function takeOver(
     updatedAt: now,
     updatedBy: userId,
     deviceId: null,
-    changeSequence: placeholder(),
+    changeSequence: unnumbered,
   })
 
   // The links the files delete first; their prices go with them over the keys.
@@ -239,17 +242,11 @@ export async function takeOver(
     const replaced = rows.flatMap((price) => (price.replaces === null ? [] : [price.replaces]))
 
     if (replaced.length > 0) {
-      const marks = sql.join(
-        replaced.map((id) => sql`(${id as ArticlePriceId}::uuid, ${placeholder()}::bigint)`),
-        sql`, `,
-      )
-
       await tx.execute(sql`
         update article_prices as p
            set deleted_at = now(), version = p.version + 1, updated_at = now(),
-               updated_by = ${userId}, device_id = null, change_sequence = u.placeholder
-          from (values ${marks}) as u(id, placeholder)
-         where p.id = u.id`)
+               updated_by = ${userId}, device_id = null, change_sequence = ${unnumbered}
+         where p.id = any(${idArray(replaced)})`)
     }
 
     await tx.insert(articlePrices).values(
@@ -274,6 +271,45 @@ export async function takeOver(
       })),
     )
     advance(rows.length)
+  }
+
+  await numberWhatDevicesHold(tx, tenantId, importId)
+}
+
+/** The number of a synced row no device holds, below every cursor. */
+const unnumbered = 1
+
+/**
+ * Real numbers for the rows of this takeover whose article the devices hold:
+ * first a placeholder below zero for each, then one run of the counter. Rows
+ * of this takeover are the ones it wrote, with its import, and the selling
+ * prices it marked as deleted, at the time of its transaction.
+ */
+async function numberWhatDevicesHold(
+  tx: TenantTransaction,
+  tenantId: TenantId,
+  importId: ArticleImportId,
+): Promise<void> {
+  const held = idArray((await articlesOnDevices(tx)).articleIds)
+  let placeholders = 0
+
+  for (const [table, article] of [
+    ['articles', 'id'],
+    ['article_prices', 'article_id'],
+  ] as const) {
+    const marked = await tx.execute(sql`
+      with ours as (
+        select id, row_number() over (order by id) as n
+          from ${sql.identifier(table)}
+         where tenant_id = ${tenantId} and change_sequence = ${unnumbered}
+           and (import_id = ${importId} or deleted_at = now())
+           and ${sql.identifier(article)} = any(${held}))
+      update ${sql.identifier(table)} as t
+         set change_sequence = -(${placeholders} + ours.n)
+        from ours
+       where t.id = ours.id`)
+
+    placeholders += marked.rowCount ?? 0
   }
 
   if (placeholders === 0) {
