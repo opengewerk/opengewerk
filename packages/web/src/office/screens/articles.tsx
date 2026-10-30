@@ -1,9 +1,11 @@
 import {
   articleProblems,
   articleUnitProblem,
+  basisPointsFrom,
   type IsoDate,
   type LineUnit,
   lineUnits,
+  markupLabel,
   type PriceBase,
   priceBaseOf,
   priceBases,
@@ -15,6 +17,7 @@ import {
 import {
   Button,
   Cell,
+  Choice,
   Column,
   Confirm,
   Field,
@@ -40,7 +43,7 @@ import {
   SortChoice,
 } from '@opengewerk/platform-web/office'
 import { RequestRefused, text, useRecords } from '@opengewerk/platform-web/sync'
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { Check, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -65,6 +68,8 @@ import {
   removeArticlePrice,
   removeArticleSupplier,
   removePurchasePrice,
+  setArticlePricing,
+  setMainSupplier,
   type SupplierLinkView,
   updateArticle,
   updateArticleSupplier,
@@ -655,8 +660,15 @@ function Standing({
  */
 function SalePrices({ article }: { readonly article: ArticleView }) {
   const writes = useMay('article.write')
+  const keepsPurchase = useMay('purchase.write')
   const client = useQueryClient()
   const [adding, setAdding] = useState(false)
+  const [pricingOpen, setPricingOpen] = useState(false)
+  // How the price comes about (#463), for whoever may read purchase prices.
+  const pricing = article.pricing
+  const following = pricing !== null && !pricing.fixed
+  // A price that follows the purchase price is not entered nor taken away by hand.
+  const removes = writes && !following
   const [removing, setRemoving] = useState<PriceView | null>(null)
   const [trouble, setTrouble] = useState<string | null>(null)
   const unit = lineUnitLabel[article.unit]
@@ -707,20 +719,42 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
         title="Verkaufspreis"
         caption="Verkaufspreis"
         action={
-          writes && !adding ? (
-            <Button
-              size="small"
-              icon={Plus}
-              onClick={() => {
-                setAdding(true)
-              }}
-            >
-              Neuer Preis
-            </Button>
-          ) : null
+          adding || pricingOpen ? null : (
+            <div className="flex flex-wrap gap-2">
+              {pricing !== null && keepsPurchase ? (
+                <Button
+                  size="small"
+                  icon={Pencil}
+                  onClick={() => {
+                    setPricingOpen(true)
+                  }}
+                >
+                  Preisbildung ändern
+                </Button>
+              ) : null}
+              {writes && !following ? (
+                <Button
+                  size="small"
+                  icon={Plus}
+                  onClick={() => {
+                    setAdding(true)
+                  }}
+                >
+                  Neuer Preis
+                </Button>
+              ) : null}
+            </div>
+          )
         }
         lead={
-          adding ? (
+          pricingOpen ? (
+            <PricingForm
+              article={article}
+              onClose={() => {
+                setPricingOpen(false)
+              }}
+            />
+          ) : adding ? (
             <PriceForm
               submitLabel="Preis anlegen"
               unit={article.unit}
@@ -734,17 +768,32 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
                 await client.invalidateQueries({ queryKey: ['articles'] })
               }}
             />
+          ) : pricing !== null ? (
+            <p className="text-body leading-[1.45]">
+              <PricingRule article={article} />
+            </p>
           ) : null
         }
         cards={article.prices.map((price) => ({
           key: price.id,
           title: `ab ${date(price.validFrom)}`,
           right: <span className="numeric">{figure(price)}</span>,
-          sub: <Standing price={price} prices={article.prices} />,
-          actions: writes ? removeButton(price) : null,
+          sub: (
+            <>
+              <Standing price={price} prices={article.prices} />
+              {pricing !== null ? (
+                <span className="block text-ink-muted">{originText(price)}</span>
+              ) : null}
+            </>
+          ),
+          actions: removes ? removeButton(price) : null,
         }))}
         cardsEmpty="Noch kein Preis."
-        note="Eine Position nimmt den Preis, der an ihrem Belegdatum gilt, mit seiner Preiseinheit. Ein neuer Preis ändert keinen Beleg, der den Artikel schon hat."
+        note={
+          following
+            ? 'Ein neuer Einkaufspreis des Hauptlieferanten ergibt den Verkaufspreis ab demselben Tag, ein geänderter Aufschlag gilt ab dem Tag der Änderung. Eine Position nimmt den Preis an ihrem Belegdatum; kein Beleg ändert sich. Auf der Baustelle steht nur der Verkaufspreis.'
+            : 'Eine Position nimmt den Preis, der an ihrem Belegdatum gilt, mit seiner Preiseinheit. Ein neuer Preis ändert keinen Beleg, der den Artikel schon hat.'
+        }
       >
         <thead>
           <tr>
@@ -753,7 +802,8 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
               {mixed ? 'Preis' : `Preis je ${unit}`}
             </Column>
             <Column className="w-[150px] min-w-[110px]">Stand</Column>
-            {writes ? (
+            {pricing !== null ? <Column className="min-w-[200px]">Entstanden aus</Column> : null}
+            {removes ? (
               <Column numeric className="w-[56px] min-w-[56px]">
                 <span className="sr-only">Entfernen</span>
               </Column>
@@ -763,7 +813,10 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
         <tbody>
           {article.prices.length === 0 ? (
             <tr>
-              <Cell className="text-ink-muted" colSpan={writes ? 4 : 3}>
+              <Cell
+                className="text-ink-muted"
+                colSpan={3 + (pricing !== null ? 1 : 0) + (removes ? 1 : 0)}
+              >
                 Noch kein Preis. Ohne Preis übernimmt eine Position 0,00 €.
               </Cell>
             </tr>
@@ -775,7 +828,10 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
                 <Cell>
                   <Standing price={price} prices={article.prices} />
                 </Cell>
-                {writes ? <Cell numeric>{removeButton(price)}</Cell> : null}
+                {pricing !== null ? (
+                  <Cell className="text-ink-muted">{originText(price)}</Cell>
+                ) : null}
+                {removes ? <Cell numeric>{removeButton(price)}</Cell> : null}
               </tr>
             ))
           )}
@@ -804,6 +860,177 @@ function SalePrices({ article }: { readonly article: ArticleView }) {
         entfernt wurde.
       </Confirm>
     </>
+  )
+}
+
+/** What a selling price came from (#463), as the column "Entstanden aus" says it. */
+function originText(price: PriceView): string {
+  if (price.origin) {
+    return `Einkaufspreis ${euros(price.origin.purchaseCents)} und ${markupLabel(price.origin.basisPoints)}`
+  }
+
+  return price.importId ? 'Aus einem Import' : 'Fest eingetragen'
+}
+
+/** The rule over the selling prices (#463): fixed, or which purchase price with which markup. */
+function PricingRule({ article }: { readonly article: ArticleView }) {
+  const pricing = article.pricing
+  const main = article.suppliers.find((link) => link.main)
+
+  if (pricing === null) {
+    return null
+  }
+
+  if (pricing.fixed) {
+    return (
+      <>
+        Fester Verkaufspreis: er bleibt, bis jemand einen neuen einträgt, was auch immer der
+        Einkaufspreis tut.
+      </>
+    )
+  }
+
+  if (!main) {
+    return <>Folgt dem Einkaufspreis seines Hauptlieferanten; der Artikel hat noch keinen.</>
+  }
+
+  const supplier = (
+    <Link
+      to={`/lieferanten/${main.supplierId}`}
+      className="text-copper-text underline underline-offset-2"
+    >
+      {main.supplierName}
+    </Link>
+  )
+
+  if (pricing.markup === null || pricing.source === null) {
+    return (
+      <>
+        Folgt dem Einkaufspreis von {supplier}, aber es ist kein Aufschlag eingestellt; deshalb
+        entsteht kein Verkaufspreis.
+      </>
+    )
+  }
+
+  const whose = {
+    article: 'einem eigenen Aufschlag',
+    supplier: 'dem Aufschlag des Lieferanten',
+    business: 'dem Aufschlag des Betriebs',
+  }[pricing.source]
+
+  return (
+    <>
+      Folgt dem Einkaufspreis von {supplier} mit {whose}, {markupLabel(pricing.markup)}.
+    </>
+  )
+}
+
+/**
+ * "Preisbildung", opened over the selling prices (#463): from the purchase
+ * price and a markup, its own or with an empty field the one it inherits, or
+ * a fixed price. From today on.
+ */
+function PricingForm({
+  article,
+  onClose,
+}: {
+  readonly article: ArticleView
+  readonly onClose: () => void
+}) {
+  const client = useQueryClient()
+  const pricing = article.pricing
+  const [mode, setMode] = useState<'follow' | 'fixed'>(pricing?.fixed ? 'fixed' : 'follow')
+  const [typed, setTyped] = useState(
+    pricing?.basisPoints == null ? '' : String(pricing.basisPoints / 100).replace('.', ','),
+  )
+  const [trouble, setTrouble] = useState<string | null>(null)
+  const main = article.suppliers.find((link) => link.main)
+  const read =
+    mode === 'fixed' || typed.trim() === '' ? { basisPoints: null } : basisPointsFrom(typed)
+  const problem = 'problem' in read ? read.problem : null
+  const inherited = pricing?.inherited ?? null
+  const whose = main?.markup != null ? 'des Lieferanten' : 'des Betriebs'
+
+  const save = useMutation({
+    mutationFn: (basisPoints: number | null) =>
+      setArticlePricing(article.id, { fixed: mode === 'fixed', basisPoints }),
+    onSuccess: async () => {
+      setTrouble(null)
+      await client.invalidateQueries({ queryKey: ['articles'] })
+      onClose()
+    },
+    onError: (error) => {
+      setTrouble(saidWhy(error, 'Die Preisbildung ließ sich nicht speichern. Keine Verbindung.'))
+    },
+  })
+
+  return (
+    <form
+      className="flex flex-col gap-2.5"
+      onSubmit={(event) => {
+        event.preventDefault()
+
+        if ('basisPoints' in read) {
+          save.mutate(read.basisPoints)
+        }
+      }}
+    >
+      <Choice
+        label="Preisbildung"
+        value={mode}
+        onChange={setMode}
+        options={[
+          {
+            value: 'follow',
+            label: 'Aus Einkaufspreis und Aufschlag',
+            note: 'Der Verkaufspreis folgt dem Einkaufspreis des Hauptlieferanten.',
+          },
+          {
+            value: 'fixed',
+            label: 'Fester Verkaufspreis',
+            note: 'Der Preis von heute bleibt, bis jemand einen neuen einträgt. Ein neuer Einkaufspreis ändert ihn nicht.',
+          },
+        ]}
+      />
+      {mode === 'follow' ? (
+        <div>
+          <Field
+            label="Eigener Aufschlag"
+            className="sm:max-w-[160px]"
+            name="articleMarkup"
+            inputMode="decimal"
+            numeric
+            unit="%"
+            value={typed}
+            onChange={(event) => {
+              setTyped(event.target.value)
+            }}
+            {...(problem === null ? {} : { problem })}
+            hint={
+              inherited === null
+                ? 'Leer heißt: der Aufschlag des Lieferanten oder des Betriebs; zurzeit ist keiner eingestellt. Gilt ab heute.'
+                : `Leer heißt: der Aufschlag ${whose}, ${markupLabel(inherited)}. Gilt ab heute.`
+            }
+          />
+        </div>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="submit"
+          tone="primary"
+          icon={Check}
+          disabled={save.isPending || problem !== null}
+        >
+          {save.isPending ? 'Einen Moment' : 'Speichern'}
+        </Button>
+        <Button onClick={onClose}>Abbrechen</Button>
+      </div>
+      {trouble ? (
+        <p role="alert" className="text-[13px] font-semibold text-conflict">
+          {trouble}
+        </p>
+      ) : null}
+    </form>
   )
 }
 
@@ -952,8 +1179,43 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
     .map((record) => ({ value: text(record, 'id'), label: text(record, 'name') }))
     .sort((left, right) => left.label.localeCompare(right.label, 'de'))
   const changed = article.suppliers.find((link) => link.id === changing) ?? null
+  const business = article.pricing?.business ?? null
 
   const refresh = () => client.invalidateQueries({ queryKey: ['articles'] })
+
+  async function makeMain(link: SupplierLinkView) {
+    try {
+      await setMainSupplier(article.id, link.id)
+      setTrouble(null)
+      await refresh()
+    } catch (error) {
+      setTrouble(saidWhy(error, 'Der Hauptlieferant ließ sich nicht ändern. Keine Verbindung.'))
+    }
+  }
+
+  // The main supplier, whose purchase price makes the selling price (#463),
+  // and the button that makes another one it, for whoever keeps purchase prices.
+  const mainMark = (link: SupplierLinkView) =>
+    link.main ? (
+      <Status tone="neutral">Hauptlieferant</Status>
+    ) : keepsPurchase && readsPurchase ? (
+      <Button
+        size="small"
+        onClick={() => {
+          void makeMain(link)
+        }}
+      >
+        Zum Hauptlieferanten
+      </Button>
+    ) : null
+  const markup = (link: SupplierLinkView) =>
+    link.markup !== null ? (
+      markupLabel(link.markup)
+    ) : business !== null ? (
+      <span className="text-ink-faint">{markupLabel(business)}</span>
+    ) : (
+      ''
+    )
 
   async function remove(link: SupplierLinkView) {
     setRemoving(null)
@@ -1073,27 +1335,37 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
         cards={article.suppliers.map((link) => ({
           key: link.id,
           title: <Link to={`/lieferanten/${link.supplierId}`}>{link.supplierName}</Link>,
-          sub: link.supplierNumber ? `Artikelnummer dort: ${link.supplierNumber}` : undefined,
+          sub: (
+            <>
+              {link.supplierNumber ? `Artikelnummer dort: ${link.supplierNumber}` : null}
+              {link.main || (keepsPurchase && readsPurchase) ? (
+                <span className="mt-1 block">{mainMark(link)}</span>
+              ) : null}
+            </>
+          ),
           right: readsPurchase ? <span className="numeric">{purchase(link)}</span> : undefined,
           actions: writes ? changeButton(link) : null,
         }))}
         cardsEmpty="Noch kein Lieferant."
         note={
           readsPurchase
-            ? 'Einkaufspreise sehen Inhaber und Büro. Auf der Baustelle und in der Rolle Monteur stehen sie nirgends.'
+            ? 'Einkaufspreise und Aufschläge sehen Inhaber und Büro. Auf der Baustelle, in der Rolle Monteur, im Druck und in der E-Rechnung stehen sie nirgends. Hauptlieferant ist, wer den Artikel zuerst gebracht hat, bis jemand einen anderen wählt.'
             : 'Einkaufspreise sehen Inhaber und Büro.'
         }
       >
         <thead>
           <tr>
-            <Column className="min-w-[180px]">Lieferant</Column>
-            <Column className="w-[150px] min-w-[120px]">Artikelnummer dort</Column>
+            <Column className="min-w-[150px]">Lieferant</Column>
+            <Column className="w-[130px] min-w-[110px]">Artikelnummer dort</Column>
             {readsPurchase ? (
               <>
                 <Column numeric className="w-[110px] min-w-[100px]">
                   Einkaufspreis
                 </Column>
-                <Column className="w-[100px] min-w-[96px]">Gültig ab</Column>
+                <Column className="w-[96px] min-w-[90px]">Gültig ab</Column>
+                <Column numeric className="w-[84px] min-w-[72px]">
+                  Aufschlag
+                </Column>
               </>
             ) : null}
             {writes ? (
@@ -1108,7 +1380,7 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
             <tr>
               <Cell
                 className="text-ink-muted"
-                colSpan={2 + (readsPurchase ? 2 : 0) + (writes ? 1 : 0)}
+                colSpan={2 + (readsPurchase ? 3 : 0) + (writes ? 1 : 0)}
               >
                 Noch kein Lieferant.
               </Cell>
@@ -1120,13 +1392,17 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
               return (
                 <tr key={link.id}>
                   <Cell>
-                    <Link to={`/lieferanten/${link.supplierId}`}>{link.supplierName}</Link>
+                    <span className="flex flex-col items-start gap-[5px]">
+                      <Link to={`/lieferanten/${link.supplierId}`}>{link.supplierName}</Link>
+                      {mainMark(link)}
+                    </span>
                   </Cell>
                   <Cell>{link.supplierNumber ?? ''}</Cell>
                   {readsPurchase ? (
                     <>
                       <Cell numeric>{purchase(link)}</Cell>
                       <Cell>{price ? date(price.validFrom) : ''}</Cell>
+                      <Cell numeric>{markup(link)}</Cell>
                     </>
                   ) : null}
                   {writes ? <Cell numeric>{changeButton(link)}</Cell> : null}

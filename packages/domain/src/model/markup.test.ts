@@ -3,7 +3,16 @@ import { describe, expect, it } from 'vitest'
 
 import { tenantParameterProblem } from '../rules/parameter.js'
 import { priceCentsMax } from './article.js'
-import { followedPrices, markupOf, markupProblem, sellingCentsOf } from './markup.js'
+import {
+  basisPointsFrom,
+  followedPrices,
+  markupLabel,
+  markupOf,
+  markupFrom,
+  markupProblem,
+  sellingCentsOf,
+  unitCentsFrom,
+} from './markup.js'
 
 /**
  * The selling price from a purchase price and a markup (#463): the rounding,
@@ -118,5 +127,60 @@ describe('the selling prices that follow a purchase price', () => {
 
     expect(removed).toEqual([])
     expect(added.map((added) => added.validFrom)).toEqual([today])
+  })
+})
+
+describe('a markup as the office types and reads it', () => {
+  it('is read in percent with a comma or a point, at most two places after it', () => {
+    for (const [typed, basisPoints] of [
+      ['22', 2200],
+      ['22,5', 2250],
+      ['22,50', 2250],
+      ['22.05', 2205],
+      [' 25 % ', 2500],
+      ['0', 0],
+      ['1000', 100_000],
+    ] as const) {
+      expect(basisPointsFrom(typed)).toEqual({ basisPoints })
+    }
+
+    // A long run of spaces is no markup; how long reading it takes, CodeQL holds.
+    expect(basisPointsFrom(`${' '.repeat(100_000)}x`)).toHaveProperty('problem')
+
+    for (const typed of ['', 'zwölf', '22,555', '-5', '1000,01', '22,', '%']) {
+      expect(basisPointsFrom(typed)).toEqual({
+        problem:
+          'Ein Aufschlag liegt zwischen 0 und 1.000 % und hat höchstens zwei Stellen nach dem Komma.',
+      })
+    }
+  })
+
+  it('is written in percent, as many places as it has', () => {
+    expect(markupLabel(2250)).toBe('22,5 %')
+    expect(markupLabel(2500)).toBe('25 %')
+    expect(markupLabel(1)).toBe('0,01 %')
+    expect(markupLabel(100_000)).toBe('1.000 %')
+  })
+})
+
+describe('the purchase price and the markup at a position', () => {
+  const cable = { cents: 5400, priceBase: 100 as const }
+
+  it('make the unit price, for the price unit of the position', () => {
+    expect(unitCentsFrom(cable, 100, 2200)).toBe(6588)
+    // 0,54 € a metre with 22 % are 0,6588 €, half a cent up 0,66 €.
+    expect(unitCentsFrom(cable, 1, 2200)).toBe(66)
+    expect(unitCentsFrom(cable, 1000, 0)).toBe(54_000)
+    // Exact where a number would no longer be: the largest price per 1000 with 1.000 %.
+    expect(unitCentsFrom({ cents: 99_999_999, priceBase: 1 }, 1000, 100_000)).toBe(
+      1_099_999_989_000,
+    )
+  })
+
+  it('come back from a typed unit price, below the purchase price as less than nothing', () => {
+    expect(markupFrom(cable, 100, 6588)).toBe(2200)
+    expect(markupFrom(cable, 1, 66)).toBe(2222)
+    expect(markupFrom(cable, 100, 4860)).toBe(-1000)
+    expect(markupFrom({ cents: 0, priceBase: 1 }, 1, 100)).toBeNull()
   })
 })

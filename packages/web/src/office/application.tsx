@@ -16,6 +16,7 @@ import {
   History,
   List,
   Mail,
+  Percent,
   Server,
   Shield,
   Signature,
@@ -64,6 +65,14 @@ const settings = [
     title: 'Zahlungsziel',
     about: 'Wie viele Tage ein Kunde zum Bezahlen hat, vorgegeben für jeden Beleg.',
     icon: Clock,
+    right: 'settings.read',
+  },
+  {
+    key: 'aufschlag',
+    to: '/einstellungen/aufschlag',
+    title: 'Aufschlag auf Material',
+    about: 'Was auf den Einkaufspreis eines Artikels kommt, damit sein Verkaufspreis entsteht.',
+    icon: Percent,
     right: 'settings.read',
   },
   {

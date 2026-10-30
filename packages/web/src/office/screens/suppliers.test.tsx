@@ -62,6 +62,7 @@ class Server extends TestServer {
 interface Call {
   readonly path: string
   readonly method: string
+  readonly body?: unknown
 }
 
 let calls: Call[]
@@ -152,6 +153,7 @@ function sold(offset: number, purchase: boolean): SupplierArticlePage {
       designation: `Mantelleitung ${String(offset + index)}`,
       unit: 'metre' as const,
       frequent: false,
+      main: index !== 1,
       purchase: purchase
         ? { unitPriceCents: 54, priceBase: 1 as const, validFrom: '2026-03-01' }
         : null,
@@ -192,7 +194,11 @@ beforeEach(() => {
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'
 
-    calls.push({ path, method })
+    calls.push({
+      path,
+      method,
+      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+    })
 
     const found = answers.find((entry) => entry.method === method && entry.test.test(path))
 
@@ -264,6 +270,56 @@ describe('a supplier', () => {
     expect(calls.some((call) => call.path === '/suppliers/s-1/articles?offset=25&limit=25')).toBe(
       true,
     )
+  })
+
+  it("has a markup of its own or the business's, which the office changes (#463)", async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/suppliers\/s-1\/articles\?/, sold(0, true))
+    serverSays('GET', /^\/suppliers\/s-1\/markup$/, {
+      basisPoints: null,
+      business: 2500,
+      pending: false,
+    })
+    serverSays('PUT', /^\/suppliers\/s-1\/markup$/, { basisPoints: 2200, pending: true })
+    await mount('/lieferanten/s-1')
+
+    expect(await screen.findByText('Der Aufschlag des Betriebs, 25 %.')).toBeTruthy()
+
+    const table = await screen.findByRole('table', { name: 'Artikel des Lieferanten' })
+
+    // The second article has another main supplier.
+    expect(within(table).getAllByText('Nein')).toHaveLength(1)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ändern' }))
+    await userEvent.type(screen.getByLabelText('Eigener Aufschlag'), '22')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ basisPoints: 2200 })
+    })
+  })
+
+  it("goes back to the business's markup with an empty field (#463)", async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/suppliers\/s-1\/articles\?/, sold(0, true))
+    serverSays('GET', /^\/suppliers\/s-1\/markup$/, {
+      basisPoints: 2200,
+      business: 2500,
+      pending: true,
+    })
+    serverSays('PUT', /^\/suppliers\/s-1\/markup$/, { basisPoints: null, pending: true })
+    await mount('/lieferanten/s-1')
+
+    expect(await screen.findByText('22 %, ein eigener Aufschlag.')).toBeTruthy()
+    expect(screen.getByText('Die Verkaufspreise werden im Hintergrund neu gerechnet.')).toBeTruthy()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ändern' }))
+    await userEvent.clear(screen.getByLabelText('Eigener Aufschlag'))
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ basisPoints: null })
+    })
   })
 
   it('shows a technician its articles without a purchase price, and nothing to change', async () => {

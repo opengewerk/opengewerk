@@ -649,6 +649,105 @@ describe('a quote with titles', () => {
     })
   })
 
+  it('shows the purchase price and the markup beside the unit price, and sends the unit price alone (#463)', async () => {
+    serverSays('GET', '/articles?offset=0&limit=8&sort=number&search=nym&on=2026-09-21', () => ({
+      status: 200,
+      body: {
+        total: 1,
+        rows: [
+          {
+            id: 'a-1042',
+            number: '1042',
+            designation: 'Mantelleitung NYM-J 3 × 1,5 mm²',
+            description: null,
+            unit: 'metre',
+            groupOfGoods: 'Kabel und Leitungen',
+            frequent: true,
+            priceCents: 6588,
+            priceBase: 100,
+            supplierName: null,
+            suppliers: 1,
+          },
+        ],
+      },
+    }))
+    serverSays('GET', '/articles/a-1042/purchase?on=2026-09-21', () => ({
+      status: 200,
+      body: { purchase: { cents: 5400, priceBase: 100, supplierName: 'Elektro-Großhandel Hansa' } },
+    }))
+    await mount('/belege/d-1', { document_lines: [] })
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Position hinzufügen' }))
+    await person.type(screen.getByRole('combobox', { name: 'Position aus Artikel' }), 'nym')
+    await person.click(await screen.findByRole('option', { name: /Mantelleitung/ }))
+
+    const bought = (await screen.findByLabelText('Einkaufspreis in Euro')) as HTMLInputElement
+    const markup = screen.getByLabelText('Aufschlag') as HTMLInputElement
+    const unitPrice = screen.getByLabelText('Einzelpreis in Euro') as HTMLInputElement
+
+    expect([bought.value, bought.readOnly, markup.value, unitPrice.value]).toEqual([
+      '54,00',
+      true,
+      '22',
+      '65,88',
+    ])
+
+    // The markup makes the unit price, and a unit price the markup.
+    await person.clear(markup)
+    await person.type(markup, '30')
+    expect(unitPrice.value).toBe('70,20')
+
+    await person.clear(unitPrice)
+    await person.type(unitPrice, '64,80')
+    expect(markup.value).toBe('20')
+
+    await person.click(screen.getByRole('button', { name: 'Position hinzufügen' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('document_lines')).toHaveLength(1)
+    })
+
+    const sent = valuesOf(server.operationsOn('document_lines')[0])
+
+    expect(sent).toMatchObject({ articleId: 'a-1042', unitPriceCents: 6480, priceBase: 100 })
+    // Neither the purchase price nor the markup travels with the line.
+    expect(Object.keys(sent ?? {}).filter((key) => /purchase|markup|basis/i.test(key))).toEqual([])
+  })
+
+  it('asks a technician for no purchase price (#463)', async () => {
+    serverSays('GET', '/articles?offset=0&limit=8&sort=number&search=nym&on=2026-09-21', () => ({
+      status: 200,
+      body: {
+        total: 1,
+        rows: [
+          {
+            id: 'a-1042',
+            number: '1042',
+            designation: 'Mantelleitung NYM-J 3 × 1,5 mm²',
+            description: null,
+            unit: 'metre',
+            groupOfGoods: 'Kabel und Leitungen',
+            frequent: true,
+            priceCents: 6588,
+            priceBase: 100,
+            supplierName: null,
+            suppliers: 1,
+          },
+        ],
+      },
+    }))
+    await mount('/belege/d-1', { document_lines: [] }, ['technician'])
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Position hinzufügen' }))
+    await person.type(screen.getByRole('combobox', { name: 'Position aus Artikel' }), 'nym')
+    await person.click(await screen.findByRole('option', { name: /Mantelleitung/ }))
+
+    expect(screen.queryByLabelText('Einkaufspreis in Euro')).toBeNull()
+    expect(calls.some((call) => call.path.includes('/purchase'))).toBe(false)
+  })
+
   it('offers the zero rate for photovoltaics, and names its conditions when it is chosen', async () => {
     // #127, section 12 (3) UStG. Whether a line meets the conditions is the
     // business's to judge, so the form says what they are.

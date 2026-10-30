@@ -142,6 +142,8 @@ describe('the selling price of an article that follows its purchase price', () =
       basisPoints: null,
       markup: null,
       source: null,
+      inherited: null,
+      business: null,
     })
 
     // The business's, set by the owner under "Einstellungen", worked out in the background.
@@ -181,6 +183,8 @@ describe('the selling price of an article that follows its purchase price', () =
       basisPoints: 3000,
       markup: 3000,
       source: 'article',
+      inherited: 2200,
+      business: 2500,
     })
     expect(own.suppliers).toEqual([expect.objectContaining({ id: link, main: true, markup: 2200 })])
   })
@@ -205,7 +209,12 @@ describe('the selling price of an article that follows its purchase price', () =
 
     const fixed = await article(cable)
 
-    expect(fixed.pricing).toEqual({ fixed: true, basisPoints: null, markup: null, source: null })
+    expect(fixed.pricing).toMatchObject({
+      fixed: true,
+      basisPoints: null,
+      markup: null,
+      source: null,
+    })
     expect(listed(fixed).map((price) => price[1])).toEqual([7280, 7020])
   })
 
@@ -232,6 +241,14 @@ describe('the selling price of an article that follows its purchase price', () =
 
     const moved = await article(clamp)
 
+    // The purchase price a position shows beside its unit price, of the main supplier.
+    expect(await get(`/articles/${clamp}/purchase?on=${today}`)).toEqual({
+      purchase: { cents: 200, priceBase: 1, supplierName: 'Kurpfalz Elektrohandel KG' },
+    })
+    expect(await get(`/articles/${clamp}/purchase?on=2026-01-01`)).toEqual({ purchase: null })
+    await get(`/articles/${clamp}/purchase?on=${today}`, technician, 403)
+    await get(`/articles/${clamp}/purchase?on=heute`, office, 400)
+
     // Kurpfalz has no markup of its own: 2,00 € with the business's 25 %.
     expect(listed(moved)).toEqual([[today, 250, [200, 2500]]])
     expect(moved.suppliers.map((supplier) => [supplier.id, supplier.main])).toEqual([
@@ -248,6 +265,20 @@ describe('the selling price of an article that follows its purchase price', () =
 
     expect(entities).not.toContain('article_price_origins')
     expect(entities).not.toContain('selling_price_runs')
+  })
+
+  it('reaches no print and no e-invoice: a document and its lines have no place for it', async () => {
+    // A print and an e-invoice are made from the document and its lines alone.
+    // A position shows the purchase price beside its unit price and keeps
+    // only the unit price; a column for either figure would fail here first.
+    const { rows } = await admin.query<{ column: string }>(
+      `select table_name || '.' || column_name as column from information_schema.columns
+        where table_schema = 'public' and table_name in ('documents', 'document_lines')
+          and (column_name like '%purchase%' or column_name like '%markup%'
+               or column_name like '%basis_points%' or column_name like '%origin%')`,
+    )
+
+    expect(rows).toEqual([])
   })
 
   it('is shown to whoever may read purchase prices, and set by whoever may keep them', async () => {

@@ -168,8 +168,19 @@ const cable: ArticleView = {
       supplierName: 'Elektro-Großhandel Rhein-Neckar GmbH',
       supplierNumber: '5700123',
       purchasePrices: [{ id: 'e-1', validFrom: '2026-03-01', unitPriceCents: 54, priceBase: 1 }],
+      main: true,
+      markup: null,
     },
   ],
+  // Entered by hand, and so fixed (#463).
+  pricing: {
+    fixed: true,
+    basisPoints: null,
+    markup: null,
+    source: null,
+    inherited: 2500,
+    business: 2500,
+  },
 }
 
 beforeEach(() => {
@@ -435,6 +446,119 @@ describe('an article', () => {
     expect(calls.find((call) => call.method === 'DELETE')?.path).toBe(
       '/articles/a-1/suppliers/l-2/prices/e-2',
     )
+  })
+
+  /** The cable following its purchase price with the business's 25 % (#463), a second supplier beside it. */
+  const following: ArticleView = {
+    ...cable,
+    prices: [
+      {
+        id: 'p-2',
+        validFrom: '2026-03-01',
+        unitPriceCents: 68,
+        priceBase: 1,
+        origin: { purchaseCents: 54, basisPoints: 2500 },
+      },
+      { id: 'p-1', validFrom: '2025-09-01', unitPriceCents: 89, priceBase: 1, importId: null },
+    ],
+    suppliers: [
+      ...cable.suppliers,
+      {
+        id: 'l-2',
+        supplierId: 's-2',
+        supplierName: 'Kurpfalz Elektrohandel KG',
+        supplierNumber: 'NYM315-100',
+        purchasePrices: [],
+        main: false,
+        markup: 2200,
+      },
+    ],
+    pricing: {
+      fixed: false,
+      basisPoints: null,
+      markup: 2500,
+      source: 'business',
+      inherited: 2500,
+      business: 2500,
+    },
+  }
+
+  it('says what a price that follows the purchase price came from, and offers no price by hand (#463)', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/articles\/a-1$/, following)
+    await mount('/artikel/a-1')
+
+    const prices = await screen.findByRole('table', { name: 'Verkaufspreis' })
+
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === 'P' &&
+          element.textContent ===
+            'Folgt dem Einkaufspreis von Elektro-Großhandel Rhein-Neckar GmbH mit dem Aufschlag des Betriebs, 25 %.',
+      ),
+    ).toBeTruthy()
+    expect(within(prices).getByText('Einkaufspreis 0,54 € und 25 %')).toBeTruthy()
+    expect(within(prices).getByText('Fest eingetragen')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Neuer Preis' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /entfernen$/ })).toBeNull()
+
+    const suppliers = screen.getByRole('table', { name: 'Lieferanten und Einkaufspreise' })
+
+    expect(within(suppliers).getByText('Hauptlieferant')).toBeTruthy()
+    expect(within(suppliers).getByText('22 %')).toBeTruthy()
+  })
+
+  it('sends the markup of its own, and a fixed price, as the form of the pricing says (#463)', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/articles\/a-1$/, following)
+    serverSays('PUT', /^\/articles\/a-1\/pricing$/, { fixed: false, basisPoints: 3000 })
+    await mount('/artikel/a-1')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Preisbildung ändern' }))
+    expect(
+      screen.getByText('Leer heißt: der Aufschlag des Betriebs, 25 %. Gilt ab heute.'),
+    ).toBeTruthy()
+    await userEvent.type(screen.getByLabelText('Eigener Aufschlag'), '30')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+        fixed: false,
+        basisPoints: 3000,
+      })
+    })
+
+    calls = []
+    await userEvent.click(await screen.findByRole('button', { name: 'Preisbildung ändern' }))
+    await userEvent.click(screen.getByLabelText(/Fester Verkaufspreis/))
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+        fixed: true,
+        basisPoints: null,
+      })
+    })
+  })
+
+  it('makes another supplier the main one (#463)', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/articles\/a-1$/, following)
+    serverSays('PUT', /^\/articles\/a-1\/suppliers\/l-2\/main$/, { id: 'l-2', main: true })
+    await mount('/artikel/a-1')
+
+    const suppliers = await screen.findByRole('table', { name: 'Lieferanten und Einkaufspreise' })
+
+    await userEvent.click(within(suppliers).getByRole('button', { name: 'Zum Hauptlieferanten' }))
+
+    await waitFor(() => {
+      expect(
+        calls.some(
+          (call) => call.method === 'PUT' && call.path === '/articles/a-1/suppliers/l-2/main',
+        ),
+      ).toBe(true)
+    })
   })
 
   it('shows a technician the suppliers without a purchase price, and nothing to change', async () => {

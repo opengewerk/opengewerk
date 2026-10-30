@@ -82,6 +82,36 @@ export function markupProblem(value: unknown): string | null {
   return null
 }
 
+/** A markup as the office reads it: 2250 basis points are "22,5 %". */
+export function markupLabel(basisPoints: number): string {
+  const percent = (basisPoints / 100).toLocaleString('de-DE', { maximumFractionDigits: 2 })
+
+  return `${percent} %`
+}
+
+/**
+ * What a markup field holds, in basis points, or the sentence why it is
+ * none: "22", "22,5" and "22,50" with a comma or a point, at most two places
+ * after it. Empty is a problem here; where empty means "none of its own",
+ * the form asks before it comes this far.
+ */
+export function basisPointsFrom(
+  input: string,
+): { readonly basisPoints: number } | { readonly problem: string } {
+  // The sign at the end, without a pattern: "\s*%$" takes time that grows
+  // with the square of a run of spaces (CodeQL js/polynomial-redos).
+  const trimmed = input.trim()
+  const typed = trimmed.endsWith('%') ? trimmed.slice(0, -1).trim() : trimmed
+  const shaped = /^(\d{1,4})(?:[,.](\d{1,2}))?$/.exec(typed)
+  const basisPoints =
+    shaped === null
+      ? Number.NaN
+      : Number(shaped[1]) * 100 + Number((shaped[2] ?? '').padEnd(2, '0'))
+  const problem = markupProblem(basisPoints)
+
+  return problem === null ? { basisPoints } : { problem }
+}
+
 /**
  * The selling price from a purchase price and a markup, rounded to the cent,
  * half a cent up, and for the same price unit as the purchase price. Null
@@ -197,4 +227,46 @@ export function followedPrices(
     .map((price) => price.id)
 
   return { removed, added }
+}
+
+/** A purchase price as a position reads it: the amount and how many units it is for. */
+export interface PurchaseOf {
+  readonly cents: number
+  readonly priceBase: PriceBase
+}
+
+/**
+ * The unit price of a position from a purchase price and a markup (#463), for
+ * the position's own price unit, rounded to the cent, half a cent up. Exact
+ * for every price and markup there may be.
+ */
+export function unitCentsFrom(
+  purchase: PurchaseOf,
+  lineBase: PriceBase,
+  basisPoints: number,
+): number {
+  const above = BigInt(purchase.cents) * BigInt(lineBase) * BigInt(10_000 + basisPoints)
+  const below = BigInt(purchase.priceBase) * 10_000n
+
+  return Number((above * 2n + below) / (below * 2n))
+}
+
+/**
+ * The markup a unit price makes on a purchase price (#463), in basis points,
+ * rounded: what the field "Aufschlag" of a position shows beside a price that
+ * was typed. Below the purchase price it is less than nothing; without a
+ * purchase price there is none.
+ */
+export function markupFrom(
+  purchase: PurchaseOf,
+  lineBase: PriceBase,
+  unitCents: number,
+): number | null {
+  if (purchase.cents === 0) {
+    return null
+  }
+
+  return Math.round(
+    (unitCents * purchase.priceBase * 10_000) / (purchase.cents * lineBase) - 10_000,
+  )
 }
