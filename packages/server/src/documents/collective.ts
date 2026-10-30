@@ -153,6 +153,8 @@ export async function makeCollectiveInvoice(
   tenantId: TenantId,
   jobId: JobId,
   documentDate: IsoDate,
+  /** The account that makes it (#786). */
+  createdBy: string,
 ): Promise<DocumentRow | null> {
   const [job] = await tx
     .select()
@@ -191,6 +193,7 @@ export async function makeCollectiveInvoice(
     .insert(documents)
     .values({
       tenantId,
+      createdBy,
       customerId: job.customerId,
       jobId: job.id,
       siteId: job.siteId,

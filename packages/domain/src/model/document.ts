@@ -219,6 +219,29 @@ export const documentStatuses = ['draft', 'signed', 'issued', 'cancelled'] as co
 export type DocumentStatus = (typeof documentStatuses)[number]
 
 /**
+ * Whether somebody may delete a document (#786): only a draft, never a fixed
+ * or signed one, which leading decision 4 cancels instead; one's own with the
+ * right to write documents, somebody else's only with `document.delete`.
+ * Deleting marks it, and the change log keeps who did it and when (GoBD, Rz.
+ * 59 and 110).
+ */
+export function mayDeleteDraft(
+  document: { readonly status: DocumentStatus; readonly createdBy: string | null },
+  userId: string | null,
+  holds: (right: 'document.write' | 'document.delete') => boolean,
+): boolean {
+  if (document.status !== 'draft' || !holds('document.write')) {
+    return false
+  }
+
+  return holds('document.delete') || (userId !== null && document.createdBy === userId)
+}
+
+/** Why a draft is not somebody's to delete, as the server and the screens say it. */
+export const notOwnDraft =
+  'Diesen Entwurf hat jemand anderes angelegt. Ihn löscht nur, wer Entwürfe anderer löschen darf.'
+
+/**
  * Why a document can no longer be changed, in the words the office reads, or
  * null while it is a draft and can.
  *
@@ -379,6 +402,12 @@ export interface Document extends Synced {
    * while it is a draft, and for a document fixed before anybody kept it.
    */
   readonly issuedBy: string | null
+  /**
+   * The account that made it (#786), set by the server, never by a device.
+   * Null for a document made before anybody kept it and not found in the
+   * change log either.
+   */
+  readonly createdBy: string | null
   readonly subject: string | null
   /**
    * The paragraph above the lines and the one below them. Free text, usually

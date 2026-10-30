@@ -82,6 +82,13 @@ export const documents = pgTable(
      * for every document issued before the column.
      */
     issuedBy: text('issued_by'),
+    /**
+     * The account that made it (#786), written by the server and reserved in
+     * the sync: whoever made a draft may delete it. No foreign key, for the
+     * same reason as `issued_by`. Null for a document made before the column
+     * that the change log did not name either.
+     */
+    createdBy: text('created_by'),
     subject: text('subject'),
     /** The paragraphs above and below the lines, free text as it is printed. */
     introText: text('intro_text'),

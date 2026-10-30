@@ -16,6 +16,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { aTenantChoice } from '../../session/test-tenants.js'
 import { SyncClient } from '../../sync/client.js'
 import { SiteJobScreen } from './jobs.js'
 import { SiteReportScreen } from './report.js'
@@ -694,5 +695,74 @@ describe('a report on site', () => {
     expect(list.getAllByRole('listitem')).toHaveLength(1)
     expect(list.getByText(/^Regiebericht vom/)).toBeTruthy()
     expect(list.getByText('Unterschrieben')).toBeTruthy()
+  })
+})
+
+/** Deleting a draft on site (#786): whoever made it, after asking, also without a network. */
+describe('a report in draft', () => {
+  /** Signed in as somebody with the rights of a technician. */
+  function signedInAs(userId: string) {
+    vi.stubGlobal('fetch', (url: RequestInfo | URL) => {
+      const path = url instanceof Request ? url.url : String(url)
+      const answer = path.endsWith('/api/auth/get-session')
+        ? {
+            user: { id: userId, email: 'max@nord.example.de', name: 'Max Monteur' },
+            session: { activeTenantId: 't-1' },
+          }
+        : path.endsWith('/auth/tenants')
+          ? [aTenantChoice(['technician'])]
+          : null
+
+      return answer === null
+        ? Promise.reject(new TypeError('Failed to fetch'))
+        : Promise.resolve(
+            new Response(JSON.stringify(answer), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          )
+    })
+  }
+
+  it('is deleted by whoever made it, after asking, and leads back to the job', async () => {
+    signedInAs('u-1')
+
+    const { router } = await mount('/auftraege/j-1/berichte/d-1', {
+      documents: [{ ...draftReport, createdBy: 'u-1' }],
+    })
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Entwurf löschen' }))
+
+    const asking = await screen.findByRole('alertdialog', { name: 'Entwurf löschen?' })
+
+    expect(
+      within(asking).getByText(
+        'Der Entwurf „Regiebericht vom 21.09.2026“ verschwindet auf diesem Gerät und, sobald es Netz hat, im Büro. Unterschrieben war er nicht. Das Änderungsprotokoll hält fest, wer den Entwurf wann gelöscht hat.',
+      ),
+    ).toBeTruthy()
+    await user.click(within(asking).getByRole('button', { name: 'Entwurf löschen' }))
+
+    await waitFor(() => {
+      expect(
+        server
+          .operations()
+          .filter((operation) => operation.entity === 'documents')
+          .map((operation) => operation.kind),
+      ).toEqual(['delete'])
+    })
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/auftraege/j-1')
+    })
+  })
+
+  it("offers nothing for somebody else's draft", async () => {
+    signedInAs('u-1')
+    await mount('/auftraege/j-1/berichte/d-1', {
+      documents: [{ ...draftReport, createdBy: 'u-9' }],
+    })
+
+    await screen.findByRole('button', { name: 'Material eintragen' })
+    expect(screen.queryByRole('button', { name: 'Entwurf löschen' })).toBeNull()
   })
 })

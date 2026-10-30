@@ -43,6 +43,8 @@ import {
   successorsOf,
   type TaxTreatment,
   whyFixed,
+  mayDeleteDraft,
+  notOwnDraft,
 } from '@opengewerk/domain'
 import {
   Database,
@@ -290,6 +292,8 @@ export class DocumentsController {
         .values({
           ...(values as typeof documents.$inferInsert),
           tenantId: identity.tenantId,
+          // Whoever made it (#786), and so may delete it while it is a draft.
+          createdBy: identity.userId,
           // Worked out once, here, and then it belongs to the document. Asking
           // the customer record again on reading would rewrite an invoice from
           // last year the day a customer's flag changes.
@@ -598,6 +602,7 @@ export class DocumentsController {
         .insert(documents)
         .values({
           tenantId: identity.tenantId,
+          createdBy: identity.userId,
           customerId: predecessor.customerId,
           jobId: predecessor.jobId,
           siteId: predecessor.siteId,
@@ -869,6 +874,7 @@ export class DocumentsController {
         .insert(documents)
         .values({
           tenantId: identity.tenantId,
+          createdBy: identity.userId,
           customerId: original.customerId,
           jobId: original.jobId,
           siteId: original.siteId,
@@ -994,12 +1000,28 @@ export class DocumentsController {
    * Only a draft, and the database says so too. A document that has been
    * issued is cancelled, never removed, not even by marking it: that is
    * leading decision 4, and the trigger on the table refuses it whichever way
-   * somebody comes.
+   * somebody comes. A draft of one's own goes with the right to write
+   * documents, somebody else's only with `document.delete` (#786). Marked and
+   * kept in the change log, as the GoBD ask of a deletion (Rz. 59 and 110).
    */
   @Delete(':id')
   @RequiresPermission('document.write')
   async remove(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
     return this.database.forTenant(identity, async (tx) => {
+      const [draft] = await tx
+        .select({ status: documents.status, createdBy: documents.createdBy })
+        .from(documents)
+        .where(and(eq(documents.id, id as DocumentId), isNull(documents.deletedAt)))
+        .for('update')
+
+      if (
+        draft !== undefined &&
+        draft.status === 'draft' &&
+        !mayDeleteDraft(draft, identity.userId, (right) => isAllowed(identity, right))
+      ) {
+        throw new ForbiddenException(notOwnDraft)
+      }
+
       const [removed] = await tx
         .update(documents)
         .set({ deletedAt: new Date() })

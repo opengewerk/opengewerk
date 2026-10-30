@@ -23,10 +23,13 @@ function FrameBody({ children }: { readonly children: ReactNode }) {
  */
 export function DraftFrame({
   kind,
+  action,
   children,
 }: {
   /** "Angebot", "Schlussrechnung": the head says "Angebot, Entwurf". */
   readonly kind: string
+  /** What concerns the draft as a whole, on the right of its head: "Entwurf löschen" (#786). */
+  readonly action?: ReactNode
   readonly children: ReactNode
 }) {
   return (
@@ -43,6 +46,7 @@ export function DraftFrame({
             unveränderlich.
           </p>
         </div>
+        {action}
       </div>
       <FrameBody>{children}</FrameBody>
     </section>

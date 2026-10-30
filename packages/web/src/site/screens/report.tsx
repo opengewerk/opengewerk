@@ -35,12 +35,13 @@ import {
   useSync,
 } from '@opengewerk/platform-web/sync'
 import type { EditResult } from '@opengewerk/platform-web/sync'
-import { useParams } from '@tanstack/react-router'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { Camera, Check, Pencil, Plus, Signature, X } from 'lucide-react'
 import { useId, useMemo, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 
 import { addAttachment } from '../../app/attachments.js'
+import { DeleteDraft } from '../../app/delete-draft.js'
 import { DocumentState } from '../../app/document-state.js'
 import { useMay } from '../../app/queries.js'
 import { ReportFieldsForm, ReportFieldsText } from '../../app/report-fields.js'
@@ -147,6 +148,7 @@ function ReportView({ report }: { readonly report: RecordState }) {
   const signature = signatures[0] ?? null
   const status = shownStatus(documentStatusOf(report), signature)
   const [signing, setSigning] = useState(false)
+  const navigate = useNavigate()
 
   return (
     <SiteScreen>
@@ -181,6 +183,19 @@ function ReportView({ report }: { readonly report: RecordState }) {
           onSign={() => {
             setSigning(true)
           }}
+          deleteDraft={
+            <DeleteDraft
+              document={report}
+              kind="Regiebericht"
+              customerName={null}
+              look="site"
+              onDeleted={() => {
+                const jobId = maybeText(report, 'jobId')
+
+                void navigate({ to: jobId ? `/auftraege/${jobId}` : '/' })
+              }}
+            />
+          }
         />
       )}
     </SiteScreen>
@@ -379,10 +394,13 @@ function WritingStep({
   report,
   lines,
   onSign,
+  deleteDraft,
 }: {
   readonly report: RecordState
   readonly lines: readonly RecordState[]
   readonly onSign: () => void
+  /** "Entwurf löschen" (#786), at the end of the report and away from signing. */
+  readonly deleteDraft?: ReactNode
 }) {
   const client = useSync()
   const reportId = String(report['id'])
@@ -565,6 +583,8 @@ function WritingStep({
           </Button>
         </div>
       </Panel>
+
+      {deleteDraft}
 
       {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
 

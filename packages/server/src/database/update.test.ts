@@ -1666,6 +1666,85 @@ describe('the copper of the links before 0101', () => {
   })
 })
 
+describe('the drafts and roles before 0102', () => {
+  const before = () => readMigrationIndex().findIndex((entry) => entry.tag === '0102_draft_creator')
+
+  it('give each draft the account the change log names as its maker, and the owner and the office the right to delete drafts', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+         values ($1, 'owner', 'Inhaber', '{document.write}', true, true),
+                ($1, 'office', 'Büro', '{document.write}', false, false),
+                ($1, 'technician', 'Monteur', '{document.write}', false, false)`,
+      [tenant.id],
+    )
+
+    const customer = newId<'customer'>()
+    const [byMax, unknown, fixed] = [newId<'document'>(), newId<'document'>(), newId<'document'>()]
+    const made = await admin.connect()
+
+    try {
+      await made.query('begin')
+      await made.query(`select set_config('app.user_id', 'max', true)`)
+      await made.query(
+        `insert into customers (id, tenant_id, kind, name) values ($1, $2, 'business', 'Bauherr Nord')`,
+        [customer, tenant.id],
+      )
+      await made.query(
+        `insert into documents (id, tenant_id, customer_id, kind, document_date)
+           values ($1, $3, $4, 'time_and_material_report', '2026-10-01'),
+                  ($2, $3, $4, 'final_invoice', '2026-10-01')`,
+        [byMax, fixed, tenant.id, customer],
+      )
+      await made.query('commit')
+    } finally {
+      made.release()
+    }
+
+    // Made with nobody in the log, and one that is fixed since.
+    await admin.query(
+      `insert into documents (id, tenant_id, customer_id, kind, document_date)
+         values ($1, $2, $3, 'quote', '2026-10-01')`,
+      [unknown, tenant.id, customer],
+    )
+    await admin.query(
+      `update documents set status = 'issued', number = 'RE-2026-1', issued_at = now() where id = $1`,
+      [fixed],
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows: makers } = await admin.query<{ id: string; created_by: string | null }>(
+      'select id, created_by from documents order by id',
+    )
+    expect(Object.fromEntries(makers.map((row) => [row.id, row.created_by]))).toEqual({
+      [byMax]: 'max',
+      [unknown]: null,
+      [fixed]: null,
+    })
+
+    const { rows: roles } = await admin.query<{ key: string; deletes: boolean }>(
+      `select key, 'document.delete' = any(rights) as deletes from tenant_roles order by key`,
+    )
+    expect(roles).toEqual([
+      { key: 'office', deletes: true },
+      { key: 'owner', deletes: true },
+      { key: 'technician', deletes: false },
+    ])
+
+    const { rows: forced } = await admin.query<{ forced: boolean }>(
+      `select relforcerowsecurity as forced from pg_class
+        where oid in ('documents'::regclass, 'tenant_roles'::regclass)`,
+    )
+    expect(forced).toEqual([{ forced: true }, { forced: true }])
+    expect(await chainProblem()).toBeNull()
+  })
+})
+
 describe('the migration run', () => {
   it('refuses a migration that was changed after it had run', async () => {
     await olderInstallation()

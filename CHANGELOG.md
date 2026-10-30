@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Entwürfe lassen sich löschen, im Büro und auf der Baustelle (#786), entschieden von Moritz am 30.10.2026: „Entwurf
+  löschen“ im Kopf eines Entwurfs und leise unter einem Regiebericht auf dem Gerät, mit Rückfrage, auch ohne Netz über
+  den Postausgang. Den eigenen Entwurf löscht, wer Belege bearbeiten darf, einen fremden nur, wer das neue Recht
+  „Entwürfe anderer löschen“ (`document.delete`) hat; Inhaber und Büro haben es (Migration `0102_draft_creator`), der
+  Monteur auf Wunsch des Inhabers. Wer einen Beleg angelegt hat, steht jetzt in `documents.created_by`, für die
+  vorhandenen Entwürfe aus dem Änderungsprotokoll nachgetragen. Route und Abgleich prüfen dieselbe Regel; ein
+  festgeschriebener oder unterschriebener Beleg wird weiter nie gelöscht. Warum: ein Entwurf ist noch kein Beleg, er
+  hat keine Nummer und hat den Betrieb nie verlassen, und GoBD Rz. 59 und 110 verlangen für eine Löschung nur, dass sie
+  mit Löschmerker und Protokoll nachvollziehbar bleibt; bisher blieb ein verworfener Entwurf für immer in den Listen.
 - Die Bildschirme des Imports aus DATANORM, Teil von #297, nach den Tafeln aus Version 79 des Canvas: am Lieferanten
   die Karte „Importe aus DATANORM“ mit den letzten Importen und „Dateien einlesen“; die Seite „Import aus DATANORM“, auf
   der die Dateien einer Lieferung nacheinander hochgehen, mit Fortschritt, und das Einlesen beginnt, sobald alle oben
