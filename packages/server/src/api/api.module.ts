@@ -38,6 +38,7 @@ import {
 
 import { access } from '../authentication/access.js'
 import { ArticleImports } from '../datanorm/imports.js'
+import { SellingPrices } from '../pricing/selling-prices.js'
 import { deadlineRules } from '../deadlines/routes.js'
 import { accountMessages } from '../mail/account-messages.js'
 import { mailServersOfBusinesses } from '../mail/server-settings.js'
@@ -323,6 +324,7 @@ export class ApiModule {
         { provide: SECRETS, useValue: secrets },
         DocumentFiles,
         ArticleImports,
+        SellingPrices,
         ...signingIn.providers,
         ...syncing.providers,
         ...auditing.providers,

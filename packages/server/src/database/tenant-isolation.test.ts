@@ -870,6 +870,18 @@ const crossings: readonly {
             values (${own.tenant}, ${other.article}, true)`,
   },
   {
+    key: 'article_price_origins_price_in_tenant',
+    write: (own, other) =>
+      sql`insert into article_price_origins (tenant_id, article_price_id, purchase_cents, basis_points)
+            values (${own.tenant}, ${other.articlePrice}, 54, 2500)`,
+  },
+  {
+    key: 'selling_price_runs_supplier_in_tenant',
+    write: (own, other) =>
+      sql`insert into selling_price_runs (tenant_id, supplier_id, from_day, requested_by)
+            values (${own.tenant}, ${other.supplier}, '2026-10-30', 'test')`,
+  },
+  {
     key: 'purchase_prices_supplier_article_in_tenant',
     write: (own, other) =>
       sql`insert into purchase_prices (tenant_id, supplier_article_id, valid_from, unit_price_cents)
@@ -1125,6 +1137,8 @@ interface Planted {
   readonly supplierArticle: string
   /** An import of DATANORM from the supplier above, read and waiting (#297). */
   readonly articleImport: string
+  /** A selling price of the article above (#463). */
+  readonly articlePrice: string
 }
 
 /**
@@ -1327,6 +1341,10 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     articleImport: await one(
       "insert into article_imports (tenant_id, supplier_id, status, files, valid_from) values ($1, $2, 'ready', '[]', '2026-10-01')",
       [tenant, supplier],
+    ),
+    articlePrice: await one(
+      "insert into article_prices (tenant_id, article_id, valid_from, unit_price_cents) values ($1, $2, '2026-03-01', 92)",
+      [tenant, article],
     ),
   }
 }

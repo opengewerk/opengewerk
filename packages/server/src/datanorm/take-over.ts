@@ -13,6 +13,7 @@ import type { TenantTransaction } from '@opengewerk/platform-server'
 import { inArray, sql } from 'drizzle-orm'
 
 import {
+  articlePriceOrigins,
   articlePrices,
   articles,
   listPrices,
@@ -245,6 +246,7 @@ export async function takeOver(
 
     await tx.insert(articlePrices).values(
       rows.map((price) => ({
+        id: price.id as ArticlePriceId,
         tenantId,
         articleId: price.ownerId as ArticleId,
         validFrom,
@@ -252,6 +254,15 @@ export async function takeOver(
         priceBase: price.priceBase,
         importId,
         ...stamp(),
+      })),
+    )
+    // What each came from (#463), for the office only.
+    await tx.insert(articlePriceOrigins).values(
+      rows.map((price) => ({
+        tenantId,
+        articlePriceId: price.id as ArticlePriceId,
+        purchaseCents: price.origin.purchaseCents,
+        basisPoints: price.origin.basisPoints,
       })),
     )
     advance(rows.length)

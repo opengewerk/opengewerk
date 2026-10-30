@@ -8,13 +8,28 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common'
-import { isAllowed, type SupplierId, supplierProblems } from '@opengewerk/domain'
-import { Database, pick, requireSomething } from '@opengewerk/platform-server'
+import { isAllowed, markupProblem, type SupplierId, supplierProblems } from '@opengewerk/domain'
+import {
+  Database,
+  isUuid,
+  pick,
+  requireSomething,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { and, asc, count, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm'
 
-import { articles, purchasePrices, supplierArticles, suppliers } from '../database/schema/index.js'
+import { parameterAt } from '../database/parameters.js'
+import {
+  articles,
+  purchasePrices,
+  supplierArticles,
+  supplierMarkups,
+  suppliers,
+} from '../database/schema/index.js'
+import { SellingPrices } from '../pricing/selling-prices.js'
 import { todayInGermany } from '../today.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
@@ -50,7 +65,10 @@ export function requireSupplierFields(values: Readonly<Record<string, unknown>>)
  */
 @Controller('suppliers')
 export class SuppliersController {
-  constructor(private readonly database: Database) {}
+  constructor(
+    private readonly database: Database,
+    private readonly sellingPrices: SellingPrices,
+  ) {}
 
   @Get()
   @RequiresPermission('supplier.read')
@@ -193,6 +211,7 @@ export class SuppliersController {
           designation: articles.designation,
           unit: articles.unit,
           frequent: articles.frequent,
+          main: supplierArticles.main,
         })
         .from(supplierArticles)
         .innerJoin(articles, eq(articles.id, supplierArticles.articleId))
@@ -246,4 +265,98 @@ export class SuppliersController {
       }
     })
   }
+
+  /**
+   * The supplier's own markup on material (#463), the business's beside it,
+   * and whether selling prices are still being worked out anew.
+   */
+  @Get(':id/markup')
+  @RequiresPermission('purchase.read')
+  async markup(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
+    const held = await this.database.forTenant(identity, async (tx) => {
+      const supplier = await supplierOf(tx, id)
+      const [own] = await tx
+        .select({ basisPoints: supplierMarkups.basisPoints })
+        .from(supplierMarkups)
+        .where(eq(supplierMarkups.supplierId, supplier.id))
+      const business = await parameterAt(tx, 'material.markup_basis_points', todayInGermany())
+
+      return { basisPoints: own?.basisPoints ?? null, business: business?.value ?? null }
+    })
+
+    return { ...held, pending: await this.sellingPrices.pending(identity.tenantId) }
+  }
+
+  /**
+   * Sets the supplier's own markup, or with null takes it back to the
+   * business's. The selling prices of the articles it is the main supplier of
+   * follow from today on, worked out in the background.
+   */
+  @Put(':id/markup')
+  @RequiresPermission('purchase.write')
+  async setMarkup(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const fields = (typeof body === 'object' && body !== null ? body : {}) as Record<
+      string,
+      unknown
+    >
+    const basisPoints = fields['basisPoints'] ?? null
+    const problem = basisPoints === null ? null : markupProblem(basisPoints)
+
+    if (problem) {
+      throw new BadRequestException(problem)
+    }
+
+    await this.database.forTenant(identity, async (tx) => {
+      const supplier = await supplierOf(tx, id)
+
+      // First, before the markup is written and logged (`request`).
+      await this.sellingPrices.request(tx, {
+        tenantId: identity.tenantId,
+        userId: identity.userId,
+        supplierId: supplier.id,
+        from: todayInGermany(),
+      })
+
+      if (basisPoints === null) {
+        await tx.delete(supplierMarkups).where(eq(supplierMarkups.supplierId, supplier.id))
+      } else {
+        await tx
+          .insert(supplierMarkups)
+          .values({
+            tenantId: identity.tenantId,
+            supplierId: supplier.id,
+            basisPoints: basisPoints as number,
+          })
+          .onConflictDoUpdate({
+            target: [supplierMarkups.tenantId, supplierMarkups.supplierId],
+            set: { basisPoints: basisPoints as number, updatedAt: new Date() },
+          })
+      }
+    })
+    this.sellingPrices.start(identity.tenantId)
+
+    return { basisPoints, pending: true }
+  }
+}
+
+/** The supplier of the path, not deleted, or a 404, the same for one of another business. */
+async function supplierOf(tx: TenantTransaction, id: string) {
+  if (!isUuid(id)) {
+    throw new NotFoundException()
+  }
+
+  const [supplier] = await tx
+    .select({ id: suppliers.id })
+    .from(suppliers)
+    .where(and(eq(suppliers.id, id as SupplierId), isNull(suppliers.deletedAt)))
+
+  if (!supplier) {
+    throw new NotFoundException()
+  }
+
+  return supplier
 }

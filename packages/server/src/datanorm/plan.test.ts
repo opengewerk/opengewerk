@@ -465,8 +465,16 @@ describe('the selling price from the purchase price and the markup (#463)', () =
   it('gives a new article its selling price from the list price, for the same price unit', () => {
     const plan = planImport(delivery(cableTie), holdings({}), withMarkup)
 
+    // With what it came from, which the office sees beside it.
     expect(plan.sellingPrices).toEqual([
-      { ownerId: 'new-1', cents: 438, priceBase: 100, replaces: null },
+      {
+        id: 'new-3',
+        ownerId: 'new-1',
+        cents: 438,
+        priceBase: 100,
+        replaces: null,
+        origin: { purchaseCents: 350, basisPoints: 2500 },
+      },
     ])
     expect(plan.summary).toMatchObject({ sellingPrices: 1, markup: 2500 })
     expect(plan.summary.samples[0]).toMatchObject({ sellingPrice: { cents: 438, priceBase: 100 } })
@@ -507,7 +515,13 @@ describe('the selling price from the purchase price and the markup (#463)', () =
     )
 
     expect(plan.sellingPrices).toEqual([
-      { ownerId: 'article-1', cents: 385, priceBase: 100, replaces: null },
+      expect.objectContaining({
+        ownerId: 'article-1',
+        cents: 385,
+        priceBase: 100,
+        replaces: null,
+        origin: { purchaseCents: 350, basisPoints: 1000 },
+      }),
     ])
   })
 
@@ -551,7 +565,9 @@ describe('the selling price from the purchase price and the markup (#463)', () =
 
       expect(plan.summary).toMatchObject({ linked: 1 })
       expect(plan.sellingPrices).toEqual(
-        supplied ? [] : [{ ownerId: 'article-1', cents: 438, priceBase: 100, replaces: null }],
+        supplied
+          ? []
+          : [expect.objectContaining({ ownerId: 'article-1', cents: 438, priceBase: 100 })],
       )
     }
   })
@@ -572,7 +588,12 @@ describe('the selling price from the purchase price and the markup (#463)', () =
     expect([plan.listPrices, plan.purchasePrices]).toEqual([[], []])
     // The one of the same day, from an import or worked out like this one, gives way.
     expect(plan.sellingPrices).toEqual([
-      { ownerId: 'article-1', cents: 438, priceBase: 100, replaces: 'sell-1' },
+      expect.objectContaining({
+        ownerId: 'article-1',
+        cents: 438,
+        priceBase: 100,
+        replaces: 'sell-1',
+      }),
     ])
     expect(plan.summary).toMatchObject({ updated: 1, unchanged: 0, sellingPrices: 1 })
   })

@@ -67,6 +67,14 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       basis_points: 'Eigener Aufschlag',
     },
   },
+  article_price_origins: {
+    label: 'Herkunft eines Verkaufspreises',
+    fields: {
+      article_price_id: 'Verkaufspreis',
+      purchase_cents: 'Einkaufspreis',
+      basis_points: 'Aufschlag',
+    },
+  },
   article_prices: {
     label: 'Verkaufspreis',
     fields: {
@@ -284,6 +292,10 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       import_id: 'Import',
       main: 'Hauptlieferant',
     },
+  },
+  selling_price_runs: {
+    label: 'Neuberechnung der Verkaufspreise',
+    fields: { supplier_id: 'Lieferant', from_day: 'Ab', requested_by: 'Veranlasst von' },
   },
   supplier_markups: {
     label: 'Aufschlag eines Lieferanten',

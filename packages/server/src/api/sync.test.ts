@@ -299,7 +299,9 @@ describe('the tables', () => {
       name === 'list_prices' ||
       // A markup, like a purchase price, is the office's alone (#463).
       name === 'supplier_markups' ||
-      name === 'article_markups'
+      name === 'article_markups' ||
+      name === 'article_price_origins' ||
+      name === 'selling_price_runs'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

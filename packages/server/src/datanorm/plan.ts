@@ -139,6 +139,12 @@ export interface NewPrice {
   readonly replaces: string | null
 }
 
+/** A selling price that follows the purchase price, with its id and what it came from (#463). */
+export interface NewSellingPrice extends NewPrice {
+  readonly id: string
+  readonly origin: { readonly purchaseCents: number; readonly basisPoints: number }
+}
+
 export interface ImportPlan {
   readonly articles: readonly NewArticle[]
   readonly links: readonly NewLink[]
@@ -147,7 +153,7 @@ export interface ImportPlan {
   readonly removedLinks: readonly string[]
   readonly listPrices: readonly NewPrice[]
   readonly purchasePrices: readonly NewPrice[]
-  readonly sellingPrices: readonly NewPrice[]
+  readonly sellingPrices: readonly NewSellingPrice[]
   readonly summary: ImportSummary
 }
 
@@ -245,7 +251,7 @@ export function planImport(
   const removedLinks: string[] = []
   const listPrices: NewPrice[] = []
   const purchasePrices: NewPrice[] = []
-  const sellingPrices: NewPrice[] = []
+  const sellingPrices: NewSellingPrice[] = []
   // The purchase price each link has from the import's day on, where the
   // delivery brings one; the selling price follows it.
   const purchaseNow = new Map<string, Priced>()
@@ -370,10 +376,21 @@ export function planImport(
     }
 
     const selling = { cents, priceBase: purchase.priceBase }
+    const offered: NewPrice[] = []
 
-    return offer(sellingPrices, holdings.sellingPrices.get(article.id), article.id, selling)
-      ? selling
-      : null
+    if (!offer(offered, holdings.sellingPrices.get(article.id), article.id, selling)) {
+      return null
+    }
+
+    for (const price of offered) {
+      sellingPrices.push({
+        ...price,
+        id: options.newId(),
+        origin: { purchaseCents: purchase.cents, basisPoints: markup },
+      })
+    }
+
+    return selling
   }
 
   /** The number of a new article: the supplier's, or with the short code where it is taken. */

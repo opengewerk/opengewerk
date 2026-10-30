@@ -1,10 +1,13 @@
-import type { Id, TenantOwned } from '@opengewerk/platform-domain'
+import type { Id, IsoDate, TenantOwned } from '@opengewerk/platform-domain'
 
-import { type ArticleId, priceCentsMax } from './article.js'
+import { type ArticleId, type ArticlePriceId, priceCentsMax } from './article.js'
+import type { PriceBase } from './document-line.js'
 import type { SupplierId } from './supplier.js'
 
 export type SupplierMarkupId = Id<'supplier-markup'>
 export type ArticleMarkupId = Id<'article-markup'>
+export type ArticlePriceOriginId = Id<'article-price-origin'>
+export type SellingPriceRunId = Id<'selling-price-run'>
 
 /**
  * The markup on material (#463), decided on 28.09.2026: an article's selling
@@ -40,6 +43,29 @@ export interface ArticleMarkup extends TenantOwned {
   readonly fixed: boolean
   /** The article's own markup; null when the price is fixed. */
   readonly basisPoints: number | null
+}
+
+/**
+ * What a selling price that follows a purchase price came from: the purchase
+ * price, of the same price unit, and the markup. Only the office reads it.
+ */
+export interface ArticlePriceOrigin extends TenantOwned {
+  readonly id: ArticlePriceOriginId
+  readonly articlePriceId: ArticlePriceId
+  readonly purchaseCents: number
+  readonly basisPoints: number
+}
+
+/**
+ * Selling prices still to be worked out anew after a markup changed: of one
+ * supplier's articles, or of the whole business where `supplierId` is null,
+ * from a day on. One per business at a time.
+ */
+export interface SellingPriceRun extends TenantOwned {
+  readonly id: SellingPriceRunId
+  readonly supplierId: SupplierId | null
+  readonly fromDay: IsoDate
+  readonly requestedBy: string
 }
 
 /** What is wrong with a markup in basis points, as a sentence, or null. */
@@ -83,4 +109,92 @@ export function markupOf(
   }
 
   return article?.basisPoints ?? supplier ?? business
+}
+
+/** A price from a day on: the amount and how many units it is for. */
+export interface DatedPrice {
+  readonly validFrom: IsoDate
+  readonly cents: number
+  readonly priceBase: PriceBase
+}
+
+/** A selling price that follows a purchase price, with what it came from. */
+export interface FollowedPrice extends DatedPrice {
+  readonly purchaseCents: number
+  readonly basisPoints: number
+}
+
+/**
+ * What the selling prices of an article that follows its purchase price
+ * become from a day on (#463): on that day and on the day of every later
+ * purchase price of its main supplier, the purchase price with the markup, in
+ * its price unit. A price that is what applies already makes no new one.
+ *
+ * Says which held selling prices from that day on give way and which new
+ * ones come. Nothing changes without a markup or without any purchase price
+ * from that day on: no selling price comes from nothing, and none goes for it.
+ * Before the day nothing changes either; a price never applies backwards.
+ */
+export function followedPrices(
+  from: IsoDate,
+  purchases: readonly DatedPrice[],
+  selling: readonly (DatedPrice & { readonly id: string })[],
+  markup: number | null,
+): { readonly removed: readonly string[]; readonly added: readonly FollowedPrice[] } {
+  const byDay = [...purchases].sort((left, right) => left.validFrom.localeCompare(right.validFrom))
+  const purchaseOn = (day: IsoDate): DatedPrice | undefined =>
+    byDay.filter((price) => price.validFrom <= day).at(-1)
+  const days = [
+    from,
+    ...new Set(byDay.filter((price) => price.validFrom > from).map((price) => price.validFrom)),
+  ]
+
+  if (markup === null || !days.some((day) => purchaseOn(day) !== undefined)) {
+    return { removed: [], added: [] }
+  }
+
+  const held = [...selling].sort((left, right) => left.validFrom.localeCompare(right.validFrom))
+  let last: DatedPrice | undefined = held.filter((price) => price.validFrom < from).at(-1)
+  const wanted: FollowedPrice[] = []
+
+  for (const day of days) {
+    const purchase = purchaseOn(day)
+    const cents = purchase === undefined ? null : sellingCentsOf(purchase.cents, markup)
+
+    if (purchase === undefined || cents === null) {
+      continue
+    }
+
+    if (last?.cents === cents && last.priceBase === purchase.priceBase) {
+      continue
+    }
+
+    last = {
+      validFrom: day,
+      cents,
+      priceBase: purchase.priceBase,
+    }
+    wanted.push({ ...last, purchaseCents: purchase.cents, basisPoints: markup })
+  }
+
+  const kept = new Set<string>()
+  const added = wanted.filter((price) => {
+    const same = held.find(
+      (heldPrice) =>
+        heldPrice.validFrom === price.validFrom &&
+        heldPrice.cents === price.cents &&
+        heldPrice.priceBase === price.priceBase,
+    )
+
+    if (same !== undefined) {
+      kept.add(same.id)
+    }
+
+    return same === undefined
+  })
+  const removed = held
+    .filter((price) => price.validFrom >= from && !kept.has(price.id))
+    .map((price) => price.id)
+
+  return { removed, added }
 }

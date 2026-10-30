@@ -606,6 +606,16 @@ describe('an import from DATANORM', () => {
       { number: '6200002', cents: 181, base: 1 },
     ])
 
+    // Each with what it came from, for the office.
+    expect(
+      await count(
+        `select count(*) from article_price_origins o
+           join article_prices p on p.id = o.article_price_id
+          where p.import_id = $1 and o.basis_points = 2500`,
+        [first],
+      ),
+    ).toBe(2)
+
     // The list price is the purchase price where no net price comes (Feature-Gliederung v2.37).
     const { rows: purchase } = await admin.query<{ supplier_number: string; cents: number }>(
       `select s.supplier_number, p.unit_price_cents as cents

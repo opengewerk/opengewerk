@@ -1,10 +1,19 @@
-import { markupLimits } from '@opengewerk/domain'
+import { markupLimits, priceCentsMax } from '@opengewerk/domain'
 import { primaryId, reference, tenantIsolation, timestamps } from '@opengewerk/platform-server'
 import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
-import { boolean, check, foreignKey, integer, pgTable, unique } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  check,
+  date,
+  foreignKey,
+  integer,
+  pgTable,
+  text,
+  unique,
+} from 'drizzle-orm/pg-core'
 
-import { articles } from './articles.js'
+import { articlePrices, articles } from './articles.js'
 import { suppliers } from './suppliers.js'
 
 const inRange = (column: unknown) =>
@@ -71,5 +80,70 @@ export const articleMarkups = pgTable(
     // Either fixed or a markup of its own, never both and never neither.
     check('article_markups_fixed_or_own', sql`${table.fixed} = (${table.basisPoints} is null)`),
     check('article_markups_in_range', inRange(table.basisPoints)),
+  ],
+)
+
+/**
+ * What a selling price that follows a purchase price came from (#463): the
+ * purchase price and the markup, so that the office sees why a price is what
+ * it is. A selling price entered by hand has none. Beside `article_prices`
+ * and not in it: that table is on the devices, and neither figure may be.
+ */
+export const articlePriceOrigins = pgTable(
+  'article_price_origins',
+  {
+    id: primaryId<'article-price-origin'>(),
+    ...tenantColumn,
+    articlePriceId: reference<'article-price'>('article_price_id').notNull(),
+    /** The purchase price, of the same price unit as the selling price. */
+    purchaseCents: integer('purchase_cents').notNull(),
+    basisPoints: integer('basis_points').notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    tenantIsolation(table.tenantId),
+    unique('article_price_origins_tenant_id_key').on(table.tenantId, table.id),
+    unique('article_price_origins_once').on(table.tenantId, table.articlePriceId),
+    foreignKey({
+      columns: [table.tenantId, table.articlePriceId],
+      foreignColumns: [articlePrices.tenantId, articlePrices.id],
+      name: 'article_price_origins_price_in_tenant',
+    }).onDelete('cascade'),
+    check(
+      'article_price_origins_purchase_in_range',
+      sql`${table.purchaseCents} between 0 and ${sql.raw(String(priceCentsMax))}`,
+    ),
+    check('article_price_origins_in_range', inRange(table.basisPoints)),
+  ],
+)
+
+/**
+ * The selling prices still to be worked out anew after a markup changed
+ * (#463): for the articles of one supplier, or of the whole business where
+ * `supplier_id` is null, from a day on. One row per business; a further
+ * change while it waits widens it. The server works through it in pieces,
+ * each in a transaction of its own, so that a catalogue of a wholesaler
+ * keeps no device waiting, and takes it up again after a restart.
+ */
+export const sellingPriceRuns = pgTable(
+  'selling_price_runs',
+  {
+    id: primaryId<'selling-price-run'>(),
+    ...tenantColumn,
+    supplierId: reference<'supplier'>('supplier_id'),
+    fromDay: date('from_day').notNull(),
+    /** Who changed the markup; the new prices are written in that name. */
+    requestedBy: text('requested_by').notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    tenantIsolation(table.tenantId),
+    unique('selling_price_runs_tenant_id_key').on(table.tenantId, table.id),
+    unique('selling_price_runs_once').on(table.tenantId),
+    foreignKey({
+      columns: [table.tenantId, table.supplierId],
+      foreignColumns: [suppliers.tenantId, suppliers.id],
+      name: 'selling_price_runs_supplier_in_tenant',
+    }).onDelete('cascade'),
   ],
 )
