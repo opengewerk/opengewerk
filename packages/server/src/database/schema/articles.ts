@@ -1,4 +1,10 @@
-import { articleLimits, type PriceBase, priceBases, priceCentsMax } from '@opengewerk/domain'
+import {
+  articleLimits,
+  copperLimits,
+  type PriceBase,
+  priceBases,
+  priceCentsMax,
+} from '@opengewerk/domain'
 import {
   primaryId,
   reference,
@@ -153,6 +159,13 @@ export const supplierArticles = pgTable(
     supplierNumber: text('supplier_number'),
     /** The supplier's discount group (#297), kept for purchasing in Phase 4. */
     discountGroup: text('discount_group'),
+    /**
+     * The copper of the article at this supplier (#297), from the second
+     * record of DATANORM: base in euros for 100 kg and grams for 1000 units.
+     * Both or neither; the surcharge is worked out from them in #462.
+     */
+    copperBaseEuros: integer('copper_base_euros'),
+    copperGramsPerThousand: integer('copper_grams_per_thousand'),
     importId: reference<'article-import'>('import_id'),
     ...timestamps,
   },
@@ -183,6 +196,14 @@ export const supplierArticles = pgTable(
     check(
       'supplier_articles_discount_group_fits',
       sql`char_length(${table.discountGroup}) <= ${sql.raw(String(articleLimits.discountGroup))}`,
+    ),
+    check(
+      'supplier_articles_copper_whole',
+      sql`(${table.copperBaseEuros} is null) = (${table.copperGramsPerThousand} is null)`,
+    ),
+    check(
+      'supplier_articles_copper_in_range',
+      sql`${table.copperBaseEuros} between 0 and ${sql.raw(String(copperLimits.baseEuros))} and ${table.copperGramsPerThousand} between 0 and ${sql.raw(String(copperLimits.gramsPerThousand))}`,
     ),
   ],
 )

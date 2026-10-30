@@ -89,6 +89,11 @@ export interface ImportSummary {
   }[]
   /** Files that are no DATANORM file. */
   readonly skipped: readonly string[]
+  /**
+   * Files that bring long texts only, which an import does not take over
+   * (decided on 28.09.2026), and so does not read either.
+   */
+  readonly longTextFiles: readonly string[]
   /** Kinds of record not taken over, such as the surcharges of Z. */
   readonly ignored: readonly { readonly letter: string; readonly lines: number }[]
   /** The day the header of the files names. */
@@ -106,8 +111,6 @@ export interface ArticleImport {
   readonly charset: ImportCharset | null
   /** From when the prices apply, never before the day of the takeover. */
   readonly validFrom: IsoDate
-  /** Whether a list price becomes the selling price as well (proposed on). */
-  readonly listAsSelling: boolean
   readonly summary: ImportSummary | null
   readonly problem: string | null
   readonly createdAt: string

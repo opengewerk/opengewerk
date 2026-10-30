@@ -1,4 +1,4 @@
-import { type IsoDate, type PriceBase } from '@opengewerk/domain'
+import { type Copper, copperLimits, type IsoDate, type PriceBase } from '@opengewerk/domain'
 
 /**
  * The records of a DATANORM 4 file (#297), one per line, as the descriptions
@@ -14,6 +14,32 @@ import { type IsoDate, type PriceBase } from '@opengewerk/domain'
  * rest of the file is read all the same: one broken line of a hundred thousand
  * should not cost the other lines.
  */
+
+/**
+ * Fields 7 to 9 of the second record: a 1 where the article carries copper,
+ * then the base in euros for 100 kg and the weight in tenths of a kilogram
+ * for 1000 units. Read off a real delivery on 30.10.2026 (see `Copper`): the
+ * fields are the same whether the catalogue prices per 100 or per piece, and
+ * every article with the 1 has copper in the Z records of the same delivery.
+ * Silver, brass and aluminium stand in those Z records only, which are not
+ * read.
+ */
+function copperOf(flag: string, base: string, weight: string): Copper | null | 'unreadable' {
+  if (flag !== '1') {
+    return null
+  }
+
+  if (!/^\d{1,7}$/.test(base) || !/^\d{1,7}$/.test(weight)) {
+    return 'unreadable'
+  }
+
+  const copper = { baseEuros: Number(base), gramsPerThousand: Number(weight) * 100 }
+
+  return copper.baseEuros <= copperLimits.baseEuros &&
+    copper.gramsPerThousand <= copperLimits.gramsPerThousand
+    ? copper
+    : 'unreadable'
+}
 
 /** N, A and L: a new article, a change of one, and one to delete. */
 export type Processing = 'new' | 'change' | 'delete'
@@ -56,6 +82,8 @@ export interface ExtraRecord {
   readonly number: string
   readonly ean: string
   readonly group: string
+  /** The copper of fields 7 to 9, none, or what could not be read. */
+  readonly copper: Copper | null | 'unreadable'
 }
 
 export interface TextRecord {
@@ -306,6 +334,7 @@ export function recordOf(text: string, line: number): DatanormRecord | LineProbl
         number: field(2),
         ean: field(9),
         group: field(11),
+        copper: copperOf(field(6), field(7), field(8)),
       }
 
     case 'D':

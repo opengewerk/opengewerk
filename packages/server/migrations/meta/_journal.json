@@ -687,6 +687,13 @@
       "when": 1793349797321,
       "tag": "0097_contacts_follow_deletion",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1793352576216,
+      "tag": "0098_supplier_copper",
+      "breakpoints": true
     }
   ]
 }

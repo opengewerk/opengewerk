@@ -1,4 +1,4 @@
-import { eanProblem, type LineUnit, type PriceBase } from '@opengewerk/domain'
+import { type Copper, eanProblem, type LineUnit, type PriceBase } from '@opengewerk/domain'
 
 import {
   type ArticleRecord,
@@ -42,6 +42,12 @@ export interface CatalogueArticle {
   /** The group of goods by name, where the file names it, else by its code. */
   readonly groupOfGoods: string | null
   readonly ean: string | null
+  /**
+   * The copper the second record names, null where it names none, and
+   * undefined where the delivery brings no second record for the article:
+   * then the link keeps what it has.
+   */
+  readonly copper: Copper | null | undefined
 }
 
 export interface CatalogueFile {
@@ -77,6 +83,7 @@ interface Pending {
   /** The line of the second record, which the EAN came in. */
   eanLine: number
   group: string
+  copper: Copper | null | undefined
   dimension: { index: number; text: string }[]
 }
 
@@ -98,7 +105,6 @@ const endOfFile = 0x1a
 export function readCatalogue(files: readonly CatalogueFile[]): Catalogue {
   let header: Header | null = null
   const pending = new Map<string, Pending>()
-  const longTexts = new Map<string, { index: number; text: string }[]>()
   const groupNames = new Map<string, string>()
   const priceChanges = new Map<
     string,
@@ -161,6 +167,7 @@ export function readCatalogue(files: readonly CatalogueFile[]): Catalogue {
               ean: null,
               eanLine: record.line,
               group: '',
+              copper: undefined,
               dimension: [],
             })
           }
@@ -176,6 +183,16 @@ export function readCatalogue(files: readonly CatalogueFile[]): Catalogue {
             entry.ean = record.ean === '' ? null : record.ean
             entry.eanLine = record.line
             entry.group = record.group
+
+            if (record.copper === 'unreadable') {
+              problems.push({
+                file: file.name,
+                line: record.line,
+                reason: `Die Kupferangaben von ${record.number} sind nicht zu lesen und werden nicht übernommen.`,
+              })
+            } else {
+              entry.copper = record.copper
+            }
           }
 
           break
@@ -192,7 +209,10 @@ export function readCatalogue(files: readonly CatalogueFile[]): Catalogue {
         }
 
         case 'long-text':
-          longTexts.set(record.key, [...(longTexts.get(record.key) ?? []), ...record.lines])
+          // Long texts are not taken over (decided on 28.09.2026): a supplier
+          // that sends them writes them without umlauts, cut mid-word after 40
+          // characters. Counted with the records not read.
+          ignored.set('T', (ignored.get('T') ?? 0) + 1)
           break
 
         case 'prices':
@@ -228,13 +248,12 @@ export function readCatalogue(files: readonly CatalogueFile[]): Catalogue {
 
   const articles = new Map<string, CatalogueArticle>()
 
-  for (const [number, { article, ean, eanLine, group, dimension }] of pending) {
+  for (const [number, { article, ean, eanLine, group, copper, dimension }] of pending) {
     const { unit, known } = unitOf(article.unit)
-    const long = article.longTextKey === '' ? [] : (longTexts.get(article.longTextKey) ?? [])
-    const inOrder = (lines: readonly { index: number; text: string }[]) =>
-      [...lines].sort((left, right) => left.index - right.index).map((entry) => entry.text)
-    // The long text before the dimension text, as the descriptions order them.
-    const text = [...inOrder(long), ...inOrder(dimension)].filter((entry) => entry !== '')
+    const text = [...dimension]
+      .sort((left, right) => left.index - right.index)
+      .map((entry) => entry.text)
+      .filter((entry) => entry !== '')
     const validEan = ean !== null && eanProblem(ean) === null ? ean : null
 
     if (ean !== null && validEan === null) {
@@ -266,6 +285,7 @@ export function readCatalogue(files: readonly CatalogueFile[]): Catalogue {
       discountGroup: article.discountGroup === '' ? null : article.discountGroup,
       groupOfGoods,
       ean: validEan,
+      copper,
     })
   }
 

@@ -137,6 +137,8 @@ const catalogue = cp850([
   header('011026'),
   // Sold by the supplier already: a new list price per 1000 metres.
   'A;N;5700123;00;Mantelleitung NYM-J;3 × 1,5 mm²;1;3;m;98000;RG12;042;;',
+  // Its copper: base 150 euros for 100 kg, 43.2 kg a kilometre.
+  'B;N;5700123; ; ; ;1;150;432; ; ;0420;0;0; ; ;',
   // New, under a number the business uses for something else.
   'A;N;5709912;00;Kabelbinder 200x4,8;schwarz UV;1;2;Stck;350;RG30;042;;',
   // An article of the business, found by its EAN.
@@ -144,6 +146,8 @@ const catalogue = cp850([
   'B;N;6100001; ; ; ;;;;4006381333948; ;0510;0;0; ; ;',
   // New, with a net price only.
   'A;N;6200002;00;Abzweigdose;AP 80x80 grau;2;0;Stck;145;RG30;042;;',
+  // With the copper of its terminals: 0.5 kg for 1000 pieces, on no base.
+  'B;N;6200002; ; ; ;1;0;5; ; ;0420;0;0; ; ;',
   // Deleted, but never sold here.
   'A;L;7300003;00;Alt;;1;0;Stck;100;;;;',
 ])
@@ -243,7 +247,6 @@ describe('an import from DATANORM', () => {
     expect(read).toMatchObject({
       status: 'ready',
       validFrom: '2026-10-01',
-      listAsSelling: true,
       problem: null,
       progress: null,
     })
@@ -257,7 +260,8 @@ describe('an import from DATANORM', () => {
       renumbered: 1,
       shortCode: 'ELE',
       fileDate: '2026-10-01',
-      files: [{ name: 'DATANORM.001', charset: 'cp850', lines: 7 }],
+      files: [{ name: 'DATANORM.001', charset: 'cp850', lines: 9 }],
+      longTextFiles: [],
     })
     expect(read.summary?.samples.map((sample) => [sample.kind, sample.number])).toEqual([
       ['updated', '1042'],
@@ -298,17 +302,19 @@ describe('an import from DATANORM', () => {
       supplier_number: string
       number: string
       discount_group: string
+      copper: string | null
     }>(
-      `select s.supplier_number, a.number, s.discount_group
+      `select s.supplier_number, a.number, s.discount_group,
+              s.copper_base_euros || '/' || s.copper_grams_per_thousand as copper
          from supplier_articles s join articles a on a.id = s.article_id
         where s.supplier_id = $1 order by s.supplier_number`,
       [hansa],
     )
     expect(links).toEqual([
-      { supplier_number: '5700123', number: '1042', discount_group: 'RG12' },
-      { supplier_number: '5709912', number: '5709912-ELE', discount_group: 'RG30' },
-      { supplier_number: '6100001', number: '2101', discount_group: 'RG20' },
-      { supplier_number: '6200002', number: '6200002', discount_group: 'RG30' },
+      { supplier_number: '5700123', number: '1042', discount_group: 'RG12', copper: '150/43200' },
+      { supplier_number: '5709912', number: '5709912-ELE', discount_group: 'RG30', copper: null },
+      { supplier_number: '6100001', number: '2101', discount_group: 'RG20', copper: null },
+      { supplier_number: '6200002', number: '6200002', discount_group: 'RG30', copper: '0/500' },
     ])
 
     const { rows: lists } = await admin.query<{
@@ -331,11 +337,8 @@ describe('an import from DATANORM', () => {
          from article_prices p join articles a on a.id = p.article_id
         where p.valid_from = '2026-10-01' and p.deleted_at is null order by a.number`,
     )
-    expect(selling).toEqual([
-      { number: '1042', cents: 98000, base: 1000 },
-      { number: '2101', cents: 1290, base: 1 },
-      { number: '5709912-ELE', cents: 350, base: 100 },
-    ])
+    // A list price is the supplier's and no selling price (Feature-Gliederung v2.37).
+    expect(selling).toEqual([])
 
     expect(
       await count(
@@ -370,13 +373,13 @@ describe('an import from DATANORM', () => {
     )
     const taken = numbers.map((row) => Number(row.change_sequence))
 
-    expect(taken).toHaveLength(5)
-    expect(new Set(taken).size).toBe(5)
+    expect(taken).toHaveLength(2)
+    expect(new Set(taken).size).toBe(2)
     expect(Math.min(...taken)).toBeGreaterThan(cursor)
     expect(await count('select count(*) from articles where change_sequence < 0')).toBe(0)
     expect(await count('select count(*) from article_prices where change_sequence < 0')).toBe(0)
 
-    // A device on the cable, a frequent article, gets its new selling price.
+    // A device on the cable, a frequent article, gets no price of the import.
     const pulled = await http()
       .get(`/sync?since=${String(cursor)}`)
       .set('x-test-identity', office)
@@ -385,9 +388,7 @@ describe('an import from DATANORM', () => {
       (
         pulled.body as { changes: { entity: string; rows: Record<string, unknown>[] }[] }
       ).changes.find((change) => change.entity === 'article_prices')?.rows ?? []
-    expect(prices).toEqual([
-      expect.objectContaining({ articleId: cable, unitPriceCents: 98000, priceBase: 1000 }),
-    ])
+    expect(prices.filter((price) => price['articleId'] === cable)).toEqual([])
   })
 
   it('finds nothing to do in the same files a second time', async () => {
@@ -401,7 +402,7 @@ describe('an import from DATANORM', () => {
     await send('post', `/suppliers/${hansa}/imports/${again.id}/discard`, {}, 200)
   })
 
-  it('takes the prices of a price file, and a price of its own day gives way', async () => {
+  it('takes the prices of a price file, and a list price of its own day gives way', async () => {
     const prices = await preview([
       { name: 'DATPREIS.001', bytes: cp850([header('011026'), 'P;A;5700123;1;99500;0;RG12;;;;;']) },
     ])
@@ -417,23 +418,13 @@ describe('an import from DATANORM', () => {
     )
     expect(lists).toEqual([{ cents: 99500, base: 1000 }])
 
-    // The selling price of that day is marked and not removed, and the new one follows it.
-    const { rows: selling } = await admin.query<{
-      cents: number
-      deleted: boolean
-      version: number
-      change_sequence: string
-    }>(
-      `select unit_price_cents as cents, deleted_at is not null as deleted, version, change_sequence
-         from article_prices where article_id = $1 and valid_from = '2026-10-01'
-        order by unit_price_cents`,
-      [cable],
-    )
-    expect(selling.map(({ cents, deleted, version }) => ({ cents, deleted, version }))).toEqual([
-      { cents: 98000, deleted: true, version: 2 },
-      { cents: 99500, deleted: false, version: 1 },
-    ])
-    expect(selling.every((row) => Number(row.change_sequence) > 0)).toBe(true)
+    // Nor does a price file write a selling price.
+    expect(
+      await count(
+        `select count(*) from article_prices where article_id = $1 and valid_from = '2026-10-01'`,
+        [cable],
+      ),
+    ).toBe(0)
   })
 
   it('leaves the texts of the articles of the business as they are', async () => {
@@ -545,7 +536,7 @@ describe('the options of a preview', () => {
     const changed = (await send(
       'patch',
       `/suppliers/${hansa}/imports/${read.id}`,
-      { validFrom: '2026-11-01', listAsSelling: false, charset: 'windows-1252' },
+      { validFrom: '2026-11-01', charset: 'windows-1252' },
       202,
     )) as unknown as ArticleImport
 
@@ -557,7 +548,6 @@ describe('the options of a preview', () => {
     expect(again).toMatchObject({
       status: 'ready',
       validFrom: '2026-11-01',
-      listAsSelling: false,
       charset: 'windows-1252',
     })
     expect(again.summary?.files).toEqual([

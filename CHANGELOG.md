@@ -24,6 +24,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Reihenfolge, „überfällig“ und die Zeile einer Aufgabe standen zweimal im Code, einmal hier und einmal im Fundament.
   Das HTML der Karten ist vorher und nachher gleich; nur „noch nicht übertragen“ steht jetzt in der Farbe dessen, was
   wartet, wie überall sonst. Das Formular für eine neue Aufgabe bleibt das eigene, weil es eine Notiz kennt.
+- Ein Import aus DATANORM schreibt keinen Verkaufspreis mehr aus dem Listenpreis, der Haken „Listenpreis als
+  Verkaufspreis übernehmen“ entfällt; er übernimmt Kupferbasis und Kupfergewicht aus dem B-Satz an die Verknüpfung von
+  Artikel und Lieferant (Migration `0098_supplier_copper`) und keine Langtexte mehr, eine Datei nur mit Langtexten
+  liest er gar nicht (#297). Warum: so hat es Moritz am 28.09.2026 nach dem Test mit einer echten Lieferung
+  entschieden (Feature-Gliederung v2.37); der Verkaufspreis entsteht künftig aus Einkaufspreis und Aufschlag (#463),
+  der Metallzuschlag aus dem Kupfer (#462), und die Langtexte kamen ohne Umlaute und mitten im Wort abgeschnitten.
 
 ### Behoben
 

@@ -174,8 +174,10 @@ function viewOf(
     files: row.files,
     charset: row.charset ?? null,
     validFrom: row.validFrom as IsoDate,
-    listAsSelling: row.listAsSelling,
-    summary: row.summary ?? null,
+    // A summary an earlier version wrote has no list of long text files.
+    summary: row.summary
+      ? { ...row.summary, longTextFiles: row.summary.longTextFiles ?? [] }
+      : null,
     problem: row.problem ?? null,
     createdAt: row.createdAt.toISOString(),
     appliedAt: row.appliedAt?.toISOString() ?? null,
@@ -365,8 +367,8 @@ export class ArticleImports {
 
   /**
    * Changes the options of a preview and reads it again, so that what the
-   * office confirms is what it saw: the characters, the day the prices apply
-   * from, and whether a list price becomes the selling price as well.
+   * office confirms is what it saw: the characters and the day the prices
+   * apply from.
    */
   async change(
     importer: Importer,
@@ -374,13 +376,8 @@ export class ArticleImports {
     importId: ArticleImportId,
     body: unknown,
   ): Promise<ArticleImport> {
-    const values = (body ?? {}) as {
-      charset?: unknown
-      validFrom?: unknown
-      listAsSelling?: unknown
-    }
-    const change: { charset?: ImportCharset | null; validFrom?: IsoDate; listAsSelling?: boolean } =
-      {}
+    const values = (body ?? {}) as { charset?: unknown; validFrom?: unknown }
+    const change: { charset?: ImportCharset | null; validFrom?: IsoDate } = {}
 
     if ('charset' in values) {
       change.charset = charsetFrom(values.charset)
@@ -394,14 +391,6 @@ export class ArticleImports {
       }
 
       change.validFrom = values.validFrom as IsoDate
-    }
-
-    if (values.listAsSelling !== undefined) {
-      if (typeof values.listAsSelling !== 'boolean') {
-        throw new BadRequestException('Listenpreis als Verkaufspreis ist ja oder nein.')
-      }
-
-      change.listAsSelling = values.listAsSelling
     }
 
     const row = await this.database
@@ -454,7 +443,6 @@ export class ArticleImports {
 
         return planImport(delivery, holdings, {
           validFrom,
-          listAsSelling: row.listAsSelling,
           shortCode: supplier.shortCode ?? shortCodeFrom(supplier.name),
           newId: () => newId(),
         }).summary
@@ -576,7 +564,6 @@ export class ArticleImports {
         const supplier = await supplierOf(tx, row.supplierId)
         const plan = planImport(delivery, await holdingsOf(tx, row.supplierId, validFrom), {
           validFrom,
-          listAsSelling: row.listAsSelling,
           shortCode: supplier.shortCode ?? shortCodeFrom(supplier.name),
           newId: () => newId(),
         })
