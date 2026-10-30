@@ -258,6 +258,17 @@ describe('a job on site, for a technician', () => {
   })
 })
 
+describe('a job on site that the office cancelled (#735)', () => {
+  it('says so, and offers no finishing that the sync would refuse', async () => {
+    signedInAs('technician')
+    await mount([{ id: 'j-1', status: 'cancelled' }])
+
+    expect(await screen.findByText('Dieser Auftrag ist abgebrochen.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Auftrag abschließen' })).toBeNull()
+    expect(screen.queryByText('Dieser Auftrag ist abgeschlossen.')).toBeNull()
+  })
+})
+
 describe('a job on site, for somebody who may not report on it', () => {
   it('offers neither finishing nor a note', async () => {
     signedInAs()

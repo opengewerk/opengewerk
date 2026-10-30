@@ -506,6 +506,10 @@ export function SiteJobScreen() {
 
       {status === 'completed' ? (
         <SiteText muted>Dieser Auftrag ist abgeschlossen.</SiteText>
+      ) : status === 'cancelled' ? (
+        // A job the office cancelled stays on the devices for 30 days (#735).
+        // Finishing it is refused by the sync, so it is not offered.
+        <SiteText muted>Dieser Auftrag ist abgebrochen.</SiteText>
       ) : reports ? (
         // Slate, as the board has it: finishing is going somewhere, not
         // the thing this screen is for.
