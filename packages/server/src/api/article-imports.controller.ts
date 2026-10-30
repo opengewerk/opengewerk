@@ -16,6 +16,7 @@ import {
   Post,
   Put,
   Req,
+  RequestTimeoutException,
   UnprocessableEntityException,
 } from '@nestjs/common'
 import {
@@ -61,6 +62,14 @@ export class ArticleImportsController {
    * review of #777). Imports themselves run one at a time already.
    */
   private reading = false
+
+  /**
+   * How long a file may take to come in, so that nobody holds the one place
+   * by sending slowly (second security review of #777): 30 seconds without a
+   * byte, ten minutes in all, which is still 200 MB at 2.7 Mbit/s. Shorter
+   * in a test.
+   */
+  readLimits = { quietMs: 30_000, wholeMs: 600_000 }
 
   constructor(
     private readonly imports: ArticleImports,
@@ -120,8 +129,28 @@ export class ArticleImportsController {
     }
   }
 
+  /** The body, read within `readLimits`; one that stalls or takes too long is cut off. */
+  private async bodyOf(request: Request): Promise<Buffer | null> {
+    const late = new Error('The file came in too slowly')
+    const cut = () => request.destroy(late)
+    const deadline = setTimeout(cut, this.readLimits.wholeMs)
+
+    request.setTimeout(this.readLimits.quietMs, cut)
+
+    try {
+      return await bodyBytesOf(request, importFileBytes)
+    } catch (error) {
+      throw error === late
+        ? new RequestTimeoutException('Die Datei kam zu langsam an und wurde nicht gespeichert.')
+        : error
+    } finally {
+      clearTimeout(deadline)
+      request.setTimeout(0)
+    }
+  }
+
   private async stored(identity: RequestIdentity, sha256: string, request: Request) {
-    const body = await bodyBytesOf(request, importFileBytes)
+    const body = await this.bodyOf(request)
 
     if (body === null) {
       throw new PayloadTooLargeException(

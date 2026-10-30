@@ -17,6 +17,7 @@ import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/te
 import { ArticleImports, endInterruptedImports } from '../datanorm/imports.js'
 import { cp850, header, zipOf } from '../datanorm/test-files.js'
 import { ApiModule } from './api.module.js'
+import { ArticleImportsController } from './article-imports.controller.js'
 import { as, testIdentities as identities } from './test-identity.js'
 
 /**
@@ -322,6 +323,64 @@ describe('a file of a delivery', () => {
       await new Promise((resolve) => server.close(resolve))
     }
   })
+
+  it.each([
+    ['stalls', { quietMs: 300, wholeMs: 60_000 }, 0],
+    ['trickles in too long', { quietMs: 60_000, wholeMs: 600 }, 100],
+  ] as const)(
+    'is cut off when it %s, and the next one is read again',
+    async (_how, limits, every) => {
+      const controller = app.get(ArticleImportsController)
+      const before = controller.readLimits
+      const server = app.getHttpServer() as Server
+
+      controller.readLimits = limits
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+      try {
+        const { port } = server.address() as AddressInfo
+        const slow = httpRequest({
+          host: '127.0.0.1',
+          port,
+          method: 'PUT',
+          path: `/suppliers/${hansa}/imports/files/${'b'.repeat(64)}`,
+          headers: {
+            'content-type': 'application/octet-stream',
+            'content-length': '1000000',
+            'x-test-identity': office,
+          },
+        })
+        const ended = new Promise<void>((resolve) => {
+          slow.on('error', () => {
+            resolve()
+          })
+          slow.on('close', () => {
+            resolve()
+          })
+        })
+        const drip =
+          every > 0
+            ? setInterval(() => {
+                slow.write(Buffer.alloc(10, 0x43))
+              }, every)
+            : undefined
+
+        slow.write(Buffer.alloc(10, 0x43))
+
+        try {
+          await ended
+        } finally {
+          clearInterval(drip)
+        }
+
+        // The place is free again.
+        await put(new TextEncoder().encode(`V nach dem langsamen, ${_how}`)).expect(200)
+      } finally {
+        controller.readLimits = before
+        await new Promise((resolve) => server.close(resolve))
+      }
+    },
+  )
 })
 
 describe('an import from DATANORM', () => {
