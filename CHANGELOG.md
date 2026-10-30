@@ -13,8 +13,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Migration `0096_confirm_existing_addresses` holt das nach. Warum: `0095_address_confirmations` lief auf einer Instanz
   als Eigentümer der Tabellen, und der darf `auth_users` unter `FORCE ROW LEVEL SECURITY` nur lesen; ihr `UPDATE` traf
   keine Zeile, ohne Fehler. Ein Konto blieb so unbestätigt, ließ sich nicht zum Betreiber benennen und nicht über
-  `add-staff` oder `add-tenant` an die Arbeit setzen. Ein Test migriert jetzt als Eigentümer und prüft die Adressen.
-  Auf einer Instanz, die 0.6.4 schon hat, bestätigt 0096 auch Konten, die seitdem angelegt wurden.
+  `add-staff` oder `add-tenant` an die Arbeit setzen. 0096 bestätigt nur Konten, die es vor 0095 gab: kommen beide
+  Migrationen mit demselben Update, alle; hat eine Instanz 0.6.4 schon, die vor dem Erscheinen von 0.6.4 angelegten.
+  Ein Konto, das seitdem über einen Link mit einer nie erreichten Adresse entstand, bleibt unbestätigt. Zwei Tests
+  migrieren als Eigentümer und prüfen beide Wege.
 
 ## [0.6.4] - 2026-10-30
 
