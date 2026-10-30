@@ -73,6 +73,7 @@ import {
   supplierMarkup,
 } from '../../session/articles.js'
 import { Frequent, PageFooter, pageSize, PriceWithBase, saidWhy } from './articles.js'
+import { ImportsPanel } from './imports.js'
 import { ContactsSection } from './contacts.js'
 import { placeOf } from './customers.js'
 
@@ -186,6 +187,8 @@ export function SupplierScreen() {
   const writes = useMay('supplier.write')
   const readsArticles = useMay('article.read')
   const readsPurchase = useMay('purchase.read')
+  // An import writes purchase prices (#297): only for whoever keeps them.
+  const keepsPurchase = useMay('purchase.write')
   const navigate = useNavigate()
   const [page, setPage] = useState(0)
   const sold = useQuery({
@@ -243,6 +246,7 @@ export function SupplierScreen() {
             <>
               {readsPurchase ? <SupplierMarkupPanel supplierId={supplierId} /> : null}
               {readsPurchase ? <MetalPricesPanel supplierId={supplierId} /> : null}
+              {keepsPurchase ? <ImportsPanel supplierId={supplierId} /> : null}
               {readsArticles ? (
                 <SupplierArticles query={sold} page={page} onPage={setPage} />
               ) : null}

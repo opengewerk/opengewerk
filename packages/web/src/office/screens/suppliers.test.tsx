@@ -187,6 +187,8 @@ beforeEach(() => {
   })
   // No metal prices unless a test names some (#462).
   serverSays('GET', /^\/suppliers\/s-\d\/metal-prices\?/, { total: 0, current: [], rows: [] })
+  // Nor any import (#297).
+  serverSays('GET', /^\/suppliers\/s-\d\/imports$/, [])
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: /min-width:\s*(37\.5|64)rem/.test(query),
     media: query,

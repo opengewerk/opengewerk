@@ -40,5 +40,5 @@ await checkWidths({
    * its newest documents, so that the walk meets them among the first of
    * their kind: the quote with a price per 100 (#456), the report on site.
    */
-  openers: ['Bearbeiten', 'Position hinzufügen', 'Material eintragen'],
+  openers: ['Bearbeiten', 'Position hinzufügen', 'Material eintragen', 'Dateien einlesen'],
 })

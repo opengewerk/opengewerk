@@ -46,6 +46,7 @@ import {
   SupplierList,
   SupplierScreen,
 } from './screens/suppliers.js'
+import { ImportScreen, NewImportScreen } from './screens/imports.js'
 import { BoardScreen, CircuitScreen } from './screens/structure.js'
 import { InverterScreen, PvStringScreen } from './screens/pv-structure.js'
 import { TaskListScreen } from './screens/tasks.js'
@@ -184,6 +185,17 @@ const routes = [
     getParentRoute: () => office,
     path: '/lieferanten/$supplierId/bearbeiten',
     component: EditSupplierScreen,
+  }),
+  // An import from DATANORM (#297): the files of a delivery, then one import.
+  createRoute({
+    getParentRoute: () => office,
+    path: '/lieferanten/$supplierId/import',
+    component: NewImportScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/lieferanten/$supplierId/import/$importId',
+    component: ImportScreen,
   }),
   createRoute({ getParentRoute: () => office, path: '/belege', component: DocumentList }),
   createRoute({
