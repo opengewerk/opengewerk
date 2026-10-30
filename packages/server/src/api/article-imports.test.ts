@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 import { mkdtempSync, rmSync } from 'node:fs'
+import { request as httpRequest, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -267,6 +269,58 @@ describe('a file of a delivery', () => {
     await put(bytes, technician).expect(403)
     await put(bytes, office, 'a'.repeat(64)).expect(422)
     await put(new Uint8Array(0)).expect(400)
+  })
+
+  it('is read one at a time, and a second one meanwhile is refused before its body is read', async () => {
+    const server = app.getHttpServer() as Server
+
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+    try {
+      const { port } = server.address() as AddressInfo
+      const bytes = new Uint8Array(2_000_000).fill(0x42)
+      const sha256 = createHash('sha256').update(bytes).digest('hex')
+      // The first file, its body sent only in part and held open.
+      const first = httpRequest({
+        host: '127.0.0.1',
+        port,
+        method: 'PUT',
+        path: `/suppliers/${hansa}/imports/files/${sha256}`,
+        headers: {
+          'content-type': 'application/octet-stream',
+          'content-length': String(bytes.length),
+          'x-test-identity': office,
+        },
+      })
+      const answered = new Promise<number>((resolve, reject) => {
+        first.on('response', (response) => {
+          response.resume()
+          resolve(response.statusCode ?? 0)
+        })
+        first.on('error', reject)
+      })
+
+      first.write(Buffer.from(bytes.subarray(0, 1000)))
+
+      // Until the first is being read, a second goes through; once it is, a
+      // second is refused.
+      let second = 0
+
+      for (let attempt = 0; attempt < 100 && second !== 429; attempt += 1) {
+        second = (await put(new TextEncoder().encode(`V ${String(attempt)}`))).status
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+
+      expect(second).toBe(429)
+
+      first.end(Buffer.from(bytes.subarray(1000)))
+      expect(await answered).toBe(200)
+
+      // And the next one after it is read again.
+      await put(new TextEncoder().encode('V nach dem ersten')).expect(200)
+    } finally {
+      await new Promise((resolve) => server.close(resolve))
+    }
   })
 })
 

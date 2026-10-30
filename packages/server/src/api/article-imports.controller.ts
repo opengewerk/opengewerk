@@ -7,6 +7,8 @@ import {
   ForbiddenException,
   Get,
   HttpCode,
+  HttpException,
+  HttpStatus,
   Inject,
   Param,
   Patch,
@@ -51,6 +53,15 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
  */
 @Controller('suppliers/:supplierId/imports')
 export class ArticleImportsController {
+  /**
+   * Whether a file of a delivery is being read right now. One at a time in
+   * this process, whoever sends it: a body of up to 200 MB is held in memory
+   * while it is read and hashed, and the budgets of the hour count it only
+   * afterwards, so they bound what is stored and not what is held (security
+   * review of #777). Imports themselves run one at a time already.
+   */
+  private reading = false
+
   constructor(
     private readonly imports: ArticleImports,
     private readonly database: Database,
@@ -92,6 +103,24 @@ export class ArticleImportsController {
       throw new BadRequestException(malformed)
     }
 
+    // Refused before a byte of the body is read.
+    if (this.reading) {
+      throw new HttpException(
+        'Gerade wird schon eine Datei eines Imports gespeichert. Bitte gleich noch einmal versuchen.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      )
+    }
+
+    this.reading = true
+
+    try {
+      return await this.stored(identity, sha256, request)
+    } finally {
+      this.reading = false
+    }
+  }
+
+  private async stored(identity: RequestIdentity, sha256: string, request: Request) {
     const body = await bodyBytesOf(request, importFileBytes)
 
     if (body === null) {
