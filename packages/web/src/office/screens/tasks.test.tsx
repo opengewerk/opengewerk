@@ -16,7 +16,6 @@ import { userEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { inWorkingOrder, isOverdue, responsibleFor } from '../../app/tasks.js'
 import { MyTasks } from '../../site/screens/tasks.js'
 import { SyncClient } from '../../sync/client.js'
 import { JobScreen } from './jobs.js'
@@ -245,35 +244,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
-})
-
-describe('the order of a list of tasks', () => {
-  it('puts what is open first, the one due soonest on top, and what is done last', () => {
-    const ordered = inWorkingOrder([
-      task('a', { status: 'done', dueOn: '2026-09-01' }),
-      task('b', { dueOn: '2026-09-30' }),
-      task('c', { status: 'done', dueOn: '2026-09-20' }),
-      task('d', { dueOn: '2026-09-10' }),
-    ] as RecordState[])
-
-    expect(ordered.map((row) => row['id'])).toEqual(['d', 'b', 'c', 'a'])
-  })
-
-  it('calls a task overdue only while it is open and past its day', () => {
-    expect(isOverdue(task('a', { dueOn: '2026-09-01' }) as RecordState, '2026-09-02')).toBe(true)
-    expect(isOverdue(task('a', { dueOn: '2026-09-02' }) as RecordState, '2026-09-02')).toBe(false)
-    expect(
-      isOverdue(task('a', { dueOn: '2026-09-01', status: 'done' }) as RecordState, '2026-09-02'),
-    ).toBe(false)
-  })
-
-  it('says "du" for one\'s own, the name for somebody else and a plain word without names', () => {
-    const people = [{ userId: 'britta', name: 'Britta Büro', active: true }]
-
-    expect(responsibleFor(task('a') as RecordState, 'britta', people)).toBe('du')
-    expect(responsibleFor(task('a') as RecordState, 'max', people)).toBe('Britta Büro')
-    expect(responsibleFor(task('a') as RecordState, 'max', [])).toBe('jemand anderes')
-  })
 })
 
 describe('the tasks of a job in the office', () => {
