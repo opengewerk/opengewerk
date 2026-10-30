@@ -7,6 +7,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-10-30
+
+Eine Sicherheitsfassung mit dem letzten Punkt aus der Sicherheitsprüfung der Handwerkersoftware vom Oktober 2026:
+Eine neue E-Mail-Adresse gilt erst, wenn der Link in einer Mail an sie geöffnet ist (#754). Damit ist jeder Befund
+und jeder Hinweis dieser Prüfung behoben.
+
+**Ohne Mailserver der Instanz ändert sich ab dieser Fassung keine E-Mail-Adresse mehr**, der Name schon; wer
+Adressen ändern will, richtet im Bereich der Instanz einen Mailserver ein. Jede Adresse, die es beim Update schon
+gibt, gilt als bestätigt. Wer ein Konto zum Betreiber benennt oder über `add-staff` oder `add-tenant` an die Arbeit
+setzt, braucht dafür eine bestätigte Adresse.
+
+Aktualisiert wird wie bei jeder Fassung, vorher gesichert. Eine Migration kommt dazu, `0095_address_confirmations`.
+
 ### Sicherheit
 
 - Eine neue E-Mail-Adresse gilt erst, wenn der Link in einer Mail an sie geöffnet ist (#754). Unter „Konto“ und
