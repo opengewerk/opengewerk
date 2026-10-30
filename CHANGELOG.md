@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Bildschirme des Imports aus DATANORM, Teil von #297, nach den Tafeln aus Version 79 des Canvas: am Lieferanten
+  die Karte „Importe aus DATANORM“ mit den letzten Importen und „Dateien einlesen“; die Seite „Import aus DATANORM“, auf
+  der die Dateien einer Lieferung nacheinander hochgehen, mit Fortschritt, und das Einlesen beginnt, sobald alle oben
+  sind; die Vorschau mit ihren Zahlen, den Verkaufspreisen aus dem Aufschlag oder dem Satz, dass ohne Aufschlag keiner
+  entsteht, einer Auswahl der Artikel, den Dateien, dem, was nicht übernommen wird, und den Einstellungen „Preise
+  gelten ab“ und „Zeichensatz“; „Übernehmen“ mit Fortschritt und „Verwerfen“; und was ein übernommener, verworfener
+  oder gescheiterter Import tat. Nur für Inhaber und Büro mit dem Recht, Einkaufspreise zu pflegen. Warum: bisher
+  ließ sich ein Import nur über die Routen anstoßen; jetzt kann das Büro die Lieferung eines Großhändlers selbst
+  einlesen und vor der Übernahme sehen, was sie ändert.
 - Die Bildschirme zum Metallzuschlag, zweiter Teil von #462, nach den Tafeln aus Version 76 des Canvas: unter
   „Einstellungen“ in „Aufschlag auf Material“ die Karte „Metallzuschlag“, ob der Aufschlag auch auf den Zuschlag kommt,
   an oder aus ab einem Tag; am Lieferanten in der Karte „Aufschlag auf Material“ dasselbe für ihn und die neue Karte
