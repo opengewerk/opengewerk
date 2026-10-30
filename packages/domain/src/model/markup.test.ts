@@ -8,8 +8,10 @@ import {
   followedPrices,
   markupLabel,
   markupOf,
+  markupFrom,
   markupProblem,
   sellingCentsOf,
+  unitCentsFrom,
 } from './markup.js'
 
 /**
@@ -155,5 +157,27 @@ describe('a markup as the office types and reads it', () => {
     expect(markupLabel(2500)).toBe('25 %')
     expect(markupLabel(1)).toBe('0,01 %')
     expect(markupLabel(100_000)).toBe('1.000 %')
+  })
+})
+
+describe('the purchase price and the markup at a position', () => {
+  const cable = { cents: 5400, priceBase: 100 as const }
+
+  it('make the unit price, for the price unit of the position', () => {
+    expect(unitCentsFrom(cable, 100, 2200)).toBe(6588)
+    // 0,54 € a metre with 22 % are 0,6588 €, half a cent up 0,66 €.
+    expect(unitCentsFrom(cable, 1, 2200)).toBe(66)
+    expect(unitCentsFrom(cable, 1000, 0)).toBe(54_000)
+    // Exact where a number would no longer be: the largest price per 1000 with 1.000 %.
+    expect(unitCentsFrom({ cents: 99_999_999, priceBase: 1 }, 1000, 100_000)).toBe(
+      1_099_999_989_000,
+    )
+  })
+
+  it('come back from a typed unit price, below the purchase price as less than nothing', () => {
+    expect(markupFrom(cable, 100, 6588)).toBe(2200)
+    expect(markupFrom(cable, 1, 66)).toBe(2222)
+    expect(markupFrom(cable, 100, 4860)).toBe(-1000)
+    expect(markupFrom({ cents: 0, priceBase: 1 }, 1, 100)).toBeNull()
   })
 })

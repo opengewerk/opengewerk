@@ -11,11 +11,13 @@ import type {
   VatRate,
 } from '@opengewerk/domain'
 import {
+  basisPointsFrom,
   billedAfter,
   deductedPart,
   deducts,
   lineNetCents,
   lineUnits,
+  markupFrom,
   movedInOutline,
   outlineRows,
   priceBaseOf,
@@ -24,6 +26,7 @@ import {
   shippedRules,
   showsPrices,
   totalsFor,
+  unitCentsFrom,
   vatRates,
 } from '@opengewerk/domain'
 import {
@@ -77,6 +80,8 @@ import {
   vatRateLabel,
   vatRateOf,
 } from '../../app/labels.js'
+import { useMay } from '../../app/queries.js'
+import { purchaseOf } from '../../session/articles.js'
 import { deductionsOf } from '../../session/documents.js'
 import { ArticlePicker } from './article-picker.js'
 import { Reorder } from './boards.js'
@@ -318,14 +323,50 @@ function LineForm({
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({})
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
+  // The markup as typed; until somebody types one, it follows the unit price.
+  const [markupTyped, setMarkupTyped] = useState<string | null>(null)
   const item = kind === 'item'
   // A lump sum is for one of it; "je 100 psch." would say nothing (#456).
   const perUnits = item && priced && unit !== 'flat_rate'
+  const lineBase = perUnits ? priceBaseOf(Number(base)) : 1
   const baseOptions = priceBases.map((step) => ({
     value: String(step),
     label: priceBaseLabel(step, lineUnitOf({ unit })),
   }))
-  const shown = 2 + (priced ? 1 : 0) + (perUnits ? 1 : 0) + (priced && taxed ? 1 : 0)
+  // The purchase price of the article's main supplier on the document's date
+  // (#463), for whoever may read purchase prices. Never part of the line:
+  // looked up here, beside the unit price, and nowhere else.
+  const readsPurchase = useMay('purchase.read')
+  const purchase = useQuery({
+    queryKey: ['articles', 'purchase', articleId, day],
+    queryFn: () => purchaseOf(articleId ?? '', day),
+    enabled: item && priced && readsPurchase && articleId !== null,
+  })
+  const bought = item && priced && readsPurchase ? (purchase.data?.purchase ?? null) : null
+  const typedCents = parseEuros(price)
+  const derived =
+    bought === null || typedCents === null ? null : markupFrom(bought, lineBase, typedCents)
+  const markupShown =
+    markupTyped ?? (derived === null ? '' : String(derived / 100).replace('.', ','))
+  const markupRead =
+    markupTyped === null || markupTyped.trim() === '' ? null : basisPointsFrom(markupTyped)
+  const markupProblem = markupRead !== null && 'problem' in markupRead ? markupRead.problem : null
+  const shown =
+    2 + (priced && bought === null ? 1 : 0) + (perUnits ? 1 : 0) + (priced && taxed ? 1 : 0)
+  const unitPrice = (
+    <Field
+      label="Einzelpreis in Euro"
+      inputMode="decimal"
+      numeric
+      value={price}
+      problem={problems['price']}
+      onChange={(event) => {
+        setPrice(event.target.value)
+        setMarkupTyped(null)
+      }}
+      {...(bought === null ? {} : { hint: 'Ändert man ihn, rechnet sich der Aufschlag.' })}
+    />
+  )
 
   async function save(event: FormEvent) {
     event.preventDefault()
@@ -400,6 +441,7 @@ function LineForm({
                 setDescription(article.description ?? '')
                 setUnit(article.unit)
                 setArticleId(article.id)
+                setMarkupTyped(null)
 
                 if (priced) {
                   setPrice(article.priceCents === null ? '' : centsAsInput(article.priceCents))
@@ -467,18 +509,7 @@ function LineForm({
             }}
           />
           <SelectField label="Einheit" value={unit} options={unitOptions} onChange={setUnit} />
-          {priced ? (
-            <Field
-              label="Einzelpreis in Euro"
-              inputMode="decimal"
-              numeric
-              value={price}
-              problem={problems['price']}
-              onChange={(event) => {
-                setPrice(event.target.value)
-              }}
-            />
-          ) : null}
+          {priced && bought === null ? unitPrice : null}
           {perUnits ? (
             <SelectField
               label="Preis je"
@@ -491,6 +522,41 @@ function LineForm({
           {priced && taxed ? (
             <SelectField label="Steuersatz" value={rate} options={rateOptions} onChange={setRate} />
           ) : null}
+        </div>
+      ) : null}
+
+      {bought !== null ? (
+        // Purchase price, markup and unit price, as the board "Neue Position mit
+        // Einkaufspreis und Aufschlag" draws them: change one, the other follows.
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field
+            label="Einkaufspreis in Euro"
+            numeric
+            readOnly
+            className="bg-surface-sunken!"
+            value={centsAsInput(unitCentsFrom(bought, lineBase, 0))}
+            hint={`Von ${bought.supplierName}, am Belegdatum. Steht nie im Druck, in der E-Rechnung oder auf der Baustelle.`}
+          />
+          <Field
+            label="Aufschlag"
+            inputMode="decimal"
+            numeric
+            unit="%"
+            value={markupShown}
+            {...(markupProblem === null ? {} : { problem: markupProblem })}
+            hint="Ändert man ihn, rechnet sich der Einzelpreis."
+            onChange={(event) => {
+              const typed = event.target.value
+              const read = basisPointsFrom(typed)
+
+              setMarkupTyped(typed)
+
+              if ('basisPoints' in read) {
+                setPrice(centsAsInput(unitCentsFrom(bought, lineBase, read.basisPoints)))
+              }
+            }}
+          />
+          {unitPrice}
         </div>
       ) : null}
 

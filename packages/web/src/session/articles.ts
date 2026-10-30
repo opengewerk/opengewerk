@@ -266,6 +266,22 @@ export function setMainSupplier(id: string, linkId: string): Promise<unknown> {
   )
 }
 
+/** The purchase price of an article's main supplier on a day (#463), with the supplier's name. */
+export interface MainPurchase {
+  readonly cents: number
+  readonly priceBase: PriceBase
+  readonly supplierName: string
+}
+
+export function purchaseOf(
+  articleId: string,
+  day: IsoDate,
+): Promise<{ readonly purchase: MainPurchase | null }> {
+  return request<{ readonly purchase: MainPurchase | null }>(
+    `/articles/${encodeURIComponent(articleId)}/purchase?on=${day}`,
+  )
+}
+
 /** A supplier's own markup, the business's beside it, and whether prices are still worked out. */
 export interface SupplierMarkup {
   readonly basisPoints: number | null

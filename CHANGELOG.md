@@ -14,8 +14,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Karte „Aufschlag auf Material“ mit seinem eigenen Aufschlag und in seiner Artikelliste die Spalte „Hauptlieferant“, am
   Artikel über den Verkaufspreisen die Preisbildung, fest oder aus Einkaufspreis und Aufschlag, die Spalte „Entstanden
   aus“ und bei den Lieferanten Hauptlieferant, „Zum Hauptlieferanten“ und ihr Aufschlag. Ein Artikel, der dem
-  Einkaufspreis folgt, bietet keinen Preis von Hand an. Die Vorschau legt dafür 25 % für den Betrieb und 22 % für einen
-  Großhändler an, und die Mantelleitung folgt dem Einkaufspreis. Warum: der Betrieb soll seinen Aufschlag selbst
+  Einkaufspreis folgt, bietet keinen Preis von Hand an. Dazu Teil 3: eine Position aus einem Artikel zeigt im Büro den
+  Einkaufspreis des Hauptlieferanten am Belegdatum (`GET /articles/:id/purchase?on=`), den Aufschlag und den
+  Einzelpreis; ändert man den Aufschlag, rechnet sich der Einzelpreis, ändert man den Einzelpreis, der Aufschlag. Die
+  Position behält nur den Einzelpreis, Einkaufspreis und Aufschlag stehen so nie im Druck, in der E-Rechnung oder auf
+  der Baustelle. Die Vorschau legt dafür 25 % für den Betrieb und 22 % für einen Großhändler an, und die Mantelleitung
+  folgt dem Einkaufspreis. Warum: der Betrieb soll seinen Aufschlag selbst
   einstellen und sehen, woraus ein Verkaufspreis entstand, ohne dass ein Einkaufspreis die Hand des Büros verlässt.
 - Ein Verkaufspreis, der dem Einkaufspreis folgt, rechnet sich neu, wenn sich etwas ändert, dem er folgt, zweiter
   Teil von #463, hier der Server: der Aufschlag des Betriebs (`POST /settings/parameters`), der eines Lieferanten

@@ -753,6 +753,47 @@ export class ArticlesController {
   }
 
   /**
+   * The purchase price of the article's main supplier on a day (#463), for a
+   * position in the office that shows it beside its unit price, with the
+   * supplier's name. `purchase` is null where there is none.
+   */
+  @Get(':id/purchase')
+  @RequiresPermission('purchase.read')
+  purchaseOn(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Query('on') on: string | undefined,
+  ) {
+    if (!isCalendarDay(on)) {
+      throw new BadRequestException('Der Tag muss ein Datum der Form 2026-01-01 sein.')
+    }
+
+    return this.database.forTenant(identity, async (tx) => {
+      const article = await articleOf(tx, id)
+      const found = await tx.execute(sql`
+        select p.unit_price_cents as cents, p.price_base, s.name as supplier_name
+          from supplier_articles l
+          join purchase_prices p on p.supplier_article_id = l.id
+          join suppliers s on s.id = l.supplier_id
+         where l.article_id = ${article.id} and l.main and p.valid_from <= ${on}
+         order by p.valid_from desc
+         limit 1`)
+      const row = found.rows[0]
+
+      return {
+        purchase:
+          row === undefined
+            ? null
+            : {
+                cents: Number(row['cents']),
+                priceBase: Number(row['price_base']) as PriceBase,
+                supplierName: row['supplier_name'] as string,
+              },
+      }
+    })
+  }
+
+  /**
    * How the article's selling price comes about (#463): fixed, or following
    * the purchase price of its main supplier with a markup of its own or,
    * without one, the supplier's or the business's. From today on, at once.
