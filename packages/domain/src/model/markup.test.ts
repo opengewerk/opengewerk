@@ -144,7 +144,13 @@ describe('a markup as the office types and reads it', () => {
       expect(basisPointsFrom(typed)).toEqual({ basisPoints })
     }
 
-    for (const typed of ['', 'zwölf', '22,555', '-5', '1000,01', '22,']) {
+    // A long run of spaces is read at once, not in time growing with its square.
+    const started = performance.now()
+
+    expect(basisPointsFrom(`${' '.repeat(100_000)}x`)).toHaveProperty('problem')
+    expect(performance.now() - started).toBeLessThan(200)
+
+    for (const typed of ['', 'zwölf', '22,555', '-5', '1000,01', '22,', '%']) {
       expect(basisPointsFrom(typed)).toEqual({
         problem:
           'Ein Aufschlag liegt zwischen 0 und 1.000 % und hat höchstens zwei Stellen nach dem Komma.',

@@ -98,7 +98,10 @@ export function markupLabel(basisPoints: number): string {
 export function basisPointsFrom(
   input: string,
 ): { readonly basisPoints: number } | { readonly problem: string } {
-  const typed = input.trim().replace(/\s*%$/, '')
+  // The sign at the end, without a pattern: "\s*%$" takes time that grows
+  // with the square of a run of spaces (CodeQL js/polynomial-redos).
+  const trimmed = input.trim()
+  const typed = trimmed.endsWith('%') ? trimmed.slice(0, -1).trim() : trimmed
   const shaped = /^(\d{1,4})(?:[,.](\d{1,2}))?$/.exec(typed)
   const basisPoints =
     shaped === null
