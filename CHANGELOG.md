@@ -38,6 +38,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Inhalt gelesen ist, weil die Budgets erst nach dem Lesen zählen (Security-Review von #777). Wer langsam sendet,
   hält keine Stelle: nach 30 Sekunden ohne Daten oder 10 Minuten insgesamt bricht die Route ab, und Konto und Betrieb
   warten danach 5 Minuten, ebenso nach einer Datei, die ihr Absender selbst abbricht.
+- Ein Import aus DATANORM wird in einem eigenen Thread gelesen und mit dem Bestand verglichen, die Anwendung antwortet
+  währenddessen weiter (#297). Warum: das Sortiment eines Großhändlers zu lesen hielt die Anwendung 5 Sekunden lang
+  an, jede andere Anfrage wartete so lange. Der Thread bekommt die Hälfte des Heaps; reicht sie für eine Lieferung
+  nicht, endet nur er, mit einem Satz in der Vorschau. Die Tests des Servers bauen ihn vorher, und die Vorschau baut
+  den Server mit.
 
 ### Behoben
 

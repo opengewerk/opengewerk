@@ -25,7 +25,7 @@
       "dependsOn": ["^build"]
     },
     "@opengewerk/server#test": {
-      "dependsOn": ["^build", "@opengewerk/platform-server#test"]
+      "dependsOn": ["^build", "build", "@opengewerk/platform-server#test"]
     }
   }
 }
