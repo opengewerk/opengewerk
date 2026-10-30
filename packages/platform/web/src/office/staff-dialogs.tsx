@@ -21,6 +21,7 @@ import {
   correctAccount,
   invite,
   openInvitations,
+  resetSecondFactor,
   revokeStaffDevice,
   setBlocked,
   setRoles,
@@ -182,6 +183,7 @@ export function StaffDialogsScreen<Value = undefined>({
   // Blocking and withdrawing ask first; unblocking does not, it takes nothing
   // away.
   const [blocking, setBlocking] = useState<{ userId: string; name: string } | null>(null)
+  const [resetting, setResetting] = useState<{ userId: string; name: string } | null>(null)
   const [withdrawing, setWithdrawing] = useState<{ id: string; email: string } | null>(null)
 
   function refresh() {
@@ -205,6 +207,20 @@ export function StaffDialogsScreen<Value = undefined>({
     onError: (error) => {
       setBlocking(null)
       setTrouble(saidWhy(error, 'Das ließ sich nicht ändern.'))
+    },
+  })
+
+  // The way back for somebody who has lost their second factor (N6 of the
+  // security audit), as on the list without dialogs.
+  const reset = useMutation({
+    mutationFn: (userId: string) => resetSecondFactor(userId),
+    onSuccess: () => {
+      setResetting(null)
+      refresh()
+    },
+    onError: (error) => {
+      setResetting(null)
+      setTrouble(saidWhy(error, 'Der zweite Faktor ließ sich nicht zurücksetzen.'))
     },
   })
 
@@ -279,6 +295,21 @@ export function StaffDialogsScreen<Value = undefined>({
             }}
           >
             {person.blockedAt ? 'Entsperren' : 'Sperren'}
+          </Button>
+        )}
+        {person.userId === you ||
+        !mayWrite ||
+        !(person.twoFactorEnabled || person.hasPasskey) ? null : (
+          <Button
+            size="small"
+            aria-label={`Zweiten Faktor von ${person.name} zurücksetzen`}
+            disabled={reset.isPending}
+            onClick={() => {
+              setTrouble(null)
+              setResetting({ userId: person.userId, name: person.name })
+            }}
+          >
+            Faktor zurücksetzen
           </Button>
         )}
       </span>
@@ -557,6 +588,22 @@ export function StaffDialogsScreen<Value = undefined>({
         }}
       >
         {`${blocking?.name ?? ''} kann sich danach nicht mehr anmelden, und alle Geräte dieses Zugangs werden abgemeldet. Entsperren geht jederzeit.`}
+      </Confirm>
+      <Confirm
+        open={resetting !== null}
+        title={`Zweiten Faktor von ${resetting?.name ?? ''} zurücksetzen?`}
+        confirm="Zurücksetzen"
+        busy={reset.isPending}
+        onConfirm={() => {
+          if (resetting) {
+            reset.mutate(resetting.userId)
+          }
+        }}
+        onCancel={() => {
+          setResetting(null)
+        }}
+      >
+        {`Die Authenticator-App und die Passkeys von ${resetting?.name ?? ''} werden entfernt, und alle Geräte dieses Zugangs werden abgemeldet. ${resetting?.name ?? ''} bekommt darüber eine E-Mail und richtet bei der nächsten Anmeldung einen neuen zweiten Faktor ein, wo eine Rolle ihn verlangt.`}
       </Confirm>
       <Confirm
         open={withdrawing !== null}

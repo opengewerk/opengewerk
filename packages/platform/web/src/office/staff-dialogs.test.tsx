@@ -444,6 +444,44 @@ describe('the accounts of a tenant, one role each', () => {
   })
 
   /**
+   * The way back for somebody who has lost their second factor (N6 of the
+   * security audit), on this list as on the one without dialogs: offered where
+   * there is one to take, never for oneself, and only after asking.
+   */
+  it('take the second factor of somebody only after asking, where there is one and not their own', async () => {
+    server.answer('GET', '/staff', [
+      lea,
+      { ...max, hasPasskey: true },
+      { ...max, userId: 'u-3', name: 'Ole Ohne', email: 'ole@nord.example.de' },
+    ])
+    server.answer('DELETE', '/staff/u-2/second-factor', { userId: 'u-2', reset: true })
+
+    staffScreen()
+    await screen.findByText('Ole Ohne')
+
+    const person = userEvent.setup()
+
+    expect(within(rowOf('Lea Leitung')).queryByRole('button', { name: /zurücksetzen$/ })).toBeNull()
+    expect(within(rowOf('Ole Ohne')).queryByRole('button', { name: /zurücksetzen$/ })).toBeNull()
+
+    await person.click(
+      await screen.findByRole('button', { name: 'Zweiten Faktor von Max Mitglied zurücksetzen' }),
+    )
+
+    const asking = await screen.findByRole('alertdialog', {
+      name: 'Zweiten Faktor von Max Mitglied zurücksetzen?',
+    })
+
+    expect(asking.textContent).toContain('alle Geräte dieses Zugangs werden abgemeldet')
+    expect(written()).toEqual([])
+
+    await person.click(within(asking).getByRole('button', { name: 'Zurücksetzen' }))
+    await waitFor(() => {
+      expect(written()).toEqual(['DELETE /staff/u-2/second-factor'])
+    })
+  })
+
+  /**
    * A tenant may give a role the right to read the list without the right to
    * change it. Nothing the routes would refuse is offered then; the list, the
    * invitations and the devices stay readable.

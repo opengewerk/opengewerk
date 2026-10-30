@@ -7,6 +7,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Behoben
+
+- „Faktor zurücksetzen“ steht auch in der Liste der Zugänge mit Dialogen (`StaffDialogsScreen`), die OpenGewerk
+  Haustechnik nutzt, mit derselben Rückfrage wie in `StaffScreen`. Warum: #762 hatte den Knopf nur in `StaffScreen`
+  eingebaut; in der Haustechnik setzte den zweiten Faktor eines Zugangs dann nur `reset-second-factor` auf dem Server
+  zurück, obwohl die Route der Leitung offensteht.
+
 ## [0.6.3] - 2026-10-29
 
 Eine Sicherheitsfassung mit den Korrekturen aus der Sicherheitsprüfung der Handwerkersoftware vom 27. bis
