@@ -235,6 +235,39 @@ describe('contacts', () => {
     expect(kept.rows[0]?.deleted_at).toBeInstanceOf(Date)
   })
 
+  it.each([
+    ['customer', '/customers', () => made('/customers', { kind: 'private', name: 'Lindner' })],
+    ['site', '/sites', () => made('/sites', { customerId, designation: 'Speicher' })],
+  ] as const)(
+    'go with their %s when it is removed, and a device hears of it at its next pull',
+    async (parent, path, makeParent) => {
+      const parentId = await makeParent()
+      const own = await contact({ [`${parent}Id`]: parentId, familyName: 'Fehrs' })
+      const other = await contact({ customerId, familyName: 'Ahrens' })
+      const before = await http().get('/sync?since=0').set('x-test-identity', office())
+      const cursor = (before.body as { cursor: number }).cursor
+
+      await http().delete(`${path}/${parentId}`).set('x-test-identity', office()).expect(200)
+
+      const standing = (await list()).map((entry) => entry.id)
+      expect(standing).not.toContain(own.id)
+      expect(standing).toContain(other.id)
+
+      const pulled = await http()
+        .get(`/sync?since=${String(cursor)}`)
+        .set('x-test-identity', office())
+        .expect(200)
+      const rows =
+        (
+          pulled.body as { changes: { entity: string; rows: Record<string, unknown>[] }[] }
+        ).changes.find((change) => change.entity === 'contacts')?.rows ?? []
+
+      expect(rows).toEqual([
+        expect.objectContaining({ id: own.id, deletedAt: expect.any(String) as unknown }),
+      ])
+    },
+  )
+
   it('cannot be removed for good by the application role, which only marks them', async () => {
     const row = await contact({ customerId, familyName: 'Gerdes' })
 

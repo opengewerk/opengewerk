@@ -1398,6 +1398,91 @@ describe('the addresses of the accounts from before 0095', () => {
   })
 })
 
+/**
+ * The contacts of an instance from before 0097 (#555): a customer or a site
+ * deleted there left its contacts standing. The update marks them, with the
+ * moment of their parent, and leaves every other contact as it was.
+ */
+describe('the contacts of customers and sites deleted before 0097', () => {
+  const before = () =>
+    readMigrationIndex().findIndex((entry) => entry.tag === '0097_contacts_follow_deletion')
+
+  const others = `select id, version, change_sequence from contacts
+                   where family_name in ('Ehlers', 'Weber', 'Hansen') order by family_name`
+
+  it('are marked as deleted by the update, and no other contact is touched', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+
+    const gone = new Date('2026-10-01T08:00:00Z')
+    const earlier = new Date('2026-09-01T08:00:00Z')
+    const [deletedCustomer, keptCustomer] = [newId<'customer'>(), newId<'customer'>()]
+    const [deletedSite, keptSite] = [newId<'site'>(), newId<'site'>()]
+
+    await admin.query(
+      `insert into customers (id, tenant_id, kind, name, deleted_at)
+         values ($1, $3, 'business', 'Bauherr Nord', $4), ($2, $3, 'private', 'Familie Weber', null)`,
+      [deletedCustomer, keptCustomer, tenant.id, gone],
+    )
+    await admin.query(
+      `insert into sites (id, tenant_id, customer_id, designation, deleted_at)
+         values ($1, $3, $4, 'Lager', $5), ($2, $3, $4, 'Wohnhaus', null)`,
+      [deletedSite, keptSite, tenant.id, keptCustomer, gone],
+    )
+    await admin.query(
+      `insert into contacts (tenant_id, customer_id, site_id, family_name, deleted_at)
+         values ($1, $2, null, 'Brandt', null),
+                ($1, $2, null, 'Ehlers', $6),
+                ($1, $3, null, 'Weber', null),
+                ($1, null, $4, 'Gerdes', null),
+                ($1, null, $5, 'Hansen', null)`,
+      [tenant.id, deletedCustomer, keptCustomer, deletedSite, keptSite, earlier],
+    )
+
+    const untouched = await admin.query(others)
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows } = await admin.query<{ family_name: string; deleted_at: Date | null }>(
+      'select family_name, deleted_at from contacts order by family_name',
+    )
+    expect(rows).toEqual([
+      { family_name: 'Brandt', deleted_at: gone },
+      { family_name: 'Ehlers', deleted_at: earlier },
+      { family_name: 'Gerdes', deleted_at: gone },
+      { family_name: 'Hansen', deleted_at: null },
+      { family_name: 'Weber', deleted_at: null },
+    ])
+    expect((await admin.query(others)).rows).toEqual(untouched.rows)
+
+    // FORCE is back on all three, which the next business depends on.
+    const { rows: forced } = await admin.query<{ relname: string; forced: boolean }>(
+      `select relname, relforcerowsecurity as forced from pg_class
+        where oid in ('contacts'::regclass, 'customers'::regclass, 'sites'::regclass)
+        order by relname`,
+    )
+    expect(forced).toEqual([
+      { relname: 'contacts', forced: true },
+      { relname: 'customers', forced: true },
+      { relname: 'sites', forced: true },
+    ])
+
+    // Both changes are in the log, marked as the migration's, and the chain holds.
+    const { rows: logged } = await admin.query<{ reason: string | null; role: string }>(
+      `select reason, database_role as role from audit_entries
+        where table_name = 'contacts' and operation = 'update'`,
+    )
+    expect(logged).toEqual([
+      { reason: 'migration', role: 'opengewerk_owner' },
+      { reason: 'migration', role: 'opengewerk_owner' },
+    ])
+    expect(await chainProblem()).toBeNull()
+  })
+})
+
 describe('the migration run', () => {
   it('refuses a migration that was changed after it had run', async () => {
     await olderInstallation()

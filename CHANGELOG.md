@@ -7,6 +7,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Behoben
+
+- Wird ein Kunde oder ein Objekt entfernt, gehen seine Ansprechpartner mit, wie beim Lieferanten schon bisher (#555).
+  Warum: sie blieben als lebende Zeilen stehen, `GET /contacts` lieferte sie weiter, und ein Gerät, das sie hielt,
+  erfuhr nie, dass es sie fallen lassen soll; Namen, Telefonnummern und Adressen von Personen, die an nichts mehr
+  hingen. Ein Trigger in der Datenbank markiert sie im selben Augenblick, damit es für jeden Weg gilt. Die Migration
+  `0097_contacts_follow_deletion` holt es für Kunden und Objekte nach, die schon vorher entfernt wurden, mit deren
+  Zeitpunkt und der Migration als Grund im Änderungsprotokoll.
+
 ## [0.6.5] - 2026-10-30
 
 Eine Korrekturfassung zu 0.6.4. Deren Migration `0095_address_confirmations` bestätigte auf einer Instanz keine
