@@ -41,7 +41,12 @@ export type PlanPart = Exclude<keyof ImportPlan, 'summary'>
 
 /** What the thread answers. */
 export type WorkerAnswer =
-  | { readonly kind: 'read'; readonly fileDate: string | null }
+  | {
+      readonly kind: 'read'
+      readonly fileDate: string | null
+      /** The supplier's numbers the files name, where they hold no article; see `numbersOnly`. */
+      readonly numbers: readonly string[] | null
+    }
   | { readonly kind: 'part'; readonly part: PlanPart; readonly rows: readonly unknown[] }
   | { readonly kind: 'planned'; readonly summary: ImportPlan['summary'] }
   | { readonly kind: 'refused'; readonly message: string }
@@ -63,6 +68,23 @@ const parts: readonly PlanPart[] = [
 
 let delivery: ReadDelivery | null = null
 
+/**
+ * The supplier's numbers a delivery names, where it holds prices and
+ * deletions only (#297): a plan of those looks up nothing but the links under
+ * these numbers, so the server loads no more of what the business holds.
+ * Null where an article comes with the files, whose number and EAN the plan
+ * holds against every article of the business.
+ */
+export function numbersOnly(read: ReadDelivery): readonly string[] | null {
+  const { catalogue } = read
+
+  if (catalogue.articles.size > 0) {
+    return null
+  }
+
+  return [...new Set([...catalogue.priceChanges.keys(), ...catalogue.deletions])]
+}
+
 function answer(message: WorkerAnswer): void {
   parentPort?.postMessage(message)
 }
@@ -70,7 +92,11 @@ function answer(message: WorkerAnswer): void {
 function handle(request: WorkerRequest): void {
   if (request.kind === 'read') {
     delivery = readDelivery(request.files, request.charset)
-    answer({ kind: 'read', fileDate: delivery.catalogue.header?.date ?? null })
+    answer({
+      kind: 'read',
+      fileDate: delivery.catalogue.header?.date ?? null,
+      numbers: numbersOnly(delivery),
+    })
 
     return
   }

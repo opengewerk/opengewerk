@@ -8,14 +8,16 @@ import { join } from 'node:path'
 
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import type { ArticleImport, IsoDate } from '@opengewerk/domain'
+import type { ArticleImport, IsoDate, SupplierId } from '@opengewerk/domain'
 import { Database, FileStore, newId } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
+import { holdingsOf } from '../datanorm/holdings.js'
 import { ArticleImports, endInterruptedImports } from '../datanorm/imports.js'
+import { startPlanning } from '../datanorm/planner.js'
 import { cp850, header, zipOf } from '../datanorm/test-files.js'
 import { ApiModule } from './api.module.js'
 import { ArticleImportsController } from './article-imports.controller.js'
@@ -844,6 +846,50 @@ describe('an import from DATANORM', () => {
       { id: breaker, designation: 'Leitungsschutzschalter B16, 1-polig' },
       { id: other, designation: 'Anderes' },
     ])
+  })
+
+  it('loads for files with prices and deletions only what hangs off the numbers they name', async () => {
+    const files = async (lines: readonly string[]) => {
+      const session = await startPlanning(
+        [{ name: 'DATPREIS.001', bytes: cp850([header('011026'), ...lines]) }],
+        undefined,
+      )
+
+      await session.close()
+
+      return session.numbers
+    }
+
+    // A catalogue brings articles, whose number and EAN the plan holds
+    // against every article of the business; prices and deletions do not.
+    expect(await files(['A;N;5800001;00;Kabelschuh;M6;1;0;Stck;30;RG30;042;;'])).toBeNull()
+    expect(
+      await files([
+        'P;A;5700123;1;99000;0;RG12;;;;;',
+        'A;L;6200002;00;Abzweigdose;AP 80x80 grau;2;0;Stck;145;;;;',
+        'P;A;5700123;1;99100;0;RG12;;;;;',
+      ]),
+    ).toEqual(['5700123', '6200002'])
+
+    const held = (numbers: readonly string[] | null) =>
+      database.forTenant({ tenantId: north.id }, (tx) =>
+        holdingsOf(tx, hansa as SupplierId, today, numbers),
+      )
+    const whole = await held(null)
+    const narrowed = await held(['5700123', '9999999'])
+    const link = whole.links.get('5700123')
+
+    expect([...narrowed.links.keys()]).toEqual(['5700123'])
+    expect([...narrowed.articles.keys()]).toEqual([cable])
+    expect([...narrowed.listPrices.keys()]).toEqual(
+      [...whole.listPrices.keys()].filter((id) => id === link?.id),
+    )
+    expect([...narrowed.purchasePrices.keys()]).toEqual(
+      [...whole.purchasePrices.keys()].filter((id) => id === link?.id),
+    )
+    expect([...narrowed.sellingPrices.keys()]).toEqual([cable])
+    expect(whole.articles.size).toBeGreaterThan(narrowed.articles.size)
+    expect(whole.links.size).toBeGreaterThan(narrowed.links.size)
   })
 
   it('takes the supplier from an article the files delete, and keeps the article', async () => {

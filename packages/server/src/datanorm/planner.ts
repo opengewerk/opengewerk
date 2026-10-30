@@ -42,6 +42,12 @@ export interface PlanFor {
 export interface PlanningSession {
   /** The day the header of the files names, null where none does. */
   readonly fileDate: IsoDate | null
+  /**
+   * The supplier's numbers the files name, where they hold prices and
+   * deletions only, and null where they bring an article: what of the
+   * business the plan needs.
+   */
+  readonly numbers: readonly string[] | null
   /** What the import would do, for the preview. */
   summaryOf(holdings: Holdings, options: PlanFor): Promise<ImportSummary>
   /** The whole plan, for the takeover. */
@@ -165,6 +171,7 @@ export async function startPlanning(
 
     return {
       fileDate: read.fileDate as IsoDate | null,
+      numbers: read.numbers,
       summaryOf: async (holdings, options) => (await planned(holdings, options, false)).summary,
       planOf: async (holdings, options) => {
         const { pieces, summary } = await planned(holdings, options, true)
