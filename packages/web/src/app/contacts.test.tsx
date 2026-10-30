@@ -333,7 +333,7 @@ describe('the contacts at a customer in the office', () => {
     // one under it, which is called the same (#219).
     await userEvent.click(await section.findByRole('button', { name: 'Anlegen' }))
     await userEvent.type(section.getByLabelText(/Nachname/), 'Brandt')
-    await userEvent.type(section.getByLabelText(/Rolle/), 'Buchhaltung')
+    await userEvent.type(section.getByLabelText(/Funktion/), 'Buchhaltung')
     await userEvent.click(section.getByRole('button', { name: 'Anlegen' }))
     await client.synchronise()
 
@@ -389,7 +389,7 @@ describe('the contacts at a customer in the office', () => {
 
     await userEvent.click(await section.findByRole('button', { name: 'Petra Zander bearbeiten' }))
 
-    const role = section.getByLabelText(/Rolle/)
+    const role = section.getByLabelText(/Funktion/)
 
     await userEvent.clear(role)
     await userEvent.type(role, 'Kaufmännische Leitung')
@@ -490,7 +490,7 @@ describe('the contacts at a job on site', () => {
     await userEvent.click(await section.findByRole('button', { name: 'Ansprechpartner anlegen' }))
     expect((section.getByLabelText('Gehört zu') as HTMLSelectElement).value).toBe('site')
     await userEvent.type(section.getByLabelText(/Nachname/), 'Meyer')
-    await userEvent.type(section.getByLabelText(/Rolle/), 'Mieterin')
+    await userEvent.type(section.getByLabelText(/Funktion/), 'Mieterin')
     await userEvent.click(section.getByRole('button', { name: 'Anlegen' }))
 
     await waitFor(() => {

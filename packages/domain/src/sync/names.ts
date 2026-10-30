@@ -56,7 +56,7 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   mobile: 'Mobil',
   givenName: 'Vorname',
   familyName: 'Nachname',
-  role: 'Rolle',
+  role: 'Funktion',
   street: 'Straße',
   houseNumber: 'Hausnummer',
   postalCode: 'PLZ',

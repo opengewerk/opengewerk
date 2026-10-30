@@ -7,6 +7,13 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Geändert
+
+- Was jemand bei einem Ansprechpartner ist (Bauleitung, Buchhaltung, Hausmeister), heißt im Formular und im
+  Konfliktbildschirm jetzt „Funktion“, wie schon im Änderungsprotokoll (#556). Warum: „Rolle“ steht in dieser
+  Anwendung für das, was ein Zugang darf (Inhaber, Büro, Monteur), und wer im Protokoll „Funktion: Hausmeister“ las,
+  suchte das Feld im Formular unter einem anderen Wort.
+
 ### Behoben
 
 - Wird ein Kunde oder ein Objekt entfernt, gehen seine Ansprechpartner mit, wie beim Lieferanten schon bisher (#555).
