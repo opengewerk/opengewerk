@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { request as httpRequest, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { monitorEventLoopDelay } from 'node:perf_hooks'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -940,5 +941,37 @@ describe('an import that cannot start or run', () => {
     expect(listed.length).toBeGreaterThan(3)
     await get(`/suppliers/${hansa}/imports/${listed[0]?.id ?? ''}`, elsewhere, 404)
     expect(await get(`/suppliers/${hansa}/imports`, elsewhere)).toEqual([])
+  })
+})
+
+describe('a large delivery', () => {
+  it('is read beside the server, which keeps answering meanwhile', async () => {
+    // 200,000 articles, about 12 MB: read in the thread of the server, this
+    // held every other request for more than a second.
+    const lines = ['V 011026' + 'Elektro-Großhandel Hansa'.padEnd(115) + '04EUR']
+
+    for (let index = 0; index < 200_000; index += 1) {
+      const number = String(8_000_000 + index)
+
+      lines.push(
+        `A;N;${number};00;Artikel ${number};lang genug;1;0;Stck;${String(100 + (index % 900))};RG30;042;;`,
+      )
+    }
+
+    const bytes = new Uint8Array(Buffer.from(lines.join('\r\n') + '\r\n', 'latin1'))
+    const delay = monitorEventLoopDelay({ resolution: 10 })
+
+    delay.enable()
+
+    const read = await preview([{ name: 'DATANORM.001', bytes }])
+
+    delay.disable()
+
+    expect(read.status).toBe('ready')
+    expect(read.summary?.articles).toBe(200_000)
+    // The longest the server stood still, in milliseconds.
+    expect(delay.max / 1_000_000).toBeLessThan(750)
+
+    await send('post', `/suppliers/${hansa}/imports/${read.id}/discard`, {}, 200)
   })
 })

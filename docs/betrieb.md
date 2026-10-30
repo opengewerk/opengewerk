@@ -449,6 +449,14 @@ OPENGEWERK_MEMORY_LIMIT=2g
 Eine DATANORM-Lieferung dieser Größe lässt sich dann nicht mehr einlesen,
 kleinere schon. Der Heap folgt der Grenze von selbst.
 
+Gelesen und verglichen wird eine Lieferung seit #297 in einem eigenen Thread,
+damit die Anwendung währenddessen weiter antwortet. Er bekommt die Hälfte des
+Heaps der Anwendung; reicht sie für eine Lieferung nicht, endet nur dieser
+Thread, und die Vorschau sagt, dass der Speicher der Instanz nicht reicht.
+Beim Hochladen liegen außerdem bis zu zwei Dateien eines Imports gleichzeitig
+im Speicher, je bis zu 200 MB und beim Zusammensetzen noch einmal so viel,
+zusammen also bis zu rund 800 MB.
+
 Jeder Dienst gibt außerdem alle Rechte von root ab, die Docker sonst lässt,
 und kann über ein setuid-Programm keine neuen gewinnen. Bis auf die Sicherung
 läuft jeder mit einem Dateisystem, in das nichts schreibt, und die Datenbank

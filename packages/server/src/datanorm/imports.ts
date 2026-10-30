@@ -28,7 +28,6 @@ import {
   type FileStorage,
   isUniqueViolation,
   mayNameFile,
-  newId,
   StoredFileDamagedError,
   StoredFileMissingError,
   type TenantTransaction,
@@ -38,8 +37,9 @@ import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { articleImports, files, suppliers } from '../database/schema/index.js'
 import { todayInGermany } from '../today.js'
 import { holdingsOf } from './holdings.js'
-import { ImportRefused, planImport } from './plan.js'
-import { type DeliveredFile, readDelivery } from './read.js'
+import { ImportRefused } from './plan.js'
+import { type PlanningSession, startPlanning } from './planner.js'
+import type { DeliveredFile } from './read.js'
 import { rowsOf, takeOver } from './take-over.js'
 import { ZipRefused } from './zip.js'
 
@@ -428,24 +428,27 @@ export class ArticleImports {
     return viewOf(row, null)
   }
 
-  /** Reads the files and compares them with the catalogue, for the preview. */
+  /** Reads the files and compares them with the catalogue, for the preview, in a thread of its own. */
   private async read(importer: Importer, row: ImportRow, propose: boolean): Promise<void> {
+    let session: PlanningSession | null = null
+
     try {
-      const delivery = readDelivery(await this.bytesOf(row), row.charset ?? undefined)
-      const today = this.today()
+      const planning = await startPlanning(await this.bytesOf(row), row.charset ?? undefined)
+
+      session = planning
+
       const validFrom = propose
-        ? proposedValidFrom(delivery.catalogue.header?.date ?? null, today)
+        ? proposedValidFrom(planning.fileDate, this.today())
         : (row.validFrom as IsoDate)
 
       const summary = await this.database.forTenant(importer, async (tx) => {
         const supplier = await supplierOf(tx, row.supplierId)
         const holdings = await holdingsOf(tx, row.supplierId, validFrom)
 
-        return planImport(delivery, holdings, {
+        return planning.summaryOf(holdings, {
           validFrom,
           shortCode: supplier.shortCode ?? shortCodeFrom(supplier.name),
-          newId: () => newId(),
-        }).summary
+        })
       })
 
       await this.database.forTenant({ ...importer, reason: 'article.import' }, (tx) =>
@@ -456,6 +459,8 @@ export class ArticleImports {
       )
     } catch (error) {
       await this.fail(importer, row.id, 'reading', problemOf(error, false))
+    } finally {
+      await session?.close()
     }
   }
 
@@ -551,8 +556,15 @@ export class ArticleImports {
   }
 
   private async takeOver(importer: Importer, row: ImportRow): Promise<void> {
+    let session: PlanningSession | null = null
+
     try {
-      const delivery = readDelivery(await this.bytesOf(row), row.charset ?? undefined)
+      // Read in its own thread before the transaction begins, so that the
+      // transaction is not held open while the files are read.
+      const planning = await startPlanning(await this.bytesOf(row), row.charset ?? undefined)
+
+      session = planning
+
       const validFrom = row.validFrom as IsoDate
 
       await this.database.forTenant({ ...importer, reason: 'article.import' }, async (tx) => {
@@ -562,10 +574,9 @@ export class ArticleImports {
         await tx.execute(sql`select set_config('app.article_import', ${row.id}, true)`)
 
         const supplier = await supplierOf(tx, row.supplierId)
-        const plan = planImport(delivery, await holdingsOf(tx, row.supplierId, validFrom), {
+        const plan = await planning.planOf(await holdingsOf(tx, row.supplierId, validFrom), {
           validFrom,
           shortCode: supplier.shortCode ?? shortCodeFrom(supplier.name),
-          newId: () => newId(),
         })
 
         this.progress.set(row.id, { done: 0, total: rowsOf(plan) })
@@ -595,6 +606,7 @@ export class ArticleImports {
       await this.fail(importer, row.id, 'applying', problemOf(error, true))
     } finally {
       this.progress.delete(row.id)
+      await session?.close()
     }
   }
 
