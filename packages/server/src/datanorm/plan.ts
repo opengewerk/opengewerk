@@ -7,8 +7,10 @@ import {
   importSummaryLimits,
   type IsoDate,
   type LineUnit,
+  markupOf,
   type PriceBase,
   priceCentsMax,
+  sellingCentsOf,
 } from '@opengewerk/domain'
 
 import type { CatalogueArticle } from './catalogue.js'
@@ -30,12 +32,16 @@ import type { PriceKind } from './records.js'
  *   articles of the business and gets the supplier added; otherwise it is a
  *   new article, under the supplier's number, or with the short code of the
  *   supplier appended where the business uses that number already.
- * - A list price becomes the supplier's list price, a net price the purchase
- *   price; the purchase price is the net price where there is one and the
- *   list price otherwise (Feature-Gliederung v2.37). An import writes no
- *   selling price: since 28.09.2026 that comes from the purchase price and a
- *   markup (#463). A price that is what the business holds already writes
- *   nothing.
+ * - A list price becomes the supplier's list price and its purchase price,
+ *   unless the delivery brings a net price for the article, which is the
+ *   purchase price then (Feature-Gliederung v2.37). A price that is what the
+ *   business holds already writes nothing.
+ * - The selling price of an article whose main supplier this is follows the
+ *   purchase price (#463): the purchase price with the article's own markup,
+ *   else the one of the options, rounded to the cent and for the same price
+ *   unit. None for an article with a fixed selling price, and none at all
+ *   where no markup is set; the summary says so. The first supplier of an
+ *   article is its main one, as the trigger of 0099 makes it.
  * - The copper of the second record goes to the link, as the discount group
  *   does; a delivery without a second record for an article leaves it.
  * - An article the files delete loses the supplier, not its existence.
@@ -58,6 +64,14 @@ export interface HeldArticle {
   readonly designation: string
   readonly unit: LineUnit
   readonly ean: string | null
+  /** Whether the article has a main supplier already; a new link of one without becomes it. */
+  readonly supplied: boolean
+}
+
+/** What an article says about its selling price (#463), where it says anything. */
+export interface HeldMarkup {
+  readonly fixed: boolean
+  readonly basisPoints: number | null
 }
 
 export interface HeldLink {
@@ -66,6 +80,8 @@ export interface HeldLink {
   readonly supplierNumber: string
   readonly discountGroup: string | null
   readonly copper: Copper | null
+  /** Whether the supplier is the article's main supplier, whose purchase price makes the selling price. */
+  readonly main: boolean
 }
 
 /** What the business holds, as far as an import of one supplier needs to know it. */
@@ -74,6 +90,8 @@ export interface Holdings {
   readonly articles: ReadonlyMap<string, HeldArticle>
   /** The links of the supplier, by the supplier's number. */
   readonly links: ReadonlyMap<string, HeldLink>
+  /** What the articles that are fixed or have a markup of their own say, by article. */
+  readonly articleMarkups: ReadonlyMap<string, HeldMarkup>
   /** List and purchase prices in effect, by link. */
   readonly listPrices: ReadonlyMap<string, HeldPrice>
   readonly purchasePrices: ReadonlyMap<string, HeldPrice>
@@ -85,6 +103,12 @@ export interface PlanOptions {
   readonly validFrom: IsoDate
   /** Appended to a number the business uses already: the supplier's own, or one from its name. */
   readonly shortCode: string
+  /**
+   * The markup on the supplier's articles in basis points (#463): its own,
+   * else the business's on the day the prices begin. Null where neither is
+   * set; then no selling price comes from a purchase price.
+   */
+  readonly markup: number | null
   readonly newId: () => string
 }
 
@@ -136,6 +160,8 @@ interface Offered {
   readonly priceBase: PriceBase
 }
 
+type Priced = Pick<Offered, 'cents' | 'priceBase'>
+
 type Problem = ImportSummary['problemLines'][number]
 
 /** The units as the office names them, for the sentences of the preview; as `lineUnitLabel` in the web. */
@@ -169,7 +195,7 @@ function sameCopper(held: Copper | null, offered: Copper | null): boolean {
   )
 }
 
-function sameAs(held: HeldPrice | undefined, offered: Offered): boolean {
+function sameAs(held: HeldPrice | undefined, offered: Priced): boolean {
   return held !== undefined && held.cents === offered.cents && held.priceBase === offered.priceBase
 }
 
@@ -219,8 +245,10 @@ export function planImport(
   const removedLinks: string[] = []
   const listPrices: NewPrice[] = []
   const purchasePrices: NewPrice[] = []
-  // None since 28.09.2026: a selling price comes from the purchase price and a markup (#463).
   const sellingPrices: NewPrice[] = []
+  // The purchase price each link has from the import's day on, where the
+  // delivery brings one; the selling price follows it.
+  const purchaseNow = new Map<string, Priced>()
   const counts = { created: 0, linked: 0, updated: 0, unchanged: 0, removed: 0, renumbered: 0 }
   const samples: ImportSample[] = []
   const sampled = new Map<ImportSample['kind'], number>()
@@ -241,7 +269,7 @@ export function planImport(
     target: NewPrice[],
     held: HeldPrice | undefined,
     ownerId: string,
-    offered: Offered,
+    offered: Priced,
   ): boolean => {
     if (sameAs(held, offered)) {
       return false
@@ -281,6 +309,7 @@ export function planImport(
     }
 
     let changed = false
+    const taken: Offered[] = []
 
     for (const price of offered) {
       if (price.cents > priceCentsMax) {
@@ -291,16 +320,60 @@ export function planImport(
         continue
       }
 
-      if (price.kind === 'net') {
-        changed =
-          offer(purchasePrices, holdings.purchasePrices.get(linkId), linkId, price) || changed
-        continue
-      }
+      taken.push(price)
 
-      changed = offer(listPrices, holdings.listPrices.get(linkId), linkId, price) || changed
+      if (price.kind === 'list') {
+        changed = offer(listPrices, holdings.listPrices.get(linkId), linkId, price) || changed
+      }
+    }
+
+    // The net price where the delivery brings one, the list price otherwise.
+    const purchase = taken.find((price) => price.kind === 'net') ?? taken[0]
+
+    if (purchase !== undefined) {
+      purchaseNow.set(linkId, purchase)
+      changed =
+        offer(purchasePrices, holdings.purchasePrices.get(linkId), linkId, purchase) || changed
     }
 
     return changed
+  }
+
+  /**
+   * The selling price of an article from this supplier (#463), where it is
+   * the main one and the price is not fixed: the purchase price from the
+   * import's day on with the markup. The new price, or null where there is
+   * none or it is what the business holds.
+   */
+  const followPurchase = (
+    article: { readonly id: string; readonly number: string },
+    linkId: string,
+    main: boolean,
+    where: { readonly file: string; readonly line: number },
+  ): ImportPrice | null => {
+    const markup = markupOf(holdings.articleMarkups.get(article.id), options.markup, null)
+    const purchase = purchaseNow.get(linkId) ?? holdings.purchasePrices.get(linkId)
+
+    if (!main || markup === null || purchase === undefined) {
+      return null
+    }
+
+    const cents = sellingCentsOf(purchase.cents, markup)
+
+    if (cents === null) {
+      problems.push({
+        ...where,
+        reason: `Der Verkaufspreis von ${article.number} wäre höher, als OpenGewerk einen Preis nimmt.`,
+      })
+
+      return null
+    }
+
+    const selling = { cents, priceBase: purchase.priceBase }
+
+    return offer(sellingPrices, holdings.sellingPrices.get(article.id), article.id, selling)
+      ? selling
+      : null
   }
 
   /** The number of a new article: the supplier's, or with the short code where it is taken. */
@@ -365,6 +438,7 @@ export function planImport(
 
     if (link !== undefined && held !== undefined) {
       const changedPrices = offerPrices(held, link.id, offered, entry.unit, where)
+      const sellingPrice = followPurchase(held, link.id, link.main, where)
       const changedGroup = discountGroup !== null && discountGroup !== link.discountGroup
       const changedCopper = entry.copper !== undefined && !sameCopper(link.copper, entry.copper)
 
@@ -376,7 +450,7 @@ export function planImport(
         coppers.push({ linkId: link.id, copper: entry.copper ?? null })
       }
 
-      if (changedPrices || changedGroup || changedCopper) {
+      if (changedPrices || changedGroup || changedCopper || sellingPrice !== null) {
         counts.updated += 1
         sample({
           kind: 'updated',
@@ -388,6 +462,7 @@ export function planImport(
           listPrice: priceOf(offered, 'list'),
           netPrice: priceOf(offered, 'net'),
           previousListPrice: heldPriceOf(holdings.listPrices.get(link.id)),
+          sellingPrice,
         })
       } else {
         counts.unchanged += 1
@@ -410,6 +485,8 @@ export function planImport(
         copper: entry.copper ?? null,
       })
       offerPrices(found, linkId, offered, entry.unit, where)
+      // The main supplier where the article has none yet.
+      const sellingPrice = followPurchase(found, linkId, !found.supplied, where)
       counts.linked += 1
       sample({
         kind: 'linked',
@@ -421,6 +498,7 @@ export function planImport(
         listPrice: priceOf(offered, 'list'),
         netPrice: priceOf(offered, 'net'),
         previousListPrice: null,
+        sellingPrice,
       })
       continue
     }
@@ -463,6 +541,7 @@ export function planImport(
       copper: entry.copper ?? null,
     })
     offerPrices(article, linkId, offered, null, where)
+    const sellingPrice = followPurchase(article, linkId, true, where)
     counts.created += 1
 
     if (renumbered) {
@@ -479,6 +558,7 @@ export function planImport(
       listPrice: priceOf(offered, 'list'),
       netPrice: priceOf(offered, 'net'),
       previousListPrice: null,
+      sellingPrice,
     })
   }
 
@@ -511,7 +591,10 @@ export function planImport(
       { kind: change.kind, cents: change.cents, priceBase: previous?.priceBase ?? 1 },
     ]
 
-    if (offerPrices(held, link.id, offered, null, where)) {
+    const changedPrices = offerPrices(held, link.id, offered, null, where)
+    const sellingPrice = followPurchase(held, link.id, link.main, where)
+
+    if (changedPrices || sellingPrice !== null) {
       counts.updated += 1
       sample({
         kind: 'updated',
@@ -523,6 +606,7 @@ export function planImport(
         listPrice: priceOf(offered, 'list'),
         netPrice: priceOf(offered, 'net'),
         previousListPrice: heldPriceOf(holdings.listPrices.get(link.id)),
+        sellingPrice,
       })
     } else {
       counts.unchanged += 1
@@ -549,6 +633,7 @@ export function planImport(
       listPrice: null,
       netPrice: null,
       previousListPrice: null,
+      sellingPrice: null,
     })
   }
 
@@ -565,6 +650,8 @@ export function planImport(
       articles: articleCount,
       ...counts,
       shortCode: options.shortCode,
+      sellingPrices: sellingPrices.length,
+      markup: options.markup,
       unknownUnits: [...unknownUnits]
         .map(([text, count]) => ({ text, articles: count }))
         .sort((left, right) => right.articles - left.articles),

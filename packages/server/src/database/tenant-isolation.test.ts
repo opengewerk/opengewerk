@@ -856,6 +856,20 @@ const crossings: readonly {
             values (${own.tenant}, ${own.article}, ${other.supplier})`,
   },
   {
+    // A markup is the office's alone (#463), on a supplier and an article of
+    // its own business.
+    key: 'supplier_markups_supplier_in_tenant',
+    write: (own, other) =>
+      sql`insert into supplier_markups (tenant_id, supplier_id, basis_points)
+            values (${own.tenant}, ${other.supplier}, 2500)`,
+  },
+  {
+    key: 'article_markups_article_in_tenant',
+    write: (own, other) =>
+      sql`insert into article_markups (tenant_id, article_id, fixed)
+            values (${own.tenant}, ${other.article}, true)`,
+  },
+  {
     key: 'purchase_prices_supplier_article_in_tenant',
     write: (own, other) =>
       sql`insert into purchase_prices (tenant_id, supplier_article_id, valid_from, unit_price_cents)

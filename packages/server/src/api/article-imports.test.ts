@@ -184,6 +184,13 @@ beforeAll(async () => {
   imports.today = () => today
 
   hansa = (await send('post', '/suppliers', { name: 'Elektro-Großhandel Hansa' }, 201)).id
+  // The business's markup on material, 25 % (#463). The cable and the breaker
+  // below have selling prices entered by hand and keep them.
+  await admin.query(
+    `insert into tenant_parameters (tenant_id, key, valid_from, unit, value)
+       values ($1, 'material.markup_basis_points', '2026-01-01', 'basis_points', 2500)`,
+    [north.id],
+  )
   cable = (
     await send(
       'post',
@@ -511,6 +518,8 @@ describe('an import from DATANORM', () => {
       removed: 0,
       renumbered: 1,
       shortCode: 'ELE',
+      sellingPrices: 2,
+      markup: 2500,
       fileDate: '2026-10-01',
       files: [{ name: 'DATANORM.001', charset: 'cp850', lines: 9 }],
       longTextFiles: [],
@@ -589,8 +598,33 @@ describe('an import from DATANORM', () => {
          from article_prices p join articles a on a.id = p.article_id
         where p.valid_from = '2026-10-01' and p.deleted_at is null order by a.number`,
     )
-    // A list price is the supplier's and no selling price (Feature-Gliederung v2.37).
-    expect(selling).toEqual([])
+    // From the purchase price with the business's 25 % (#463): the list price
+    // of the cable ties, the net price of the box. The cable and the breaker
+    // keep the prices entered by hand.
+    expect(selling).toEqual([
+      { number: '5709912-ELE', cents: 438, base: 100 },
+      { number: '6200002', cents: 181, base: 1 },
+    ])
+
+    // The list price is the purchase price where no net price comes (Feature-Gliederung v2.37).
+    const { rows: purchase } = await admin.query<{ supplier_number: string; cents: number }>(
+      `select s.supplier_number, p.unit_price_cents as cents
+         from purchase_prices p join supplier_articles s on s.id = p.supplier_article_id
+        where p.valid_from = '2026-10-01' order by s.supplier_number`,
+    )
+    expect(purchase).toEqual([
+      { supplier_number: '5700123', cents: 98000 },
+      { supplier_number: '5709912', cents: 350 },
+      { supplier_number: '6100001', cents: 1290 },
+      { supplier_number: '6200002', cents: 145 },
+    ])
+
+    // The first supplier of each article is its main one, the breaker's included.
+    expect(
+      await count('select count(*) from supplier_articles where supplier_id = $1 and main', [
+        hansa,
+      ]),
+    ).toBe(4)
 
     expect(
       await count(
@@ -625,8 +659,8 @@ describe('an import from DATANORM', () => {
     )
     const taken = numbers.map((row) => Number(row.change_sequence))
 
-    expect(taken).toHaveLength(2)
-    expect(new Set(taken).size).toBe(2)
+    expect(taken).toHaveLength(4)
+    expect(new Set(taken).size).toBe(4)
     expect(Math.min(...taken)).toBeGreaterThan(cursor)
     expect(await count('select count(*) from articles where change_sequence < 0')).toBe(0)
     expect(await count('select count(*) from article_prices where change_sequence < 0')).toBe(0)
@@ -652,6 +686,65 @@ describe('an import from DATANORM', () => {
 
     expect(refused.message).toBe('In diesem Import gibt es nichts zu übernehmen.')
     await send('post', `/suppliers/${hansa}/imports/${again.id}/discard`, {}, 200)
+  })
+
+  it("follows the supplier's own markup before the business's (#463)", async () => {
+    await admin.query(
+      `insert into supplier_markups (tenant_id, supplier_id, basis_points) values ($1, $2, 1000)`,
+      [north.id, hansa],
+    )
+
+    const again = await preview([{ name: 'DATANORM.001', bytes: catalogue }])
+
+    expect(again.summary).toMatchObject({
+      updated: 2,
+      unchanged: 2,
+      sellingPrices: 2,
+      markup: 1000,
+    })
+    // 3,50 € and 1,45 € with 10 %: 3,85 € and 1,595 €, half a cent up.
+    expect(
+      again.summary?.samples.map((sample) => [sample.number, sample.sellingPrice?.cents]),
+    ).toEqual([
+      ['5709912-ELE', 385],
+      ['6200002', 160],
+    ])
+
+    await send('post', `/suppliers/${hansa}/imports/${again.id}/discard`, {}, 200)
+    await admin.query('delete from supplier_markups where supplier_id = $1', [hansa])
+  })
+
+  it('leaves the selling price of an article found by its EAN to the supplier that brought it first', async () => {
+    const socket = (
+      await send(
+        'post',
+        '/articles',
+        { number: '3001', designation: 'Steckdose', ean: '4006381333955', unit: 'piece' },
+        201,
+      )
+    ).id
+    const rhein = (await send('post', '/suppliers', { name: 'Elektro Rhein KG' }, 201)).id
+
+    await send(
+      'post',
+      `/articles/${socket}/suppliers`,
+      { supplierId: rhein, price: { unitPriceCents: 400, validFrom: '2026-03-01' } },
+      201,
+    )
+
+    const read = await preview([
+      {
+        name: 'DATANORM.001',
+        bytes: cp850([
+          header('011026'),
+          'A;N;6300003;00;Steckdose;;1;0;Stck;500;RG30;051;;',
+          'B;N;6300003; ; ; ;;;;4006381333955; ;0510;0;0; ; ;',
+        ]),
+      },
+    ])
+
+    expect(read.summary).toMatchObject({ linked: 1, sellingPrices: 0 })
+    await send('post', `/suppliers/${hansa}/imports/${read.id}/discard`, {}, 200)
   })
 
   it('takes the prices of a price file, and a list price of its own day gives way', async () => {

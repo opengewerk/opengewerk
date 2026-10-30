@@ -59,6 +59,14 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       applied_at: 'Übernommen am',
     },
   },
+  article_markups: {
+    label: 'Preisbildung eines Artikels',
+    fields: {
+      article_id: 'Artikel',
+      fixed: 'Fester Verkaufspreis',
+      basis_points: 'Eigener Aufschlag',
+    },
+  },
   article_prices: {
     label: 'Verkaufspreis',
     fields: {
@@ -274,7 +282,12 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       copper_base_euros: 'Kupferbasis',
       copper_grams_per_thousand: 'Kupfergewicht',
       import_id: 'Import',
+      main: 'Hauptlieferant',
     },
+  },
+  supplier_markups: {
+    label: 'Aufschlag eines Lieferanten',
+    fields: { supplier_id: 'Lieferant', basis_points: 'Aufschlag' },
   },
   suppliers: {
     label: 'Lieferant',

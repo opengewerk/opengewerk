@@ -167,6 +167,14 @@ export const supplierArticles = pgTable(
     copperBaseEuros: integer('copper_base_euros'),
     copperGramsPerThousand: integer('copper_grams_per_thousand'),
     importId: reference<'article-import'>('import_id'),
+    /**
+     * Whether the supplier is the article's main supplier (#463), whose
+     * purchase price makes the selling price. The database keeps one per
+     * article that has a supplier at all (migration 0099): the first link of
+     * an article is the main one, and when the main one goes, the oldest left
+     * takes its place.
+     */
+    main: boolean('main').notNull().default(false),
     ...timestamps,
   },
   (table) => [
@@ -188,6 +196,9 @@ export const supplierArticles = pgTable(
       name: 'supplier_articles_supplier_in_tenant',
     }).onDelete('cascade'),
     uniqueIndex('supplier_articles_once').on(table.tenantId, table.articleId, table.supplierId),
+    uniqueIndex('supplier_articles_one_main')
+      .on(table.tenantId, table.articleId)
+      .where(sql`${table.main}`),
     index('supplier_articles_supplier_idx').on(table.tenantId, table.supplierId),
     check(
       'supplier_articles_number_fits',

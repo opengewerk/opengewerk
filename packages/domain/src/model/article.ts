@@ -96,6 +96,12 @@ export interface SupplierArticle extends TenantOwned {
   readonly copperGramsPerThousand: number | null
   /** The import that last set the link (#297), null for one entered by hand. */
   readonly importId: ArticleImportId | null
+  /**
+   * Whether the supplier is the article's main supplier (#463), the one whose
+   * purchase price makes the selling price: the first that brought it, until
+   * somebody chooses another. Exactly one link of an article is.
+   */
+  readonly main: boolean
 }
 
 /**

@@ -1483,6 +1483,115 @@ describe('the contacts of customers and sites deleted before 0097', () => {
   })
 })
 
+describe('the articles and their suppliers before 0099', () => {
+  const before = () => readMigrationIndex().findIndex((entry) => entry.tag === '0099_markups')
+
+  it('get the oldest supplier of each article as its main one, and a price entered by hand stays fixed', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+
+    const [north, south] = [newId<'supplier'>(), newId<'supplier'>()]
+    const [byHand, imported, handBefore, handAfter, removed, bare] = [
+      newId<'article'>(),
+      newId<'article'>(),
+      newId<'article'>(),
+      newId<'article'>(),
+      newId<'article'>(),
+      newId<'article'>(),
+    ]
+    const delivery = newId<'article-import'>()
+
+    await admin.query(
+      `insert into suppliers (id, tenant_id, name) values ($1, $3, 'Nord'), ($2, $3, 'Süd')`,
+      [north, south, tenant.id],
+    )
+    await admin.query(
+      `insert into article_imports (id, tenant_id, supplier_id, status, files, valid_from)
+         values ($1, $2, $3, 'applied', '[]', '2026-01-01')`,
+      [delivery, tenant.id, north],
+    )
+    await admin.query(
+      `insert into articles (id, tenant_id, number, designation, unit)
+         select id, $1, 'A-' || ordinality, 'Artikel ' || ordinality, 'piece'
+           from unnest($2::uuid[]) with ordinality as listed(id, ordinality)`,
+      [tenant.id, [byHand, imported, handBefore, handAfter, removed, bare]],
+    )
+    // Who brought what first: south brought the first article before north.
+    for (const [article, supplier, at] of [
+      [byHand, south, '2026-01-01T08:00:00Z'],
+      [byHand, north, '2026-02-01T08:00:00Z'],
+      [imported, north, '2026-01-01T08:00:00Z'],
+      [imported, south, '2026-03-01T08:00:00Z'],
+      [handAfter, north, '2026-01-01T08:00:00Z'],
+    ]) {
+      await admin.query(
+        `insert into supplier_articles (tenant_id, article_id, supplier_id, created_at)
+           values ($1, $2, $3, $4)`,
+        [tenant.id, article, supplier, at],
+      )
+    }
+    // The latest price of each article decides: by hand, from an import, or none left.
+    for (const [article, day, importId, deleted] of [
+      [byHand, '2026-05-01', null, false],
+      [imported, '2026-05-01', delivery, false],
+      [handBefore, '2026-01-01', null, false],
+      [handBefore, '2026-05-01', delivery, false],
+      [handAfter, '2026-01-01', delivery, false],
+      [handAfter, '2026-12-01', null, false],
+      [removed, '2026-05-01', null, true],
+    ] as const) {
+      await admin.query(
+        `insert into article_prices (tenant_id, article_id, valid_from, unit_price_cents, import_id, deleted_at)
+           values ($1, $2, $3, 100, $4, $5)`,
+        [tenant.id, article, day, importId, deleted ? new Date() : null],
+      )
+    }
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows: mains } = await admin.query<{ article_id: string; supplier_id: string }>(
+      'select article_id, supplier_id from supplier_articles where main order by created_at',
+    )
+    expect(mains).toEqual([
+      { article_id: byHand, supplier_id: south },
+      { article_id: imported, supplier_id: north },
+      { article_id: handAfter, supplier_id: north },
+    ])
+
+    const { rows: fixed } = await admin.query<{ article_id: string }>(
+      'select article_id from article_markups where fixed and basis_points is null',
+    )
+    expect(fixed.map((row) => row.article_id).sort()).toEqual([byHand, handAfter].sort())
+
+    const { rows: forced } = await admin.query<{ relname: string; forced: boolean }>(
+      `select relname, relforcerowsecurity as forced from pg_class
+        where oid in ('articles'::regclass, 'article_prices'::regclass, 'supplier_articles'::regclass,
+                      'article_markups'::regclass, 'supplier_markups'::regclass)
+        order by relname`,
+    )
+    expect(forced.every((row) => row.forced)).toBe(true)
+    expect(forced).toHaveLength(5)
+
+    // Both statements are in the log, marked as the migration's, and the chain holds.
+    const { rows: logged } = await admin.query<{
+      table_name: string
+      operation: string
+      entries: number
+    }>(
+      `select table_name, operation, count(distinct change_id)::int as entries from audit_entries
+        where reason = 'migration' group by table_name, operation order by table_name`,
+    )
+    expect(logged).toEqual([
+      { table_name: 'article_markups', operation: 'insert', entries: 2 },
+      { table_name: 'supplier_articles', operation: 'update', entries: 3 },
+    ])
+    expect(await chainProblem()).toBeNull()
+  })
+})
+
 describe('the migration run', () => {
   it('refuses a migration that was changed after it had run', async () => {
     await olderInstallation()

@@ -40,11 +40,16 @@ const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
     { table: 'contacts', column: 'customer_id' },
     { table: 'customer_tags', column: 'customer_id' },
   ],
-  suppliers: [{ table: 'contacts', column: 'supplier_id' }],
-  // An article with its prices and where it comes from (#296), walked down to
-  // the purchase prices at each supplier.
+  // A supplier with its people and its own markup (#463).
+  suppliers: [
+    { table: 'contacts', column: 'supplier_id' },
+    { table: 'supplier_markups', column: 'supplier_id' },
+  ],
+  // An article with its prices, how its selling price is made (#463) and where
+  // it comes from (#296), walked down to the purchase prices at each supplier.
   articles: [
     { table: 'article_prices', column: 'article_id' },
+    { table: 'article_markups', column: 'article_id' },
     { table: 'supplier_articles', column: 'article_id' },
   ],
   supplier_articles: [{ table: 'purchase_prices', column: 'supplier_article_id' }],
@@ -146,6 +151,9 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   // A list price like a purchase price; an import of DATANORM by the supplier
   // it came from, which the page names (#297).
   list_prices: ['valid_from'],
+  // A markup by its percentage (#463); a fixed price has none and is the label alone.
+  supplier_markups: ['basis_points'],
+  article_markups: ['basis_points'],
   article_imports: ['supplier_id'],
   // Hours are told apart by when they began; whose they are the list says anyway.
   time_entries: ['started_at'],

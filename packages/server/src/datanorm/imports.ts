@@ -34,7 +34,8 @@ import {
 } from '@opengewerk/platform-server'
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 
-import { articleImports, files, suppliers } from '../database/schema/index.js'
+import { parameterAt } from '../database/parameters.js'
+import { articleImports, files, supplierMarkups, suppliers } from '../database/schema/index.js'
 import { todayInGermany } from '../today.js'
 import { holdingsOf } from './holdings.js'
 import { ImportRefused } from './plan.js'
@@ -183,6 +184,25 @@ function viewOf(
     appliedAt: row.appliedAt?.toISOString() ?? null,
     progress: row.status === 'applying' ? progress : null,
   }
+}
+
+/**
+ * The markup on a supplier's articles (#463): its own, else the business's
+ * on the day the import's prices begin; null where neither is set.
+ */
+async function markupFor(
+  tx: TenantTransaction,
+  supplierId: SupplierId,
+  day: IsoDate,
+): Promise<number | null> {
+  const [own] = await tx
+    .select({ basisPoints: supplierMarkups.basisPoints })
+    .from(supplierMarkups)
+    .where(eq(supplierMarkups.supplierId, supplierId))
+
+  return (
+    own?.basisPoints ?? (await parameterAt(tx, 'material.markup_basis_points', day))?.value ?? null
+  )
 }
 
 async function supplierOf(tx: TenantTransaction, supplierId: SupplierId) {
@@ -448,6 +468,7 @@ export class ArticleImports {
         return planning.summaryOf(holdings, {
           validFrom,
           shortCode: supplier.shortCode ?? shortCodeFrom(supplier.name),
+          markup: await markupFor(tx, row.supplierId, validFrom),
         })
       })
 
@@ -577,6 +598,7 @@ export class ArticleImports {
         const plan = await planning.planOf(await holdingsOf(tx, row.supplierId, validFrom), {
           validFrom,
           shortCode: supplier.shortCode ?? shortCodeFrom(supplier.name),
+          markup: await markupFor(tx, row.supplierId, validFrom),
         })
 
         this.progress.set(row.id, { done: 0, total: rowsOf(plan) })

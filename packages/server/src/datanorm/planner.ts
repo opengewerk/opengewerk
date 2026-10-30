@@ -35,6 +35,8 @@ const outOfMemory =
 export interface PlanFor {
   readonly validFrom: IsoDate
   readonly shortCode: string
+  /** The markup on the supplier's articles (#463), null where none is set. */
+  readonly markup: number | null
 }
 
 export interface PlanningSession {

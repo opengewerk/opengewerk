@@ -1,6 +1,7 @@
 import type { Id, IsoDate, TenantId } from '@opengewerk/platform-domain'
 import type { RuleUnit } from '@opengewerk/platform-domain'
 
+import { markupProblem } from '../model/markup.js'
 import { paymentTermProblem } from '../model/payment-term.js'
 
 export type TenantParameterId = Id<'tenant-parameter'>
@@ -60,6 +61,13 @@ export const tenantParameterKeys = [
    * it on sends nothing that was signed before.
    */
   'report.mail_on_signature',
+  /**
+   * The markup on material for the whole business, in basis points (#463):
+   * what comes on an article's purchase price to make its selling price,
+   * unless its supplier or the article has its own. Not set means no selling
+   * price comes from a purchase price at all.
+   */
+  'material.markup_basis_points',
 ] as const
 
 export type TenantParameterKey = (typeof tenantParameterKeys)[number]
@@ -75,6 +83,7 @@ export const tenantParameterNames: Readonly<Record<TenantParameterKey, string>> 
   'e_invoice.transition_claimed': 'den Übergang zur E-Rechnung',
   'cash_accounting.permitted': 'die Ist-Versteuerung',
   'report.mail_on_signature': 'den Regiebericht nach der Unterschrift',
+  'material.markup_basis_points': 'den Aufschlag auf Material',
 }
 
 export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>> = {
@@ -83,6 +92,7 @@ export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>
   'e_invoice.transition_claimed': 'flag',
   'cash_accounting.permitted': 'flag',
   'report.mail_on_signature': 'flag',
+  'material.markup_basis_points': 'basis_points',
 }
 
 /**
@@ -91,14 +101,19 @@ export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>
  *
  * Asked where a setting is stored (`tenantParameterStore`, ADR 0010), so that
  * no way in writes a value the others would refuse. The payment term has the
- * range a document may state, with the sentence the forms show. Everything
- * else a business sets is a yes or a no, and a flag is a zero or a one: the
+ * range a document may state, with the sentence the forms show, and the
+ * markup on material the range of `markupProblem`. Everything else a
+ * business sets is a yes or a no, and a flag is a zero or a one: the
  * code that reads one asks whether it is 1, so any other number would stand
  * in the history as a yes that never applied.
  */
 export function tenantParameterProblem(key: TenantParameterKey, value: number): string | null {
   if (key === 'invoice.payment_term_days') {
     return paymentTermProblem(value)
+  }
+
+  if (key === 'material.markup_basis_points') {
+    return markupProblem(value)
   }
 
   if (tenantParameterUnits[key] === 'flag' && value !== 0 && value !== 1) {
