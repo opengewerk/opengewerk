@@ -164,3 +164,47 @@ describe('the markup on material, as the office sees it', () => {
     expect(screen.queryByRole('button', { name: 'Speichern' })).toBeNull()
   })
 })
+
+describe('the markup on the metal surcharge (#462)', () => {
+  it('is off until the owner switches it on, from today', async () => {
+    signedInAs('owner')
+    render(inQueries(<MarkupSettingScreen />))
+
+    expect(
+      await screen.findByText('Aus: der Metallzuschlag geht ohne Aufschlag in den Einzelpreis.'),
+    ).toBeTruthy()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Einschalten' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+        key: 'material.markup_on_metal',
+        from: '2026-09-22',
+        value: 1,
+        note: null,
+      })
+    })
+  })
+
+  it('says since when it is on, and the office cannot switch it', async () => {
+    signedInAs('office')
+    serverSays('GET', '/settings/parameters', [
+      ...periods,
+      {
+        id: 'm-1',
+        key: 'material.markup_on_metal',
+        validFrom: '2026-09-01',
+        validUntil: null,
+        value: 1,
+        note: null,
+      },
+    ])
+    render(inQueries(<MarkupSettingScreen />))
+
+    expect(
+      await screen.findByText(
+        'An seit dem 01.09.2026: auch auf den Metallzuschlag kommt der Aufschlag.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Ausschalten' })).toBeNull()
+  })
+})

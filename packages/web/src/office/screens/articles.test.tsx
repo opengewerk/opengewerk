@@ -526,6 +526,7 @@ describe('an article', () => {
       expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
         fixed: false,
         basisPoints: 3000,
+        markupOnMetal: null,
       })
     })
 
@@ -538,6 +539,85 @@ describe('an article', () => {
       expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
         fixed: true,
         basisPoints: null,
+      })
+    })
+  })
+
+  it('names the copper of its suppliers, keeps it by hand and takes a word on its markup (#462)', async () => {
+    const withCopper: ArticleView = {
+      ...following,
+      suppliers: following.suppliers.map((link) =>
+        link.id === 'l-1'
+          ? { ...link, metals: [{ metal: 'copper', baseEuros: 150, gramsPerThousand: 43_200 }] }
+          : { ...link, metals: [] },
+      ),
+      pricing: {
+        ...(following.pricing as NonNullable<ArticleView['pricing']>),
+        markupOnMetal: null,
+        metalInherited: false,
+        metalInheritedFrom: 'business',
+      },
+    }
+
+    signedInAs('office')
+    serverSays('GET', /^\/articles\/a-1$/, withCopper)
+    serverSays('PUT', /^\/articles\/a-1\/suppliers\/l-1\/metals$/, { metals: [] })
+    serverSays('PUT', /^\/articles\/a-1\/pricing$/, { fixed: false })
+    await mount('/artikel/a-1')
+
+    expect(
+      await screen.findByText(
+        (_, element) =>
+          element?.tagName === 'P' &&
+          (element.textContent ?? '').endsWith(
+            'Dazu kommt an jeder Position der Metallzuschlag für Kupfer, nach dem Metallpreis am Belegdatum, ohne Aufschlag.',
+          ),
+      ),
+    ).toBeTruthy()
+
+    const suppliers = await screen.findByRole('table', { name: 'Lieferanten und Einkaufspreise' })
+
+    expect(within(suppliers).getByText('Kupfer 43,2 kg je 1.000 m, Basis 150 €')).toBeTruthy()
+
+    await userEvent.click(
+      within(suppliers).getByRole('button', {
+        name: 'Elektro-Großhandel Rhein-Neckar GmbH ändern',
+      }),
+    )
+
+    const metal = await screen.findByRole('form', { name: 'Metall' })
+    const fields = within(metal).getAllByLabelText(/^(Basis|Gewicht)/)
+
+    // Copper with a new weight, aluminium beside it.
+    await userEvent.clear(fields[1] as HTMLElement)
+    await userEvent.type(fields[1] as HTMLElement, '9,6')
+    await userEvent.type(fields[2] as HTMLElement, '0')
+    await userEvent.type(fields[3] as HTMLElement, '1,5')
+    await userEvent.click(within(metal).getByRole('button', { name: 'Metall speichern' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.path.endsWith('/metals'))?.body).toEqual({
+        metals: [
+          { metal: 'copper', baseEuros: 150, gramsPerThousand: 9_600 },
+          { metal: 'aluminium', baseEuros: 0, gramsPerThousand: 1_500 },
+        ],
+      })
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Schließen' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Preisbildung ändern' }))
+
+    const word = screen.getByLabelText('Aufschlag auf den Metallzuschlag') as HTMLSelectElement
+
+    expect(word.selectedOptions[0]?.textContent).toBe('Wie im Betrieb: ohne Aufschlag')
+    await userEvent.selectOptions(word, 'on')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.path.endsWith('/pricing'))?.body).toEqual({
+        fixed: false,
+        basisPoints: null,
+        markupOnMetal: true,
       })
     })
   })

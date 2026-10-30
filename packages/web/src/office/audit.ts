@@ -2,6 +2,7 @@ import {
   auditVocabulary,
   cableInstallationMethodLabel,
   distributionBoardKindLabel,
+  metalNames,
   type NumberRangeKey,
   overcurrentDeviceLabel,
   rcdTypeLabel,
@@ -112,6 +113,9 @@ export const auditScreenWords: AuditScreenWords = {
     time_entries: { kind: timeEntryKindLabel },
     number_ranges: { key: numberRangeWords },
     form_records: { definition_key: formWords },
+    // Copper and aluminium by name (#462).
+    supplier_article_metals: { metal: metalNames },
+    supplier_metal_prices: { metal: metalNames },
   },
   lists: { kinds: documentKindLabel },
   fingerprints: ['sha256', 'preview_sha256', 'content_fingerprint'],

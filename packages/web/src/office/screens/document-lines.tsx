@@ -5,6 +5,7 @@ import type {
   DocumentTotals,
   IsoDate,
   LineKind,
+  LineUnit,
   PriceBase,
   RecordState,
   TaxTreatment,
@@ -16,8 +17,11 @@ import {
   deductedPart,
   deducts,
   lineNetCents,
+  kilogramsLabel,
   lineUnits,
   markupFrom,
+  metalNames,
+  metalSurchargeCents,
   movedInOutline,
   outlineRows,
   priceBaseOf,
@@ -81,7 +85,7 @@ import {
   vatRateOf,
 } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
-import { purchaseOf } from '../../session/articles.js'
+import { type MetalOnDay, purchaseOf } from '../../session/articles.js'
 import { deductionsOf } from '../../session/documents.js'
 import { ArticlePicker } from './article-picker.js'
 import { Reorder } from './boards.js'
@@ -343,14 +347,31 @@ function LineForm({
     enabled: item && priced && readsPurchase && articleId !== null,
   })
   const bought = item && priced && readsPurchase ? (purchase.data?.purchase ?? null) : null
+  // The metal of the main supplier with its price of the day (#462): its
+  // surcharge is part of the unit price, with the markup where the word says so.
+  const metal = bought === null ? null : (purchase.data?.metal ?? null)
+  const markedUp = metal?.markupOnMetal ?? false
+  const metalAt = (basisPoints: number) =>
+    metal === null ? 0 : metalSurchargeCents(metal.metals, lineBase, markedUp ? basisPoints : 0)
   const typedCents = parseEuros(price)
   const derived =
-    bought === null || typedCents === null ? null : markupFrom(bought, lineBase, typedCents)
+    bought === null || typedCents === null
+      ? null
+      : markedUp
+        ? // Purchase price and metal together carry the markup.
+          markupFrom(
+            { cents: unitCentsFrom(bought, lineBase, 0) + metalAt(0), priceBase: lineBase },
+            lineBase,
+            typedCents,
+          )
+        : markupFrom(bought, lineBase, typedCents - metalAt(0))
   const markupShown =
     markupTyped ?? (derived === null ? '' : String(derived / 100).replace('.', ','))
   const markupRead =
     markupTyped === null || markupTyped.trim() === '' ? null : basisPointsFrom(markupTyped)
   const markupProblem = markupRead !== null && 'problem' in markupRead ? markupRead.problem : null
+  const markupNow =
+    markupRead !== null && 'basisPoints' in markupRead ? markupRead.basisPoints : (derived ?? 0)
   const shown =
     2 + (priced && bought === null ? 1 : 0) + (perUnits ? 1 : 0) + (priced && taxed ? 1 : 0)
   const unitPrice = (
@@ -528,35 +549,69 @@ function LineForm({
       {bought !== null ? (
         // Purchase price, markup and unit price, as the board "Neue Position mit
         // Einkaufspreis und Aufschlag" draws them: change one, the other follows.
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field
-            label="Einkaufspreis in Euro"
-            numeric
-            readOnly
-            className="bg-surface-sunken!"
-            value={centsAsInput(unitCentsFrom(bought, lineBase, 0))}
-            hint={`Von ${bought.supplierName}, am Belegdatum. Steht nie im Druck, in der E-Rechnung oder auf der Baustelle.`}
-          />
-          <Field
-            label="Aufschlag"
-            inputMode="decimal"
-            numeric
-            unit="%"
-            value={markupShown}
-            {...(markupProblem === null ? {} : { problem: markupProblem })}
-            hint="Ändert man ihn, rechnet sich der Einzelpreis."
-            onChange={(event) => {
-              const typed = event.target.value
-              const read = basisPointsFrom(typed)
-
-              setMarkupTyped(typed)
-
-              if ('basisPoints' in read) {
-                setPrice(centsAsInput(unitCentsFrom(bought, lineBase, read.basisPoints)))
+        // With a metal, its surcharge between them (#462), as "Neue Position mit
+        // Metallzuschlag" draws it.
+        <div className="flex flex-col gap-2">
+          <div
+            className={clsx(
+              'grid gap-3',
+              metal === null ? 'sm:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-4',
+            )}
+          >
+            <Field
+              label="Einkaufspreis in Euro"
+              numeric
+              readOnly
+              className="bg-surface-sunken!"
+              value={centsAsInput(unitCentsFrom(bought, lineBase, 0))}
+              hint={
+                metal === null
+                  ? `Von ${bought.supplierName}, am Belegdatum. Steht nie im Druck, in der E-Rechnung oder auf der Baustelle.`
+                  : `Von ${bought.supplierName}, am Belegdatum.`
               }
-            }}
-          />
-          {unitPrice}
+            />
+            {metal === null ? null : (
+              <Field
+                label="Metallzuschlag in Euro"
+                numeric
+                readOnly
+                className="bg-surface-sunken!"
+                value={centsAsInput(metalAt(markupNow))}
+                hint={metalHint(metal, lineUnitOf({ unit }), markedUp)}
+              />
+            )}
+            <Field
+              label="Aufschlag"
+              inputMode="decimal"
+              numeric
+              unit="%"
+              value={markupShown}
+              {...(markupProblem === null ? {} : { problem: markupProblem })}
+              hint="Ändert man ihn, rechnet sich der Einzelpreis."
+              onChange={(event) => {
+                const typed = event.target.value
+                const read = basisPointsFrom(typed)
+
+                setMarkupTyped(typed)
+
+                if ('basisPoints' in read) {
+                  setPrice(
+                    centsAsInput(
+                      unitCentsFrom(bought, lineBase, read.basisPoints) + metalAt(read.basisPoints),
+                    ),
+                  )
+                }
+              }}
+            />
+            {unitPrice}
+          </div>
+          {metal === null ? null : (
+            <p className="text-[13px] leading-[1.45] text-ink-faint">
+              Einkaufspreis, Metallzuschlag und Aufschlag stehen nie im Druck, in der E-Rechnung
+              oder auf der Baustelle; der Kunde sieht den Einzelpreis, in dem der Metallzuschlag
+              steckt.
+            </p>
+          )}
         </div>
       ) : null}
 
@@ -1219,4 +1274,22 @@ function Totals({
       {totals.taxNote ? <p className="text-table text-ink-muted">{totals.taxNote}</p> : null}
     </div>
   )
+}
+
+/**
+ * Where the metal surcharge of a position comes from (#462): each metal with
+ * the supplier's price of the day, the base and the weight, or that the
+ * supplier has no price for it yet and the unit price holds no surcharge.
+ */
+function metalHint(metal: MetalOnDay, unit: LineUnit, markedUp: boolean): string {
+  const parts = metal.metals.map((entry) =>
+    entry.centsPerHundredKg === null || entry.priceFrom === null
+      ? `Für ${metalNames[entry.metal]} ist bei ${metal.supplierName} noch kein Metallpreis ` +
+        'eingetragen; der Einzelpreis enthält dafür keinen Zuschlag.'
+      : `${metalNames[entry.metal]} zu ${euros(entry.centsPerHundredKg)} je 100 kg ab dem ` +
+        `${date(entry.priceFrom)}, Basis ${String(entry.baseEuros)} €, ` +
+        `${kilogramsLabel(entry.gramsPerThousand)} kg je ${priceBaseLabel(1000, unit)}.`,
+  )
+
+  return `${parts.join(' ')} ${markedUp ? 'Mit' : 'Ohne'} Aufschlag.`
 }
