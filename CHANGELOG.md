@@ -91,6 +91,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Suche im Artikelkatalog antwortet auch bei einem ganzen Großhandelssortiment schnell (#461): über eine eigene
+  Suchtabelle mit Trigramm-Index für Nummer, Bezeichnung, EAN und die Nummern der Lieferanten, die die Trigger der
+  Artikel und ihrer Lieferanten pflegen. Gemessen an 700.000 Artikeln braucht eine Suche jetzt 10 bis 110 ms statt
+  1,35 s und jede Seite der Liste rund 0,15 s, auch die letzte, statt bis zu 5,5 s; beide Sortierungen haben einen
+  Index, aus dem eine Seite ohne Blick in die Tabelle kommt.
+  Dieselbe Abfrage bedient die Liste im Büro, „Position aus Artikel“ und „Material eintragen“. Warum: unter
+  Row-Level Security nimmt PostgreSQL für `LIKE` keinen Index, und jede Eingabe las den ganzen Katalog. Die
+  Suchtabelle ist deshalb die einzige Tabelle ohne FORCE; die Anwendung hat kein Recht an ihr und erreicht sie nur
+  über eine Funktion, die selbst nach dem Betrieb fragt. Entschieden von Moritz am 30.10.2026, festgehalten in ADR 0015.
 - Die Feature-Gliederung (v2.37) trägt die Preisbildung ein, die Moritz am 28.09.2026 nach dem Test mit einer echten
   Lieferung aus DATANORM entschieden hat: der Listenpreis wird Einkaufspreis des Lieferanten, ein Nettopreis geht ihm
   vor; der Verkaufspreis entsteht aus dem Einkaufspreis des Hauptlieferanten und einem Aufschlag für den Betrieb, je

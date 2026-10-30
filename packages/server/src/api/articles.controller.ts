@@ -45,20 +45,7 @@ import {
   requireSomething,
   type TenantTransaction,
 } from '@opengewerk/platform-server'
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  ilike,
-  inArray,
-  isNull,
-  max,
-  or,
-  type SQL,
-  sql,
-} from 'drizzle-orm'
+import { and, asc, count, desc, eq, ilike, inArray, isNull, max, type SQL, sql } from 'drizzle-orm'
 
 import { parameterAt } from '../database/parameters.js'
 import {
@@ -177,6 +164,79 @@ function likePattern(search: string): string {
   return `%${search.replaceAll(/[\\%_]/g, '\\$&')}%`
 }
 
+/**
+ * What a search of the list asks (#461): number, name, EAN and the suppliers'
+ * numbers through the search table and its trigram index (ADR 0015), which
+ * asks for the tenant itself. A supplier's name is asked of the suppliers,
+ * which are few, and brings all of that supplier's articles; only when one
+ * matches, since joined in for every search it led the planner to read every
+ * link there is.
+ */
+async function searchFor(tx: TenantTransaction, wanted: string): Promise<SQL> {
+  const pattern = likePattern(wanted)
+  const named = await tx
+    .select({ id: suppliers.id })
+    .from(suppliers)
+    .where(and(isNull(suppliers.deletedAt), ilike(suppliers.name, pattern)))
+
+  if (named.length === 0) {
+    return sql`${articles.id} in (select * from article_search_hits(${pattern}))`
+  }
+
+  // One set of ids rather than an OR of two: with an OR the database asked
+  // the links again for every article, half a minute for 700,000.
+  const ofSupplier = sql.join(
+    named.map((supplier) => sql`${supplier.id}::uuid`),
+    sql`, `,
+  )
+
+  return sql`${articles.id} in (select * from article_search_hits(${pattern})
+    union all select sa.article_id from supplier_articles sa where sa.supplier_id in (${ofSupplier}))`
+}
+
+/**
+ * What the list shows of the articles of one page, in the page's order: the
+ * selling price of the day, the first supplier and how many there are.
+ */
+async function rowsOfPage(
+  tx: TenantTransaction,
+  ids: readonly (typeof articles.$inferSelect)['id'][],
+  day: string,
+  order: SQL[],
+) {
+  if (ids.length === 0) {
+    return []
+  }
+
+  return tx
+    .select({
+      id: articles.id,
+      number: articles.number,
+      designation: articles.designation,
+      description: articles.description,
+      unit: articles.unit,
+      groupOfGoods: articles.groupOfGoods,
+      frequent: articles.frequent,
+      priceCents: sql<number | null>`(select p.unit_price_cents from article_prices p
+        where p.article_id = ${articleOfRow} and p.deleted_at is null and p.valid_from <= ${day}
+        order by p.valid_from desc limit 1)`,
+      // The price unit of that same price (#456); one price a day, so both
+      // questions find the same row.
+      priceBase: sql<PriceBase | null>`(select p.price_base from article_prices p
+        where p.article_id = ${articleOfRow} and p.deleted_at is null and p.valid_from <= ${day}
+        order by p.valid_from desc limit 1)`,
+      supplierName: sql<string | null>`(select s.name from supplier_articles sa
+        join suppliers s on s.id = sa.supplier_id and s.deleted_at is null
+        where sa.article_id = ${articleOfRow} order by sa.created_at, sa.id limit 1)`,
+      suppliers: sql<number>`(select count(*)::int from supplier_articles sa
+        join suppliers s on s.id = sa.supplier_id and s.deleted_at is null
+        where sa.article_id = ${articleOfRow})`,
+    })
+    .from(articles)
+    .where(inArray(articles.id, [...ids]))
+    .orderBy(...order)
+}
+
 function requirePurchaseRight(identity: RequestIdentity, permission: 'purchase.write'): void {
   if (!isAllowed(identity, permission)) {
     throw new ForbiddenException(missingPermission(permission))
@@ -245,23 +305,6 @@ export class ArticlesController {
     const conditions: SQL[] = [isNull(articles.deletedAt)]
     const wanted = search?.trim() ?? ''
 
-    if (wanted !== '') {
-      const pattern = likePattern(wanted)
-      const bySupplier = sql`exists (select 1 from supplier_articles sa
-        join suppliers s on s.id = sa.supplier_id and s.deleted_at is null
-        where sa.article_id = ${articleOfRow}
-          and (s.name ilike ${pattern} or sa.supplier_number ilike ${pattern}))`
-
-      conditions.push(
-        or(
-          ilike(articles.number, pattern),
-          ilike(articles.designation, pattern),
-          ilike(articles.ean, pattern),
-          bySupplier,
-        ) as SQL,
-      )
-    }
-
     if (frequent === 'true') {
       conditions.push(eq(articles.frequent, true))
     }
@@ -271,46 +314,44 @@ export class ArticlesController {
     }
 
     const day = on ?? todayInGermany()
-    const where = and(...conditions)
     const order =
       sort === 'designation'
         ? [asc(sql`lower(${articles.designation})`), asc(articles.id)]
         : [asc(sql`lower(${articles.number})`), asc(articles.id)]
 
     return this.database.forTenant(identity, async (tx) => {
-      const [total] = await tx.select({ rows: count() }).from(articles).where(where)
-      const rows = await tx
+      if (wanted !== '') {
+        conditions.push(await searchFor(tx, wanted))
+      }
+
+      const where = and(...conditions)
+      // The page as its ids first, and what each row asks of other tables only
+      // for those: asked in one go, the questions ran for every row the offset
+      // passed over, and the last page of 700,000 articles took 5.5 s (#461).
+      // A search counts in the same pass, since it reads every hit anyway;
+      // the whole list counts on its own, from the index.
+      const page = await tx
         .select({
           id: articles.id,
-          number: articles.number,
-          designation: articles.designation,
-          description: articles.description,
-          unit: articles.unit,
-          groupOfGoods: articles.groupOfGoods,
-          frequent: articles.frequent,
-          priceCents: sql<number | null>`(select p.unit_price_cents from article_prices p
-            where p.article_id = ${articleOfRow} and p.deleted_at is null and p.valid_from <= ${day}
-            order by p.valid_from desc limit 1)`,
-          // The price unit of that same price (#456); one price a day, so both
-          // questions find the same row.
-          priceBase: sql<PriceBase | null>`(select p.price_base from article_prices p
-            where p.article_id = ${articleOfRow} and p.deleted_at is null and p.valid_from <= ${day}
-            order by p.valid_from desc limit 1)`,
-          supplierName: sql<string | null>`(select s.name from supplier_articles sa
-            join suppliers s on s.id = sa.supplier_id and s.deleted_at is null
-            where sa.article_id = ${articleOfRow} order by sa.created_at, sa.id limit 1)`,
-          suppliers: sql<number>`(select count(*)::int from supplier_articles sa
-            join suppliers s on s.id = sa.supplier_id and s.deleted_at is null
-            where sa.article_id = ${articleOfRow})`,
+          ...(wanted === '' ? {} : { hits: sql<number>`count(*) over ()` }),
         })
         .from(articles)
         .where(where)
         .orderBy(...order)
         .offset(from)
         .limit(size)
+      const counted = page[0] && 'hits' in page[0] ? Number(page[0].hits) : undefined
+      const total =
+        counted ?? (await tx.select({ rows: count() }).from(articles).where(where))[0]?.rows ?? 0
+      const rows = await rowsOfPage(
+        tx,
+        page.map((row) => row.id),
+        day,
+        order,
+      )
 
       if (on === undefined) {
-        return { total: total?.rows ?? 0, rows }
+        return { total, rows }
       }
 
       // Asked for a document's date, the price is the one a line of that day
@@ -322,7 +363,7 @@ export class ArticlesController {
       )
 
       return {
-        total: total?.rows ?? 0,
+        total,
         rows: rows.map((row) => {
           const line = lines.get(row.id)
 

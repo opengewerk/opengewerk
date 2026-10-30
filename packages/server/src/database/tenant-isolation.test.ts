@@ -90,7 +90,21 @@ describe('the tables', () => {
     // the count right after the first migration, while five migrations have
     // been added since.
     expect(tables.length).toBeGreaterThanOrEqual(21)
-    expect(unprotected(tables)).toEqual([])
+    // The one exception, decided on 30.10.2026 (#461, ADR 0015): the search
+    // over the catalogue, which the application has no right on and reaches
+    // only through `article_search_hits`. Not forced, so that its owner reads
+    // it with the trigram index; held here in exactly that state, and a right
+    // for the application or a lost policy turns this red.
+    expect(unprotected(tables)).toEqual([
+      {
+        table: 'article_search',
+        enabled: true,
+        forced: false,
+        policies: 1,
+        granted: false,
+        openToEveryRole: false,
+      },
+    ])
   })
 
   /**
@@ -143,6 +157,12 @@ describe('the tables', () => {
       ...foundationDefinerFunctions,
       'reserve_sync_sequences(amount integer)':
         'an import takes its block of change numbers at its very end, in one step (#297)',
+      'article_search_hits(pattern text)':
+        'the search over the catalogue reads its table with the trigram index and asks for the tenant itself (#461)',
+      'article_search_of_articles()':
+        'an article writes its row of the search, which the application has no right on (#461)',
+      'article_search_of_supplier_articles()':
+        "a supplier's number writes its row of the search, which the application has no right on (#461)",
     })
 
     expect(reading).toEqual({ unexplained: [], stale: [], openToEveryRole: [] })
@@ -395,6 +415,20 @@ describe('without a tenant', () => {
 
 /** The key of the lines, which the trigger in front of it keeps from the list. */
 const lineKey = 'document_lines_document_in_tenant'
+
+/**
+ * The keys of the search over the catalogue (#461, ADR 0015), which the
+ * application cannot write at all: its triggers write it as the owner, from
+ * the rows of an article or a link of the same business.
+ */
+const searchKeys = [
+  { key: 'article_search_article_in_tenant', column: 'article_id', target: 'article' },
+  {
+    key: 'article_search_link_in_tenant',
+    column: 'supplier_article_id',
+    target: 'supplierArticle',
+  },
+] as const
 
 /**
  * The keys of a link to a PV system (#300), which the trigger holding the link
@@ -1035,6 +1069,7 @@ describe('a reference to a record of another business', () => {
       ...crossings.map((crossing) => crossing.key),
       lineKey,
       ...pvLinks.map((link) => link.key),
+      ...searchKeys.map((search) => search.key),
     ])
     expect(rows.map((row) => row.key).filter((key) => !tested.has(key))).toEqual([])
   })
@@ -1070,6 +1105,37 @@ describe('a reference to a record of another business', () => {
     )
     expect(pastEveryPolicy).toEqual({ code: foreignKeyViolation, constraint: lineKey })
   })
+
+  it.each(searchKeys)(
+    'is refused for $column of the search by the missing right first, and by $key behind it',
+    async ({ key, column, target }) => {
+      // The application has no right on the table, so it never gets as far as
+      // the key; its triggers write it as the owner, past every policy, and
+      // there the key holds.
+      const throughTheApplication = await refusedBy(
+        database.forTenant({ tenantId: north.id }, (tx) =>
+          tx.execute(
+            sql`insert into article_search (id, tenant_id, article_id, text)
+                  values (uuidv7(), ${own.tenant}, ${own.article}, 'x')`,
+          ),
+        ),
+      )
+      expect(throughTheApplication.code).toBe('42501')
+
+      const pastEveryPolicy = await refusedBy(
+        admin.query(
+          `insert into article_search (id, tenant_id, article_id, supplier_article_id, text)
+             values (uuidv7(), $1, $2, $3, 'x')`,
+          [
+            own.tenant,
+            column === 'article_id' ? other[target] : own.article,
+            column === 'supplier_article_id' ? other[target] : null,
+          ],
+        ),
+      )
+      expect(pastEveryPolicy).toEqual({ code: foreignKeyViolation, constraint: key })
+    },
+  )
 
   it.each(pvLinks)(
     'is refused for $column by the trigger first, and by $key behind it',

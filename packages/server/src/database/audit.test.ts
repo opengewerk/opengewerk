@@ -39,7 +39,7 @@ let database: Database
  */
 const outsideTheLog = {
   prefixes: [...foundationOutsideTheLog.prefixes],
-  tables: [...foundationOutsideTheLog.tables, 'secrets'],
+  tables: [...foundationOutsideTheLog.tables, 'secrets', 'article_search'],
 }
 
 /** The log's own error class. */
@@ -118,6 +118,10 @@ describe('the tables', () => {
     // again: a sealed password in it would stay there for good, open to
     // anybody who later holds the log and the key together. The log learns
     // when a password was set from `mail_settings`, which it does watch.
+    //
+    // `article_search` (#461, ADR 0015) repeats what an article and its
+    // suppliers' numbers say, written by their triggers; the log has every
+    // change at those rows already.
     //
     // The `instance_` tables (#188) belong to the instance and to no business,
     // like the accounts, and have a log of their own. Both are the

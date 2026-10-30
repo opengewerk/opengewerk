@@ -22,6 +22,7 @@ Die Dokumente folgen dem [MADR-Format](https://adr.github.io/madr/), auf Deutsch
 | [0012](0012-qualifikationen-im-fundament.md) | Qualifikationen der Mitarbeiter im Fundament | angenommen |
 | [0013](0013-schwaerzen-im-aenderungsprotokoll.md) | Schwärzen im Änderungsprotokoll | angenommen |
 | [0014](0014-elektro-struktur-im-fundament.md) | Elektro-Struktur und PV-Struktur im Fundament | angenommen |
+| [0015](0015-suchtabelle-fuer-artikel.md) | Eine Suchtabelle für Artikel außerhalb von FORCE | angenommen |
 
 ## Der Tech-Stack auf einen Blick
 
