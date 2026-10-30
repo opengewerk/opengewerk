@@ -1,6 +1,6 @@
 import type { IsoDate, LineUnit, PriceBase, SupplierId } from '@opengewerk/domain'
 import type { TenantTransaction } from '@opengewerk/platform-server'
-import { sql } from 'drizzle-orm'
+import { type SQL, sql } from 'drizzle-orm'
 
 import type { HeldArticle, HeldLink, HeldMarkup, HeldPrice, Holdings } from './plan.js'
 
@@ -11,8 +11,8 @@ import type { HeldArticle, HeldLink, HeldMarkup, HeldPrice, Holdings } from './p
  * that the takeover plans against what it is about to write into.
  *
  * All articles and not only the supplier's, since a number is taken by any
- * article and an EAN finds any. For a hundred thousand articles that is a few
- * megabytes, read once.
+ * article and an EAN finds any; where the files bring no article, only what
+ * hangs off the links they name (`holdingsOf`).
  */
 
 interface PriceRow {
@@ -39,18 +39,37 @@ function heldPrices(rows: readonly Record<string, unknown>[]): Map<string, HeldP
   )
 }
 
+/**
+ * What the business holds that a plan compares with. `numbers` narrows it to
+ * the links under those numbers of the supplier, their articles and their
+ * prices (#297), for files with prices and deletions only (`numbersOnly`):
+ * the price changes of a month need a few thousand links, and the whole
+ * catalogue of a wholesaler took seconds to load and its memory twice, here
+ * and in the thread that plans.
+ */
 export async function holdingsOf(
   tx: TenantTransaction,
   supplierId: SupplierId,
   validFrom: IsoDate,
+  numbers: readonly string[] | null = null,
 ): Promise<Holdings> {
+  // One parameter, whatever the count: a price file of a whole catalogue
+  // names 700,000 numbers, ten times what a statement takes as parameters.
+  const named = numbers === null ? null : sql`${sql.param([...numbers])}::text[]`
+  const ofLinks = named === null ? sql`` : sql`and s.supplier_number = any(${named})`
+  const ofArticles = (column: SQL) =>
+    named === null
+      ? sql``
+      : sql`and ${column} in (select article_id from supplier_articles
+              where supplier_id = ${supplierId} and supplier_number = any(${named}))`
+
   // Whether an article has a main supplier already (#463): a link added to
   // one that has none becomes the main one, by the trigger of 0099.
   const articleRows = await tx.execute(sql`
     select a.id, a.number, a.designation, a.unit, a.ean, s.id is not null as supplied
       from articles a
       left join supplier_articles s on s.article_id = a.id and s.main
-     where a.deleted_at is null
+     where a.deleted_at is null ${ofArticles(sql`a.id`)}
      order by a.created_at, a.id`)
 
   const articles = new Map<string, HeldArticle>(
@@ -76,7 +95,7 @@ export async function holdingsOf(
       from supplier_articles s
       left join supplier_article_metals m on m.supplier_article_id = s.id and m.metal = 'copper'
      where s.supplier_id = ${supplierId}
-       and s.supplier_number is not null
+       and s.supplier_number is not null ${ofLinks}
      order by s.created_at desc, s.id desc`)
 
   const links = new Map<string, HeldLink>(
@@ -106,7 +125,7 @@ export async function holdingsOf(
       from list_prices p
       join supplier_articles s on s.id = p.supplier_article_id
      where s.supplier_id = ${supplierId}
-       and p.valid_from <= ${validFrom}
+       and p.valid_from <= ${validFrom} ${ofLinks}
      order by p.supplier_article_id, p.valid_from desc`)
 
   const purchasePrices = await tx.execute(sql`
@@ -116,7 +135,7 @@ export async function holdingsOf(
       from purchase_prices p
       join supplier_articles s on s.id = p.supplier_article_id
      where s.supplier_id = ${supplierId}
-       and p.valid_from <= ${validFrom}
+       and p.valid_from <= ${validFrom} ${ofLinks}
      order by p.supplier_article_id, p.valid_from desc`)
 
   const sellingPrices = await tx.execute(sql`
@@ -125,13 +144,14 @@ export async function holdingsOf(
            p.unit_price_cents as cents, p.price_base, p.import_id is not null as from_import
       from article_prices p
      where p.deleted_at is null
-       and p.valid_from <= ${validFrom}
+       and p.valid_from <= ${validFrom} ${ofArticles(sql`p.article_id`)}
      order by p.article_id, p.valid_from desc`)
 
   // What the articles say about their selling prices (#463): only those
   // that are fixed or have a markup of their own have a row.
   const markupRows = await tx.execute(sql`
-    select article_id, fixed, basis_points from article_markups`)
+    select article_id, fixed, basis_points from article_markups
+     where true ${ofArticles(sql`article_id`)}`)
 
   const articleMarkups = new Map<string, HeldMarkup>(
     markupRows.rows.map((row) => [

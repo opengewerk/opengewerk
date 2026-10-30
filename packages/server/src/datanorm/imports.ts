@@ -463,7 +463,7 @@ export class ArticleImports {
 
       const summary = await this.database.forTenant(importer, async (tx) => {
         const supplier = await supplierOf(tx, row.supplierId)
-        const holdings = await holdingsOf(tx, row.supplierId, validFrom)
+        const holdings = await holdingsOf(tx, row.supplierId, validFrom, planning.numbers)
 
         return planning.summaryOf(holdings, {
           validFrom,
@@ -595,7 +595,8 @@ export class ArticleImports {
         await tx.execute(sql`select set_config('app.article_import', ${row.id}, true)`)
 
         const supplier = await supplierOf(tx, row.supplierId)
-        const plan = await planning.planOf(await holdingsOf(tx, row.supplierId, validFrom), {
+        const holdings = await holdingsOf(tx, row.supplierId, validFrom, planning.numbers)
+        const plan = await planning.planOf(holdings, {
           validFrom,
           shortCode: supplier.shortCode ?? shortCodeFrom(supplier.name),
           markup: await markupFor(tx, row.supplierId, validFrom),

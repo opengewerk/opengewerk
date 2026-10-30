@@ -142,6 +142,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nicht, endet nur er, mit einem Satz in der Vorschau. Die Tests des Servers bauen ihn vorher, und die Vorschau baut
   den Server mit.
 
+- Ein Import aus DATANORM mit Preisen und Löschsätzen allein lädt vom Bestand des Betriebs nur noch, was an den
+  Nummern dieser Lieferung hängt: die Verbindungen des Lieferanten, ihre Artikel und deren Preise (#297, Punkt 5).
+  Warum: bisher lud jede Lieferung den ganzen Bestand, beim Sortiment eines Großhändlers Sekunden und denselben
+  Speicher zweimal, im Server und im Thread, der plant, auch für die Preisänderungen eines Monats. Eine Lieferung
+  mit Artikelsätzen lädt weiter alles, weil Nummer und EAN eines neuen Artikels gegen jeden Artikel geprüft werden.
+
 ### Behoben
 
 - Wird ein Kunde oder ein Objekt entfernt, gehen seine Ansprechpartner mit, wie beim Lieferanten schon bisher (#555).
