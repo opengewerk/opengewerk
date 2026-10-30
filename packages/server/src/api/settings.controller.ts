@@ -102,13 +102,7 @@ export class SettingsController {
 
     try {
       const set = await this.database.forTenant(identity, async (tx) => {
-        const parameter = await setParameter(tx, identity.tenantId, {
-          key,
-          from,
-          value: value as number,
-          note: typeof note === 'string' ? note : null,
-        })
-
+        // First, before the setting is written and logged (`request`).
         if (markup) {
           await this.sellingPrices.request(tx, {
             tenantId: identity.tenantId,
@@ -118,7 +112,12 @@ export class SettingsController {
           })
         }
 
-        return parameter
+        return setParameter(tx, identity.tenantId, {
+          key,
+          from,
+          value: value as number,
+          note: typeof note === 'string' ? note : null,
+        })
       })
 
       if (markup) {

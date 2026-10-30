@@ -176,9 +176,15 @@ export class SellingPrices {
    * Notes the run in the caller's transaction, widened by one that waits
    * already: to the whole business where the two name different suppliers,
    * and from the earlier day. Started with `start` once that commits.
+   *
+   * Called before the caller writes anything the log records. It holds the
+   * row of a waiting run from here on, and a run that ends removes that row
+   * before it writes its own entry: in the other order each transaction
+   * waits for the other, one on the row and one on the business's chain of
+   * the log, and PostgreSQL ends one of them as a deadlock.
    */
   async request(tx: TenantTransaction, run: PriceRunRequest): Promise<void> {
-    const [held] = await tx.select().from(sellingPriceRuns)
+    const [held] = await tx.select().from(sellingPriceRuns).for('update')
     const values = {
       tenantId: run.tenantId,
       supplierId: held === undefined || held.supplierId === run.supplierId ? run.supplierId : null,

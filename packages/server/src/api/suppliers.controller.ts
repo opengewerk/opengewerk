@@ -313,6 +313,14 @@ export class SuppliersController {
     await this.database.forTenant(identity, async (tx) => {
       const supplier = await supplierOf(tx, id)
 
+      // First, before the markup is written and logged (`request`).
+      await this.sellingPrices.request(tx, {
+        tenantId: identity.tenantId,
+        userId: identity.userId,
+        supplierId: supplier.id,
+        from: todayInGermany(),
+      })
+
       if (basisPoints === null) {
         await tx.delete(supplierMarkups).where(eq(supplierMarkups.supplierId, supplier.id))
       } else {
@@ -328,13 +336,6 @@ export class SuppliersController {
             set: { basisPoints: basisPoints as number, updatedAt: new Date() },
           })
       }
-
-      await this.sellingPrices.request(tx, {
-        tenantId: identity.tenantId,
-        userId: identity.userId,
-        supplierId: supplier.id,
-        from: todayInGermany(),
-      })
     })
     this.sellingPrices.start(identity.tenantId)
 
