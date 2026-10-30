@@ -158,6 +158,7 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       document_date: 'Belegdatum',
       issued_at: 'Festgeschrieben am',
       issued_by: 'Festgeschrieben von',
+      created_by: 'Angelegt von',
       subject: 'Betreff',
       tax_treatment: 'Steuerfall',
       service_from: 'Leistung ab',

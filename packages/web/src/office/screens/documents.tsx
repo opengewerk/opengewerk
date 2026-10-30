@@ -48,6 +48,7 @@ import type { ReactNode } from 'react'
 
 import { DocumentState } from '../../app/document-state.js'
 import { documentKindLabel, documentKindOf, documentStatusOf } from '../../app/labels.js'
+import { DeleteDraft } from '../../app/delete-draft.js'
 import { useMay } from '../../app/queries.js'
 import { usePeople } from '../../app/tasks.js'
 import { useReportFieldLines } from '../../app/report-fields.js'
@@ -783,7 +784,19 @@ function DocumentView({ document }: { readonly document: RecordState }) {
     // fields no longer fit at 1280. What the e-invoice still lacks is said
     // inside the frame, under the lines it is about.
     body = (
-      <DraftFrame kind={heading}>
+      <DraftFrame
+        kind={heading}
+        action={
+          <DeleteDraft
+            document={document}
+            kind={heading}
+            customerName={customer ? text(customer, 'name') : null}
+            onDeleted={() => {
+              void navigate({ to: back?.to ?? '/belege' })
+            }}
+          />
+        }
+      >
         {kind === 'cost_estimate' ? <EstimateNotice /> : null}
         <HeaderCard document={document} editable={editable} billedCents={figures.billedCents} />
         <ReportFieldsCard document={document} />

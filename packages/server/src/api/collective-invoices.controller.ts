@@ -32,7 +32,7 @@ export class CollectiveInvoicesController {
 
     try {
       const created = await this.database.forTenant(identity, (tx) =>
-        makeCollectiveInvoice(tx, identity.tenantId, jobId as JobId, documentDate),
+        makeCollectiveInvoice(tx, identity.tenantId, jobId as JobId, documentDate, identity.userId),
       )
 
       if (!created) {

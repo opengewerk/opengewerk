@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { closesProgressInvoices, servicePeriodProblem } from './document.js'
+import { permissionsOfRoles } from './authorization.js'
+import { closesProgressInvoices, mayDeleteDraft, servicePeriodProblem } from './document.js'
 
 describe('a service period', () => {
   it('is a single day, a period in order, or nothing yet', () => {
@@ -46,5 +47,39 @@ describe('an invoice that closes a row of progress invoices', () => {
     expect(closesProgressInvoices({ kind: 'progress_invoice', deductions: [deduction] })).toBe(
       false,
     )
+  })
+})
+
+/** Who may delete a draft (#786), decided on 30.10.2026. */
+describe('deleting a draft', () => {
+  const technician = new Set<string>(permissionsOfRoles(['technician']))
+  const office = new Set<string>(permissionsOfRoles(['office']))
+  const holding = (rights: ReadonlySet<string>) => (right: string) => rights.has(right)
+  const draft = (createdBy: string | null) => ({ status: 'draft' as const, createdBy })
+
+  it('is for whoever made it, and somebody else only with the right to delete drafts', () => {
+    expect(mayDeleteDraft(draft('max'), 'max', holding(technician))).toBe(true)
+    expect(mayDeleteDraft(draft('britta'), 'max', holding(technician))).toBe(false)
+    expect(mayDeleteDraft(draft(null), 'max', holding(technician))).toBe(false)
+    expect(mayDeleteDraft(draft('max'), 'britta', holding(office))).toBe(true)
+    expect(mayDeleteDraft(draft(null), 'britta', holding(office))).toBe(true)
+    expect(
+      mayDeleteDraft(draft('britta'), 'max', holding(new Set([...technician, 'document.delete']))),
+    ).toBe(true)
+  })
+
+  it('never takes a fixed or signed document, nor one without the right to write documents', () => {
+    for (const status of ['signed', 'issued', 'cancelled'] as const) {
+      expect(mayDeleteDraft({ status, createdBy: 'britta' }, 'britta', holding(office))).toBe(false)
+    }
+
+    expect(mayDeleteDraft(draft('max'), 'max', holding(new Set()))).toBe(false)
+    expect(mayDeleteDraft(draft(null), null, holding(technician))).toBe(false)
+  })
+
+  it('is given to the owner and the office, and not to a technician', () => {
+    expect(permissionsOfRoles(['owner'])).toContain('document.delete')
+    expect(office.has('document.delete')).toBe(true)
+    expect(technician.has('document.delete')).toBe(false)
   })
 })

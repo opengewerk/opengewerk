@@ -95,6 +95,12 @@ export const permissions = [
    */
   'document.issue',
   /**
+   * Deleting a draft somebody else made (#786, decided on 30.10.2026). A
+   * draft of one's own goes with `document.write`; a document that was fixed
+   * or signed is never deleted, whoever asks.
+   */
+  'document.delete',
+  /**
    * What came in on an invoice (#189): recorded by hand until the bank is
    * matched in phase 3, and read by the final invoice that takes it off.
    * Reading and writing apart, as the rights of the finance module will be.
@@ -242,6 +248,7 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'document.read': 'Belege ansehen',
   'document.write': 'Belege bearbeiten',
   'document.issue': 'Belege festschreiben',
+  'document.delete': 'Entwürfe anderer löschen',
   'payment.read': 'Zahlungseingänge ansehen',
   'payment.write': 'Zahlungseingänge erfassen',
   'task.read': 'Aufgaben ansehen',
@@ -334,6 +341,7 @@ const officePermissions: readonly Permission[] = [
   'document.read',
   'document.write',
   'document.issue',
+  'document.delete',
   'payment.read',
   'payment.write',
   'task.read',

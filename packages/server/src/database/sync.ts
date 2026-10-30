@@ -1,11 +1,14 @@
 import {
   type CustomerId,
+  type DocumentStatus,
   formRecordProblem,
   isAllowed,
   type IsoDate,
   leavesByProgress,
   lineNetCents,
   locationFields,
+  mayDeleteDraft,
+  notOwnDraft,
   offlineRules,
   type Operation,
   paymentTermProblem,
@@ -321,6 +324,41 @@ const cancellation: Check = ({ operation, values }) =>
     : null
 
 /**
+ * Deleting a draft from a device (#786): one's own with the right to write
+ * documents, which the route asked for, somebody else's only with
+ * `document.delete`. A draft that was fixed in the meantime the policy turns
+ * into a conflict before this. Refused with the sentence, the way a right
+ * that is missing is: the device shows the one change and lets it go.
+ */
+const draftDeletion: Check = ({ operation, current, sender }) => {
+  if (operation.entity !== 'documents' || operation.kind !== 'delete' || current === null) {
+    return null
+  }
+
+  return mayDeleteDraft(
+    {
+      status: current['status'] as DocumentStatus,
+      createdBy: (current['createdBy'] as string | null | undefined) ?? null,
+    },
+    sender.userId,
+    (right) => isAllowed(sender, right),
+  )
+    ? null
+    : { kind: 'client', message: notOwnDraft }
+}
+
+/** Who made a document on a device (#786): the sender, never a value the device sends. */
+function withCreator(
+  operation: Operation,
+  values: Record<string, unknown>,
+  sender: FoundIdentity,
+): Record<string, unknown> {
+  return operation.kind === 'create' && operation.entity === 'documents'
+    ? { ...values, createdBy: sender.userId }
+    : values
+}
+
+/**
  * The line total, put in by the server on the way to the database.
  *
  * Two numbers decide it, and an operation may carry one, both or neither: a
@@ -428,13 +466,18 @@ export const sync = serverSync<FoundIdentity>({
     jobProgress,
     followUp,
     cancellation,
+    draftDeletion,
   ],
-  complete: async ({ tx, tenantId, operation, values, current }) =>
+  complete: async ({ tx, tenantId, operation, values, current, sender }) =>
     withJobNumber(
       tx,
       tenantId,
       operation,
-      await withProposedTreatment(tx, operation, withLineTotal(operation.entity, values, current)),
+      await withProposedTreatment(
+        tx,
+        operation,
+        withCreator(operation, withLineTotal(operation.entity, values, current), sender),
+      ),
     ),
 })
 

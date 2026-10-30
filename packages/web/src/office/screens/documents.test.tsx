@@ -992,6 +992,48 @@ describe('a quote with titles', () => {
   })
 })
 
+describe('deleting a draft (#786)', () => {
+  it('is for whoever made it, after asking, and leads back to the job', async () => {
+    const { router } = await mount('/belege/d-1', { documents: [document({ createdBy: 'u-1' })] }, [
+      'technician',
+    ])
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Entwurf löschen' }))
+
+    const asking = await screen.findByRole('alertdialog', { name: 'Entwurf löschen?' })
+
+    expect(
+      within(asking).getByText(
+        'Der Entwurf „Angebot vom 21.09.2026 für Familie Berg“ verschwindet aus den Listen, am Auftrag und auf den Geräten. Eine Nummer hatte er noch nicht. Das Änderungsprotokoll hält fest, wer den Entwurf wann gelöscht hat.',
+      ),
+    ).toBeTruthy()
+    await person.click(within(asking).getByRole('button', { name: 'Entwurf löschen' }))
+
+    await waitFor(() => {
+      expect(server.operationsOn('documents').map((operation) => operation.kind)).toEqual([
+        'delete',
+      ])
+    })
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/auftraege/j-1')
+    })
+  })
+
+  it("is not offered for somebody else's draft without the right, nor for a fixed document", async () => {
+    await mount('/belege/d-1', { documents: [document({ createdBy: 'u-9' })] }, ['technician'])
+
+    await screen.findByRole('region', { name: 'Angebot, Entwurf' })
+    expect(screen.queryByRole('button', { name: 'Entwurf löschen' })).toBeNull()
+  })
+
+  it("is offered to the office for somebody else's draft", async () => {
+    await mount('/belege/d-1', { documents: [document({ createdBy: 'u-9' })] })
+
+    expect(await screen.findByRole('button', { name: 'Entwurf löschen' })).toBeTruthy()
+  })
+})
+
 describe('issuing', () => {
   it('is offered to the office and not to a technician', async () => {
     await mount('/belege/d-1', { document_lines: [line('l-1', 1)] }, ['technician'])

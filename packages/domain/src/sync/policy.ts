@@ -90,7 +90,8 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
     create: true,
     change: 'merge',
     onlyWhile: { field: 'status', values: ['draft'] },
-    reserved: ['status', 'number', 'issuedAt', 'issuedBy', 'predecessorDocumentId'],
+    // Who made a draft (#786) is the sender, which the server writes.
+    reserved: ['status', 'number', 'issuedAt', 'issuedBy', 'createdBy', 'predecessorDocumentId'],
     createdAs: { status: 'draft' },
   },
   /**
