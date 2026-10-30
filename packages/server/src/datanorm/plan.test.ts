@@ -46,7 +46,6 @@ function options(overrides: Partial<PlanOptions> = {}): PlanOptions {
 
   return {
     validFrom: day,
-    listAsSelling: true,
     shortCode: 'HAN',
     newId: () => {
       next += 1
@@ -73,6 +72,25 @@ const heldLink: HeldLink = {
   articleId: 'article-1',
   supplierNumber: '5709912',
   discountGroup: 'RG12',
+  copper: null,
+}
+
+/** A cable with copper in fields 7 to 9 of its second record, as a real delivery writes it. */
+const cable = 'A;N;1001009;00;KAB+LTG H05V-U 1 SW;;1;2;mtr;1418;RG10;104;;'
+const cableCopper = 'B;N;1001009;H05VU1SW;; ;1;150;96; ; ;1040;0;0; ; ;'
+const cableLink: HeldLink = {
+  id: 'link-2',
+  articleId: 'article-2',
+  supplierNumber: '1001009',
+  discountGroup: 'RG10',
+  copper: null,
+}
+const heldCable: HeldArticle = {
+  id: 'article-2',
+  number: 'H05VU1SW',
+  designation: 'Aderleitung H05V-U 1 schwarz',
+  unit: 'metre',
+  ean: null,
 }
 
 function price(id: string, cents: number, validFrom: string, priceBase: 1 | 100 = 100) {
@@ -95,14 +113,19 @@ describe('an article the supplier does not sell yet', () => {
       },
     ])
     expect(plan.links).toEqual([
-      { id: 'new-2', articleId: 'new-1', supplierNumber: '5709912', discountGroup: 'RG12' },
+      {
+        id: 'new-2',
+        articleId: 'new-1',
+        supplierNumber: '5709912',
+        discountGroup: 'RG12',
+        copper: null,
+      },
     ])
     expect(plan.listPrices).toEqual([
       { ownerId: 'new-2', cents: 350, priceBase: 100, replaces: null },
     ])
-    expect(plan.sellingPrices).toEqual([
-      { ownerId: 'new-1', cents: 350, priceBase: 100, replaces: null },
-    ])
+    // The list price is the supplier's and no selling price (Feature-Gliederung v2.37).
+    expect(plan.sellingPrices).toEqual([])
     expect(plan.purchasePrices).toEqual([])
     expect(plan.summary).toMatchObject({ articles: 1, created: 1, renumbered: 0, fileDate: day })
     expect(plan.summary.samples).toEqual([
@@ -148,14 +171,18 @@ describe('an article the supplier does not sell yet', () => {
 
     expect(plan.articles).toEqual([])
     expect(plan.links).toEqual([
-      { id: 'new-1', articleId: 'article-1', supplierNumber: '5709912', discountGroup: 'RG12' },
+      {
+        id: 'new-1',
+        articleId: 'article-1',
+        supplierNumber: '5709912',
+        discountGroup: 'RG12',
+        copper: null,
+      },
     ])
     expect(plan.listPrices).toEqual([
       { ownerId: 'new-1', cents: 350, priceBase: 100, replaces: null },
     ])
-    expect(plan.sellingPrices).toEqual([
-      { ownerId: 'article-1', cents: 350, priceBase: 100, replaces: null },
-    ])
+    expect(plan.sellingPrices).toEqual([])
     expect(plan.summary).toMatchObject({ linked: 1, created: 0 })
     expect(plan.summary.samples[0]).toMatchObject({ kind: 'linked', number: 'KB-200' })
   })
@@ -215,9 +242,7 @@ describe('an article the supplier sells already', () => {
     expect(plan.listPrices).toEqual([
       { ownerId: 'link-1', cents: 350, priceBase: 100, replaces: null },
     ])
-    expect(plan.sellingPrices).toEqual([
-      { ownerId: 'article-1', cents: 350, priceBase: 100, replaces: null },
-    ])
+    expect(plan.sellingPrices).toEqual([])
     expect(plan.summary).toMatchObject({ updated: 1, unchanged: 0 })
     expect(plan.summary.samples).toEqual([
       {
@@ -257,7 +282,7 @@ describe('an article the supplier sells already', () => {
     expect(plan.summary).toMatchObject({ articles: 1, updated: 0, unchanged: 1, samples: [] })
   })
 
-  it('replaces a price of the same day, and a selling price only when an import wrote it', () => {
+  it('replaces a list price of the same day and writes no selling price, whoever wrote the one there', () => {
     const sameDay = holdings({
       articles: [held],
       links: [heldLink],
@@ -265,29 +290,22 @@ describe('an article the supplier sells already', () => {
       sellingPrices: [{ ...price('sell-1', 300, day), articleId: 'article-1' }],
     })
 
-    const own = planImport(delivery(cableTie), sameDay, options())
+    for (const fromImport of [false, true]) {
+      const plan = planImport(
+        delivery(cableTie),
+        {
+          ...sameDay,
+          sellingPrices: new Map([['article-1', { ...price('sell-1', 300, day), fromImport }]]),
+        },
+        options(),
+      )
 
-    expect(own.listPrices).toEqual([
-      { ownerId: 'link-1', cents: 350, priceBase: 100, replaces: 'list-1' },
-    ])
-    expect(own.sellingPrices).toEqual([])
-    expect(own.summary.problemLines.map((problem) => problem.reason)).toEqual([
-      'Für KB-200 gilt ab dem 01.10.2026 schon ein eigener Verkaufspreis. Er bleibt.',
-    ])
-
-    const imported = planImport(
-      delivery(cableTie),
-      {
-        ...sameDay,
-        sellingPrices: new Map([['article-1', { ...price('sell-1', 300, day), fromImport: true }]]),
-      },
-      options(),
-    )
-
-    expect(imported.sellingPrices).toEqual([
-      { ownerId: 'article-1', cents: 350, priceBase: 100, replaces: 'sell-1' },
-    ])
-    expect(imported.summary.problems).toBe(0)
+      expect(plan.listPrices).toEqual([
+        { ownerId: 'link-1', cents: 350, priceBase: 100, replaces: 'list-1' },
+      ])
+      expect(plan.sellingPrices).toEqual([])
+      expect(plan.summary.problems).toBe(0)
+    }
   })
 
   it('takes a net price as the purchase price and leaves the selling price alone', () => {
@@ -305,15 +323,69 @@ describe('an article the supplier sells already', () => {
     expect(plan.summary.samples[0]).toMatchObject({ netPrice: { cents: 210, priceBase: 100 } })
   })
 
-  it("keeps a list price the supplier's where the office does not want it as selling price", () => {
-    const plan = planImport(
-      delivery(cableTie),
-      holdings({ articles: [held], links: [heldLink] }),
-      options({ listAsSelling: false }),
+  it('takes the copper of the second record to a new link', () => {
+    const plan = planImport(delivery(cable, cableCopper), holdings({}), options())
+
+    expect(plan.links).toEqual([
+      expect.objectContaining({
+        supplierNumber: '1001009',
+        copper: { baseEuros: 150, gramsPerThousand: 9600 },
+      }),
+    ])
+  })
+
+  it('changes the copper of a link where the delivery names other, and clears it where it names none', () => {
+    const known = { ...cableLink, copper: { baseEuros: 150, gramsPerThousand: 9600 } }
+    const changed = planImport(
+      delivery(cable, cableCopper.replace(';1;150;96;', ';1;128;96;')),
+      holdings({ articles: [heldCable], links: [known] }),
+      options(),
     )
 
-    expect(plan.listPrices).toHaveLength(1)
-    expect(plan.sellingPrices).toEqual([])
+    expect(changed.coppers).toEqual([
+      { linkId: 'link-2', copper: { baseEuros: 128, gramsPerThousand: 9600 } },
+    ])
+    expect(changed.summary).toMatchObject({ updated: 1, unchanged: 0 })
+
+    const cleared = planImport(
+      delivery(cable, cableCopper.replace(';1;150;96;', ';0;;;')),
+      holdings({ articles: [heldCable], links: [known] }),
+      options(),
+    )
+
+    expect(cleared.coppers).toEqual([{ linkId: 'link-2', copper: null }])
+  })
+
+  it('leaves the copper of a link where the delivery brings no second record, or the same', () => {
+    const known = { ...cableLink, copper: { baseEuros: 150, gramsPerThousand: 9600 } }
+
+    for (const lines of [[cable], [cable, cableCopper]]) {
+      const plan = planImport(
+        delivery(...lines),
+        holdings({ articles: [heldCable], links: [known] }),
+        options(),
+      )
+
+      expect(plan.coppers).toEqual([])
+    }
+  })
+
+  it('names copper it cannot read as a problem of its line and leaves the link as it is', () => {
+    const plan = planImport(
+      delivery(cable, cableCopper.replace(';1;150;96;', ';1;150;9,6;')),
+      holdings({
+        articles: [heldCable],
+        links: [{ ...cableLink, copper: { baseEuros: 150, gramsPerThousand: 9600 } }],
+      }),
+      options(),
+    )
+
+    expect(plan.coppers).toEqual([])
+    expect(plan.summary.problemLines).toEqual([
+      expect.objectContaining({
+        reason: 'Die Kupferangaben von 1001009 sind nicht zu lesen und werden nicht übernommen.',
+      }),
+    ])
   })
 
   it('takes the price of a price file with the price base of the price before it', () => {

@@ -1,5 +1,6 @@
 import {
   articleLimits,
+  type Copper,
   type ImportPrice,
   type ImportSample,
   type ImportSummary,
@@ -29,9 +30,14 @@ import type { PriceKind } from './records.js'
  *   articles of the business and gets the supplier added; otherwise it is a
  *   new article, under the supplier's number, or with the short code of the
  *   supplier appended where the business uses that number already.
- * - A list price becomes the supplier's list price and, where the office
- *   chose so, the selling price; a net price becomes the purchase price. A
- *   price that is what the business holds already writes nothing.
+ * - A list price becomes the supplier's list price, a net price the purchase
+ *   price; the purchase price is the net price where there is one and the
+ *   list price otherwise (Feature-Gliederung v2.37). An import writes no
+ *   selling price: since 28.09.2026 that comes from the purchase price and a
+ *   markup (#463). A price that is what the business holds already writes
+ *   nothing.
+ * - The copper of the second record goes to the link, as the discount group
+ *   does; a delivery without a second record for an article leaves it.
  * - An article the files delete loses the supplier, not its existence.
  * - A price never applies backwards; the day comes from the options.
  */
@@ -59,6 +65,7 @@ export interface HeldLink {
   readonly articleId: string
   readonly supplierNumber: string
   readonly discountGroup: string | null
+  readonly copper: Copper | null
 }
 
 /** What the business holds, as far as an import of one supplier needs to know it. */
@@ -76,7 +83,6 @@ export interface Holdings {
 
 export interface PlanOptions {
   readonly validFrom: IsoDate
-  readonly listAsSelling: boolean
   /** Appended to a number the business uses already: the supplier's own, or one from its name. */
   readonly shortCode: string
   readonly newId: () => string
@@ -97,6 +103,7 @@ export interface NewLink {
   readonly articleId: string
   readonly supplierNumber: string
   readonly discountGroup: string | null
+  readonly copper: Copper | null
 }
 
 export interface NewPrice {
@@ -112,6 +119,7 @@ export interface ImportPlan {
   readonly articles: readonly NewArticle[]
   readonly links: readonly NewLink[]
   readonly discountGroups: readonly { readonly linkId: string; readonly discountGroup: string }[]
+  readonly coppers: readonly { readonly linkId: string; readonly copper: Copper | null }[]
   readonly removedLinks: readonly string[]
   readonly listPrices: readonly NewPrice[]
   readonly purchasePrices: readonly NewPrice[]
@@ -144,13 +152,6 @@ const unitWords: Readonly<Record<LineUnit, string>> = {
   flat_rate: 'Pauschal',
 }
 
-/** A day as the office reads it, for the sentences of the preview. */
-function germanDay(day: IsoDate): string {
-  const [year, month, date] = day.split('-')
-
-  return `${date ?? ''}.${month ?? ''}.${year ?? ''}`
-}
-
 /** The price of one kind among those offered, as the preview shows it. */
 function priceOf(offered: readonly Offered[], kind: PriceKind): ImportPrice | null {
   const found = offered.find((price) => price.kind === kind)
@@ -160,6 +161,12 @@ function priceOf(offered: readonly Offered[], kind: PriceKind): ImportPrice | nu
 
 function heldPriceOf(held: HeldPrice | undefined): ImportPrice | null {
   return held === undefined ? null : { cents: held.cents, priceBase: held.priceBase }
+}
+
+function sameCopper(held: Copper | null, offered: Copper | null): boolean {
+  return (
+    held?.baseEuros === offered?.baseEuros && held?.gramsPerThousand === offered?.gramsPerThousand
+  )
 }
 
 function sameAs(held: HeldPrice | undefined, offered: Offered): boolean {
@@ -208,9 +215,11 @@ export function planImport(
   const articles: NewArticle[] = []
   const links: NewLink[] = []
   const discountGroups: { linkId: string; discountGroup: string }[] = []
+  const coppers: { linkId: string; copper: Copper | null }[] = []
   const removedLinks: string[] = []
   const listPrices: NewPrice[] = []
   const purchasePrices: NewPrice[] = []
+  // None since 28.09.2026: a selling price comes from the purchase price and a markup (#463).
   const sellingPrices: NewPrice[] = []
   const counts = { created: 0, linked: 0, updated: 0, unchanged: 0, removed: 0, renumbered: 0 }
   const samples: ImportSample[] = []
@@ -289,28 +298,6 @@ export function planImport(
       }
 
       changed = offer(listPrices, holdings.listPrices.get(linkId), linkId, price) || changed
-
-      if (!options.listAsSelling) {
-        continue
-      }
-
-      const held = holdings.sellingPrices.get(article.id)
-
-      if (
-        held !== undefined &&
-        held.validFrom === options.validFrom &&
-        !held.fromImport &&
-        !sameAs(held, price)
-      ) {
-        problems.push({
-          ...where,
-          reason:
-            `Für ${article.number} gilt ab dem ${germanDay(options.validFrom)} schon ein ` +
-            'eigener Verkaufspreis. Er bleibt.',
-        })
-      } else {
-        changed = offer(sellingPrices, held, article.id, price) || changed
-      }
     }
 
     return changed
@@ -379,12 +366,17 @@ export function planImport(
     if (link !== undefined && held !== undefined) {
       const changedPrices = offerPrices(held, link.id, offered, entry.unit, where)
       const changedGroup = discountGroup !== null && discountGroup !== link.discountGroup
+      const changedCopper = entry.copper !== undefined && !sameCopper(link.copper, entry.copper)
 
       if (changedGroup) {
         discountGroups.push({ linkId: link.id, discountGroup })
       }
 
-      if (changedPrices || changedGroup) {
+      if (changedCopper) {
+        coppers.push({ linkId: link.id, copper: entry.copper ?? null })
+      }
+
+      if (changedPrices || changedGroup || changedCopper) {
         counts.updated += 1
         sample({
           kind: 'updated',
@@ -415,6 +407,7 @@ export function planImport(
         articleId: found.id,
         supplierNumber: entry.number,
         discountGroup,
+        copper: entry.copper ?? null,
       })
       offerPrices(found, linkId, offered, entry.unit, where)
       counts.linked += 1
@@ -467,6 +460,7 @@ export function planImport(
       articleId: article.id,
       supplierNumber: entry.number,
       discountGroup,
+      copper: entry.copper ?? null,
     })
     offerPrices(article, linkId, offered, null, where)
     counts.created += 1
@@ -562,6 +556,7 @@ export function planImport(
     articles,
     links,
     discountGroups,
+    coppers,
     removedLinks,
     listPrices,
     purchasePrices,
@@ -577,6 +572,7 @@ export function planImport(
       problemLines: problems.slice(0, importSummaryLimits.problemLines),
       files: delivery.files,
       skipped: delivery.skipped,
+      longTextFiles: delivery.longTextFiles,
       ignored: [...catalogue.ignored].map(([letter, lines]) => ({ letter, lines })),
       fileDate: catalogue.header?.date ?? null,
       samples,

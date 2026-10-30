@@ -90,6 +90,10 @@ export interface SupplierArticle extends TenantOwned {
    * (decided on 27.09.2026).
    */
   readonly discountGroup: string | null
+  /** The copper base in euros for 100 kg (#297), with the weight or not at all. */
+  readonly copperBaseEuros: number | null
+  /** The copper in grams for 1000 units of the article (#297), with the base or not at all. */
+  readonly copperGramsPerThousand: number | null
   /** The import that last set the link (#297), null for one entered by hand. */
   readonly importId: ArticleImportId | null
 }
@@ -146,6 +150,22 @@ export const articleLimits = {
 
 /** The most a price may be, in cents: 999.999,99 euros for one unit. */
 export const priceCentsMax = 99_999_999
+
+/**
+ * The copper of an article at a supplier, as the second record of DATANORM
+ * carries it (#297, #462): the base the list price already holds, in euros
+ * for 100 kg, and the weight in grams for 1000 of the article's units, a
+ * kilometre of a cable or a thousand pieces. Checked against a real delivery
+ * on 30.10.2026: the same in a catalogue priced per 100 and per piece, and
+ * 9.6 kg for a kilometre of H05V-U 1, the known copper figure.
+ */
+export interface Copper {
+  readonly baseEuros: number
+  readonly gramsPerThousand: number
+}
+
+/** The largest copper figures a link keeps, seven digits each as a catalogue writes them. */
+export const copperLimits = { baseEuros: 9_999_999, gramsPerThousand: 999_999_900 } as const
 
 /**
  * What is wrong with the fields of an article, by field, as the form shows it

@@ -271,6 +271,8 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       supplier_id: 'Lieferant',
       supplier_number: 'Artikelnummer des Lieferanten',
       discount_group: 'Rabattgruppe',
+      copper_base_euros: 'Kupferbasis',
+      copper_grams_per_thousand: 'Kupfergewicht',
       import_id: 'Import',
     },
   },

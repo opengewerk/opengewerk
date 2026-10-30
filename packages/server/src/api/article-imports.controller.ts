@@ -67,7 +67,7 @@ export class ArticleImportsController {
     )
   }
 
-  /** The options of the preview, `{ charset?, validFrom?, listAsSelling? }`; reads again. */
+  /** The options of the preview, `{ charset?, validFrom? }`; reads again. */
   @Patch(':importId')
   @HttpCode(202)
   @RequiresPermission('purchase.write')

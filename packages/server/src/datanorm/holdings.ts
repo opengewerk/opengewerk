@@ -66,7 +66,7 @@ export async function holdingsOf(
   // A link without the supplier's number cannot be found by one; the oldest
   // where a number stands twice.
   const linkRows = await tx.execute(sql`
-    select id, article_id, supplier_number, discount_group
+    select id, article_id, supplier_number, discount_group, copper_base_euros, copper_grams_per_thousand
       from supplier_articles
      where supplier_id = ${supplierId}
        and supplier_number is not null
@@ -80,6 +80,13 @@ export async function holdingsOf(
         articleId: row['article_id'] as string,
         supplierNumber: row['supplier_number'] as string,
         discountGroup: (row['discount_group'] as string | null) ?? null,
+        copper:
+          row['copper_base_euros'] === null || row['copper_grams_per_thousand'] === null
+            ? null
+            : {
+                baseEuros: Number(row['copper_base_euros']),
+                gramsPerThousand: Number(row['copper_grams_per_thousand']),
+              },
       },
     ]),
   )

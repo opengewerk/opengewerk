@@ -65,6 +65,7 @@ export function rowsOf(plan: ImportPlan): number {
     plan.articles.length +
     plan.links.length +
     plan.discountGroups.length +
+    plan.coppers.length +
     plan.listPrices.length +
     plan.purchasePrices.length +
     plan.sellingPrices.length
@@ -139,6 +140,8 @@ export async function takeOver(
         supplierId,
         supplierNumber: link.supplierNumber,
         discountGroup: link.discountGroup,
+        copperBaseEuros: link.copper?.baseEuros ?? null,
+        copperGramsPerThousand: link.copper?.gramsPerThousand ?? null,
         importId,
       })),
     )
@@ -155,6 +158,24 @@ export async function takeOver(
       update supplier_articles as s
          set discount_group = u.discount_group, import_id = ${importId}, updated_at = now()
         from (values ${changes}) as u(id, discount_group)
+       where s.id = u.id`)
+    advance(rows.length)
+  }
+
+  for (const rows of batches(plan.coppers)) {
+    const changes = sql.join(
+      rows.map(
+        (row) =>
+          sql`(${row.linkId}::uuid, ${row.copper?.baseEuros ?? null}::integer, ${row.copper?.gramsPerThousand ?? null}::integer)`,
+      ),
+      sql`, `,
+    )
+
+    await tx.execute(sql`
+      update supplier_articles as s
+         set copper_base_euros = u.base, copper_grams_per_thousand = u.grams,
+             import_id = ${importId}, updated_at = now()
+        from (values ${changes}) as u(id, base, grams)
        where s.id = u.id`)
     advance(rows.length)
   }

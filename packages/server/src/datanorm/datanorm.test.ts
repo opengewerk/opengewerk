@@ -114,6 +114,25 @@ describe('a record of DATANORM 4', () => {
       number: '5709912',
       ean: '4006381333931',
       group: '0420',
+      copper: null,
+    })
+  })
+
+  it('reads the copper of fields 7 to 9: the base in euros for 100 kg, the weight for 1000 units', () => {
+    // A real line of a supplier (30.10.2026): H05V-U 1, 9.6 kg copper a kilometre.
+    expect(recordOf('B;N;1001009;H05VU1SW;; ;1;150;96; ; ;1040;0;0; ; ;', 2)).toMatchObject({
+      kind: 'extra',
+      number: '1001009',
+      copper: { baseEuros: 150, gramsPerThousand: 9600 },
+    })
+    expect(recordOf('B;N;1001009;;; ;0;150;96; ; ;1040;', 2)).toMatchObject({ copper: null })
+    expect(recordOf('B;N;1001009;;; ;1;150;9,6; ; ;1040;', 2)).toMatchObject({
+      copper: 'unreadable',
+    })
+    expect(recordOf('B;N;1001009;;; ;1;;96; ; ;1040;', 2)).toMatchObject({ copper: 'unreadable' })
+    // A point is no decimal mark of DATANORM: 9.6 is not taken as 960 grams.
+    expect(recordOf('B;N;1001009;;; ;1;150;9.6; ; ;1040;', 2)).toMatchObject({
+      copper: 'unreadable',
     })
   })
 
@@ -247,13 +266,15 @@ describe('a delivery read into a catalogue', () => {
       line: 3,
       processing: 'new',
       designation: 'Kabelbinder 200 × 4,8 mm schwarz',
-      description: 'Für Innen und Außen\nHalogenfrei\nUV-beständig\nBeutel zu 100 Stück',
+      // The dimension text only: long texts are not taken over (28.09.2026).
+      description: 'UV-beständig\nBeutel zu 100 Stück',
       unit: 'piece',
       unknownUnit: null,
       price: { kind: 'list', cents: 350, priceBase: 100 },
       discountGroup: 'RG12',
       groupOfGoods: 'Kabelbinder und Befestigung',
       ean: '4006381333931',
+      copper: null,
     })
     expect(catalogue.articles.get('1042')).toMatchObject({
       designation: 'Mantelleitung NYM-J 3 × 1,5 mm²',
@@ -270,7 +291,12 @@ describe('a delivery read into a catalogue', () => {
       line: 2,
     })
     expect([...catalogue.deletions]).toEqual(['8888'])
-    expect(catalogue.ignored).toEqual(new Map([['Z', 1]]))
+    expect(catalogue.ignored).toEqual(
+      new Map([
+        ['T', 1],
+        ['Z', 1],
+      ]),
+    )
     expect(catalogue.problems).toEqual([
       { file: 'DATANORM.001', line: 9, reason: 'Der Preis von 9002 ist nicht zu lesen.' },
       {
@@ -295,6 +321,24 @@ describe('a delivery read into a catalogue', () => {
     expect(skipped).toEqual(['liesmich.txt'])
     expect(catalogue.articles.get('5709912')?.designation).toBe('Kabelbinder 200 × 4,8 mm schwarz')
     expect(catalogue.priceChanges.size).toBe(1)
+  })
+
+  it('sets a file of long texts aside unread, and reads one that brings its articles after them', () => {
+    const { articles } = delivery()
+    const longTexts = cp850([
+      header('010926'),
+      'T;N;1001009;;1;;ADERLEITUNG H05V-U 1 MM2 SCHWARZ EINDR;2;;AHTIGER LEITER;',
+      'T;N;1001010;;1;;ADERLEITUNG H05V-U 1 MM2 GRUENGELB;',
+    ])
+    const { catalogue, files, longTextFiles } = readDelivery([
+      { name: 'DATANORM.001', bytes: articles },
+      { name: 'DATANORM.LTX', bytes: longTexts },
+    ])
+
+    expect(longTextFiles).toEqual(['DATANORM.LTX'])
+    expect(files.map((file) => file.name)).toEqual(['DATANORM.001'])
+    expect(catalogue.articles.get('5709912')?.designation).toBe('Kabelbinder 200 × 4,8 mm schwarz')
+    expect(catalogue.ignored.get('T')).toBe(1)
   })
 
   it('reads no line of a file in another version of DATANORM', () => {
