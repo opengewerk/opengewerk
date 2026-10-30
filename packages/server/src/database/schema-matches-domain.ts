@@ -37,6 +37,8 @@ import type {
   ArticleMarkup,
   ArticlePriceOrigin,
   SellingPriceRun,
+  SupplierArticleMetal,
+  SupplierMetalPrice,
   PvModule,
   PvString,
   RoleKey,
@@ -100,6 +102,8 @@ import type {
   articleMarkups,
   articlePriceOrigins,
   sellingPriceRuns,
+  supplierArticleMetals,
+  supplierMetalPrices,
   pvModules,
   pvStrings,
   siteAccesses,
@@ -170,6 +174,12 @@ export type ArticlePriceOriginMatches = Assert<
 >
 export type SellingPriceRunMatches = Assert<
   Exact<typeof sellingPriceRuns.$inferSelect, SellingPriceRun>
+>
+export type SupplierArticleMetalMatches = Assert<
+  Exact<typeof supplierArticleMetals.$inferSelect, SupplierArticleMetal>
+>
+export type SupplierMetalPriceMatches = Assert<
+  Exact<typeof supplierMetalPrices.$inferSelect, SupplierMetalPrice>
 >
 export type ListPriceMatches = Assert<Exact<typeof listPrices.$inferSelect, ListPrice>>
 export type AttachmentMatches = Assert<Exact<typeof attachments.$inferSelect, Attachment>>

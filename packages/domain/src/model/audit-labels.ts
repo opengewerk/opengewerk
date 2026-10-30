@@ -65,6 +65,7 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       article_id: 'Artikel',
       fixed: 'Fester Verkaufspreis',
       basis_points: 'Eigener Aufschlag',
+      markup_on_metal: 'Aufschlag auf den Metallzuschlag',
     },
   },
   article_price_origins: {
@@ -287,8 +288,6 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       supplier_id: 'Lieferant',
       supplier_number: 'Artikelnummer des Lieferanten',
       discount_group: 'Rabattgruppe',
-      copper_base_euros: 'Kupferbasis',
-      copper_grams_per_thousand: 'Kupfergewicht',
       import_id: 'Import',
       main: 'Hauptlieferant',
     },
@@ -299,7 +298,29 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
   },
   supplier_markups: {
     label: 'Aufschlag eines Lieferanten',
-    fields: { supplier_id: 'Lieferant', basis_points: 'Aufschlag' },
+    fields: {
+      supplier_id: 'Lieferant',
+      basis_points: 'Aufschlag',
+      markup_on_metal: 'Aufschlag auf den Metallzuschlag',
+    },
+  },
+  supplier_article_metals: {
+    label: 'Metall eines Artikels',
+    fields: {
+      supplier_article_id: 'Artikel eines Lieferanten',
+      metal: 'Metall',
+      base_euros: 'Metallbasis in Euro je 100 kg',
+      grams_per_thousand: 'Metallgewicht in Gramm je 1000 Einheiten',
+    },
+  },
+  supplier_metal_prices: {
+    label: 'Metallpreis',
+    fields: {
+      supplier_id: 'Lieferant',
+      metal: 'Metall',
+      valid_from: 'Gültig ab',
+      price_cents: 'Preis je 100 kg',
+    },
   },
   suppliers: {
     label: 'Lieferant',

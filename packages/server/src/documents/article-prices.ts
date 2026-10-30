@@ -1,8 +1,16 @@
-import { type IsoDate, lineNetCents, type LineUnit, type PriceBase } from '@opengewerk/domain'
+import {
+  type IsoDate,
+  lineNetCents,
+  type LineUnit,
+  metalSurchargeCents,
+  priceCentsMax,
+  type PriceBase,
+} from '@opengewerk/domain'
 import type { TenantTransaction } from '@opengewerk/platform-server'
 import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm'
 
-import { articlePrices, articles } from '../database/schema/index.js'
+import { articlePriceOrigins, articlePrices, articles } from '../database/schema/index.js'
+import { articleMetalsOn, metalMarkup } from '../pricing/metal-surcharges.js'
 
 /**
  * A selling price as a line takes it: the price, how many units it is for
@@ -15,8 +23,11 @@ export interface PriceOfDay {
 }
 
 /**
- * The selling price on a day of each of these articles (#296), the newest
- * price from that day or before. An article without one, or one marked as
+ * The price a line takes on a day for each of these articles (#296): the
+ * newest selling price from that day or before, and in it the metal
+ * surcharge of the day (#462), after the metal price of the main supplier,
+ * marked up with the markup the selling price came from where the markup
+ * comes on the metal. An article without a selling price, or one marked as
  * deleted, whose prices went with it, is not in the answer.
  */
 export async function articlePricesOn(
@@ -36,9 +47,11 @@ export async function articlePricesOn(
       unitPriceCents: articlePrices.unitPriceCents,
       priceBase: articlePrices.priceBase,
       unit: articles.unit,
+      basisPoints: articlePriceOrigins.basisPoints,
     })
     .from(articlePrices)
     .innerJoin(articles, eq(articles.id, articlePrices.articleId))
+    .leftJoin(articlePriceOrigins, eq(articlePriceOrigins.articlePriceId, articlePrices.id))
     .where(
       and(
         inArray(
@@ -51,11 +64,18 @@ export async function articlePricesOn(
     )
     .orderBy(desc(articlePrices.validFrom))
   const prices = new Map<string, PriceOfDay>()
+  const metals = await articleMetalsOn(tx, wanted, day)
 
   for (const row of rows) {
     if (!prices.has(row.articleId)) {
+      const metal = metals.get(row.articleId)
+      const surcharge =
+        metal === undefined
+          ? 0
+          : metalSurchargeCents(metal.metals, row.priceBase, metalMarkup(metal, row.basisPoints))
+
       prices.set(row.articleId, {
-        unitPriceCents: row.unitPriceCents,
+        unitPriceCents: Math.min(row.unitPriceCents + surcharge, priceCentsMax),
         priceBase: row.priceBase,
         unit: row.unit,
       })

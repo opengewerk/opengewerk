@@ -69,12 +69,15 @@ export async function holdingsOf(
 
   // A link without the supplier's number cannot be found by one; the oldest
   // where a number stands twice.
+  // The copper of a link stands beside it since #462, with any other metal.
   const linkRows = await tx.execute(sql`
-    select id, article_id, supplier_number, discount_group, copper_base_euros, copper_grams_per_thousand, main
-      from supplier_articles
-     where supplier_id = ${supplierId}
-       and supplier_number is not null
-     order by created_at desc, id desc`)
+    select s.id, s.article_id, s.supplier_number, s.discount_group, s.main,
+           m.base_euros as copper_base_euros, m.grams_per_thousand as copper_grams_per_thousand
+      from supplier_articles s
+      left join supplier_article_metals m on m.supplier_article_id = s.id and m.metal = 'copper'
+     where s.supplier_id = ${supplierId}
+       and s.supplier_number is not null
+     order by s.created_at desc, s.id desc`)
 
   const links = new Map<string, HeldLink>(
     linkRows.rows.map((row) => [

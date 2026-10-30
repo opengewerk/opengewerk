@@ -23,11 +23,16 @@ export type SellingPriceRunId = Id<'selling-price-run'>
  */
 export const markupLimits = { basisPoints: 100_000 } as const
 
-/** A supplier's own markup on what it sells, in place of the business's. */
+/**
+ * A supplier's own markup on what it sells, in place of the business's, and
+ * whether it also comes on the metal surcharge (#462). Either may be unset,
+ * never both: then the supplier has no row.
+ */
 export interface SupplierMarkup extends TenantOwned {
   readonly id: SupplierMarkupId
   readonly supplierId: SupplierId
-  readonly basisPoints: number
+  readonly basisPoints: number | null
+  readonly markupOnMetal: boolean | null
 }
 
 /**
@@ -41,8 +46,10 @@ export interface ArticleMarkup extends TenantOwned {
   readonly articleId: ArticleId
   /** A selling price that stays until somebody enters another. */
   readonly fixed: boolean
-  /** The article's own markup; null when the price is fixed. */
+  /** The article's own markup; null when the price is fixed or follows another's markup. */
   readonly basisPoints: number | null
+  /** Whether the markup also comes on the metal surcharge (#462); null for the supplier's word. */
+  readonly markupOnMetal: boolean | null
 }
 
 /**

@@ -708,6 +708,13 @@
       "when": 1793370527630,
       "tag": "0100_selling_price_origins",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1793381721733,
+      "tag": "0101_metal_surcharge",
+      "breakpoints": true
     }
   ]
 }

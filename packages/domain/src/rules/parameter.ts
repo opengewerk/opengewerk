@@ -68,6 +68,13 @@ export const tenantParameterKeys = [
    * price comes from a purchase price at all.
    */
   'material.markup_basis_points',
+  /**
+   * Whether the markup on material also comes on the metal surcharge of a
+   * cable (#462), unless its supplier or the article says otherwise. Off by
+   * default (decided on 28.09.2026): the surcharge goes into the price as the
+   * wholesaler charges it.
+   */
+  'material.markup_on_metal',
 ] as const
 
 export type TenantParameterKey = (typeof tenantParameterKeys)[number]
@@ -84,6 +91,7 @@ export const tenantParameterNames: Readonly<Record<TenantParameterKey, string>> 
   'cash_accounting.permitted': 'die Ist-Versteuerung',
   'report.mail_on_signature': 'den Regiebericht nach der Unterschrift',
   'material.markup_basis_points': 'den Aufschlag auf Material',
+  'material.markup_on_metal': 'den Aufschlag auf den Metallzuschlag',
 }
 
 export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>> = {
@@ -93,6 +101,7 @@ export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>
   'cash_accounting.permitted': 'flag',
   'report.mail_on_signature': 'flag',
   'material.markup_basis_points': 'basis_points',
+  'material.markup_on_metal': 'flag',
 }
 
 /**

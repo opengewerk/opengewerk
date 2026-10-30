@@ -1,6 +1,7 @@
 import type {
   ArticleId,
   ArticleImportId,
+  Copper,
   ArticlePriceId,
   IsoDate,
   ListPriceId,
@@ -10,7 +11,7 @@ import type {
   TenantId,
 } from '@opengewerk/domain'
 import type { TenantTransaction } from '@opengewerk/platform-server'
-import { inArray, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 
 import {
   articlePriceOrigins,
@@ -18,6 +19,7 @@ import {
   articles,
   listPrices,
   purchasePrices,
+  supplierArticleMetals,
   supplierArticles,
 } from '../database/schema/index.js'
 import type { ImportPlan } from './plan.js'
@@ -141,10 +143,13 @@ export async function takeOver(
         supplierId,
         supplierNumber: link.supplierNumber,
         discountGroup: link.discountGroup,
-        copperBaseEuros: link.copper?.baseEuros ?? null,
-        copperGramsPerThousand: link.copper?.gramsPerThousand ?? null,
         importId,
       })),
+    )
+    await insertCopper(
+      tx,
+      tenantId,
+      rows.map((link) => ({ linkId: link.id, copper: link.copper })),
     )
     advance(rows.length)
   }
@@ -163,21 +168,24 @@ export async function takeOver(
     advance(rows.length)
   }
 
+  // A changed copper is written anew (#462); what the catalogue no longer
+  // names goes, and the link counts as last set by this import.
   for (const rows of batches(plan.coppers)) {
-    const changes = sql.join(
-      rows.map(
-        (row) =>
-          sql`(${row.linkId}::uuid, ${row.copper?.baseEuros ?? null}::integer, ${row.copper?.gramsPerThousand ?? null}::integer)`,
-      ),
-      sql`, `,
-    )
+    const ids = rows.map((row) => row.linkId) as SupplierArticleId[]
 
-    await tx.execute(sql`
-      update supplier_articles as s
-         set copper_base_euros = u.base, copper_grams_per_thousand = u.grams,
-             import_id = ${importId}, updated_at = now()
-        from (values ${changes}) as u(id, base, grams)
-       where s.id = u.id`)
+    await tx
+      .delete(supplierArticleMetals)
+      .where(
+        and(
+          eq(supplierArticleMetals.metal, 'copper'),
+          inArray(supplierArticleMetals.supplierArticleId, ids),
+        ),
+      )
+    await insertCopper(tx, tenantId, rows)
+    await tx
+      .update(supplierArticles)
+      .set({ importId, updatedAt: sql`now()` })
+      .where(inArray(supplierArticles.id, ids))
     advance(rows.length)
   }
 
@@ -281,5 +289,30 @@ export async function takeOver(
       update ${sql.identifier(table)}
          set change_sequence = ${first - 1} - change_sequence
        where tenant_id = ${tenantId} and change_sequence < 0`)
+  }
+}
+
+/** The copper of these links from the second record, where it names one. */
+async function insertCopper(
+  tx: TenantTransaction,
+  tenantId: TenantId,
+  links: readonly { readonly linkId: string; readonly copper: Copper | null }[],
+): Promise<void> {
+  const rows = links.flatMap(({ linkId, copper }) =>
+    copper === null
+      ? []
+      : [
+          {
+            tenantId,
+            supplierArticleId: linkId as SupplierArticleId,
+            metal: 'copper' as const,
+            baseEuros: copper.baseEuros,
+            gramsPerThousand: copper.gramsPerThousand,
+          },
+        ],
+  )
+
+  if (rows.length > 0) {
+    await tx.insert(supplierArticleMetals).values(rows)
   }
 }

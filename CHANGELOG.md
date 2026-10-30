@@ -9,6 +9,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Der Metallzuschlag eines Kabels, erster Teil von #462, hier Datenmodell, Import und Server: das Metall eines Artikels
+  steht je Lieferant in `supplier_article_metals`, Metall, Basis in Euro je 100 kg und Gewicht je 1000 Einheiten, das
+  Kupfer aus dem B-Satz von DATANORM, jedes Metall auch von Hand (`PUT /articles/:id/suppliers/:linkId/metals`); die
+  Spalten `copper_base_euros` und `copper_grams_per_thousand` aus 0098, die in keiner Fassung erschienen sind, ziehen
+  dorthin um (Migration `0101_metal_surcharge`). Der Metallpreis eines Lieferanten gilt ab einem Tag und wird im Büro
+  eingetragen (`supplier_metal_prices`, `GET`, `POST` und `DELETE /suppliers/:id/metal-prices`). Der Preis, den eine
+  Position an ihrem Belegdatum nimmt, trägt den Zuschlag: was der Metallpreis des Hauptlieferanten an diesem Tag über
+  der Basis liegt, für das Gewicht des Artikels, in der Auswahl eines Artikels (`GET /articles?on=`) wie in der
+  Rechnung aus einem Regiebericht. Ob der Aufschlag auch auf den Zuschlag kommt, sagt die Einstellung
+  `material.markup_on_metal`, ein Lieferant und ein Artikel, der engere gewinnt, voreingestellt nicht.
+  `GET /articles/:id/purchase?on=` nennt das Metall mit dem Metallpreis des Tages, damit das Büro an der Position
+  sieht, welcher Teil des Preises Metallzuschlag ist. Warum: ein Kabel aus DATANORM steht sonst um den Metallzuschlag
+  zu billig im Angebot, beim Beispiel aus dem Issue um rund 46 %, und der Kunde soll einen Endpreis sehen, wie die
+  Preisangabenverordnung ihn Verbrauchern schuldet.
 - Die Bildschirme zum Verkaufspreis aus Einkaufspreis und Aufschlag, Teil 2b von #463, nach den Tafeln aus Version 72
   des Canvas: unter „Einstellungen“ die Seite „Aufschlag auf Material“ für den Aufschlag des Betriebs, am Lieferanten die
   Karte „Aufschlag auf Material“ mit seinem eigenen Aufschlag und in seiner Artikelliste die Spalte „Hauptlieferant“, am
