@@ -502,12 +502,14 @@ describe('the staff screen', () => {
     const person = userEvent.setup()
 
     await mayChange()
-    expect(within(rowOf('Lea Leitung')).queryByRole('button', { name: /zurücksetzen$/ })).toBeNull()
-    expect(within(rowOf('Ole Ohne')).queryByRole('button', { name: /zurücksetzen$/ })).toBeNull()
+    expect(
+      within(rowOf('Lea Leitung')).queryByRole('button', { name: /^Faktor zurücksetzen/ }),
+    ).toBeNull()
+    expect(
+      within(rowOf('Ole Ohne')).queryByRole('button', { name: /^Faktor zurücksetzen/ }),
+    ).toBeNull()
 
-    await person.click(
-      screen.getByRole('button', { name: 'Zweiten Faktor von Max Mitglied zurücksetzen' }),
-    )
+    await person.click(screen.getByRole('button', { name: 'Faktor zurücksetzen für Max Mitglied' }))
 
     const asking = await screen.findByRole('alertdialog', {
       name: 'Zweiten Faktor von Max Mitglied zurücksetzen?',
@@ -640,7 +642,7 @@ describe('the staff screen', () => {
 
     expect(screen.queryByRole('button', { name: 'Zugang anlegen' })).toBeNull()
     expect(screen.queryByRole('button', { name: /sperren$/ })).toBeNull()
-    expect(screen.queryByRole('button', { name: /zurücksetzen$/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Faktor zurücksetzen/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /zurückziehen$/ })).toBeNull()
     expect(
       within(rowOf('Max Mitglied'))

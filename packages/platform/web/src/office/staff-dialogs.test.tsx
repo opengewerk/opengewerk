@@ -461,11 +461,15 @@ describe('the accounts of a tenant, one role each', () => {
 
     const person = userEvent.setup()
 
-    expect(within(rowOf('Lea Leitung')).queryByRole('button', { name: /zurücksetzen$/ })).toBeNull()
-    expect(within(rowOf('Ole Ohne')).queryByRole('button', { name: /zurücksetzen$/ })).toBeNull()
+    expect(
+      within(rowOf('Lea Leitung')).queryByRole('button', { name: /^Faktor zurücksetzen/ }),
+    ).toBeNull()
+    expect(
+      within(rowOf('Ole Ohne')).queryByRole('button', { name: /^Faktor zurücksetzen/ }),
+    ).toBeNull()
 
     await person.click(
-      await screen.findByRole('button', { name: 'Zweiten Faktor von Max Mitglied zurücksetzen' }),
+      await screen.findByRole('button', { name: 'Faktor zurücksetzen für Max Mitglied' }),
     )
 
     const asking = await screen.findByRole('alertdialog', {
