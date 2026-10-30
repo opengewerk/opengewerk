@@ -55,21 +55,47 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
 @Controller('suppliers/:supplierId/imports')
 export class ArticleImportsController {
   /**
-   * Whether a file of a delivery is being read right now. One at a time in
-   * this process, whoever sends it: a body of up to 200 MB is held in memory
-   * while it is read and hashed, and the budgets of the hour count it only
-   * afterwards, so they bound what is stored and not what is held (security
-   * review of #777). Imports themselves run one at a time already.
+   * The tenants whose file of a delivery is being read right now. A body of
+   * up to 200 MB is held in memory while it is read and hashed, and the
+   * budgets of the hour count it only afterwards, so they bound what is
+   * stored and not what is held (security reviews of #777). So one file at a
+   * time for each tenant, and a few in all on the instance, which bounds the
+   * memory without one tenant locking out the others.
    */
-  private reading = false
+  private readonly readingFor = new Set<string>()
+
+  /** The accounts whose last file was cut off for coming in too slowly, and when. */
+  private readonly cutAt = new Map<string, number>()
 
   /**
-   * How long a file may take to come in, so that nobody holds the one place
-   * by sending slowly (second security review of #777): 30 seconds without a
-   * byte, ten minutes in all, which is still 200 MB at 2.7 Mbit/s. Shorter
-   * in a test.
+   * How long a file may take to come in: 30 seconds without a byte, ten
+   * minutes in all, which is still 200 MB at 2.7 Mbit/s. Two files at once on
+   * the instance, and five minutes of waiting for an account whose file was
+   * cut off, so that sending slowly does not hold a place again and again.
+   * Shorter in a test.
    */
-  readLimits = { quietMs: 30_000, wholeMs: 600_000 }
+  readLimits = { quietMs: 30_000, wholeMs: 600_000, atOnce: 2, waitAfterCutMs: 300_000 }
+
+  /** Why a file of this person is not read now, or null when it is. */
+  private busyFor(identity: RequestIdentity): string | null {
+    const cut = this.cutAt.get(identity.userId)
+
+    if (cut !== undefined && cut + this.readLimits.waitAfterCutMs > Date.now()) {
+      return 'Die letzte Datei kam zu langsam an. Bitte in ein paar Minuten noch einmal versuchen.'
+    }
+
+    this.cutAt.delete(identity.userId)
+
+    if (this.readingFor.has(identity.tenantId)) {
+      return 'Gerade wird schon eine Datei eines Imports dieses Betriebs gespeichert. Bitte gleich noch einmal versuchen.'
+    }
+
+    if (this.readingFor.size >= this.readLimits.atOnce) {
+      return 'Gerade werden schon Dateien von Importen gespeichert. Bitte gleich noch einmal versuchen.'
+    }
+
+    return null
+  }
 
   constructor(
     private readonly imports: ArticleImports,
@@ -113,19 +139,24 @@ export class ArticleImportsController {
     }
 
     // Refused before a byte of the body is read.
-    if (this.reading) {
-      throw new HttpException(
-        'Gerade wird schon eine Datei eines Imports gespeichert. Bitte gleich noch einmal versuchen.',
-        HttpStatus.TOO_MANY_REQUESTS,
-      )
+    const busy = this.busyFor(identity)
+
+    if (busy) {
+      throw new HttpException(busy, HttpStatus.TOO_MANY_REQUESTS)
     }
 
-    this.reading = true
+    this.readingFor.add(identity.tenantId)
 
     try {
       return await this.stored(identity, sha256, request)
+    } catch (error) {
+      if (error instanceof RequestTimeoutException) {
+        this.cutAt.set(identity.userId, Date.now())
+      }
+
+      throw error
     } finally {
-      this.reading = false
+      this.readingFor.delete(identity.tenantId)
     }
   }
 

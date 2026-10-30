@@ -272,7 +272,7 @@ describe('a file of a delivery', () => {
     await put(new Uint8Array(0)).expect(400)
   })
 
-  it('is read one at a time, and a second one meanwhile is refused before its body is read', async () => {
+  it('is read one at a time for each business, and a second one meanwhile is refused before its body is read', async () => {
     const server = app.getHttpServer() as Server
 
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -314,6 +314,21 @@ describe('a file of a delivery', () => {
 
       expect(second).toBe(429)
 
+      // Another business is not locked out by it; with one place on the
+      // instance only, it would be.
+      await put(new TextEncoder().encode('V eines anderen Betriebs'), elsewhere).expect(200)
+
+      const controller = app.get(ArticleImportsController)
+      const before = controller.readLimits
+
+      controller.readLimits = { ...before, atOnce: 1 }
+
+      try {
+        await put(new TextEncoder().encode('V eines anderen Betriebs, voll'), elsewhere).expect(429)
+      } finally {
+        controller.readLimits = before
+      }
+
       first.end(Buffer.from(bytes.subarray(1000)))
       expect(await answered).toBe(200)
 
@@ -325,8 +340,8 @@ describe('a file of a delivery', () => {
   })
 
   it.each([
-    ['stalls', { quietMs: 300, wholeMs: 60_000 }, 0],
-    ['trickles in too long', { quietMs: 60_000, wholeMs: 600 }, 100],
+    ['stalls', { quietMs: 300, wholeMs: 60_000, atOnce: 2, waitAfterCutMs: 0 }, 0],
+    ['trickles in too long', { quietMs: 60_000, wholeMs: 600, atOnce: 2, waitAfterCutMs: 0 }, 100],
   ] as const)(
     'is cut off when it %s, and the next one is read again',
     async (_how, limits, every) => {
@@ -381,6 +396,53 @@ describe('a file of a delivery', () => {
       }
     },
   )
+
+  it('makes an account whose file was cut off wait, and nobody else', async () => {
+    const controller = app.get(ArticleImportsController)
+    const before = controller.readLimits
+    const server = app.getHttpServer() as Server
+    // Another account of the same business; `as` names everybody `test`.
+    const owner = JSON.stringify({ userId: 'other', tenantId: north.id, roles: ['owner'] })
+
+    controller.readLimits = { quietMs: 300, wholeMs: 60_000, atOnce: 2, waitAfterCutMs: 60_000 }
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+    try {
+      const { port } = server.address() as AddressInfo
+      const slow = httpRequest({
+        host: '127.0.0.1',
+        port,
+        method: 'PUT',
+        path: `/suppliers/${hansa}/imports/files/${'c'.repeat(64)}`,
+        headers: {
+          'content-type': 'application/octet-stream',
+          'content-length': '1000000',
+          'x-test-identity': office,
+        },
+      })
+      const ended = new Promise<void>((resolve) => {
+        slow.on('error', () => {
+          resolve()
+        })
+        slow.on('close', () => {
+          resolve()
+        })
+      })
+
+      slow.write(Buffer.alloc(10, 0x43))
+      await ended
+
+      await put(new TextEncoder().encode('V wartet noch'), office).expect(429)
+      await put(new TextEncoder().encode('V ein anderes Konto'), owner).expect(200)
+
+      // Its wait over, it stores again.
+      controller.readLimits = { ...controller.readLimits, waitAfterCutMs: 0 }
+      await put(new TextEncoder().encode('V wartet nicht mehr'), office).expect(200)
+    } finally {
+      controller.readLimits = before
+      await new Promise((resolve) => server.close(resolve))
+    }
+  })
 })
 
 describe('an import from DATANORM', () => {

@@ -34,9 +34,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   `PUT /suppliers/:supplierId/imports/files/:sha256`, mit bis zu 200 MB statt der 25 MB jeder anderen Datei, unter
   denselben Budgets je Stunde und demselben freien Platz (#297). Warum: das ganze Sortiment eines Großhändlers hatte
   am 28.09.2026 gepackt 24,6 MB und wächst, eine größere Lieferung hätte sich nicht mehr hochladen lassen. Gelesen
-  wird zur Zeit nur eine solche Datei, eine zweite bekommt 429, bevor ihr Inhalt gelesen ist, weil die Budgets erst
-  nach dem Lesen zählen (Security-Review von #777). Wer langsam sendet, hält die Stelle nicht: nach 30 Sekunden ohne
-  Daten oder 10 Minuten insgesamt bricht die Route ab.
+  wird je Betrieb eine solche Datei zur Zeit und auf der Instanz höchstens zwei, eine weitere bekommt 429, bevor ihr
+  Inhalt gelesen ist, weil die Budgets erst nach dem Lesen zählen (Security-Review von #777). Wer langsam sendet,
+  hält keine Stelle: nach 30 Sekunden ohne Daten oder 10 Minuten insgesamt bricht die Route ab, und das Konto wartet
+  danach 5 Minuten.
 
 ### Behoben
 
