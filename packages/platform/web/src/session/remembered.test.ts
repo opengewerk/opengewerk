@@ -29,6 +29,7 @@ const account: Account = {
   name: 'Erika Berg',
   tenantId,
   twoFactorEnabled: true,
+  emailVerified: true,
   signInMethod: 'password',
   secondFactor: true,
 }
@@ -101,6 +102,7 @@ describe('who was signed in here last', () => {
       email: '',
       name: '',
       twoFactorEnabled: false,
+      emailVerified: true,
       signInMethod: 'password',
       secondFactor: false,
     })

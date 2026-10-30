@@ -666,6 +666,13 @@
       "when": 1793310427447,
       "tag": "0094_tenant_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1793331024473,
+      "tag": "0095_address_confirmations",
+      "breakpoints": true
     }
   ]
 }

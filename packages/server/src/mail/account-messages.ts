@@ -1,6 +1,8 @@
 import type { AccountMessages } from '@opengewerk/platform-server'
 
 import {
+  addressChangedMessage,
+  addressConfirmationMessage,
   mailServerChangedMessage,
   operatorsChangedMessage,
   passkeyAddedMessage,
@@ -33,6 +35,8 @@ export const accountMessages: AccountMessages = {
   passkeyAdded: passkeyAddedMessage,
   recoveryCodesRenewed: recoveryCodesRenewedMessage,
   secondFactorChanged: secondFactorChangedMessage,
+  addressConfirmation: addressConfirmationMessage,
+  addressChanged: addressChangedMessage,
   operatorsChanged: operatorsChangedMessage,
   mailServerChanged: mailServerChangedMessage,
 }

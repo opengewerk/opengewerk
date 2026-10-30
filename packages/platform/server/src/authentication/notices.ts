@@ -75,3 +75,25 @@ export type SecondFactorChange = 'app' | 'reset'
  * written into the log by then.
  */
 export type SecondFactorNotice = (owner: PasskeyOwner, change: SecondFactorChange) => Promise<void>
+
+/** Where the link that confirms an address leads (opengewerk#754), the page of the gate that reads its token. */
+export const addressPath = '/adresse'
+
+/**
+ * The mails about the address of an account (N28 of the security audit,
+ * opengewerk#754), bound to the mail server of the instance.
+ *
+ * A new address holds only once the link in a mail to it was opened, so
+ * `ready` is asked before anything waits for one, and `confirmation` is
+ * awaited and throws when the mail server refuses: a link nobody received
+ * leaves nothing waiting. `changed` goes to the address an account had and
+ * is not awaited; the change is done by then.
+ */
+export interface AddressMail {
+  ready(): Promise<boolean>
+  confirmation(
+    to: { readonly name: string; readonly email: string },
+    facts: { readonly change: boolean; readonly token: string; readonly expiresAt: Date },
+  ): Promise<void>
+  changed(to: { readonly name: string; readonly email: string }, address: string): Promise<void>
+}

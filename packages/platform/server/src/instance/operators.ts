@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import type { OperatorView } from '@opengewerk/platform-domain'
 import { asc, eq, sql } from 'drizzle-orm'
 
+import { addressUnconfirmed } from '../authentication/address-confirmation.js'
 import { normalise } from '../authentication/administration.js'
 import type { Database } from '../database/database.js'
 import { authUsers, instanceOperators } from '../schema.js'
@@ -74,7 +75,7 @@ export async function appointOperator(
       await tx.execute(operatorsLock)
 
       const [account] = await tx
-        .select({ id: authUsers.id })
+        .select({ id: authUsers.id, confirmed: authUsers.emailVerified })
         .from(authUsers)
         .where(eq(sql`lower(${authUsers.email})`, wanted))
 
@@ -82,6 +83,12 @@ export async function appointOperator(
         throw new NotFoundException(
           'Ein Konto mit dieser Adresse gibt es auf dieser Instanz nicht.',
         )
+      }
+
+      // Found through its address alone, so only through one somebody
+      // confirmed (N28 of the security audit, opengewerk#754).
+      if (!account.confirmed) {
+        throw new ConflictException(addressUnconfirmed)
       }
 
       const inserted = await tx

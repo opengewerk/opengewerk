@@ -19,6 +19,7 @@ import { deviceName } from '../session/device-name.js'
 import { accountQuery, useRight } from '../session/queries.js'
 import {
   correctAccount,
+  discardCorrectedAddress,
   invite,
   openInvitations,
   resetSecondFactor,
@@ -1048,9 +1049,36 @@ function EditAccess<Value>({
             onChange={(event) => {
               setEmail(event.target.value)
             }}
-            hint="Damit meldet sich die Person an."
+            hint="Damit meldet sich die Person an. Eine neue gilt erst, wenn sie den Link in der Mail an sie öffnet."
           />
         </div>
+        {person.pendingEmail ? (
+          <div
+            role="status"
+            className="flex flex-col gap-2 rounded-[5px] border border-line bg-surface-sunken p-3"
+          >
+            <p className="text-[13px] leading-[1.5]">
+              Neue Adresse <strong>{person.pendingEmail}</strong> wartet auf Bestätigung. Der Link
+              in der Mail an sie gilt bis {moment(person.pendingUntil ?? null)}; bis dahin gilt die
+              bisherige.
+            </p>
+            <div>
+              <Button
+                size="small"
+                type="button"
+                disabled={working}
+                onClick={() => {
+                  setTrouble(null)
+                  discardCorrectedAddress(person.userId).then(onSaved, (error: unknown) => {
+                    setTrouble(saidWhy(error, 'Die Adresse ließ sich nicht verwerfen.'))
+                  })
+                }}
+              >
+                Verwerfen
+              </Button>
+            </div>
+          </div>
+        ) : null}
         <SettingsText muted small>
           {correction}
         </SettingsText>

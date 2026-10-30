@@ -5,8 +5,14 @@ import type { FormEvent } from 'react'
 import { Button } from '../components/button.js'
 import { Field } from '../components/field.js'
 import { Panel } from '../components/panel.js'
+import { moment } from '../format.js'
 import { accountQuery } from '../session/queries.js'
-import { changeOwnAccount } from '../session/session.js'
+import {
+  changeOwnAccount,
+  discardWaitingAddress,
+  sendAddressLink,
+  waitingAddress,
+} from '../session/session.js'
 import { RequestRefused } from '../sync/transport.js'
 import { Reconfirmation } from './passkeys.js'
 import { Saved } from './settings.js'
@@ -20,10 +26,17 @@ import { Saved } from './settings.js'
  * runs the instance, which nobody else corrects. The confirmation is asked
  * only once there is something to change, and what was changed goes into the
  * log of every tenant the account works in; that is the server's.
+ *
+ * A new address waits for the link in the mail to it (opengewerk#754), as
+ * the board "Konto: neue E-Mail-Adresse wartet auf Bestätigung" draws it;
+ * the card says so, sends the link again or takes the address back. An
+ * address that was never confirmed gets a link of its own from here.
  */
 export function OwnDetails() {
   const queries = useQueryClient()
   const account = useQuery(accountQuery)
+  const waiting = useQuery({ queryKey: ['waiting-address'], queryFn: waitingAddress })
+  const [sent, setSent] = useState(false)
   const [name, setName] = useState<string | null>(null)
   const [email, setEmail] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
@@ -59,17 +72,49 @@ export function OwnDetails() {
 
   async function send() {
     try {
-      await changeOwnAccount(change)
+      const answer = await changeOwnAccount(change)
+      // A server from before opengewerk#754 answers without it, and changed it all.
+      const waits = (answer.pending ?? null) !== null
+
       setName(null)
       setEmail(null)
-      setSaved(true)
+      setSaved(!waits)
+      setSent(waits)
       void queries.invalidateQueries({ queryKey: accountQuery.queryKey })
+      void queries.invalidateQueries({ queryKey: ['waiting-address'] })
     } catch (error) {
       setTrouble(error instanceof RequestRefused ? error.message : 'Die Änderung kam nicht an.')
     } finally {
       setConfirming(false)
     }
   }
+
+  async function again() {
+    setTrouble(null)
+
+    try {
+      await sendAddressLink()
+      setSent(true)
+      void queries.invalidateQueries({ queryKey: ['waiting-address'] })
+    } catch (error) {
+      setTrouble(error instanceof RequestRefused ? error.message : 'Die Mail kam nicht an.')
+    }
+  }
+
+  async function discard() {
+    setTrouble(null)
+
+    try {
+      await discardWaitingAddress()
+      setSent(false)
+      void queries.invalidateQueries({ queryKey: ['waiting-address'] })
+    } catch (error) {
+      setTrouble(error instanceof RequestRefused ? error.message : 'Das kam nicht an.')
+    }
+  }
+
+  const pending = waiting.data ?? null
+  const unconfirmed = pending === null && account.data?.emailVerified === false
 
   return (
     <Panel title="Eigene Angaben" roomy>
@@ -103,11 +148,64 @@ export function OwnDetails() {
               Ändern
             </Button>
             <span className="text-[12px] text-ink-muted">
-              Mit erneuter Bestätigung durch Passwort und Code.
+              Mit erneuter Bestätigung durch Passwort und Code. Eine neue E-Mail-Adresse gilt erst,
+              wenn der Link in der Mail an sie geöffnet ist.
             </span>
           </div>
         )}
       </form>
+      {pending ? (
+        <div
+          role="status"
+          className="mt-2.5 flex flex-col gap-2 rounded-[5px] border border-line bg-surface-sunken p-3"
+        >
+          <p className="text-[13px] leading-[1.5]">
+            Neue Adresse <strong>{pending.email}</strong> wartet auf Bestätigung. Der Link in der
+            Mail an sie gilt bis {moment(pending.expiresAt)}; bis dahin gilt die bisherige.
+            {sent ? ' Die Mail ist unterwegs.' : ''}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              size="small"
+              onClick={() => {
+                void again()
+              }}
+            >
+              Mail erneut senden
+            </Button>
+            <Button
+              size="small"
+              onClick={() => {
+                void discard()
+              }}
+            >
+              Verwerfen
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {unconfirmed ? (
+        <div
+          role="status"
+          className="mt-2.5 flex flex-col gap-2 rounded-[5px] border border-line bg-surface-sunken p-3"
+        >
+          <p className="text-[13px] leading-[1.5]">
+            Diese Adresse ist noch nicht bestätigt. Mit dem Link in einer Mail an sie gilt sie als
+            Ihre, und erst dann findet eine Benennung oder eine Einladung per Link das Konto über
+            sie.{sent ? ' Die Mail ist unterwegs.' : ''}
+          </p>
+          <div>
+            <Button
+              size="small"
+              onClick={() => {
+                void again()
+              }}
+            >
+              Adresse bestätigen
+            </Button>
+          </div>
+        </div>
+      ) : null}
       {confirming ? (
         <section
           aria-label="Eigene Angaben bestätigen"

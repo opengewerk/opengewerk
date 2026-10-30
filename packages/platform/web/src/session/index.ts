@@ -11,13 +11,19 @@
 // the devices it is signed in on, the people of a tenant, and the two links
 // somebody reaches the gate with.
 export {
+  addressOffer,
+  addressPath,
+  addressToken,
   availableTenants,
   changeOwnAccount,
   changePassword,
   chooseTenant,
+  confirmAddressLink,
   correctAccount,
   currentAccount,
   devices,
+  discardCorrectedAddress,
+  discardWaitingAddress,
   instanceVersion,
   invitationOffer,
   invitationPath,
@@ -35,6 +41,7 @@ export {
   revokeStaffDevice,
   runSetup,
   secretFrom,
+  sendAddressLink,
   setBlocked,
   setRoles,
   setupNeeded,
@@ -47,10 +54,13 @@ export {
   startSecondFactor,
   verifyRecoveryCode,
   verifySecondFactor,
+  waitingAddress,
   withdrawInvitation,
 } from './session.js'
 export type {
   Account,
+  AddressOffer,
+  PendingAddress,
   DeviceEntry,
   FirstRun,
   InvitationEntry,

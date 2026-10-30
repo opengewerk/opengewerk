@@ -186,7 +186,7 @@ describe('the tables of the foundation', () => {
     const tables = foundationGuards.map((guard) => guard.table)
 
     expect(new Set(tables).size).toBe(tables.length)
-    expect(tables).toHaveLength(32)
+    expect(tables).toHaveLength(33)
   })
 
   it('give the application nothing but reading on what only a trigger writes', () => {

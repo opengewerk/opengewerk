@@ -3,6 +3,7 @@ import type { Pool } from 'pg'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { newId } from '../database/identifier.js'
+import { addressNeedsMail } from './address-confirmation.js'
 import { authenticationPath, disabledPaths } from './authentication.js'
 import {
   cookiesOf,
@@ -149,24 +150,16 @@ describe('changing the own account', () => {
     const cookies = await signIn(both.email)
 
     await reconfirm(cookies)
-    const changed = await change(cookies, {
-      name: '  Bea Neuname  ',
-      email: ' Bea.Neu@Example.de ',
-    }).expect(200)
+    const changed = await change(cookies, { name: '  Bea Neuname  ' }).expect(200)
 
-    expect(changed.body).toEqual({ name: 'Bea Neuname', email: 'bea.neu@example.de' })
-    expect(await accountOf(idOf(both))).toEqual({
-      name: 'Bea Neuname',
-      email: 'bea.neu@example.de',
-    })
+    expect(changed.body).toEqual({ name: 'Bea Neuname', email: both.email, pending: null })
+    expect(await accountOf(idOf(both))).toEqual({ name: 'Bea Neuname', email: both.email })
 
-    // In both tenants, as the person, with the reason of the route.
+    // In both tenants, as the person, with the reason of the route. A new
+    // address waits for its link and is written by it (`address-confirmation`).
     for (const tenantId of [north.id, south.id]) {
       expect(await logged(tenantId, 'name_after')).toEqual([
         { new_value: 'Bea Neuname', reason: 'account.own' },
-      ])
-      expect(await logged(tenantId, 'email_after')).toEqual([
-        { new_value: 'bea.neu@example.de', reason: 'account.own' },
       ])
     }
 
@@ -176,7 +169,7 @@ describe('changing the own account', () => {
   })
 
   it('needs no confirmation for what changes nothing, and writes no entry', async () => {
-    const cookies = await signIn('bea.neu@example.de')
+    const cookies = await signIn(both.email)
     const before = await logged(north.id, 'name_after')
 
     await change(cookies, { name: 'Bea Neuname' }).expect(200)
@@ -184,15 +177,13 @@ describe('changing the own account', () => {
     expect(await logged(north.id, 'name_after')).toEqual(before)
   })
 
-  it('refuses the address of another account and keeps its own', async () => {
+  it('keeps its address without a mail server of the instance, and says why', async () => {
     const cookies = await signIn(other.email)
 
     await reconfirm(cookies)
-    const refused = await change(cookies, { email: 'bea.neu@example.de' }).expect(409)
+    const refused = await change(cookies, { email: 'anna.neu@example.de' }).expect(409)
 
-    expect((refused.body as { message: string }).message).toBe(
-      'Diese E-Mail-Adresse gehört schon zu einem anderen Konto.',
-    )
+    expect((refused.body as { message: string }).message).toBe(addressNeedsMail)
     expect(await accountOf(idOf(other))).toEqual({ name: other.name, email: other.email })
     expect(await logged(north.id, 'email_before')).not.toContainEqual(
       expect.objectContaining({ new_value: other.email }),
@@ -213,7 +204,7 @@ describe('changing the own account', () => {
     expect((await accountOf(idOf(other))).name).toBe('Anna Anders')
   })
 
-  it('ends a link to a new password with the address it went to, and not with a name', async () => {
+  it('ends no link to a new password with a name', async () => {
     await http()
       .post(`${authenticationPath}/request-password-reset`)
       .set('origin', origin)
@@ -228,10 +219,6 @@ describe('changing the own account', () => {
     await reconfirm(cookies)
     await change(cookies, { name: 'Anna Nochmal' }).expect(200)
     expect(await openResetsOf(idOf(other))).toBe(1)
-
-    await reconfirm(cookies)
-    await change(cookies, { email: 'anna.neu@example.de' }).expect(200)
-    expect(await openResetsOf(idOf(other))).toBe(0)
   })
 
   it('cannot be reached without a session', async () => {

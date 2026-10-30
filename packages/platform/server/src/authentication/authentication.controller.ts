@@ -6,6 +6,8 @@ import {
   ForbiddenException,
   Get,
   Inject,
+  NotFoundException,
+  Optional,
   Param,
   Patch,
   Post,
@@ -18,10 +20,19 @@ import { pick } from '../api/body.js'
 import { CurrentUser, type SignedInUser } from '../api/identity.js'
 import { Database } from '../database/database.js'
 import { isUuid } from '../database/identifier.js'
-import { authSessions, memberships, tenants, tenantSessions } from '../schema.js'
+import { ACCOUNT_MESSAGES, type AccountMessages, accountMails } from '../instance/account-mail.js'
+import { MAIL, type MailContext } from '../mail/context.js'
+import { authSessions, authUsers, memberships, tenants, tenantSessions } from '../schema.js'
 import { ACCESS_RULES, type AccessRules } from './access.js'
+import {
+  discardAddress,
+  type PendingAddress,
+  pendingAddressOf,
+  requestAddress,
+} from './address-confirmation.js'
 import type { CorrectedAccount } from './administration.js'
 import { beforeItsEnd } from './last-day.js'
+import type { AddressMail } from './notices.js'
 import { changeOwnAccount } from './own-account.js'
 import { rolesHeld } from './roles.js'
 import { sessionLifetimes } from './session-lifetime.js'
@@ -60,6 +71,8 @@ export class AuthenticationController {
   constructor(
     private readonly database: Database,
     @Inject(ACCESS_RULES) private readonly access: Pick<AccessRules, 'sentences' | 'catalogue'>,
+    @Optional() @Inject(MAIL) private readonly mail?: MailContext | null,
+    @Optional() @Inject(ACCOUNT_MESSAGES) private readonly messages?: AccountMessages | null,
   ) {}
 
   /**
@@ -265,7 +278,74 @@ export class AuthenticationController {
     @CurrentUser() user: SignedInUser,
     @Body() body: unknown,
   ): Promise<CorrectedAccount> {
-    return changeOwnAccount(this.database, user, pick(body, ['name', 'email'] as const))
+    return changeOwnAccount(
+      this.database,
+      user,
+      pick(body, ['name', 'email'] as const),
+      this.addressMail(),
+    )
+  }
+
+  /** The address that waits for its link (opengewerk#754), or null. */
+  @Get('account/address')
+  @RequiresSession()
+  waitingAddress(@CurrentUser() user: SignedInUser): Promise<PendingAddress | null> {
+    return pendingAddressOf(this.database, user.userId)
+  }
+
+  /**
+   * The link once more: to the address that waits, or, where none does, to
+   * the address the account has and never confirmed. Nothing changes until
+   * the link is opened, so no confirmation with the password is asked.
+   */
+  @Post('account/address')
+  @RequiresSession()
+  async sendAddressLink(@CurrentUser() user: SignedInUser): Promise<PendingAddress> {
+    const [account] = await this.database.forInstance(
+      (tx) =>
+        tx
+          .select({
+            name: authUsers.name,
+            email: authUsers.email,
+            verified: authUsers.emailVerified,
+          })
+          .from(authUsers)
+          .where(eq(authUsers.id, user.userId))
+          .limit(1),
+      user.userId,
+    )
+
+    if (!account) {
+      throw new NotFoundException()
+    }
+
+    const waiting = await pendingAddressOf(this.database, user.userId)
+
+    if (waiting === null && account.verified) {
+      throw new BadRequestException('Diese Adresse ist schon bestätigt, und keine neue wartet.')
+    }
+
+    return requestAddress(
+      this.database,
+      this.addressMail(),
+      { userId: user.userId, name: account.name, email: account.email },
+      waiting?.email ?? account.email,
+      user.userId,
+    )
+  }
+
+  /** Takes the address that waits away; the one the account has stays. */
+  @Delete('account/address')
+  @RequiresSession()
+  async discardWaitingAddress(@CurrentUser() user: SignedInUser): Promise<void> {
+    await discardAddress(this.database, user.userId, user.userId)
+  }
+
+  /** The mails about an address, where the module has a mail context and the words for them. */
+  private addressMail(): AddressMail | null {
+    return this.mail && this.messages
+      ? accountMails(this.database, this.mail, this.messages).addressMail
+      : null
   }
 
   /**

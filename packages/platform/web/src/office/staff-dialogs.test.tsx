@@ -863,6 +863,38 @@ describe('the access of somebody', () => {
     expect(sent('PATCH', '/staff/u-2/account')).toEqual([{ email: 'm.mitglied@nord.example.de' }])
   })
 
+  /**
+   * A corrected address waits for the person to open the link in the mail to
+   * it (opengewerk#754): the dialog says so and takes it back, and nothing
+   * else is sent.
+   */
+  it('shows a corrected address that waits for its link, and takes it back', async () => {
+    server.answer('GET', '/staff', [
+      lea,
+      {
+        ...max,
+        pendingEmail: 'm.neu@nord.example.de',
+        pendingUntil: '2026-10-31T09:14:00.000Z',
+      },
+    ])
+    server.answer('DELETE', '/staff/u-2/account/address', { userId: 'u-2' })
+
+    staffScreen()
+
+    const person = userEvent.setup()
+    const dialog = await accessOfMax(person)
+    const waits = within(dialog).getByRole('status')
+
+    expect(waits.textContent).toContain('Neue Adresse m.neu@nord.example.de wartet auf Bestätigung')
+    // The field keeps the address that holds.
+    expect((within(dialog).getByLabelText('E-Mail') as HTMLInputElement).value).toBe(max.email)
+
+    await person.click(within(waits).getByRole('button', { name: 'Verwerfen' }))
+    await waitFor(() => {
+      expect(written()).toEqual(['DELETE /staff/u-2/account/address'])
+    })
+  })
+
   it('sends a new role as the one role, with what the application keeps beside it', async () => {
     server.answer('PATCH', '/staff/u-2', {})
 

@@ -12,6 +12,7 @@ import { isUniqueViolation } from '../api/database-errors.js'
 import type { Database, StraddlingTransaction } from '../database/database.js'
 import { authUsers, invitations } from '../schema.js'
 import type { AccessRules } from './access.js'
+import { addressConfirmed, addressUnconfirmed } from './address-confirmation.js'
 import type { Authentication } from './authentication.js'
 import { hashToken } from './invitation.js'
 import { shortestPassword } from './password.js'
@@ -251,19 +252,42 @@ export async function redeemInvitation(
   const context = await authentication.$context
   const tenantId = row.business as TenantId
   const roles = row.invited_roles
+  // Whether the link came in a mail to the address (N28 of the security
+  // audit, opengewerk#754): then whoever holds it has shown the address is
+  // theirs. Handed over by the lead, it shows nothing about the address.
+  const mailed = await mailedInvitation(database, tenantId, row.invitation_id)
+
+  if (accountId !== null && !mailed && !(await addressConfirmed(database, accountId))) {
+    // An account found through an address nobody confirmed joins only
+    // through a link a mail brought to it.
+    throw new ConflictException(addressUnconfirmed)
+  }
 
   const created = await redeemedOnce(database, token, accountId === null, () =>
     database.forInstanceAndTenant(
       'invitation.redeem',
       async ({ tx, enter }: StraddlingTransaction) => {
-        const account = await createAccount(context, tx, {
-          email: row.invited_email,
-          name: row.invited_name,
-          // Ignored when the account is already there, which is the case
-          // `accountId` stands for. The empty string never reaches a hasher:
-          // `createAccount` returns before it gets that far.
-          password: password ?? '',
-        })
+        const account = await createAccount(
+          context,
+          tx,
+          {
+            email: row.invited_email,
+            name: row.invited_name,
+            // Ignored when the account is already there, which is the case
+            // `accountId` stands for. The empty string never reaches a hasher:
+            // `createAccount` returns before it gets that far.
+            password: password ?? '',
+          },
+          mailed,
+        )
+
+        if (!account.confirmed && mailed) {
+          // An account there already, whose address this mail just reached.
+          await tx
+            .update(authUsers)
+            .set({ emailVerified: true, updatedAt: new Date() })
+            .where(eq(authUsers.id, account.userId))
+        }
 
         // Inside the tenant from here on, as the person who is joining it. So
         // both rows below land in this tenant's audit log with their name on
@@ -381,6 +405,22 @@ async function lookUp(
 
     return { row, accountId: account?.id ?? null }
   })
+}
+
+/** Whether a mail with the link of an invitation went out, which only the address it went to holds. */
+async function mailedInvitation(
+  database: Database,
+  tenantId: TenantId,
+  invitationId: string,
+): Promise<boolean> {
+  // The outbox is the application's table, made from the parts of the
+  // foundation (`mailOutboxSchema`), whose column names are fixed.
+  const sent = await database.forTenant({ tenantId, reason: 'invitation.redeem' }, (tx) =>
+    tx.execute(sql`select 1 from mail_outbox
+      where invitation_id = ${invitationId} and status = 'sent' limit 1`),
+  )
+
+  return sent.rows.length > 0
 }
 
 function stateOf(row: InvitationRow): InvitationState {

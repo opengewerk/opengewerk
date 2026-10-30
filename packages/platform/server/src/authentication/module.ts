@@ -6,6 +6,7 @@ import { INSTANCE_SETTINGS, InstanceController } from '../instance/instance.cont
 import { LegalTextsController } from '../instance/legal-texts.controller.js'
 import type { InstanceSettingsCache } from '../instance/settings.js'
 import { ACCESS_RULES, type AccessRules } from './access.js'
+import { AddressController } from './address.controller.js'
 import type { Authentication } from './authentication.js'
 import { AuthenticationController } from './authentication.controller.js'
 import { InvitationController } from './invitation.controller.js'
@@ -93,7 +94,9 @@ export function authenticationParts(parts: AuthenticationParts): {
     controllers: [
       // The first two answer without an identity. All three need the
       // authentication handed in and are left out on a closed instance.
-      ...(authentication ? [SetupController, InvitationController, RecoveryCodesController] : []),
+      ...(authentication
+        ? [SetupController, InvitationController, AddressController, RecoveryCodesController]
+        : []),
       // The legal texts of the instance answer without an identity as well,
       // for the foot of the sign in (opengewerk-haustechnik#129), and are
       // left out on a closed instance with the others.

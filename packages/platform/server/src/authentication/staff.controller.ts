@@ -37,6 +37,7 @@ import {
   changeRoles,
   correctAccount,
   type CorrectedAccount,
+  discardCorrectedAddress,
   devicesOf,
   type InvitationEntry,
   inviteStaff,
@@ -51,6 +52,7 @@ import {
   type StaffDevice,
   type StaffEntry,
 } from './administration.js'
+import type { PendingAddress } from './address-confirmation.js'
 import { INVITATION_MAILING, type InvitationMailing } from './invitation-mailing.js'
 import { lastDayFrom } from './last-day.js'
 import { rolesOfTenant } from './roles.js'
@@ -292,14 +294,39 @@ export class StaffController {
     @CurrentIdentity() identity: RequestIdentity,
     @Param('userId') userId: string,
     @Body() body: unknown,
-  ): Promise<{ userId: string } & CorrectedAccount> {
+  ): Promise<{ userId: string; pending: PendingAddress | null } & CorrectedAccount> {
     const values = pick(body, ['name', 'email'] as const)
-    const account = await correctAccount(this.access, this.database, identity, userId, {
-      ...(values.name === undefined ? {} : { name: written(values.name, 'name') }),
-      ...(values.email === undefined ? {} : { email: written(values.email, 'email') }),
-    })
+    const account = await correctAccount(
+      this.access,
+      this.database,
+      identity,
+      userId,
+      {
+        ...(values.name === undefined ? {} : { name: written(values.name, 'name') }),
+        ...(values.email === undefined ? {} : { email: written(values.email, 'email') }),
+      },
+      this.mail && this.messages
+        ? accountMails(this.database, this.mail, this.messages).addressMail
+        : null,
+    )
 
     return { userId, ...account }
+  }
+
+  /**
+   * Takes back a corrected address that waits for its link (opengewerk#754);
+   * the address the account has stays. For an account of this tenant alone,
+   * as the correction was.
+   */
+  @Delete(':userId/account/address')
+  @RequiresPermission(accessRights.write)
+  async discardAddress(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('userId') userId: string,
+  ): Promise<{ userId: string }> {
+    await discardCorrectedAddress(this.access, this.database, identity, userId)
+
+    return { userId }
   }
 
   /**

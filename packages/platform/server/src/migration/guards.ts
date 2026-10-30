@@ -253,6 +253,14 @@ export const foundationGuards: readonly TableGuard[] = [
   { table: 'auth_two_factors', grants: everything, audited: false, synced: false },
   { table: 'auth_passkeys', grants: everything, audited: false, synced: false },
   { table: 'auth_rate_limits', grants: everything, audited: false, synced: false },
+  // An address that waits for its link (opengewerk#754): replaced by a new
+  // one and removed by its link, never changed.
+  {
+    table: 'auth_address_confirmations',
+    grants: ['select', 'insert', 'delete'],
+    audited: false,
+    synced: false,
+  },
   { table: 'memberships', grants: noDelete, audited: true, synced: false },
   { table: 'tenant_sessions', grants: noDelete, audited: true, synced: false },
   { table: 'member_passkeys', grants: noDelete, audited: true, synced: false },

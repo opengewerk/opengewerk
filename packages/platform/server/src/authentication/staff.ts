@@ -1,9 +1,11 @@
+import { ConflictException } from '@nestjs/common'
 import type { TenantId } from '@opengewerk/platform-domain'
 import { and, eq } from 'drizzle-orm'
 import { uuidv7 } from 'uuidv7'
 
 import type { Database, StraddlingTransaction, TenantTransaction } from '../database/database.js'
 import { authAccounts, authSessions, authUsers, memberships } from '../schema.js'
+import { addressUnconfirmed } from './address-confirmation.js'
 import type { Authentication } from './authentication.js'
 import { recordPasswordReset } from './password-resets.js'
 
@@ -46,17 +48,23 @@ export async function createAccount(
   context: AuthenticationContext,
   tx: TenantTransaction,
   person: { readonly email: string; readonly name: string; readonly password: string },
-): Promise<{ readonly userId: string; readonly created: boolean }> {
+  /**
+   * Whether the address of a new account counts as confirmed (N28 of the
+   * security audit, opengewerk#754): yes where whoever makes it vouches for
+   * it or a mail reached it, no for an invitation handed over as a link.
+   */
+  confirmed: boolean,
+): Promise<{ readonly userId: string; readonly created: boolean; readonly confirmed: boolean }> {
   const email = person.email.trim().toLowerCase()
 
   const [existing] = await tx
-    .select({ id: authUsers.id })
+    .select({ id: authUsers.id, confirmed: authUsers.emailVerified })
     .from(authUsers)
     .where(eq(authUsers.email, email))
     .limit(1)
 
   if (existing) {
-    return { userId: existing.id, created: false }
+    return { userId: existing.id, created: false, confirmed: existing.confirmed }
   }
 
   // better-auth mints its own ids for the rows it writes and they are not
@@ -64,7 +72,9 @@ export async function createAccount(
   // table sorted by when people joined.
   const userId = uuidv7()
 
-  await tx.insert(authUsers).values({ id: userId, email, name: person.name })
+  await tx
+    .insert(authUsers)
+    .values({ id: userId, email, name: person.name, emailVerified: confirmed })
   await tx.insert(authAccounts).values({
     id: uuidv7(),
     userId,
@@ -75,7 +85,7 @@ export async function createAccount(
     password: await context.password.hash(person.password),
   })
 
-  return { userId, created: true }
+  return { userId, created: true, confirmed }
 }
 
 /**
@@ -145,7 +155,13 @@ export async function addStaffMember(
   return database.forInstanceAndTenant(
     'membership.create',
     async ({ tx, enter }: StraddlingTransaction) => {
-      const { userId, created } = await createAccount(context, tx, member)
+      // The command makes an account it vouches for, and gives work to one
+      // that is there only through an address somebody confirmed.
+      const { userId, created, confirmed } = await createAccount(context, tx, member, true)
+
+      if (!confirmed) {
+        throw new ConflictException(addressUnconfirmed)
+      }
 
       await enter(member.tenantId, userId)
       await grantMembership(tx, { tenantId: member.tenantId, userId, roles: member.roles })
