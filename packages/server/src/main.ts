@@ -37,6 +37,7 @@ import { DocumentFiles } from './api/document-files.js'
 import { documentAttachments } from './mail/attachments.js'
 import { accountMessages } from './mail/account-messages.js'
 import { endInterruptedImports } from './datanorm/imports.js'
+import { SellingPrices } from './pricing/selling-prices.js'
 import { startDeadlineWorker } from './deadlines/engine.js'
 import { startMailWorker } from './mail/worker.js'
 import { startPushWorker } from './push/worker.js'
@@ -248,6 +249,17 @@ async function start(): Promise<void> {
       })
       .catch((error: unknown) => {
         console.error('Die Rollen der Betriebe ließen sich nicht prüfen.', error)
+      })
+  }
+
+  // Selling prices a stop left half worked out anew after a markup changed
+  // (#463) are taken up again, in the background.
+  if (!configuration.closed) {
+    void application
+      .get(SellingPrices)
+      .resume()
+      .catch((error: unknown) => {
+        console.error('Die Verkaufspreise ließen sich nicht weiter neu rechnen.', error)
       })
   }
 

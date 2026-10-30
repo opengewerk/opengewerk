@@ -10,6 +10,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common'
 import {
@@ -20,6 +21,8 @@ import {
   isAllowed,
   isCalendarDay,
   lumpSumPriceBaseProblem,
+  markupOf,
+  markupProblem,
   missingPermission,
   type PurchasePriceId,
   type PriceBase,
@@ -53,14 +56,18 @@ import {
   sql,
 } from 'drizzle-orm'
 
+import { parameterAt } from '../database/parameters.js'
 import {
   articleMarkups,
+  articlePriceOrigins,
   articlePrices,
   articles,
   purchasePrices,
   supplierArticles,
+  supplierMarkups,
   suppliers,
 } from '../database/schema/index.js'
+import { followPurchasePrices } from '../pricing/selling-prices.js'
 import { todayInGermany } from '../today.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
@@ -337,6 +344,7 @@ export class ArticlesController {
           supplierId: supplierArticles.supplierId,
           supplierName: suppliers.name,
           supplierNumber: supplierArticles.supplierNumber,
+          main: supplierArticles.main,
         })
         .from(supplierArticles)
         .innerJoin(
@@ -359,14 +367,21 @@ export class ArticlesController {
               .orderBy(desc(purchasePrices.validFrom))
           : []
 
+      const pricing = readsPurchase ? await pricingOf(tx, article.id, links, prices) : null
+
       return {
         ...article,
-        prices,
+        prices: prices.map((price) => ({
+          ...price,
+          origin: pricing?.origins.get(price.id) ?? null,
+        })),
+        pricing: pricing?.pricing ?? null,
         suppliers: links.map((link) => ({
           ...link,
           purchasePrices: readsPurchase
             ? purchase.filter((price) => price.supplierArticleId === link.id)
             : null,
+          markup: pricing?.suppliers.get(link.supplierId) ?? null,
         })),
       }
     })
@@ -603,6 +618,9 @@ export class ArticlesController {
             .values({ ...first, supplierArticleId: created.id, tenantId: identity.tenantId })
         }
 
+        // The first supplier of an article is its main one.
+        await followPurchasePrices(tx, identity.tenantId, [article.id], todayInGermany())
+
         return created
       })
     } catch (error) {
@@ -659,6 +677,9 @@ export class ArticlesController {
         .where(eq(supplierArticles.id, link.id))
         .returning()
 
+      // Where it was the main one, the oldest left follows it.
+      await followPurchasePrices(tx, identity.tenantId, [link.articleId], todayInGermany())
+
       return removed
     })
   }
@@ -684,6 +705,9 @@ export class ArticlesController {
           .insert(purchasePrices)
           .values({ ...price, supplierArticleId: link.id, tenantId: identity.tenantId })
           .returning()
+
+        // From its day on, and never backwards.
+        await followPurchasePrices(tx, identity.tenantId, [link.articleId], todayInGermany())
 
         return created
       })
@@ -722,18 +746,193 @@ export class ArticlesController {
         throw new NotFoundException()
       }
 
+      await followPurchasePrices(tx, identity.tenantId, [link.articleId], todayInGermany())
+
       return removed
+    })
+  }
+
+  /**
+   * How the article's selling price comes about (#463): fixed, or following
+   * the purchase price of its main supplier with a markup of its own or,
+   * without one, the supplier's or the business's. From today on, at once.
+   */
+  @Put(':id/pricing')
+  @RequiresPermission('purchase.write')
+  async setPricing(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const { fixed, basisPoints } = pricingFrom(body)
+
+    return this.database.forTenant(identity, async (tx) => {
+      const article = await articleOf(tx, id, 'share')
+      const [held] = await tx
+        .select({ id: articleMarkups.id })
+        .from(articleMarkups)
+        .where(eq(articleMarkups.articleId, article.id))
+
+      if (!fixed && basisPoints === null) {
+        // The supplier's or the business's: nothing of its own to say.
+        if (held) {
+          await tx.delete(articleMarkups).where(eq(articleMarkups.id, held.id))
+        }
+      } else if (held) {
+        await tx
+          .update(articleMarkups)
+          .set({ fixed, basisPoints, updatedAt: new Date() })
+          .where(eq(articleMarkups.id, held.id))
+      } else {
+        await tx
+          .insert(articleMarkups)
+          .values({ tenantId: identity.tenantId, articleId: article.id, fixed, basisPoints })
+      }
+
+      const added = await followPurchasePrices(
+        tx,
+        identity.tenantId,
+        [article.id],
+        todayInGermany(),
+      )
+
+      return { fixed, basisPoints, prices: added }
+    })
+  }
+
+  /** Another supplier becomes the main one, whose purchase price makes the selling price. */
+  @Put(':id/suppliers/:linkId/main')
+  @RequiresPermission('purchase.write')
+  async setMain(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Param('linkId') linkId: string,
+  ) {
+    return this.database.forTenant(identity, async (tx) => {
+      const link = await linkOf(tx, id, linkId, 'share')
+
+      if (!link.main) {
+        // The old one first: one main supplier per article (`supplier_articles_one_main`).
+        await tx
+          .update(supplierArticles)
+          .set({ main: false, updatedAt: new Date() })
+          .where(
+            and(eq(supplierArticles.articleId, link.articleId), eq(supplierArticles.main, true)),
+          )
+        await tx
+          .update(supplierArticles)
+          .set({ main: true, updatedAt: new Date() })
+          .where(eq(supplierArticles.id, link.id))
+        await followPurchasePrices(tx, identity.tenantId, [link.articleId], todayInGermany())
+      }
+
+      return { id: link.id, main: true }
     })
   }
 }
 
+/** What the request says about an article's selling price, refused where it says nothing that fits. */
+function pricingFrom(body: unknown): { fixed: boolean; basisPoints: number | null } {
+  const fields = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
+  const fixed = fields['fixed']
+  const basisPoints = fields['basisPoints'] ?? null
+
+  if (typeof fixed !== 'boolean') {
+    throw new BadRequestException('Pflichtangaben fehlen: fixed')
+  }
+
+  if (fixed && basisPoints !== null) {
+    throw new BadRequestException('Ein fester Verkaufspreis hat keinen Aufschlag.')
+  }
+
+  const problem = basisPoints === null ? null : markupProblem(basisPoints)
+
+  if (problem) {
+    throw new BadRequestException(problem)
+  }
+
+  return { fixed, basisPoints: basisPoints as number | null }
+}
+
 /**
- * The article of the path, not deleted, or a 404, the same for one of another
- * business. Held with FOR SHARE where a row is about to hang on it, so that it
- * is not deleted or made a lump sum between the look and the write, and with
- * FOR UPDATE where its unit changes, so that no price for several units comes
- * in between the look at its prices and the change (#456).
+ * What the office reads about an article's selling price (#463): whether it
+ * is fixed, its own markup, the one that applies and where that comes from,
+ * the own markups of its suppliers, and what each price that follows came
+ * from. Only for whoever may read purchase prices.
  */
+async function pricingOf(
+  tx: TenantTransaction,
+  articleId: ArticleId,
+  links: readonly { readonly supplierId: SupplierId; readonly main: boolean }[],
+  prices: readonly { readonly id: ArticlePriceId }[],
+) {
+  const [own] = await tx
+    .select({ fixed: articleMarkups.fixed, basisPoints: articleMarkups.basisPoints })
+    .from(articleMarkups)
+    .where(eq(articleMarkups.articleId, articleId))
+  const supplierRows =
+    links.length > 0
+      ? await tx
+          .select({
+            supplierId: supplierMarkups.supplierId,
+            basisPoints: supplierMarkups.basisPoints,
+          })
+          .from(supplierMarkups)
+          .where(
+            inArray(
+              supplierMarkups.supplierId,
+              links.map((link) => link.supplierId),
+            ),
+          )
+      : []
+  const originRows =
+    prices.length > 0
+      ? await tx
+          .select({
+            articlePriceId: articlePriceOrigins.articlePriceId,
+            purchaseCents: articlePriceOrigins.purchaseCents,
+            basisPoints: articlePriceOrigins.basisPoints,
+          })
+          .from(articlePriceOrigins)
+          .where(
+            inArray(
+              articlePriceOrigins.articlePriceId,
+              prices.map((price) => price.id),
+            ),
+          )
+      : []
+  const suppliersOwn = new Map(supplierRows.map((row) => [row.supplierId, row.basisPoints]))
+  const main = links.find((link) => link.main)
+  const supplier = main === undefined ? null : (suppliersOwn.get(main.supplierId) ?? null)
+  const business =
+    (await parameterAt(tx, 'material.markup_basis_points', todayInGermany()))?.value ?? null
+  const markup = markupOf(own, supplier, business)
+  const source =
+    markup === null
+      ? null
+      : own?.basisPoints !== null && own?.basisPoints !== undefined
+        ? ('article' as const)
+        : supplier !== null
+          ? ('supplier' as const)
+          : ('business' as const)
+
+  return {
+    pricing: {
+      fixed: own?.fixed ?? false,
+      basisPoints: own?.basisPoints ?? null,
+      markup,
+      source,
+    },
+    suppliers: suppliersOwn,
+    origins: new Map(
+      originRows.map((row) => [
+        row.articlePriceId,
+        { purchaseCents: row.purchaseCents, basisPoints: row.basisPoints },
+      ]),
+    ),
+  }
+}
+
 /**
  * A selling price entered by hand is fixed (#463, decided on 28.09.2026): it
  * stays until somebody enters another, whatever the purchase price does, and
@@ -759,6 +958,13 @@ async function fixedByHand(
   }
 }
 
+/**
+ * The article of the path, not deleted, or a 404, the same for one of another
+ * business. Held with FOR SHARE where a row is about to hang on it, so that it
+ * is not deleted or made a lump sum between the look and the write, and with
+ * FOR UPDATE where its unit changes, so that no price for several units comes
+ * in between the look at its prices and the change (#456).
+ */
 async function articleOf(
   tx: TenantTransaction,
   id: string,

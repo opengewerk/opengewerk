@@ -9,6 +9,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Ein Verkaufspreis, der dem Einkaufspreis folgt, rechnet sich neu, wenn sich etwas ändert, dem er folgt, zweiter
+  Teil von #463, hier der Server: der Aufschlag des Betriebs (`POST /settings/parameters`), der eines Lieferanten
+  (`GET` und `PUT /suppliers/:id/markup`), die Preisbildung eines Artikels, fest oder mit eigenem Aufschlag
+  (`PUT /articles/:id/pricing`), ein anderer Hauptlieferant (`PUT /articles/:id/suppliers/:linkId/main`) und ein
+  Einkaufspreis von Hand. Neu gerechnet wird ab heute, nie rückwirkend, für ein Lieferantensortiment oder den ganzen
+  Betrieb im Hintergrund in Stücken zu 500 Artikeln (`selling_price_runs`, Migration `0100_selling_price_origins`),
+  und nach einem Neustart weiter. Woraus ein solcher Verkaufspreis entstand, Einkaufspreis und Aufschlag, steht in
+  `article_price_origins`, beim Import wie beim Neurechnen, und die Ansicht eines Artikels zeigt es mit der
+  Preisbildung, den Aufschlägen der Lieferanten und dem Hauptlieferanten, alles nur für Inhaber und Büro. Warum: der
+  Verkaufspreis soll dem Einkaufspreis folgen, wie Moritz es am 28.09.2026 entschieden hat, und der ganze Katalog
+  eines Großhändlers sind Hunderttausende Artikel, die kein Gerät warten lassen dürfen; die Herkunft liegt neben dem
+  Verkaufspreis, weil der auf die Geräte reist und Einkaufspreis und Aufschlag nie.
 - Der Verkaufspreis eines Artikels entsteht aus dem Einkaufspreis seines Hauptlieferanten und einem Aufschlag, erster
   Teil von #463: das Datenmodell und der Import aus DATANORM. Der Aufschlag des Betriebs ist eine Einstellung ab einem
   Tag (`material.markup_basis_points`), ein Lieferant und ein Artikel können einen eigenen haben (`supplier_markups`,

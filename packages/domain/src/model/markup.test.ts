@@ -1,8 +1,9 @@
+import type { IsoDate } from '@opengewerk/platform-domain'
 import { describe, expect, it } from 'vitest'
 
 import { tenantParameterProblem } from '../rules/parameter.js'
 import { priceCentsMax } from './article.js'
-import { markupOf, markupProblem, sellingCentsOf } from './markup.js'
+import { followedPrices, markupOf, markupProblem, sellingCentsOf } from './markup.js'
 
 /**
  * The selling price from a purchase price and a markup (#463): the rounding,
@@ -58,5 +59,64 @@ describe('the markup that makes a selling price', () => {
     }
 
     expect(tenantParameterProblem('material.markup_basis_points', 100_001)).toBe(sentence)
+  })
+})
+
+describe('the selling prices that follow a purchase price', () => {
+  const today = '2026-10-30' as IsoDate
+  const price = (validFrom: string, cents: number, id = `p-${validFrom}`) => ({
+    id,
+    validFrom: validFrom as IsoDate,
+    cents,
+    priceBase: 100 as const,
+  })
+  // The cable of the board: 54,00 € for 100 m since March, 56,00 € from November.
+  const purchases = [price('2026-03-01', 5400), price('2026-11-01', 5600)]
+
+  it('are the purchase price with the markup from the day on, and from every later purchase price', () => {
+    const { removed, added } = followedPrices(
+      today,
+      purchases,
+      [price('2026-03-01', 6750, 'march'), price('2026-11-01', 7000, 'november')],
+      2200,
+    )
+
+    // The price of November was worked out with the markup before and gives way.
+    expect(removed).toEqual(['november'])
+    expect(added).toEqual([
+      { validFrom: today, cents: 6588, priceBase: 100, purchaseCents: 5400, basisPoints: 2200 },
+      {
+        validFrom: '2026-11-01',
+        cents: 6832,
+        priceBase: 100,
+        purchaseCents: 5600,
+        basisPoints: 2200,
+      },
+    ])
+  })
+
+  it('make no new price where the one that applies is the same, and keep one of the same day', () => {
+    const held = [price('2026-03-01', 6588, 'march'), price('2026-11-01', 6832, 'november')]
+
+    expect(followedPrices(today, purchases, held, 2200)).toEqual({ removed: [], added: [] })
+  })
+
+  it('change nothing without a markup or without a purchase price from the day on', () => {
+    const held = [price('2026-11-01', 7000, 'november')]
+
+    expect(followedPrices(today, purchases, held, null)).toEqual({ removed: [], added: [] })
+    expect(followedPrices(today, [], held, 2200)).toEqual({ removed: [], added: [] })
+  })
+
+  it('never apply backwards', () => {
+    const { removed, added } = followedPrices(
+      today,
+      [price('2026-03-01', 5400)],
+      [price('2026-03-01', 6000, 'march'), price('2026-06-01', 6100, 'june')],
+      2200,
+    )
+
+    expect(removed).toEqual([])
+    expect(added.map((added) => added.validFrom)).toEqual([today])
   })
 })

@@ -711,6 +711,8 @@ describe('an import of articles', () => {
     )
 
     expect(rows.map((row) => row.name)).toEqual([
+      // What a selling price of an import came from goes with it (#463).
+      'audit_changes article_price_origins',
       'audit_changes article_prices',
       'audit_changes articles',
       'audit_changes list_prices',

@@ -8,6 +8,7 @@ import {
 import { Database, ParameterError } from '@opengewerk/platform-server'
 
 import { parameterAt, parameterHistory, setParameter } from '../database/parameters.js'
+import { SellingPrices } from '../pricing/selling-prices.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
@@ -40,7 +41,10 @@ function asDate(value: unknown, what: string): IsoDate {
  */
 @Controller('settings/parameters')
 export class SettingsController {
-  constructor(private readonly database: Database) {}
+  constructor(
+    private readonly database: Database,
+    private readonly sellingPrices: SellingPrices,
+  ) {}
 
   /** Every period of every setting, so that old documents stay explainable. */
   @Get()
@@ -92,15 +96,36 @@ export class SettingsController {
     // from there with its sentence.
     const note = fields['note']
 
+    // The markup on material (#463): the selling prices that follow the
+    // purchase price are worked out anew from its day on, in the background.
+    const markup = key === 'material.markup_basis_points'
+
     try {
-      return await this.database.forTenant(identity, (tx) =>
-        setParameter(tx, identity.tenantId, {
+      const set = await this.database.forTenant(identity, async (tx) => {
+        const parameter = await setParameter(tx, identity.tenantId, {
           key,
           from,
           value: value as number,
           note: typeof note === 'string' ? note : null,
-        }),
-      )
+        })
+
+        if (markup) {
+          await this.sellingPrices.request(tx, {
+            tenantId: identity.tenantId,
+            userId: identity.userId,
+            supplierId: null,
+            from,
+          })
+        }
+
+        return parameter
+      })
+
+      if (markup) {
+        this.sellingPrices.start(identity.tenantId)
+      }
+
+      return set
     } catch (error) {
       if (error instanceof ParameterError) {
         throw new BadRequestException(error.message)

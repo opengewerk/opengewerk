@@ -22,6 +22,7 @@ import { permissionLabel, roleKeys, roles } from './authorization.js'
 const reasonWords: Readonly<Record<string, string>> = {
   'article.import': 'Import aus DATANORM',
   'article.import.interrupted': 'Von selbst, Import beim Neustart beendet',
+  'article.prices.follow': 'Verkaufspreise nach einem geänderten Aufschlag',
 }
 
 /**
@@ -52,6 +53,8 @@ const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
     { table: 'article_markups', column: 'article_id' },
     { table: 'supplier_articles', column: 'article_id' },
   ],
+  // A selling price with what it came from (#463).
+  article_prices: [{ table: 'article_price_origins', column: 'article_price_id' }],
   supplier_articles: [{ table: 'purchase_prices', column: 'supplier_article_id' }],
   sites: [
     { table: 'contacts', column: 'site_id' },
@@ -112,6 +115,7 @@ const auditReferences: Readonly<Record<string, string>> = {
   article_id: 'articles',
   supplier_id: 'suppliers',
   supplier_article_id: 'supplier_articles',
+  article_price_id: 'article_prices',
   pv_system_id: 'installations',
   task_id: 'tasks',
   deadline_id: 'deadlines',
@@ -122,7 +126,12 @@ const auditReferences: Readonly<Record<string, string>> = {
 }
 
 /** Fields that hold the id of a person, beside those of the foundation. */
-const auditPersonFields: readonly string[] = ['assignee_user_id', 'created_by', 'issued_by']
+const auditPersonFields: readonly string[] = [
+  'assignee_user_id',
+  'created_by',
+  'issued_by',
+  'requested_by',
+]
 
 /**
  * The tables whose rows are best named by their person: somebody put on a job,
@@ -153,6 +162,8 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   list_prices: ['valid_from'],
   // A markup by its percentage (#463); a fixed price has none and is the label alone.
   supplier_markups: ['basis_points'],
+  article_price_origins: ['basis_points'],
+  selling_price_runs: ['from_day'],
   article_markups: ['basis_points'],
   article_imports: ['supplier_id'],
   // Hours are told apart by when they began; whose they are the list says anyway.
