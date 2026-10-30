@@ -9,6 +9,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Feature-Gliederung (v2.37) trägt die Preisbildung ein, die Moritz am 28.09.2026 nach dem Test mit einer echten
+  Lieferung aus DATANORM entschieden hat: der Listenpreis wird Einkaufspreis des Lieferanten, ein Nettopreis geht ihm
+  vor; der Verkaufspreis entsteht aus dem Einkaufspreis des Hauptlieferanten und einem Aufschlag für den Betrieb, je
+  Lieferant, je Artikel oder fest; ein Artikel mit Metallangaben bekommt den Metallzuschlag am Belegdatum in den
+  Einzelpreis; Langtexte übernimmt ein Import nicht. Aufschlag auf Material und Metallzuschlag gehören damit zu Phase 2.
+  Warum: bisher stand im Konzept noch der Listenpreis als Verkaufspreis, und gebaut wird, was dort steht.
 - Was jemand bei einem Ansprechpartner ist (Bauleitung, Buchhaltung, Hausmeister), heißt im Formular und im
   Konfliktbildschirm jetzt „Funktion“, wie schon im Änderungsprotokoll (#556). Warum: „Rolle“ steht in dieser
   Anwendung für das, was ein Zugang darf (Inhaber, Büro, Monteur), und wer im Protokoll „Funktion: Hausmeister“ las,
