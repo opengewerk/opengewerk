@@ -145,10 +145,10 @@ describe('a markup as the office types and reads it', () => {
     }
 
     // A long run of spaces is read at once, not in time growing with its square.
-    const started = performance.now()
+    const started = Date.now()
 
     expect(basisPointsFrom(`${' '.repeat(100_000)}x`)).toHaveProperty('problem')
-    expect(performance.now() - started).toBeLessThan(200)
+    expect(Date.now() - started).toBeLessThan(200)
 
     for (const typed of ['', 'zwölf', '22,555', '-5', '1000,01', '22,', '%']) {
       expect(basisPointsFrom(typed)).toEqual({
