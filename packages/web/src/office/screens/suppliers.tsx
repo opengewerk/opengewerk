@@ -1,6 +1,11 @@
 import {
   basisPointsFrom,
+  type IsoDate,
   markupLabel,
+  type Metal,
+  metalNames,
+  metalPriceProblem,
+  metals,
   type RecordState,
   supplierProblems,
 } from '@opengewerk/domain'
@@ -10,12 +15,15 @@ import {
   Column,
   Confirm,
   Field,
+  IconButton,
   Panel,
   SelectField,
+  Status,
   TablePanel,
   TextArea,
   cardLink,
 } from '@opengewerk/platform-web'
+import { date, euros, parseEuros, today } from '@opengewerk/platform-web/format'
 import {
   ChangesButton,
   Empty,
@@ -48,12 +56,16 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { Check, Pencil, Trash2, Truck } from 'lucide-react'
+import { Check, Pencil, Plus, Trash2, Truck } from 'lucide-react'
 import { type FormEvent, type ReactNode, useState } from 'react'
 
 import { addressLine, countryOptions } from '../../app/format.js'
 import { useMay } from '../../app/queries.js'
 import {
+  addMetalPrice,
+  type MetalPriceView,
+  metalPrices,
+  removeMetalPrice,
   setSupplierMarkup,
   supplierArticleCounts,
   type SupplierArticlePage,
@@ -230,6 +242,7 @@ export function SupplierScreen() {
           readsArticles || readsPurchase ? (
             <>
               {readsPurchase ? <SupplierMarkupPanel supplierId={supplierId} /> : null}
+              {readsPurchase ? <MetalPricesPanel supplierId={supplierId} /> : null}
               {readsArticles ? (
                 <SupplierArticles query={sold} page={page} onPage={setPage} />
               ) : null}
@@ -290,10 +303,15 @@ function SupplierMarkupPanel({ supplierId }: { readonly supplierId: string }) {
     queryFn: () => supplierMarkup(supplierId),
   })
   const [typed, setTyped] = useState<string | null>(null)
+  // The word on the markup on the metal surcharge (#462): '' for the business's.
+  const [metalWord, setMetalWord] = useState('')
   const [trouble, setTrouble] = useState<string | null>(null)
 
   const save = useMutation({
-    mutationFn: (basisPoints: number | null) => setSupplierMarkup(supplierId, basisPoints),
+    mutationFn: (said: {
+      readonly basisPoints?: number | null
+      readonly markupOnMetal: boolean | null
+    }) => setSupplierMarkup(supplierId, said),
     onSuccess: () => {
       setTyped(null)
       setTrouble(null)
@@ -318,12 +336,19 @@ function SupplierMarkupPanel({ supplierId }: { readonly supplierId: string }) {
   }
 
   const { basisPoints, business, pending } = held.data
+  const onMetal = held.data.markupOnMetal ?? null
+  const businessOnMetal = held.data.businessOnMetal ?? false
   const standing =
     basisPoints !== null
       ? `${markupLabel(basisPoints)}, ein eigener Aufschlag.`
       : business !== null
         ? `Der Aufschlag des Betriebs, ${markupLabel(business)}.`
         : 'Kein Aufschlag: weder dieser Lieferant noch der Betrieb hat einen. Aus seinen Einkaufspreisen entsteht kein Verkaufspreis.'
+  const withOrWithout = (on: boolean) => (on ? 'mit Aufschlag' : 'ohne Aufschlag')
+  const metalStanding =
+    onMetal === null
+      ? `Auf den Metallzuschlag wie im Betrieb: ${withOrWithout(businessOnMetal)}.`
+      : `Auf den Metallzuschlag: ${withOrWithout(onMetal)}.`
 
   if (typed === null) {
     return (
@@ -336,6 +361,7 @@ function SupplierMarkupPanel({ supplierId }: { readonly supplierId: string }) {
               icon={Pencil}
               onClick={() => {
                 setTyped(basisPoints === null ? '' : String(basisPoints / 100).replace('.', ','))
+                setMetalWord(onMetal === null ? '' : onMetal ? 'on' : 'off')
               }}
             >
               Ändern
@@ -343,7 +369,9 @@ function SupplierMarkupPanel({ supplierId }: { readonly supplierId: string }) {
           ) : null
         }
       >
-        <p className="text-body">{standing}</p>
+        <p className="text-body">
+          {standing} {metalStanding}
+        </p>
         {pending ? (
           <p className="mt-1 text-[13px] leading-[1.4] text-ink-muted">
             Die Verkaufspreise werden im Hintergrund neu gerechnet.
@@ -364,7 +392,15 @@ function SupplierMarkupPanel({ supplierId }: { readonly supplierId: string }) {
           event.preventDefault()
 
           if ('basisPoints' in read) {
-            save.mutate(read.basisPoints)
+            const markupOnMetal = metalWord === '' ? null : metalWord === 'on'
+
+            // An unchanged markup is not sent, so that no selling price is
+            // worked out anew for a word on the metal alone.
+            save.mutate(
+              read.basisPoints === basisPoints
+                ? { markupOnMetal }
+                : { basisPoints: read.basisPoints, markupOnMetal },
+            )
           }
         }}
       >
@@ -388,6 +424,19 @@ function SupplierMarkupPanel({ supplierId }: { readonly supplierId: string }) {
               'Leer heißt: der Aufschlag des Betriebs. Gilt ab heute für jeden Artikel, dessen ' +
               'Hauptlieferant dieser Lieferant ist und der keinen eigenen Aufschlag hat.'
             }
+          />
+        </div>
+        <div className="sm:max-w-[300px]">
+          <SelectField
+            label="Aufschlag auf den Metallzuschlag"
+            value={metalWord}
+            options={[
+              { value: '', label: `Wie im Betrieb: ${withOrWithout(businessOnMetal)}` },
+              { value: 'on', label: 'Mit Aufschlag' },
+              { value: 'off', label: 'Ohne Aufschlag' },
+            ]}
+            onChange={setMetalWord}
+            hint="Für jeden Artikel, dessen Hauptlieferant dieser Lieferant ist und der es nicht selbst festlegt."
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -415,6 +464,269 @@ function SupplierMarkupPanel({ supplierId }: { readonly supplierId: string }) {
         ) : null}
       </form>
     </Panel>
+  )
+}
+
+/**
+ * "Metallpreise" (#462): the supplier's price for a metal from a day on, as
+ * the wholesaler shows it in its portal, newest first. A position takes the
+ * price of its main supplier on its document date. Only for whoever reads
+ * purchase prices; entered and removed by whoever keeps them.
+ */
+function MetalPricesPanel({ supplierId }: { readonly supplierId: string }) {
+  const keeps = useMay('purchase.write')
+  const queries = useQueryClient()
+  const [page, setPage] = useState(0)
+  const [adding, setAdding] = useState(false)
+  const [trouble, setTrouble] = useState<string | null>(null)
+  const listed = useQuery({
+    queryKey: ['metal-prices', supplierId, page],
+    queryFn: () => metalPrices(supplierId, page * pageSize, pageSize),
+    placeholderData: keepPreviousData,
+  })
+
+  const refresh = async () => {
+    await queries.invalidateQueries({ queryKey: ['metal-prices', supplierId] })
+    await queries.invalidateQueries({ queryKey: ['articles'] })
+  }
+
+  async function remove(price: MetalPriceView) {
+    try {
+      await removeMetalPrice(supplierId, price.id)
+      setTrouble(null)
+      await refresh()
+    } catch (error) {
+      setTrouble(saidWhy(error, 'Der Metallpreis ließ sich nicht entfernen. Keine Verbindung.'))
+    }
+  }
+
+  if (listed.isPending || listed.isError) {
+    return (
+      <Panel title="Metallpreise">
+        <p className="text-[13px] leading-[1.4] text-ink-muted">
+          {listed.isPending
+            ? 'Wird geladen.'
+            : saidWhy(
+                listed.error,
+                'Die Metallpreise kamen nicht an. Sie brauchen eine Verbindung.',
+              )}
+        </p>
+      </Panel>
+    )
+  }
+
+  const { rows, total, current } = listed.data
+  const standing = (price: MetalPriceView) =>
+    current.includes(price.id) ? (
+      <Status tone="done">Gilt</Status>
+    ) : price.validFrom > today() ? (
+      <Status tone="waiting">Kommt</Status>
+    ) : (
+      <span className="text-ink-faint">Vorher</span>
+    )
+  const removeButton = (price: MetalPriceView) => (
+    <IconButton
+      label={`${metalNames[price.metal]} ab ${date(price.validFrom)} entfernen`}
+      onClick={() => {
+        void remove(price)
+      }}
+    >
+      <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
+    </IconButton>
+  )
+
+  return (
+    <TablePanel
+      title="Metallpreise"
+      caption="Metallpreise des Lieferanten"
+      action={
+        keeps && !adding ? (
+          <Button
+            size="small"
+            icon={Plus}
+            onClick={() => {
+              setAdding(true)
+            }}
+          >
+            Metallpreis eintragen
+          </Button>
+        ) : null
+      }
+      lead={
+        adding ? (
+          <MetalPriceForm
+            onSave={async (price) => {
+              await addMetalPrice(supplierId, price)
+              setAdding(false)
+              setPage(0)
+              await refresh()
+            }}
+            onCancel={() => {
+              setAdding(false)
+            }}
+          />
+        ) : null
+      }
+      cards={rows.map((price) => ({
+        key: price.id,
+        title: metalNames[price.metal],
+        sub: `ab ${date(price.validFrom)}`,
+        right: <span className="numeric">{euros(price.priceCents)}</span>,
+        actions: keeps ? removeButton(price) : null,
+      }))}
+      cardsEmpty="Noch kein Metallpreis."
+      footer={
+        total > pageSize ? <PageFooter page={page} total={total} onPage={setPage} /> : undefined
+      }
+      note="Eine Position nimmt den Metallpreis ihres Hauptlieferanten, der an ihrem Belegdatum gilt. Metallpreise sehen Inhaber und Büro; der Kunde sieht nur den Einzelpreis."
+    >
+      <thead>
+        <tr>
+          <Column className="w-[130px] min-w-[110px]">Metall</Column>
+          <Column numeric className="w-[140px] min-w-[120px]">
+            Preis je 100 kg
+          </Column>
+          <Column className="w-[120px] min-w-[100px]">Gültig ab</Column>
+          <Column className="min-w-[90px]">Stand</Column>
+          {keeps ? (
+            <Column numeric className="w-[56px] min-w-[56px]">
+              <span className="sr-only">Entfernen</span>
+            </Column>
+          ) : null}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <tr>
+            <Cell className="text-ink-muted" colSpan={keeps ? 5 : 4}>
+              Noch kein Metallpreis.
+            </Cell>
+          </tr>
+        ) : (
+          rows.map((price) => (
+            <tr key={price.id}>
+              <Cell>{metalNames[price.metal]}</Cell>
+              <Cell numeric className={current.includes(price.id) ? 'font-semibold' : undefined}>
+                {euros(price.priceCents)}
+              </Cell>
+              <Cell>{date(price.validFrom)}</Cell>
+              <Cell>{standing(price)}</Cell>
+              {keeps ? <Cell numeric>{removeButton(price)}</Cell> : null}
+            </tr>
+          ))
+        )}
+        {trouble ? (
+          <tr>
+            <Cell colSpan={keeps ? 5 : 4}>
+              <span role="alert" className="text-[13px] font-semibold text-conflict">
+                {trouble}
+              </span>
+            </Cell>
+          </tr>
+        ) : null}
+      </tbody>
+    </TablePanel>
+  )
+}
+
+/** "Neuer Metallpreis": which metal, its price for 100 kg and the day it applies from. */
+function MetalPriceForm({
+  onSave,
+  onCancel,
+}: {
+  readonly onSave: (price: {
+    readonly metal: Metal
+    readonly validFrom: IsoDate
+    readonly priceCents: number
+  }) => Promise<void>
+  readonly onCancel: () => void
+}) {
+  const [metal, setMetal] = useState<Metal>('copper')
+  const [amount, setAmount] = useState('')
+  const [day, setDay] = useState<IsoDate>(today())
+  const [problem, setProblem] = useState<string | null>(null)
+  const [working, setWorking] = useState(false)
+  const [trouble, setTrouble] = useState<string | null>(null)
+
+  async function save(event: FormEvent) {
+    event.preventDefault()
+
+    const cents = parseEuros(amount)
+    const found = metalPriceProblem(cents)
+
+    setProblem(found)
+
+    if (found !== null || cents === null) {
+      return
+    }
+
+    setWorking(true)
+    setTrouble(null)
+
+    try {
+      await onSave({ metal, validFrom: day, priceCents: cents })
+    } catch (error) {
+      setTrouble(saidWhy(error, 'Der Metallpreis ließ sich nicht speichern. Keine Verbindung.'))
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <form
+      aria-label="Neuer Metallpreis"
+      className="flex flex-col gap-3 border-b border-line px-3.5 py-3"
+      onSubmit={(event) => {
+        void save(event)
+      }}
+    >
+      <h3 className="font-condensed text-[12px] font-semibold tracking-[1.1px] text-ink-faint uppercase">
+        Neuer Metallpreis
+      </h3>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)]">
+        <SelectField
+          label="Metall"
+          value={metal}
+          options={metals.map((value) => ({ value, label: metalNames[value] }))}
+          onChange={(value) => {
+            setMetal(value as Metal)
+          }}
+        />
+        <Field
+          label="Preis in Euro je 100 kg"
+          inputMode="decimal"
+          numeric
+          value={amount}
+          {...(problem === null ? {} : { problem })}
+          onChange={(event) => {
+            setAmount(event.target.value)
+          }}
+          hint="Wie der Großhändler ihn in seinem Kundenportal nennt, mit allen Zuschlägen."
+        />
+        <Field
+          label="Gültig ab"
+          type="date"
+          required
+          value={day}
+          onChange={(event) => {
+            setDay(event.target.value as IsoDate)
+          }}
+        />
+      </div>
+      {trouble ? (
+        <p role="alert" className="text-[13px] font-semibold text-conflict">
+          {trouble}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" tone="primary" icon={Plus} disabled={working}>
+          {working ? 'Wird gespeichert' : 'Preis anlegen'}
+        </Button>
+        <Button disabled={working} onClick={onCancel}>
+          Abbrechen
+        </Button>
+      </div>
+    </form>
   )
 }
 

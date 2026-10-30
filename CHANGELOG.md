@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Bildschirme zum Metallzuschlag, zweiter Teil von #462, nach den Tafeln aus Version 76 des Canvas: unter
+  „Einstellungen“ in „Aufschlag auf Material“ die Karte „Metallzuschlag“, ob der Aufschlag auch auf den Zuschlag kommt,
+  an oder aus ab einem Tag; am Lieferanten in der Karte „Aufschlag auf Material“ dasselbe für ihn und die neue Karte
+  „Metallpreise“ mit dem Metallpreis je Metall ab einem Tag; am Artikel das Metall jedes Lieferanten unter seinem Namen,
+  im Formular einer Verbindung der Abschnitt „Metall“ mit Basis und Gewicht für Kupfer und Aluminium, ein Satz zum
+  Zuschlag über den Verkaufspreisen und in der Preisbildung das Wort zum Metall. An der Position im Büro steht der
+  Metallzuschlag zwischen Einkaufspreis und Aufschlag, mit dem Metallpreis, aus dem er kommt; Aufschlag und
+  Einzelpreis rechnen einander mit dem Zuschlag. Warum: das Büro soll den Metallpreis des Großhändlers eintragen und an
+  jeder Position sehen, welcher Teil des Preises Metallzuschlag ist, ohne dass der Kunde mehr als den Einzelpreis
+  sieht.
 - Der Metallzuschlag eines Kabels, erster Teil von #462, hier Datenmodell, Import und Server: das Metall eines Artikels
   steht je Lieferant in `supplier_article_metals`, Metall, Basis in Euro je 100 kg und Gewicht je 1000 Einheiten, das
   Kupfer aus dem B-Satz von DATANORM, jedes Metall auch von Hand (`PUT /articles/:id/suppliers/:linkId/metals`); die

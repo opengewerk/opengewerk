@@ -15,10 +15,13 @@ import { useState } from 'react'
 
 import { useMay } from '../../app/queries.js'
 import { type ParameterPeriod, parameterHistory, setParameter } from '../../session/parameters.js'
-import { latestPeriod, proposedFrom } from './taxes.js'
+import { History, latestPeriod, proposedFrom } from './taxes.js'
 
 /** The setting this screen changes: the markup on material of the whole business (#463). */
 export const markupSetting = 'material.markup_basis_points'
+
+/** Whether that markup also comes on the metal surcharge of a cable (#462). */
+export const metalSetting = 'material.markup_on_metal'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -52,10 +55,16 @@ export function MarkupSettingScreen() {
           {saidWhy(history.error, 'Die Einstellungen kamen nicht an.')}
         </SettingsText>
       ) : (
-        <MarkupSection
-          periods={history.data.filter((period) => period.key === markupSetting)}
-          mayWrite={mayWrite}
-        />
+        <>
+          <MarkupSection
+            periods={history.data.filter((period) => period.key === markupSetting)}
+            mayWrite={mayWrite}
+          />
+          <MetalSection
+            periods={history.data.filter((period) => period.key === metalSetting)}
+            mayWrite={mayWrite}
+          />
+        </>
       )}
       <Panel title="Gut zu wissen" roomy>
         <div className="flex flex-col gap-2">
@@ -64,8 +73,8 @@ export function MarkupSettingScreen() {
             Imports sagt es, bevor übernommen wird.
           </SettingsText>
           <SettingsText muted>
-            Einkaufspreis und Aufschlag sehen Inhaber und Büro. Sie stehen nie im Druck, in der
-            E-Rechnung oder auf der Baustelle.
+            Einkaufspreis, Metallpreis und Aufschlag sehen Inhaber und Büro. Sie stehen nie im
+            Druck, in der E-Rechnung oder auf der Baustelle.
           </SettingsText>
         </div>
       </Panel>
@@ -177,6 +186,83 @@ function MarkupSection({
             </div>
           </form>
         ) : null}
+        {trouble ? (
+          <p role="alert" className="text-body font-semibold text-conflict">
+            {trouble}
+          </p>
+        ) : null}
+      </div>
+    </Panel>
+  )
+}
+
+/**
+ * Whether the markup also comes on the metal surcharge (#462), for the whole
+ * business; a supplier and an article may say otherwise. Off until somebody
+ * switches it on (decided on 28.09.2026), and switched like every other
+ * setting that is on or off, from a day on.
+ */
+function MetalSection({
+  periods,
+  mayWrite,
+}: {
+  readonly periods: readonly ParameterPeriod[]
+  readonly mayWrite: boolean
+}) {
+  const queries = useQueryClient()
+  const [trouble, setTrouble] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+
+  const standing = latestPeriod(periods)
+  const on = standing?.value === 1
+  const from = proposedFrom(periods, today() as IsoDate)
+
+  const change = useMutation({
+    mutationFn: () => setParameter({ key: metalSetting, from, value: on ? 0 : 1, note: null }),
+    onSuccess: () => {
+      setTrouble(null)
+      setSaved(true)
+      void queries.invalidateQueries({ queryKey: ['parameters'] })
+    },
+    onError: (error) => {
+      setSaved(false)
+      setTrouble(saidWhy(error, 'Die Einstellung ließ sich nicht speichern.'))
+    },
+  })
+
+  return (
+    <Panel title="Metallzuschlag" roomy>
+      <div className="flex flex-col gap-3">
+        <SettingsText>
+          Ein Kabel trägt im Einkaufspreis sein Metall zu einer Basis. Liegt der Metallpreis des
+          Lieferanten am Belegdatum darüber, kommt der Unterschied als Metallzuschlag in den
+          Einzelpreis der Position. Ein Lieferant und ein Artikel können es anders halten.
+        </SettingsText>
+
+        <SettingsState>
+          {on && standing !== null
+            ? `An seit dem ${date(standing.validFrom)}: auch auf den Metallzuschlag kommt der Aufschlag.`
+            : 'Aus: der Metallzuschlag geht ohne Aufschlag in den Einzelpreis.'}
+        </SettingsState>
+
+        <History periods={periods} stated="an" notStated="aus" />
+
+        {mayWrite ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              disabled={change.isPending}
+              onClick={() => {
+                setSaved(false)
+                change.mutate()
+              }}
+            >
+              {change.isPending ? 'Einen Moment' : on ? 'Ausschalten' : 'Einschalten'}
+            </Button>
+            <SettingsText muted>Gilt ab dem {date(from)} für jede neue Position.</SettingsText>
+            {saved ? <Saved /> : null}
+          </div>
+        ) : null}
+
         {trouble ? (
           <p role="alert" className="text-body font-semibold text-conflict">
             {trouble}

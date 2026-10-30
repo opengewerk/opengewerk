@@ -413,6 +413,70 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** A position from the cable with its copper (#462), the markup on the surcharge or not. */
+async function cableWithCopper(markedUp: boolean) {
+  const pick = (priceCents: number) => ({
+    status: 200,
+    body: {
+      total: 1,
+      rows: [
+        {
+          id: 'a-1042',
+          number: '1042',
+          designation: 'Mantelleitung NYM-J 3 × 1,5 mm²',
+          description: null,
+          unit: 'metre',
+          groupOfGoods: 'Kabel und Leitungen',
+          frequent: true,
+          priceCents,
+          priceBase: 100,
+          supplierName: null,
+          suppliers: 1,
+        },
+      ],
+    },
+  })
+  // 65,88 € from 54,00 € and 22 %, and the copper of the day, 53,54 € or with 22 % 65,32 €.
+  serverSays('GET', '/articles?offset=0&limit=8&sort=number&search=nym&on=2026-09-21', () =>
+    pick(markedUp ? 13_120 : 11_942),
+  )
+  serverSays('GET', '/articles/a-1042/purchase?on=2026-09-21', () => ({
+    status: 200,
+    body: {
+      purchase: { cents: 5400, priceBase: 100, supplierName: 'Elektro-Großhandel Hansa' },
+      metal: {
+        supplierName: 'Elektro-Großhandel Hansa',
+        metals: [
+          {
+            metal: 'copper',
+            baseEuros: 150,
+            gramsPerThousand: 43_200,
+            centsPerHundredKg: 138_940,
+            priceFrom: '2026-09-20',
+          },
+        ],
+        markupOnMetal: markedUp,
+      },
+    },
+  }))
+  await mount('/belege/d-1', { document_lines: [] })
+  const person = userEvent.setup()
+
+  const take = async () => {
+    await person.click(await screen.findByRole('button', { name: 'Position hinzufügen' }))
+    await person.type(screen.getByRole('combobox', { name: 'Position aus Artikel' }), 'nym')
+    await person.click(await screen.findByRole('option', { name: /Mantelleitung/ }))
+
+    return {
+      metal: (await screen.findByLabelText('Metallzuschlag in Euro')) as HTMLInputElement,
+      markup: screen.getByLabelText('Aufschlag') as HTMLInputElement,
+      unitPrice: screen.getByLabelText('Einzelpreis in Euro') as HTMLInputElement,
+    }
+  }
+
+  return take()
+}
+
 describe('a quote with titles', () => {
   it('is laid out under its titles, numbered and summed, with the totals of its date', async () => {
     await mount('/belege/d-1', { document_lines: outlined })
@@ -713,6 +777,47 @@ describe('a quote with titles', () => {
     expect(sent).toMatchObject({ articleId: 'a-1042', unitPriceCents: 6480, priceBase: 100 })
     // Neither the purchase price nor the markup travels with the line.
     expect(Object.keys(sent ?? {}).filter((key) => /purchase|markup|basis/i.test(key))).toEqual([])
+  })
+
+  it('puts the metal surcharge into the unit price and shows its part, without the markup (#462)', async () => {
+    const person = userEvent.setup()
+    const without = await cableWithCopper(false)
+
+    expect([without.metal.value, without.metal.readOnly, without.markup.value]).toEqual([
+      '53,54',
+      true,
+      '22',
+    ])
+    expect(without.unitPrice.value).toBe('119,42')
+    expect(
+      screen.getByText(
+        'Kupfer zu 1.389,40 € je 100 kg ab dem 20.09.2026, Basis 150 €, 43,2 kg je 1.000 m. Ohne Aufschlag.',
+      ),
+    ).toBeTruthy()
+
+    // The markup comes on the purchase price alone; the surcharge stays.
+    await person.clear(without.markup)
+    await person.type(without.markup, '30')
+    expect([without.metal.value, without.unitPrice.value]).toEqual(['53,54', '123,74'])
+
+    await person.clear(without.unitPrice)
+    await person.type(without.unitPrice, '120,00')
+    expect(without.markup.value).toBe('23,07')
+  })
+
+  it('marks the metal surcharge up with the unit price where the word says so (#462)', async () => {
+    const person = userEvent.setup()
+    const marked = await cableWithCopper(true)
+
+    expect([marked.metal.value, marked.markup.value, marked.unitPrice.value]).toEqual([
+      '65,32',
+      '22',
+      '131,20',
+    ])
+
+    await person.clear(marked.markup)
+    await person.type(marked.markup, '30')
+    expect([marked.metal.value, marked.unitPrice.value]).toEqual(['69,60', '139,80'])
   })
 
   it('asks a technician for no purchase price (#463)', async () => {

@@ -1,4 +1,4 @@
-import type { IsoDate, LineUnit, PriceBase } from '@opengewerk/domain'
+import type { IsoDate, LineUnit, Metal, PricedMetal, PriceBase } from '@opengewerk/domain'
 import { request } from '@opengewerk/platform-web/sync'
 
 /**
@@ -71,6 +71,8 @@ export interface SupplierLinkView {
   readonly markup: number | null
   /** Null for whoever may not read purchase prices, not an empty list. */
   readonly purchasePrices: readonly PriceView[] | null
+  /** The metal of the article at this supplier (#462), for whoever reads purchase prices. */
+  readonly metals?: readonly LinkMetal[] | null
 }
 
 export interface ArticleView {
@@ -101,6 +103,11 @@ export interface ArticlePricing {
   /** What applies without a markup of its own: the main supplier's, else the business's. */
   readonly inherited: number | null
   readonly business: number | null
+  /** The article's word on the markup on the metal surcharge (#462), null for the supplier's. */
+  readonly markupOnMetal?: boolean | null
+  /** What applies without a word of its own, and whose word that is. */
+  readonly metalInherited?: boolean
+  readonly metalInheritedFrom?: 'supplier' | 'business'
 }
 
 /** The fields of an article as the form sends them. */
@@ -248,10 +255,18 @@ export function removePurchasePrice(id: string, linkId: string, priceId: string)
   )
 }
 
-/** Fixed, or following with a markup of its own, or with null the supplier's or the business's. */
+/**
+ * Fixed, or following with a markup of its own, or with null the supplier's
+ * or the business's; and whether the markup comes on the metal surcharge
+ * (#462), null for the supplier's word.
+ */
 export function setArticlePricing(
   id: string,
-  pricing: { readonly fixed: boolean; readonly basisPoints: number | null },
+  pricing: {
+    readonly fixed: boolean
+    readonly basisPoints: number | null
+    readonly markupOnMetal?: boolean | null
+  },
 ): Promise<unknown> {
   return request(`/articles/${encodeURIComponent(id)}/pricing`, {
     method: 'PUT',
@@ -266,6 +281,25 @@ export function setMainSupplier(id: string, linkId: string): Promise<unknown> {
   )
 }
 
+/** The metal of an article at one supplier (#462). */
+export interface LinkMetal {
+  readonly metal: Metal
+  readonly baseEuros: number
+  readonly gramsPerThousand: number
+}
+
+/** All the metal of the article at one supplier; a metal left out is taken off. */
+export function setLinkMetals(
+  id: string,
+  linkId: string,
+  metals: readonly LinkMetal[],
+): Promise<unknown> {
+  return request(
+    `/articles/${encodeURIComponent(id)}/suppliers/${encodeURIComponent(linkId)}/metals`,
+    { method: 'PUT', body: JSON.stringify({ metals }) },
+  )
+}
+
 /** The purchase price of an article's main supplier on a day (#463), with the supplier's name. */
 export interface MainPurchase {
   readonly cents: number
@@ -273,19 +307,32 @@ export interface MainPurchase {
   readonly supplierName: string
 }
 
+/** The metal of the main supplier with its price of the day (#462). */
+export interface MetalOnDay {
+  readonly supplierName: string
+  readonly metals: readonly (PricedMetal & { readonly priceFrom: IsoDate | null })[]
+  readonly markupOnMetal: boolean
+}
+
 export function purchaseOf(
   articleId: string,
   day: IsoDate,
-): Promise<{ readonly purchase: MainPurchase | null }> {
-  return request<{ readonly purchase: MainPurchase | null }>(
+): Promise<{ readonly purchase: MainPurchase | null; readonly metal?: MetalOnDay | null }> {
+  return request<{ readonly purchase: MainPurchase | null; readonly metal?: MetalOnDay | null }>(
     `/articles/${encodeURIComponent(articleId)}/purchase?on=${day}`,
   )
 }
 
-/** A supplier's own markup, the business's beside it, and whether prices are still worked out. */
+/**
+ * A supplier's own markup, the business's beside it, and whether prices are
+ * still worked out; with them the words of both on the markup on the metal
+ * surcharge (#462).
+ */
 export interface SupplierMarkup {
   readonly basisPoints: number | null
   readonly business: number | null
+  readonly markupOnMetal?: boolean | null
+  readonly businessOnMetal?: boolean
   readonly pending: boolean
 }
 
@@ -293,14 +340,57 @@ export function supplierMarkup(supplierId: string): Promise<SupplierMarkup> {
   return request<SupplierMarkup>(`/suppliers/${encodeURIComponent(supplierId)}/markup`)
 }
 
+/** The supplier's own markup and its word on the metal; what is left out stays. */
 export function setSupplierMarkup(
   supplierId: string,
-  basisPoints: number | null,
+  said: { readonly basisPoints?: number | null; readonly markupOnMetal?: boolean | null },
 ): Promise<unknown> {
   return request(`/suppliers/${encodeURIComponent(supplierId)}/markup`, {
     method: 'PUT',
-    body: JSON.stringify({ basisPoints }),
+    body: JSON.stringify(said),
   })
+}
+
+/** A supplier's metal price from a day on (#462). */
+export interface MetalPriceView {
+  readonly id: string
+  readonly metal: Metal
+  readonly validFrom: IsoDate
+  readonly priceCents: number
+}
+
+export interface MetalPricePage {
+  readonly total: number
+  /** The prices that apply today, one per metal. */
+  readonly current: readonly string[]
+  readonly rows: readonly MetalPriceView[]
+}
+
+export function metalPrices(
+  supplierId: string,
+  offset: number,
+  limit: number,
+): Promise<MetalPricePage> {
+  return request<MetalPricePage>(
+    `/suppliers/${encodeURIComponent(supplierId)}/metal-prices?offset=${String(offset)}&limit=${String(limit)}`,
+  )
+}
+
+export function addMetalPrice(
+  supplierId: string,
+  price: { readonly metal: Metal; readonly validFrom: IsoDate; readonly priceCents: number },
+): Promise<unknown> {
+  return request(`/suppliers/${encodeURIComponent(supplierId)}/metal-prices`, {
+    method: 'POST',
+    body: JSON.stringify(price),
+  })
+}
+
+export function removeMetalPrice(supplierId: string, priceId: string): Promise<unknown> {
+  return request(
+    `/suppliers/${encodeURIComponent(supplierId)}/metal-prices/${encodeURIComponent(priceId)}`,
+    { method: 'DELETE' },
+  )
 }
 
 export interface SupplierArticlePage {

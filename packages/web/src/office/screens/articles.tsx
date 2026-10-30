@@ -2,10 +2,15 @@ import {
   articleProblems,
   articleUnitProblem,
   basisPointsFrom,
+  gramsFrom,
   type IsoDate,
+  kilogramsLabel,
   type LineUnit,
   lineUnits,
   markupLabel,
+  type Metal,
+  metalNames,
+  metals,
   type PriceBase,
   priceBaseOf,
   priceBases,
@@ -54,6 +59,8 @@ import { useMay } from '../../app/queries.js'
 import {
   addArticlePrice,
   addArticleSupplier,
+  type LinkMetal,
+  setLinkMetals,
   addPurchasePrice,
   type ArticleFields,
   articleGroups,
@@ -881,11 +888,18 @@ function PricingRule({ article }: { readonly article: ArticleView }) {
     return null
   }
 
+  // The metal of the main supplier (#462): a fixed price takes its surcharge
+  // without a markup, one that follows with the markup where the word says so.
+  const metal = metalSentence(
+    main,
+    !pricing.fixed && (pricing.markupOnMetal ?? pricing.metalInherited ?? false),
+  )
+
   if (pricing.fixed) {
     return (
       <>
         Fester Verkaufspreis: er bleibt, bis jemand einen neuen einträgt, was auch immer der
-        Einkaufspreis tut.
+        Einkaufspreis tut.{metal}
       </>
     )
   }
@@ -920,9 +934,41 @@ function PricingRule({ article }: { readonly article: ArticleView }) {
 
   return (
     <>
-      Folgt dem Einkaufspreis von {supplier} mit {whose}, {markupLabel(pricing.markup)}.
+      Folgt dem Einkaufspreis von {supplier} mit {whose}, {markupLabel(pricing.markup)}.{metal}
     </>
   )
+}
+
+/** The metals of a supplier, as a sentence names them: "Kupfer und Aluminium". */
+function metalList(link: SupplierLinkView | undefined): string | null {
+  const held = link?.metals ?? []
+
+  return held.length === 0 ? null : held.map((entry) => metalNames[entry.metal]).join(' und ')
+}
+
+/** What a position adds for the metal of the main supplier (#462), or nothing. */
+function metalSentence(main: SupplierLinkView | undefined, markedUp: boolean): string {
+  const named = metalList(main)
+
+  return named === null
+    ? ''
+    : ` Dazu kommt an jeder Position der Metallzuschlag für ${named}, nach dem Metallpreis am ` +
+        `Belegdatum, ${markedUp ? 'mit' : 'ohne'} Aufschlag.`
+}
+
+/** The metal of a supplier under its name: "Kupfer 43,2 kg je 1.000 m, Basis 150 €". */
+function metalLine(link: SupplierLinkView, unit: LineUnit): string | null {
+  const held = link.metals ?? []
+
+  return held.length === 0
+    ? null
+    : held
+        .map(
+          (entry) =>
+            `${metalNames[entry.metal]} ${kilogramsLabel(entry.gramsPerThousand)} kg je ` +
+            `${priceBaseLabel(1000, unit)}, Basis ${String(entry.baseEuros)} €`,
+        )
+        .join('; ')
 }
 
 /**
@@ -950,10 +996,24 @@ function PricingForm({
   const problem = 'problem' in read ? read.problem : null
   const inherited = pricing?.inherited ?? null
   const whose = main?.markup != null ? 'des Lieferanten' : 'des Betriebs'
+  // The word on the markup on the metal surcharge (#462): '' for the inherited one.
+  const [metalWord, setMetalWord] = useState(
+    pricing?.markupOnMetal == null ? '' : pricing.markupOnMetal ? 'on' : 'off',
+  )
+  const inheritedWord =
+    `${pricing?.metalInheritedFrom === 'supplier' ? 'Wie beim Lieferanten' : 'Wie im Betrieb'}: ` +
+    `${pricing?.metalInherited === true ? 'mit' : 'ohne'} Aufschlag`
 
   const save = useMutation({
     mutationFn: (basisPoints: number | null) =>
-      setArticlePricing(article.id, { fixed: mode === 'fixed', basisPoints }),
+      setArticlePricing(article.id, {
+        fixed: mode === 'fixed',
+        basisPoints,
+        // A fixed price takes no markup, so it says nothing new about the metal.
+        ...(mode === 'fixed'
+          ? {}
+          : { markupOnMetal: metalWord === '' ? null : metalWord === 'on' }),
+      }),
     onSuccess: async () => {
       setTrouble(null)
       await client.invalidateQueries({ queryKey: ['articles'] })
@@ -1011,6 +1071,21 @@ function PricingForm({
                 ? 'Leer heißt: der Aufschlag des Lieferanten oder des Betriebs; zurzeit ist keiner eingestellt. Gilt ab heute.'
                 : `Leer heißt: der Aufschlag ${whose}, ${markupLabel(inherited)}. Gilt ab heute.`
             }
+          />
+        </div>
+      ) : null}
+      {mode === 'follow' ? (
+        <div className="sm:max-w-[300px]">
+          <SelectField
+            label="Aufschlag auf den Metallzuschlag"
+            value={metalWord}
+            options={[
+              { value: '', label: inheritedWord },
+              { value: 'on', label: 'Mit Aufschlag' },
+              { value: 'off', label: 'Ohne Aufschlag' },
+            ]}
+            onChange={setMetalWord}
+            hint="Gilt für den Metallzuschlag an jeder neuen Position mit diesem Artikel."
           />
         </div>
       ) : null}
@@ -1341,6 +1416,11 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
               {link.main || (keepsPurchase && readsPurchase) ? (
                 <span className="mt-1 block">{mainMark(link)}</span>
               ) : null}
+              {metalLine(link, article.unit) ? (
+                <span className="mt-1 block text-[12px] text-ink-faint">
+                  {metalLine(link, article.unit)}
+                </span>
+              ) : null}
             </>
           ),
           right: readsPurchase ? <span className="numeric">{purchase(link)}</span> : undefined,
@@ -1349,7 +1429,7 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
         cardsEmpty="Noch kein Lieferant."
         note={
           readsPurchase
-            ? 'Einkaufspreise und Aufschläge sehen Inhaber und Büro. Auf der Baustelle, in der Rolle Monteur, im Druck und in der E-Rechnung stehen sie nirgends. Hauptlieferant ist, wer den Artikel zuerst gebracht hat, bis jemand einen anderen wählt.'
+            ? 'Einkaufspreise, Metall und Aufschläge sehen Inhaber und Büro. Auf der Baustelle, in der Rolle Monteur, im Druck und in der E-Rechnung stehen sie nirgends. Hauptlieferant ist, wer den Artikel zuerst gebracht hat, bis jemand einen anderen wählt.'
             : 'Einkaufspreise sehen Inhaber und Büro.'
         }
       >
@@ -1395,6 +1475,11 @@ function Suppliers({ article }: { readonly article: ArticleView }) {
                     <span className="flex flex-col items-start gap-[5px]">
                       <Link to={`/lieferanten/${link.supplierId}`}>{link.supplierName}</Link>
                       {mainMark(link)}
+                      {metalLine(link, article.unit) ? (
+                        <span className="text-[12px] leading-[1.35] text-ink-faint">
+                          {metalLine(link, article.unit)}
+                        </span>
+                      ) : null}
                     </span>
                   </Cell>
                   <Cell>{link.supplierNumber ?? ''}</Cell>
@@ -1597,6 +1682,16 @@ function SupplierLinkForm({
           {trouble}
         </p>
       ) : null}
+      {keepsPurchase ? (
+        <LinkMetalsForm
+          articleId={articleId}
+          unit={unit}
+          link={link}
+          onSaved={async () => {
+            await refresh()
+          }}
+        />
+      ) : null}
       <div>
         <Button
           size="small"
@@ -1610,6 +1705,156 @@ function SupplierLinkForm({
         </Button>
       </div>
     </section>
+  )
+}
+
+/**
+ * "Metall" in the form of a supplier's link (#462): what its purchase price
+ * already holds of each metal, the base in euros for 100 kg and the weight in
+ * kg for 1000 units. An import writes the copper its catalogue names; a
+ * metal left empty is taken off.
+ */
+function LinkMetalsForm({
+  articleId,
+  unit,
+  link,
+  onSaved,
+}: {
+  readonly articleId: string
+  readonly unit: LineUnit
+  readonly link: SupplierLinkView
+  readonly onSaved: () => Promise<void>
+}) {
+  const held = (metal: Metal) => (link.metals ?? []).find((entry) => entry.metal === metal)
+  const [typed, setTyped] = useState<Readonly<Record<Metal, { base: string; weight: string }>>>(
+    () =>
+      Object.fromEntries(
+        metals.map((metal) => {
+          const entry = held(metal)
+
+          return [
+            metal,
+            entry === undefined
+              ? { base: '', weight: '' }
+              : { base: String(entry.baseEuros), weight: kilogramsLabel(entry.gramsPerThousand) },
+          ]
+        }),
+      ) as Record<Metal, { base: string; weight: string }>,
+  )
+  const [problems, setProblems] = useState<Readonly<Record<string, string>>>({})
+  const [working, setWorking] = useState(false)
+  const [trouble, setTrouble] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+
+  async function save(event: FormEvent) {
+    event.preventDefault()
+
+    const found: Record<string, string> = {}
+    const chosen: LinkMetal[] = []
+
+    for (const metal of metals) {
+      const { base, weight } = typed[metal]
+
+      if (base.trim() === '' && weight.trim() === '') {
+        continue
+      }
+
+      const baseEuros = /^\d{1,7}$/.test(base.trim()) ? Number(base.trim()) : null
+      const grams = gramsFrom(weight)
+
+      if (baseEuros === null) {
+        found[`${metal}-base`] = 'Die Basis ist ein ganzer Betrag in Euro je 100 kg.'
+      }
+
+      if ('problem' in grams) {
+        found[`${metal}-weight`] = grams.problem
+      }
+
+      if (baseEuros !== null && 'grams' in grams) {
+        chosen.push({ metal, baseEuros, gramsPerThousand: grams.grams })
+      }
+    }
+
+    setProblems(found)
+    setSaved(false)
+
+    if (Object.keys(found).length > 0) {
+      return
+    }
+
+    setWorking(true)
+    setTrouble(null)
+
+    try {
+      await setLinkMetals(articleId, link.id, chosen)
+      setSaved(true)
+      await onSaved()
+    } catch (error) {
+      setTrouble(saidWhy(error, 'Das Metall ließ sich nicht speichern. Keine Verbindung.'))
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  const change = (metal: Metal, field: 'base' | 'weight', value: string) => {
+    setTyped((before) => ({ ...before, [metal]: { ...before[metal], [field]: value } }))
+  }
+
+  return (
+    <form
+      aria-label="Metall"
+      className="flex flex-col gap-2"
+      onSubmit={(event) => {
+        void save(event)
+      }}
+    >
+      <h4 className="font-condensed text-[12px] font-semibold tracking-[1.1px] text-ink-faint uppercase">
+        Metall
+      </h4>
+      <p className="text-[13px] leading-[1.45] text-ink-muted">
+        Was der Einkaufspreis an Metall schon enthält. Kommt mit dem Import aus DATANORM; ein Import
+        schreibt hier, was der Katalog sagt. Leer heißt: kein Metall.
+      </p>
+      {metals.map((metal) => (
+        <div
+          key={metal}
+          className="grid gap-x-3 gap-y-1 sm:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)]"
+        >
+          <span className="text-[14px] font-semibold sm:pt-[26px]">{metalNames[metal]}</span>
+          <Field
+            label="Basis in Euro je 100 kg"
+            inputMode="numeric"
+            numeric
+            value={typed[metal].base}
+            {...(problems[`${metal}-base`] ? { problem: problems[`${metal}-base`] } : {})}
+            onChange={(event) => {
+              change(metal, 'base', event.target.value)
+            }}
+          />
+          <Field
+            label={`Gewicht in kg je ${priceBaseLabel(1000, unit)}`}
+            inputMode="decimal"
+            numeric
+            value={typed[metal].weight}
+            {...(problems[`${metal}-weight`] ? { problem: problems[`${metal}-weight`] } : {})}
+            onChange={(event) => {
+              change(metal, 'weight', event.target.value)
+            }}
+          />
+        </div>
+      ))}
+      {trouble ? (
+        <p role="alert" className="text-[13px] font-semibold text-conflict">
+          {trouble}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="submit" size="small" icon={Check} disabled={working}>
+          {working ? 'Wird gespeichert' : 'Metall speichern'}
+        </Button>
+        {saved ? <span className="text-[13px] text-ink-muted">Gespeichert.</span> : null}
+      </div>
+    </form>
   )
 }
 

@@ -185,6 +185,8 @@ beforeEach(() => {
     city: 'Heidelberg',
     country: 'DE',
   })
+  // No metal prices unless a test names some (#462).
+  serverSays('GET', /^\/suppliers\/s-\d\/metal-prices\?/, { total: 0, current: [], rows: [] })
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: /min-width:\s*(37\.5|64)rem/.test(query),
     media: query,
@@ -283,7 +285,11 @@ describe('a supplier', () => {
     serverSays('PUT', /^\/suppliers\/s-1\/markup$/, { basisPoints: 2200, pending: true })
     await mount('/lieferanten/s-1')
 
-    expect(await screen.findByText('Der Aufschlag des Betriebs, 25 %.')).toBeTruthy()
+    expect(
+      await screen.findByText(
+        'Der Aufschlag des Betriebs, 25 %. Auf den Metallzuschlag wie im Betrieb: ohne Aufschlag.',
+      ),
+    ).toBeTruthy()
 
     const table = await screen.findByRole('table', { name: 'Artikel des Lieferanten' })
 
@@ -295,7 +301,10 @@ describe('a supplier', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
 
     await waitFor(() => {
-      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ basisPoints: 2200 })
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+        basisPoints: 2200,
+        markupOnMetal: null,
+      })
     })
   })
 
@@ -310,7 +319,11 @@ describe('a supplier', () => {
     serverSays('PUT', /^\/suppliers\/s-1\/markup$/, { basisPoints: null, pending: true })
     await mount('/lieferanten/s-1')
 
-    expect(await screen.findByText('22 %, ein eigener Aufschlag.')).toBeTruthy()
+    expect(
+      await screen.findByText(
+        '22 %, ein eigener Aufschlag. Auf den Metallzuschlag wie im Betrieb: ohne Aufschlag.',
+      ),
+    ).toBeTruthy()
     expect(screen.getByText('Die Verkaufspreise werden im Hintergrund neu gerechnet.')).toBeTruthy()
 
     await userEvent.click(screen.getByRole('button', { name: 'Ändern' }))
@@ -318,8 +331,97 @@ describe('a supplier', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
 
     await waitFor(() => {
-      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ basisPoints: null })
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+        basisPoints: null,
+        markupOnMetal: null,
+      })
     })
+  })
+
+  it('sends a word on the metal alone, without the markup, so that nothing is worked out anew (#462)', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/suppliers\/s-1\/articles\?/, sold(0, true))
+    serverSays('GET', /^\/suppliers\/s-1\/markup$/, {
+      basisPoints: 2200,
+      business: 2500,
+      markupOnMetal: null,
+      businessOnMetal: true,
+      pending: false,
+    })
+    serverSays('PUT', /^\/suppliers\/s-1\/markup$/, { pending: false })
+    await mount('/lieferanten/s-1')
+
+    expect(
+      await screen.findByText(
+        '22 %, ein eigener Aufschlag. Auf den Metallzuschlag wie im Betrieb: mit Aufschlag.',
+      ),
+    ).toBeTruthy()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ändern' }))
+    await userEvent.selectOptions(screen.getByLabelText('Aufschlag auf den Metallzuschlag'), 'off')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ markupOnMetal: false })
+    })
+  })
+
+  it("lists the supplier's metal prices and takes a new one (#462)", async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/suppliers\/s-1\/articles\?/, sold(0, true))
+    serverSays('GET', /^\/suppliers\/s-1\/metal-prices\?offset=0&limit=25$/, {
+      total: 2,
+      current: ['m-2'],
+      rows: [
+        { id: 'm-2', metal: 'copper', validFrom: '2026-10-30', priceCents: 138_940 },
+        { id: 'm-1', metal: 'copper', validFrom: '2026-10-29', priceCents: 139_510 },
+      ],
+    })
+    serverSays('POST', /^\/suppliers\/s-1\/metal-prices$/, { id: 'm-3' })
+    await mount('/lieferanten/s-1')
+
+    const table = await screen.findByRole('table', { name: 'Metallpreise des Lieferanten' })
+
+    await waitFor(() => {
+      expect(within(table).getByText('1.389,40 €')).toBeTruthy()
+    })
+    expect(within(table).getByText('Gilt')).toBeTruthy()
+    expect(within(table).getByText('Vorher')).toBeTruthy()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Metallpreis eintragen' }))
+
+    const form = screen.getByRole('form', { name: 'Neuer Metallpreis' })
+
+    await userEvent.selectOptions(within(form).getByLabelText('Metall'), 'aluminium')
+    await userEvent.type(within(form).getByLabelText('Preis in Euro je 100 kg'), '318,40')
+    await userEvent.click(within(form).getByRole('button', { name: 'Preis anlegen' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'POST')?.body).toMatchObject({
+        metal: 'aluminium',
+        priceCents: 31_840,
+      })
+    })
+  })
+
+  it('refuses a metal price of nothing before it is sent (#462)', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/suppliers\/s-1\/articles\?/, sold(0, true))
+    await mount('/lieferanten/s-1')
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Metallpreis eintragen' }))
+
+    const form = screen.getByRole('form', { name: 'Neuer Metallpreis' })
+
+    await userEvent.type(within(form).getByLabelText('Preis in Euro je 100 kg'), '0')
+    await userEvent.click(within(form).getByRole('button', { name: 'Preis anlegen' }))
+
+    expect(
+      await within(form).findByText(
+        'Der Metallpreis ist ein Betrag in Euro je 100 kg, größer als null.',
+      ),
+    ).toBeTruthy()
+    expect(calls.some((call) => call.method === 'POST')).toBe(false)
   })
 
   it('shows a technician its articles without a purchase price, and nothing to change', async () => {
@@ -332,6 +434,8 @@ describe('a supplier', () => {
     expect(within(table).queryByText('Einkaufspreis')).toBeNull()
     expect(within(table).getByText('5700100')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Bearbeiten' })).toBeNull()
+    // Nor the metal prices (#462).
+    expect(screen.queryByRole('table', { name: 'Metallpreise des Lieferanten' })).toBeNull()
   })
 })
 
