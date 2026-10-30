@@ -68,18 +68,23 @@ async function get(path: string, who = office, status = 200) {
   return answer.body as unknown
 }
 
-async function upload(bytes: Uint8Array, who = office): Promise<string> {
-  const sha256 = createHash('sha256').update(bytes).digest('hex')
-
-  await http()
-    .put(`/files/${sha256}`)
+/** Stores a file of a delivery on the route of the imports, as the office does. */
+function put(
+  bytes: Uint8Array,
+  who = office,
+  sha256 = createHash('sha256').update(bytes).digest('hex'),
+) {
+  return http()
+    .put(`/suppliers/${hansa}/imports/files/${sha256}`)
     .set('x-test-identity', who)
     .set('Content-Type', 'application/octet-stream')
-    .set('X-Media-Type', 'application/octet-stream')
     .send(Buffer.from(bytes))
-    .expect(200)
+}
 
-  return sha256
+async function upload(bytes: Uint8Array, who = office): Promise<string> {
+  const answer = await put(bytes, who).expect(200)
+
+  return (answer.body as { sha256: string }).sha256
 }
 
 /** Uploads the files, starts the import and waits for its preview. */
@@ -230,6 +235,39 @@ afterAll(async () => {
   await database.close()
   await admin.end()
   rmSync(storageRoot, { recursive: true, force: true })
+})
+
+describe('a file of a delivery', () => {
+  it('is stored above the 25 MB of every other file, by whoever may import', async () => {
+    // An assortment of a little over 26 MB: the route of every other file refuses it.
+    const large = new Uint8Array(26_000_000).fill(0x41)
+    const sha256 = createHash('sha256').update(large).digest('hex')
+
+    await http()
+      .put(`/files/${sha256}`)
+      .set('x-test-identity', office)
+      .set('Content-Type', 'application/octet-stream')
+      .send(Buffer.from(large))
+      .expect(413)
+
+    const stored = await put(large).expect(200)
+
+    expect(stored.body).toEqual({ sha256, sizeBytes: 26_000_000 })
+    expect(
+      await count('select count(*) from files where tenant_id = $1 and sha256 = $2', [
+        north.id,
+        sha256,
+      ]),
+    ).toBe(1)
+  })
+
+  it('is refused without the rights of an import, with a hash of other bytes, and empty', async () => {
+    const bytes = new TextEncoder().encode('V 011026')
+
+    await put(bytes, technician).expect(403)
+    await put(bytes, office, 'a'.repeat(64)).expect(422)
+    await put(new Uint8Array(0)).expect(400)
+  })
 })
 
 describe('an import from DATANORM', () => {
