@@ -16,13 +16,17 @@ import {
 import {
   type ArticleId,
   type ArticlePriceId,
+  articleMetalProblem,
   articleProblems,
   articleUnitProblem,
   isAllowed,
   isCalendarDay,
   lumpSumPriceBaseProblem,
   markupOf,
+  markupOnMetalOf,
   markupProblem,
+  type Metal,
+  metals,
   missingPermission,
   type PurchasePriceId,
   type PriceBase,
@@ -63,10 +67,13 @@ import {
   articlePrices,
   articles,
   purchasePrices,
+  supplierArticleMetals,
   supplierArticles,
   supplierMarkups,
   suppliers,
 } from '../database/schema/index.js'
+import { articlePricesOn } from '../documents/article-prices.js'
+import { articleMetalsOn } from '../pricing/metal-surcharges.js'
 import { followPurchasePrices } from '../pricing/selling-prices.js'
 import { todayInGermany } from '../today.js'
 import { RequiresPermission } from './authorization.js'
@@ -302,7 +309,28 @@ export class ArticlesController {
         .offset(from)
         .limit(size)
 
-      return { total: total?.rows ?? 0, rows }
+      if (on === undefined) {
+        return { total: total?.rows ?? 0, rows }
+      }
+
+      // Asked for a document's date, the price is the one a line of that day
+      // takes, with the metal surcharge in it (#462).
+      const lines = await articlePricesOn(
+        tx,
+        rows.map((row) => row.id),
+        day,
+      )
+
+      return {
+        total: total?.rows ?? 0,
+        rows: rows.map((row) => {
+          const line = lines.get(row.id)
+
+          return line === undefined
+            ? row
+            : { ...row, priceCents: line.unitPriceCents, priceBase: line.priceBase }
+        }),
+      }
     })
   }
 
@@ -368,6 +396,24 @@ export class ArticlesController {
           : []
 
       const pricing = readsPurchase ? await pricingOf(tx, article.id, links, prices) : null
+      const metalRows =
+        readsPurchase && links.length > 0
+          ? await tx
+              .select({
+                supplierArticleId: supplierArticleMetals.supplierArticleId,
+                metal: supplierArticleMetals.metal,
+                baseEuros: supplierArticleMetals.baseEuros,
+                gramsPerThousand: supplierArticleMetals.gramsPerThousand,
+              })
+              .from(supplierArticleMetals)
+              .where(
+                inArray(
+                  supplierArticleMetals.supplierArticleId,
+                  links.map((link) => link.id),
+                ),
+              )
+              .orderBy(asc(supplierArticleMetals.metal))
+          : []
 
       return {
         ...article,
@@ -382,6 +428,15 @@ export class ArticlesController {
             ? purchase.filter((price) => price.supplierArticleId === link.id)
             : null,
           markup: pricing?.suppliers.get(link.supplierId) ?? null,
+          metals: readsPurchase
+            ? metalRows
+                .filter((row) => row.supplierArticleId === link.id)
+                .map(({ metal, baseEuros, gramsPerThousand }) => ({
+                  metal,
+                  baseEuros,
+                  gramsPerThousand,
+                }))
+            : null,
         })),
       }
     })
@@ -779,6 +834,9 @@ export class ArticlesController {
          order by p.valid_from desc
          limit 1`)
       const row = found.rows[0]
+      // The metal of the main supplier with its price of the day (#462), and
+      // whether the markup comes on the surcharge.
+      const metal = (await articleMetalsOn(tx, [article.id], on)).get(article.id) ?? null
 
       return {
         purchase:
@@ -789,6 +847,7 @@ export class ArticlesController {
                 priceBase: Number(row['price_base']) as PriceBase,
                 supplierName: row['supplier_name'] as string,
               },
+        metal,
       }
     })
   }
@@ -805,16 +864,18 @@ export class ArticlesController {
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
-    const { fixed, basisPoints } = pricingFrom(body)
+    const { fixed, basisPoints, markupOnMetal: said } = pricingFrom(body)
 
     return this.database.forTenant(identity, async (tx) => {
       const article = await articleOf(tx, id, 'share')
       const [held] = await tx
-        .select({ id: articleMarkups.id })
+        .select({ id: articleMarkups.id, markupOnMetal: articleMarkups.markupOnMetal })
         .from(articleMarkups)
         .where(eq(articleMarkups.articleId, article.id))
+      // Not in the request: what the article said about the metal stays (#462).
+      const markupOnMetal = said === undefined ? (held?.markupOnMetal ?? null) : said
 
-      if (!fixed && basisPoints === null) {
+      if (!fixed && basisPoints === null && markupOnMetal === null) {
         // The supplier's or the business's: nothing of its own to say.
         if (held) {
           await tx.delete(articleMarkups).where(eq(articleMarkups.id, held.id))
@@ -822,12 +883,16 @@ export class ArticlesController {
       } else if (held) {
         await tx
           .update(articleMarkups)
-          .set({ fixed, basisPoints, updatedAt: new Date() })
+          .set({ fixed, basisPoints, markupOnMetal, updatedAt: new Date() })
           .where(eq(articleMarkups.id, held.id))
       } else {
-        await tx
-          .insert(articleMarkups)
-          .values({ tenantId: identity.tenantId, articleId: article.id, fixed, basisPoints })
+        await tx.insert(articleMarkups).values({
+          tenantId: identity.tenantId,
+          articleId: article.id,
+          fixed,
+          basisPoints,
+          markupOnMetal,
+        })
       }
 
       const added = await followPurchasePrices(
@@ -837,7 +902,63 @@ export class ArticlesController {
         todayInGermany(),
       )
 
-      return { fixed, basisPoints, prices: added }
+      return { fixed, basisPoints, markupOnMetal, prices: added }
+    })
+  }
+
+  /**
+   * The metal of the article at one supplier (#462), all of it: a metal the
+   * request leaves out is taken off the link. Entered by hand where the
+   * catalogue says nothing or says it wrong; the next import writes the copper
+   * its catalogue names.
+   */
+  @Put(':id/suppliers/:linkId/metals')
+  @RequiresPermission('purchase.write')
+  async setMetals(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Param('linkId') linkId: string,
+    @Body() body: unknown,
+  ) {
+    const wanted = linkMetalsFrom(body)
+
+    return this.database.forTenant(identity, async (tx) => {
+      const link = await linkOf(tx, id, linkId, 'share')
+      const held = await tx
+        .select()
+        .from(supplierArticleMetals)
+        .where(eq(supplierArticleMetals.supplierArticleId, link.id))
+
+      for (const metal of metals) {
+        const before = held.find((row) => row.metal === metal)
+        const after = wanted.find((row) => row.metal === metal)
+
+        if (after === undefined) {
+          if (before !== undefined) {
+            await tx.delete(supplierArticleMetals).where(eq(supplierArticleMetals.id, before.id))
+          }
+        } else if (before === undefined) {
+          await tx.insert(supplierArticleMetals).values({
+            tenantId: identity.tenantId,
+            supplierArticleId: link.id,
+            ...after,
+          })
+        } else if (
+          before.baseEuros !== after.baseEuros ||
+          before.gramsPerThousand !== after.gramsPerThousand
+        ) {
+          await tx
+            .update(supplierArticleMetals)
+            .set({
+              baseEuros: after.baseEuros,
+              gramsPerThousand: after.gramsPerThousand,
+              updatedAt: new Date(),
+            })
+            .where(eq(supplierArticleMetals.id, before.id))
+        }
+      }
+
+      return { metals: wanted }
     })
   }
 
@@ -872,11 +993,25 @@ export class ArticlesController {
   }
 }
 
-/** What the request says about an article's selling price, refused where it says nothing that fits. */
-function pricingFrom(body: unknown): { fixed: boolean; basisPoints: number | null } {
+/**
+ * What the request says about an article's selling price, refused where it
+ * says nothing that fits. `markupOnMetal` is the article's word on the metal
+ * surcharge (#462): true, false, null for its supplier's, or left out to keep
+ * what it said.
+ */
+function pricingFrom(body: unknown): {
+  fixed: boolean
+  basisPoints: number | null
+  markupOnMetal: boolean | null | undefined
+} {
   const fields = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>
   const fixed = fields['fixed']
   const basisPoints = fields['basisPoints'] ?? null
+  const markupOnMetal = fields['markupOnMetal']
+
+  if (markupOnMetal !== undefined && markupOnMetal !== null && typeof markupOnMetal !== 'boolean') {
+    throw new BadRequestException('Der Aufschlag auf den Metallzuschlag ist an, aus oder offen.')
+  }
 
   if (typeof fixed !== 'boolean') {
     throw new BadRequestException('Pflichtangaben fehlen: fixed')
@@ -892,7 +1027,49 @@ function pricingFrom(body: unknown): { fixed: boolean; basisPoints: number | nul
     throw new BadRequestException(problem)
   }
 
-  return { fixed, basisPoints: basisPoints as number | null }
+  return { fixed, basisPoints: basisPoints as number | null, markupOnMetal }
+}
+
+/** The metals of a link as the request names them, each once, refused where one does not fit. */
+function linkMetalsFrom(
+  body: unknown,
+): { readonly metal: Metal; readonly baseEuros: number; readonly gramsPerThousand: number }[] {
+  const listed =
+    typeof body === 'object' && body !== null ? (body as Record<string, unknown>)['metals'] : null
+
+  if (!Array.isArray(listed)) {
+    throw new BadRequestException('Pflichtangaben fehlen: metals')
+  }
+
+  return listed.map((entry: unknown, index) => {
+    const fields = (typeof entry === 'object' && entry !== null ? entry : {}) as Record<
+      string,
+      unknown
+    >
+    const metal = fields['metal']
+
+    if (
+      typeof metal !== 'string' ||
+      !(metals as readonly string[]).includes(metal) ||
+      listed.findIndex(
+        (other: unknown) => (other as Record<string, unknown> | null)?.['metal'] === metal,
+      ) !== index
+    ) {
+      throw new BadRequestException('Jedes Metall steht einmal da, Kupfer oder Aluminium.')
+    }
+
+    const problem = articleMetalProblem(fields['baseEuros'], fields['gramsPerThousand'])
+
+    if (problem) {
+      throw new BadRequestException(problem)
+    }
+
+    return {
+      metal: metal as Metal,
+      baseEuros: fields['baseEuros'] as number,
+      gramsPerThousand: fields['gramsPerThousand'] as number,
+    }
+  })
 }
 
 /**
@@ -908,7 +1085,11 @@ async function pricingOf(
   prices: readonly { readonly id: ArticlePriceId }[],
 ) {
   const [own] = await tx
-    .select({ fixed: articleMarkups.fixed, basisPoints: articleMarkups.basisPoints })
+    .select({
+      fixed: articleMarkups.fixed,
+      basisPoints: articleMarkups.basisPoints,
+      markupOnMetal: articleMarkups.markupOnMetal,
+    })
     .from(articleMarkups)
     .where(eq(articleMarkups.articleId, articleId))
   const supplierRows =
@@ -917,6 +1098,7 @@ async function pricingOf(
           .select({
             supplierId: supplierMarkups.supplierId,
             basisPoints: supplierMarkups.basisPoints,
+            markupOnMetal: supplierMarkups.markupOnMetal,
           })
           .from(supplierMarkups)
           .where(
@@ -945,8 +1127,15 @@ async function pricingOf(
   const suppliersOwn = new Map(supplierRows.map((row) => [row.supplierId, row.basisPoints]))
   const main = links.find((link) => link.main)
   const supplier = main === undefined ? null : (suppliersOwn.get(main.supplierId) ?? null)
-  const business =
-    (await parameterAt(tx, 'material.markup_basis_points', todayInGermany()))?.value ?? null
+  const today = todayInGermany()
+  const business = (await parameterAt(tx, 'material.markup_basis_points', today))?.value ?? null
+  // What the article's main supplier, else the business, says about the
+  // markup on the metal surcharge (#462), for "Wie beim Lieferanten".
+  const supplierOnMetal =
+    main === undefined
+      ? null
+      : (supplierRows.find((row) => row.supplierId === main.supplierId)?.markupOnMetal ?? null)
+  const businessOnMetal = (await parameterAt(tx, 'material.markup_on_metal', today))?.value === 1
   const markup = markupOf(own, supplier, business)
   const source =
     markup === null
@@ -967,6 +1156,9 @@ async function pricingOf(
       // a supplier without its own has.
       inherited: supplier ?? business,
       business,
+      markupOnMetal: own?.markupOnMetal ?? null,
+      metalInherited: markupOnMetalOf(null, supplierOnMetal, businessOnMetal),
+      metalInheritedFrom: supplierOnMetal === null ? ('business' as const) : ('supplier' as const),
     },
     suppliers: suppliersOwn,
     origins: new Map(

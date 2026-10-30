@@ -301,7 +301,10 @@ describe('the tables', () => {
       name === 'supplier_markups' ||
       name === 'article_markups' ||
       name === 'article_price_origins' ||
-      name === 'selling_price_runs'
+      name === 'selling_price_runs' ||
+      // The metal of an article and a supplier's metal prices (#462), like a purchase price.
+      name === 'supplier_article_metals' ||
+      name === 'supplier_metal_prices'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

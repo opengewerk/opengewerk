@@ -882,6 +882,20 @@ const crossings: readonly {
             values (${own.tenant}, ${other.supplier}, '2026-10-30', 'test')`,
   },
   {
+    // The metal of an article and a supplier's metal prices (#462), like a
+    // purchase price.
+    key: 'supplier_article_metals_link_in_tenant',
+    write: (own, other) =>
+      sql`insert into supplier_article_metals (tenant_id, supplier_article_id, metal, base_euros, grams_per_thousand)
+            values (${own.tenant}, ${other.supplierArticle}, 'copper', 150, 43200)`,
+  },
+  {
+    key: 'supplier_metal_prices_supplier_in_tenant',
+    write: (own, other) =>
+      sql`insert into supplier_metal_prices (tenant_id, supplier_id, metal, valid_from, price_cents)
+            values (${own.tenant}, ${other.supplier}, 'copper', '2026-10-30', 138940)`,
+  },
+  {
     key: 'purchase_prices_supplier_article_in_tenant',
     write: (own, other) =>
       sql`insert into purchase_prices (tenant_id, supplier_article_id, valid_from, unit_price_cents)

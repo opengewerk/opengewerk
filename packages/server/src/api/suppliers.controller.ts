@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
@@ -11,9 +12,20 @@ import {
   Put,
   Query,
 } from '@nestjs/common'
-import { isAllowed, markupProblem, type SupplierId, supplierProblems } from '@opengewerk/domain'
+import {
+  isAllowed,
+  isCalendarDay,
+  markupProblem,
+  type Metal,
+  metalPriceProblem,
+  metals,
+  type SupplierId,
+  type SupplierMetalPriceId,
+  supplierProblems,
+} from '@opengewerk/domain'
 import {
   Database,
+  isUniqueViolation,
   isUuid,
   pick,
   requireSomething,
@@ -27,6 +39,7 @@ import {
   purchasePrices,
   supplierArticles,
   supplierMarkups,
+  supplierMetalPrices,
   suppliers,
 } from '../database/schema/index.js'
 import { SellingPrices } from '../pricing/selling-prices.js'
@@ -268,7 +281,9 @@ export class SuppliersController {
 
   /**
    * The supplier's own markup on material (#463), the business's beside it,
-   * and whether selling prices are still being worked out anew.
+   * and whether selling prices are still being worked out anew. With them
+   * what the supplier and the business say about the markup on the metal
+   * surcharge (#462).
    */
   @Get(':id/markup')
   @RequiresPermission('purchase.read')
@@ -276,12 +291,22 @@ export class SuppliersController {
     const held = await this.database.forTenant(identity, async (tx) => {
       const supplier = await supplierOf(tx, id)
       const [own] = await tx
-        .select({ basisPoints: supplierMarkups.basisPoints })
+        .select({
+          basisPoints: supplierMarkups.basisPoints,
+          markupOnMetal: supplierMarkups.markupOnMetal,
+        })
         .from(supplierMarkups)
         .where(eq(supplierMarkups.supplierId, supplier.id))
-      const business = await parameterAt(tx, 'material.markup_basis_points', todayInGermany())
+      const today = todayInGermany()
+      const business = await parameterAt(tx, 'material.markup_basis_points', today)
+      const onMetal = await parameterAt(tx, 'material.markup_on_metal', today)
 
-      return { basisPoints: own?.basisPoints ?? null, business: business?.value ?? null }
+      return {
+        basisPoints: own?.basisPoints ?? null,
+        business: business?.value ?? null,
+        markupOnMetal: own?.markupOnMetal ?? null,
+        businessOnMetal: onMetal?.value === 1,
+      }
     })
 
     return { ...held, pending: await this.sellingPrices.pending(identity.tenantId) }
@@ -290,7 +315,10 @@ export class SuppliersController {
   /**
    * Sets the supplier's own markup, or with null takes it back to the
    * business's. The selling prices of the articles it is the main supplier of
-   * follow from today on, worked out in the background.
+   * follow from today on, worked out in the background. `markupOnMetal` says
+   * whether the markup comes on the metal surcharge (#462), null for the
+   * business's word; either field left out stays as it was, and a change of
+   * the metal alone works out no selling price.
    */
   @Put(':id/markup')
   @RequiresPermission('purchase.write')
@@ -303,25 +331,44 @@ export class SuppliersController {
       string,
       unknown
     >
-    const basisPoints = fields['basisPoints'] ?? null
-    const problem = basisPoints === null ? null : markupProblem(basisPoints)
+    const marks = 'basisPoints' in fields
+    const saidPoints = fields['basisPoints'] ?? null
+    const saidMetal = fields['markupOnMetal']
+    const problem = saidPoints === null ? null : markupProblem(saidPoints)
 
     if (problem) {
       throw new BadRequestException(problem)
     }
 
-    await this.database.forTenant(identity, async (tx) => {
+    if (saidMetal !== undefined && saidMetal !== null && typeof saidMetal !== 'boolean') {
+      throw new BadRequestException('Der Aufschlag auf den Metallzuschlag ist an, aus oder offen.')
+    }
+
+    const written = await this.database.forTenant(identity, async (tx) => {
       const supplier = await supplierOf(tx, id)
 
       // First, before the markup is written and logged (`request`).
-      await this.sellingPrices.request(tx, {
-        tenantId: identity.tenantId,
-        userId: identity.userId,
-        supplierId: supplier.id,
-        from: todayInGermany(),
-      })
+      if (marks) {
+        await this.sellingPrices.request(tx, {
+          tenantId: identity.tenantId,
+          userId: identity.userId,
+          supplierId: supplier.id,
+          from: todayInGermany(),
+        })
+      }
 
-      if (basisPoints === null) {
+      const [held] = await tx
+        .select({
+          basisPoints: supplierMarkups.basisPoints,
+          markupOnMetal: supplierMarkups.markupOnMetal,
+        })
+        .from(supplierMarkups)
+        .where(eq(supplierMarkups.supplierId, supplier.id))
+      const basisPoints = marks ? (saidPoints as number | null) : (held?.basisPoints ?? null)
+      const markupOnMetal =
+        saidMetal === undefined ? (held?.markupOnMetal ?? null) : (saidMetal as boolean | null)
+
+      if (basisPoints === null && markupOnMetal === null) {
         await tx.delete(supplierMarkups).where(eq(supplierMarkups.supplierId, supplier.id))
       } else {
         await tx
@@ -329,17 +376,159 @@ export class SuppliersController {
           .values({
             tenantId: identity.tenantId,
             supplierId: supplier.id,
-            basisPoints: basisPoints as number,
+            basisPoints,
+            markupOnMetal,
           })
           .onConflictDoUpdate({
             target: [supplierMarkups.tenantId, supplierMarkups.supplierId],
-            set: { basisPoints: basisPoints as number, updatedAt: new Date() },
+            set: { basisPoints, markupOnMetal, updatedAt: new Date() },
           })
       }
-    })
-    this.sellingPrices.start(identity.tenantId)
 
-    return { basisPoints, pending: true }
+      return { basisPoints, markupOnMetal }
+    })
+
+    if (marks) {
+      this.sellingPrices.start(identity.tenantId)
+    }
+
+    return { ...written, pending: marks }
+  }
+
+  /**
+   * The supplier's metal prices (#462), newest first, a page of them: one a
+   * day per metal, entered in the office as the wholesaler shows them.
+   */
+  @Get(':id/metal-prices')
+  @RequiresPermission('purchase.read')
+  async metalPrices(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Query('offset') offset?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const from = Number(offset ?? 0)
+    const size = Number(limit ?? 20)
+
+    if (!Number.isInteger(from) || from < 0 || !Number.isInteger(size) || size < 1 || size > 100) {
+      throw new BadRequestException('Eine Seite beginnt ab 0 und hat 1 bis 100 Zeilen.')
+    }
+
+    return this.database.forTenant(identity, async (tx) => {
+      const supplier = await supplierOf(tx, id)
+      const of = eq(supplierMetalPrices.supplierId, supplier.id)
+      const [total] = await tx.select({ rows: count() }).from(supplierMetalPrices).where(of)
+      const rows = await tx
+        .select({
+          id: supplierMetalPrices.id,
+          metal: supplierMetalPrices.metal,
+          validFrom: supplierMetalPrices.validFrom,
+          priceCents: supplierMetalPrices.priceCents,
+        })
+        .from(supplierMetalPrices)
+        .where(of)
+        .orderBy(desc(supplierMetalPrices.validFrom), asc(supplierMetalPrices.metal))
+        .offset(from)
+        .limit(size)
+      // The price each metal has today, for "Gilt".
+      const current = await tx.execute(sql`
+        select distinct on (metal) id from supplier_metal_prices
+         where supplier_id = ${supplier.id} and valid_from <= ${todayInGermany()}::date
+         order by metal, valid_from desc`)
+
+      return {
+        total: total?.rows ?? 0,
+        current: current.rows.map((row) => row['id'] as string),
+        rows,
+      }
+    })
+  }
+
+  /** A metal price from a day on, for whoever keeps purchase prices. */
+  @Post(':id/metal-prices')
+  @RequiresPermission('purchase.write')
+  async addMetalPrice(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const fields = (typeof body === 'object' && body !== null ? body : {}) as Record<
+      string,
+      unknown
+    >
+    const metal = fields['metal']
+    const validFrom = fields['validFrom']
+    const cents = fields['priceCents']
+
+    if (typeof metal !== 'string' || !(metals as readonly string[]).includes(metal)) {
+      throw new BadRequestException('Das Metall ist Kupfer oder Aluminium.')
+    }
+
+    if (!isCalendarDay(validFrom)) {
+      throw new BadRequestException('Der Tag muss ein Datum der Form 2026-01-01 sein.')
+    }
+
+    const problem = metalPriceProblem(cents)
+
+    if (problem) {
+      throw new BadRequestException(problem)
+    }
+
+    try {
+      return await this.database.forTenant(identity, async (tx) => {
+        const supplier = await supplierOf(tx, id)
+        const [created] = await tx
+          .insert(supplierMetalPrices)
+          .values({
+            tenantId: identity.tenantId,
+            supplierId: supplier.id,
+            metal: metal as Metal,
+            validFrom,
+            priceCents: cents as number,
+          })
+          .returning()
+
+        return created
+      })
+    } catch (error) {
+      throw isUniqueViolation(error, 'supplier_metal_prices_one_a_day')
+        ? new ConflictException(
+            'Für diesen Tag gibt es schon einen Preis für dieses Metall. Erst den alten entfernen.',
+          )
+        : error
+    }
+  }
+
+  /** Takes a metal price off; a document keeps the unit price it took. */
+  @Delete(':id/metal-prices/:priceId')
+  @RequiresPermission('purchase.write')
+  async removeMetalPrice(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('id') id: string,
+    @Param('priceId') priceId: string,
+  ) {
+    if (!isUuid(priceId)) {
+      throw new NotFoundException()
+    }
+
+    return this.database.forTenant(identity, async (tx) => {
+      const supplier = await supplierOf(tx, id)
+      const [removed] = await tx
+        .delete(supplierMetalPrices)
+        .where(
+          and(
+            eq(supplierMetalPrices.id, priceId as SupplierMetalPriceId),
+            eq(supplierMetalPrices.supplierId, supplier.id),
+          ),
+        )
+        .returning()
+
+      if (!removed) {
+        throw new NotFoundException()
+      }
+
+      return removed
+    })
   }
 }
 

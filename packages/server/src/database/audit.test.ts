@@ -717,6 +717,8 @@ describe('an import of articles', () => {
       'audit_changes articles',
       'audit_changes list_prices',
       'audit_changes purchase_prices',
+      // The metal a catalogue names (#462).
+      'audit_changes supplier_article_metals',
       'audit_changes supplier_articles',
       'stamp_sync_columns article_prices',
       'stamp_sync_columns articles',

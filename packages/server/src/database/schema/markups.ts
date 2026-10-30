@@ -20,12 +20,14 @@ const inRange = (column: unknown) =>
   sql`${column} between 0 and ${sql.raw(String(markupLimits.basisPoints))}`
 
 /**
- * A supplier's own markup on material (#463), in place of the business's.
+ * A supplier's own markup on material (#463), in place of the business's,
+ * and whether it also comes on the metal surcharge (#462). Either may be
+ * unset, never both.
  *
  * A table of its own and not a column of `suppliers`: a supplier is master
  * data on every device, and a markup, like a purchase price, never travels.
  * No sync columns, read and written at the routes of the office; removed
- * when the supplier goes back to the business's markup.
+ * when the supplier goes back to the business's word on both.
  */
 export const supplierMarkups = pgTable(
   'supplier_markups',
@@ -33,7 +35,8 @@ export const supplierMarkups = pgTable(
     id: primaryId<'supplier-markup'>(),
     ...tenantColumn,
     supplierId: reference<'supplier'>('supplier_id').notNull(),
-    basisPoints: integer('basis_points').notNull(),
+    basisPoints: integer('basis_points'),
+    markupOnMetal: boolean('markup_on_metal'),
     ...timestamps,
   },
   (table) => [
@@ -46,6 +49,10 @@ export const supplierMarkups = pgTable(
       name: 'supplier_markups_supplier_in_tenant',
     }).onDelete('cascade'),
     check('supplier_markups_in_range', inRange(table.basisPoints)),
+    check(
+      'supplier_markups_say_something',
+      sql`${table.basisPoints} is not null or ${table.markupOnMetal} is not null`,
+    ),
   ],
 )
 
@@ -66,6 +73,8 @@ export const articleMarkups = pgTable(
     articleId: reference<'article'>('article_id').notNull(),
     fixed: boolean('fixed').notNull(),
     basisPoints: integer('basis_points'),
+    /** Whether the markup also comes on the metal surcharge (#462); null for the supplier's word. */
+    markupOnMetal: boolean('markup_on_metal'),
     ...timestamps,
   },
   (table) => [
@@ -77,8 +86,15 @@ export const articleMarkups = pgTable(
       foreignColumns: [articles.tenantId, articles.id],
       name: 'article_markups_article_in_tenant',
     }).onDelete('cascade'),
-    // Either fixed or a markup of its own, never both and never neither.
-    check('article_markups_fixed_or_own', sql`${table.fixed} = (${table.basisPoints} is null)`),
+    // Fixed or a markup of its own, never both; a row that says nothing is removed.
+    check(
+      'article_markups_fixed_without_own',
+      sql`not ${table.fixed} or ${table.basisPoints} is null`,
+    ),
+    check(
+      'article_markups_say_something',
+      sql`${table.fixed} or ${table.basisPoints} is not null or ${table.markupOnMetal} is not null`,
+    ),
     check('article_markups_in_range', inRange(table.basisPoints)),
   ],
 )

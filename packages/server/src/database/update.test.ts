@@ -1592,6 +1592,80 @@ describe('the articles and their suppliers before 0099', () => {
   })
 })
 
+describe('the copper of the links before 0101', () => {
+  const before = () =>
+    readMigrationIndex().findIndex((entry) => entry.tag === '0101_metal_surcharge')
+
+  it('moves to the metal of each link, and no link without copper gets one', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+
+    const supplier = newId<'supplier'>()
+    const [cable, box] = [newId<'article'>(), newId<'article'>()]
+    const [cableLink, boxLink] = [newId<'supplier-article'>(), newId<'supplier-article'>()]
+
+    await admin.query(`insert into suppliers (id, tenant_id, name) values ($1, $2, 'Nord')`, [
+      supplier,
+      tenant.id,
+    ])
+    await admin.query(
+      `insert into articles (id, tenant_id, number, designation, unit)
+         values ($1, $3, '1042', 'Mantelleitung', 'metre'), ($2, $3, '5001', 'Abzweigdose', 'piece')`,
+      [cable, box, tenant.id],
+    )
+    await admin.query(
+      `insert into supplier_articles (id, tenant_id, article_id, supplier_id, copper_base_euros, copper_grams_per_thousand)
+         values ($1, $3, $4, $6, 150, 43200), ($2, $3, $5, $6, null, null)`,
+      [cableLink, boxLink, tenant.id, cable, box, supplier],
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows: metals } = await admin.query<{
+      tenant_id: string
+      supplier_article_id: string
+      metal: string
+      base_euros: number
+      grams_per_thousand: number
+    }>(
+      'select tenant_id, supplier_article_id, metal, base_euros, grams_per_thousand from supplier_article_metals',
+    )
+    expect(metals).toEqual([
+      {
+        tenant_id: tenant.id,
+        supplier_article_id: cableLink,
+        metal: 'copper',
+        base_euros: 150,
+        grams_per_thousand: 43_200,
+      },
+    ])
+
+    const { rows: columns } = await admin.query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+        where table_name = 'supplier_articles' and column_name like 'copper%'`,
+    )
+    expect(columns).toEqual([])
+
+    const { rows: forced } = await admin.query<{ forced: boolean }>(
+      `select relforcerowsecurity as forced from pg_class
+        where oid in ('supplier_articles'::regclass, 'supplier_article_metals'::regclass,
+                      'supplier_metal_prices'::regclass)`,
+    )
+    expect(forced).toEqual([{ forced: true }, { forced: true }, { forced: true }])
+
+    // The move is in the log, marked as the migration's, and the chain holds.
+    const { rows: logged } = await admin.query<{ table_name: string; entries: number }>(
+      `select table_name, count(distinct change_id)::int as entries from audit_entries
+        where reason = 'migration' group by table_name order by table_name`,
+    )
+    expect(logged).toEqual([{ table_name: 'supplier_article_metals', entries: 1 }])
+    expect(await chainProblem()).toBeNull()
+  })
+})
+
 describe('the migration run', () => {
   it('refuses a migration that was changed after it had run', async () => {
     await olderInstallation()

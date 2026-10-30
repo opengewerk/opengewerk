@@ -90,10 +90,6 @@ export interface SupplierArticle extends TenantOwned {
    * (decided on 27.09.2026).
    */
   readonly discountGroup: string | null
-  /** The copper base in euros for 100 kg (#297), with the weight or not at all. */
-  readonly copperBaseEuros: number | null
-  /** The copper in grams for 1000 units of the article (#297), with the base or not at all. */
-  readonly copperGramsPerThousand: number | null
   /** The import that last set the link (#297), null for one entered by hand. */
   readonly importId: ArticleImportId | null
   /**

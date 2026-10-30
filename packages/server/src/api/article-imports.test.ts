@@ -55,7 +55,7 @@ function http() {
 }
 
 async function send(
-  method: 'post' | 'patch',
+  method: 'post' | 'patch' | 'put',
   path: string,
   body: Record<string, unknown>,
   status: number,
@@ -566,8 +566,9 @@ describe('an import from DATANORM', () => {
       copper: string | null
     }>(
       `select s.supplier_number, a.number, s.discount_group,
-              s.copper_base_euros || '/' || s.copper_grams_per_thousand as copper
+              m.base_euros || '/' || m.grams_per_thousand as copper
          from supplier_articles s join articles a on a.id = s.article_id
+         left join supplier_article_metals m on m.supplier_article_id = s.id and m.metal = 'copper'
         where s.supplier_id = $1 order by s.supplier_number`,
       [hansa],
     )
@@ -780,6 +781,56 @@ describe('an import from DATANORM', () => {
         [cable],
       ),
     ).toBe(0)
+  })
+
+  it('writes the copper anew where the catalogue changes it, and leaves a metal entered by hand (#462)', async () => {
+    const { rows: held } = await admin.query<{ id: string }>(
+      `select id from supplier_articles where supplier_number = '5700123' and supplier_id = $1`,
+      [hansa],
+    )
+    const link = held[0]?.id ?? ''
+
+    // Aluminium by hand beside the copper of the catalogue.
+    await send(
+      'put',
+      `/articles/${cable}/suppliers/${link}/metals`,
+      {
+        metals: [
+          { metal: 'copper', baseEuros: 150, gramsPerThousand: 43_200 },
+          { metal: 'aluminium', baseEuros: 0, gramsPerThousand: 1_000 },
+        ],
+      },
+      200,
+    )
+
+    const changed = await preview([
+      {
+        name: 'DATANORM.001',
+        bytes: cp850([
+          header('011026'),
+          'A;N;5700123;00;Mantelleitung NYM-J;3 × 1,5 mm²;1;3;m;98000;RG12;042;;',
+          // Another base and weight.
+          'B;N;5700123; ; ; ;1;128;400; ; ;0420;0;0; ; ;',
+          'A;N;6200002;00;Abzweigdose;AP 80x80 grau;2;0;Stck;145;RG30;042;;',
+          // No copper any more.
+          'B;N;6200002; ; ; ;0;;; ; ;0420;0;0; ; ;',
+        ]),
+      },
+    ])
+
+    expect(changed.summary).toMatchObject({ updated: 2 })
+    await takeOver(changed.id)
+
+    const { rows: metals } = await admin.query<{ number: string; metal: string; figures: string }>(
+      `select s.supplier_number as number, m.metal, m.base_euros || '/' || m.grams_per_thousand as figures
+         from supplier_article_metals m join supplier_articles s on s.id = m.supplier_article_id
+        where s.supplier_id = $1 order by s.supplier_number, m.metal`,
+      [hansa],
+    )
+    expect(metals).toEqual([
+      { number: '5700123', metal: 'copper', figures: '128/40000' },
+      { number: '5700123', metal: 'aluminium', figures: '0/1000' },
+    ])
   })
 
   it('leaves the texts of the articles of the business as they are', async () => {

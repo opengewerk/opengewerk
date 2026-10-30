@@ -894,11 +894,13 @@ async function plantMaterial(
 
     // Purchase prices at about three fifths of the selling price, as a
     // wholesaler's list would have them.
-    await post(`/articles/${article}/suppliers`, {
-      supplierId: from,
-      supplierNumber: theirs,
-      price: { unitPriceCents: Math.round(cents * 0.6), validFrom: since },
-    })
+    const link = idOf(
+      await post(`/articles/${article}/suppliers`, {
+        supplierId: from,
+        supplierNumber: theirs,
+        price: { unitPriceCents: Math.round(cents * 0.6), validFrom: since },
+      }),
+    )
 
     if (cable) {
       await post(`/articles/${article}/prices`, { unitPriceCents: cents, validFrom: since })
@@ -906,10 +908,22 @@ async function plantMaterial(
         unitPriceCents: 98,
         validFrom: addDays(today, 3),
       })
-      await post(`/articles/${article}/suppliers`, {
-        supplierId: nordlicht,
-        supplierNumber: 'NYM315-100',
-        price: { unitPriceCents: 57, validFrom: addDays(today, -105) },
+      const other = idOf(
+        await post(`/articles/${article}/suppliers`, {
+          supplierId: nordlicht,
+          supplierNumber: 'NYM315-100',
+          price: { unitPriceCents: 57, validFrom: addDays(today, -105) },
+        }),
+      )
+
+      // Its copper at both suppliers (#462): 43,2 kg a kilometre, on the
+      // base each catalogue names, as the board "Artikel, das Metall eines
+      // Lieferanten" draws it.
+      await put(`/articles/${article}/suppliers/${link}/metals`, {
+        metals: [{ metal: 'copper', baseEuros: 150, gramsPerThousand: 43_200 }],
+      })
+      await put(`/articles/${article}/suppliers/${other}/metals`, {
+        metals: [{ metal: 'copper', baseEuros: 128, gramsPerThousand: 43_200 }],
       })
     }
   }
@@ -947,6 +961,22 @@ async function plantMaterial(
   })
   await put(`/suppliers/${hansa}/markup`, { basisPoints: 2200 })
   await put(`/articles/${planted.get('1042') ?? ''}/pricing`, { fixed: false, basisPoints: null })
+
+  // The wholesaler's metal prices (#462), copper every working day, as the
+  // board "Lieferant, ein Metallpreis" draws them.
+  for (const [metal, days, priceCents] of [
+    ['aluminium', -29, 31_290],
+    ['copper', -2, 140_267],
+    ['copper', -1, 139_510],
+    ['copper', 0, 138_940],
+    ['aluminium', 0, 31_840],
+  ] as const) {
+    await post(`/suppliers/${hansa}/metal-prices`, {
+      metal,
+      validFrom: addDays(today, days),
+      priceCents,
+    })
+  }
 
   return planted
 }

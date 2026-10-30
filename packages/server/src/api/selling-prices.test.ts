@@ -144,6 +144,9 @@ describe('the selling price of an article that follows its purchase price', () =
       source: null,
       inherited: null,
       business: null,
+      markupOnMetal: null,
+      metalInherited: false,
+      metalInheritedFrom: 'business',
     })
 
     // The business's, set by the owner under "Einstellungen", worked out in the background.
@@ -170,6 +173,8 @@ describe('the selling price of an article that follows its purchase price', () =
     expect(await get(`/suppliers/${wholesaler}/markup`)).toEqual({
       basisPoints: 2200,
       business: 2500,
+      markupOnMetal: null,
+      businessOnMetal: false,
       pending: false,
     })
 
@@ -185,6 +190,9 @@ describe('the selling price of an article that follows its purchase price', () =
       source: 'article',
       inherited: 2200,
       business: 2500,
+      markupOnMetal: null,
+      metalInherited: false,
+      metalInheritedFrom: 'business',
     })
     expect(own.suppliers).toEqual([expect.objectContaining({ id: link, main: true, markup: 2200 })])
   })
@@ -244,8 +252,12 @@ describe('the selling price of an article that follows its purchase price', () =
     // The purchase price a position shows beside its unit price, of the main supplier.
     expect(await get(`/articles/${clamp}/purchase?on=${today}`)).toEqual({
       purchase: { cents: 200, priceBase: 1, supplierName: 'Kurpfalz Elektrohandel KG' },
+      metal: null,
     })
-    expect(await get(`/articles/${clamp}/purchase?on=2026-01-01`)).toEqual({ purchase: null })
+    expect(await get(`/articles/${clamp}/purchase?on=2026-01-01`)).toEqual({
+      purchase: null,
+      metal: null,
+    })
     await get(`/articles/${clamp}/purchase?on=${today}`, technician, 403)
     await get(`/articles/${clamp}/purchase?on=heute`, office, 400)
 
