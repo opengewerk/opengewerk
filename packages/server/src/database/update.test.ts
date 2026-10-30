@@ -1745,6 +1745,55 @@ describe('the drafts and roles before 0102', () => {
   })
 })
 
+describe('the articles before 0103', () => {
+  const before = () =>
+    readMigrationIndex().findIndex((entry) => entry.tag === '0103_article_search')
+
+  it("give the search a row for each article not deleted and each supplier's number", async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+
+    const [kept, deleted] = [newId<'article'>(), newId<'article'>()]
+    const supplier = newId<'supplier'>()
+    const [numbered, bare] = [newId<'supplier-article'>(), newId<'supplier-article'>()]
+
+    await admin.query(
+      `insert into articles (id, tenant_id, number, designation, unit, ean, deleted_at)
+         values ($1, $3, 'A-1', 'Abzweigdose AP 85', 'piece', '4012345678901', null),
+                ($2, $3, 'A-2', 'Abgekündigte Dose', 'piece', null, now())`,
+      [kept, deleted, tenant.id],
+    )
+    await admin.query(`insert into suppliers (id, tenant_id, name) values ($1, $2, 'Rexel')`, [
+      supplier,
+      tenant.id,
+    ])
+    await admin.query(
+      `insert into supplier_articles (id, tenant_id, article_id, supplier_id, supplier_number)
+         values ($1, $3, $4, $6, 'RX-4711'), ($2, $3, $5, $6, null)`,
+      [numbered, bare, tenant.id, kept, deleted, supplier],
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows } = await admin.query<{ id: string; article_id: string; text: string }>(
+      'select id, article_id, text from article_search order by text',
+    )
+    expect(rows).toEqual([
+      { id: kept, article_id: kept, text: 'a-1 abzweigdose ap 85 4012345678901' },
+      { id: numbered, article_id: kept, text: 'rx-4711' },
+    ])
+
+    const { rows: forced } = await admin.query<{ forced: boolean }>(
+      `select relforcerowsecurity as forced from pg_class
+        where oid in ('articles'::regclass, 'supplier_articles'::regclass)`,
+    )
+    expect(forced).toEqual([{ forced: true }, { forced: true }])
+  })
+})
+
 describe('the migration run', () => {
   it('refuses a migration that was changed after it had run', async () => {
     await olderInstallation()

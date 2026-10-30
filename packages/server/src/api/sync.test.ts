@@ -304,7 +304,10 @@ describe('the tables', () => {
       name === 'selling_price_runs' ||
       // The metal of an article and a supplier's metal prices (#462), like a purchase price.
       name === 'supplier_article_metals' ||
-      name === 'supplier_metal_prices'
+      name === 'supplier_metal_prices' ||
+      // The search over the catalogue (#461), which no device asks: one
+      // without a network searches what it holds.
+      name === 'article_search'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

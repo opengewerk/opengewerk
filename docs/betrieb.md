@@ -564,7 +564,8 @@ geht am nächsten Tag wieder. Eine geschlossene Instanz räumt nicht auf.
 **Die Sicherung meldet sich als Superuser an**, nicht als Eigentümer der
 Tabellen. Row-Level Security ist auf jeder Tabelle mit `FORCE` gesetzt und gilt
 damit auch für den Eigentümer; ein Dump unter dieser Rolle käme entweder mit
-einer Fehlermeldung zurück oder, schlimmer, leer. Eine Sicherung, die weniger
+einer Fehlermeldung zurück oder, schlimmer, leer. Die eine Ausnahme ist die
+Suchtabelle der Artikel, die nur wiederholt, was in `articles` steht (ADR 0015). Eine Sicherung, die weniger
 sehen darf als alles, ist keine.
 
 **Auf das Ziel kommt nur das fertige Archiv.** Dump und Dateispeicher entstehen
