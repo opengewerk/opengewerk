@@ -31,6 +31,7 @@ export type WorkerRequest =
       readonly holdings: Holdings
       readonly validFrom: string
       readonly shortCode: string
+      readonly markup: number | null
       /** The whole plan, for a takeover; otherwise the summary alone. */
       readonly whole: boolean
     }
@@ -81,6 +82,7 @@ function handle(request: WorkerRequest): void {
   const plan = planImport(delivery, request.holdings, {
     validFrom: request.validFrom as never,
     shortCode: request.shortCode,
+    markup: request.markup,
     newId: () => newId(),
   })
 

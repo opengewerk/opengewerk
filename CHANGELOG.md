@@ -7,6 +7,22 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- Der Verkaufspreis eines Artikels entsteht aus dem Einkaufspreis seines Hauptlieferanten und einem Aufschlag, erster
+  Teil von #463: das Datenmodell und der Import aus DATANORM. Der Aufschlag des Betriebs ist eine Einstellung ab einem
+  Tag (`material.markup_basis_points`), ein Lieferant und ein Artikel können einen eigenen haben (`supplier_markups`,
+  `article_markups`, Migration `0099_markups`), und der engere gewinnt. Hauptlieferant ist der Lieferant, der einen
+  Artikel zuerst bringt; geht er, rückt der älteste nach, beides hält die Datenbank. Ein Import übernimmt den Listenpreis
+  als Einkaufspreis, ein Nettopreis geht ihm vor, und schreibt für jeden Artikel, dessen Hauptlieferant er ist, den
+  Verkaufspreis ab demselben Tag; ohne Aufschlag schreibt er keinen, und die Zusammenfassung der Vorschau sagt es. Ein
+  Verkaufspreis von Hand macht den Preis eines Artikels fest, und Artikel, deren letzter Verkaufspreis von Hand
+  eingetragen ist, bleiben fest. Warum: so hat es Moritz am 28.09.2026 nach dem Test mit einer echten Lieferung
+  entschieden (Feature-Gliederung v2.37), ein Großhandel bringt nur Einkaufs- und Listenpreise. Aufschlag und Einkaufspreis
+  reisen nicht mit dem Abgleich und liegen deshalb in eigenen Tabellen statt an Lieferant und Artikel, die auf jedem
+  Gerät sind. Die Bildschirme und das Neurechnen nach einem geänderten Aufschlag kommen im zweiten Teil, Einkaufspreis
+  und Aufschlag an der Position im dritten.
+
 ### Geändert
 
 - Die Feature-Gliederung (v2.37) trägt die Preisbildung ein, die Moritz am 28.09.2026 nach dem Test mit einer echten

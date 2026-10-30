@@ -2,7 +2,7 @@ import type { IsoDate, LineUnit, PriceBase, SupplierId } from '@opengewerk/domai
 import type { TenantTransaction } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 
-import type { HeldArticle, HeldLink, HeldPrice, Holdings } from './plan.js'
+import type { HeldArticle, HeldLink, HeldMarkup, HeldPrice, Holdings } from './plan.js'
 
 /**
  * What the business holds, as far as an import of one supplier needs to know
@@ -44,11 +44,14 @@ export async function holdingsOf(
   supplierId: SupplierId,
   validFrom: IsoDate,
 ): Promise<Holdings> {
+  // Whether an article has a main supplier already (#463): a link added to
+  // one that has none becomes the main one, by the trigger of 0099.
   const articleRows = await tx.execute(sql`
-    select id, number, designation, unit, ean
-      from articles
-     where deleted_at is null
-     order by created_at, id`)
+    select a.id, a.number, a.designation, a.unit, a.ean, s.id is not null as supplied
+      from articles a
+      left join supplier_articles s on s.article_id = a.id and s.main
+     where a.deleted_at is null
+     order by a.created_at, a.id`)
 
   const articles = new Map<string, HeldArticle>(
     articleRows.rows.map((row) => [
@@ -59,6 +62,7 @@ export async function holdingsOf(
         designation: row['designation'] as string,
         unit: row['unit'] as LineUnit,
         ean: (row['ean'] as string | null) ?? null,
+        supplied: row['supplied'] === true,
       },
     ]),
   )
@@ -66,7 +70,7 @@ export async function holdingsOf(
   // A link without the supplier's number cannot be found by one; the oldest
   // where a number stands twice.
   const linkRows = await tx.execute(sql`
-    select id, article_id, supplier_number, discount_group, copper_base_euros, copper_grams_per_thousand
+    select id, article_id, supplier_number, discount_group, copper_base_euros, copper_grams_per_thousand, main
       from supplier_articles
      where supplier_id = ${supplierId}
        and supplier_number is not null
@@ -87,6 +91,7 @@ export async function holdingsOf(
                 baseEuros: Number(row['copper_base_euros']),
                 gramsPerThousand: Number(row['copper_grams_per_thousand']),
               },
+        main: row['main'] === true,
       },
     ]),
   )
@@ -120,9 +125,25 @@ export async function holdingsOf(
        and p.valid_from <= ${validFrom}
      order by p.article_id, p.valid_from desc`)
 
+  // What the articles say about their selling prices (#463): only those
+  // that are fixed or have a markup of their own have a row.
+  const markupRows = await tx.execute(sql`
+    select article_id, fixed, basis_points from article_markups`)
+
+  const articleMarkups = new Map<string, HeldMarkup>(
+    markupRows.rows.map((row) => [
+      row['article_id'] as string,
+      {
+        fixed: row['fixed'] === true,
+        basisPoints: row['basis_points'] === null ? null : Number(row['basis_points']),
+      },
+    ]),
+  )
+
   return {
     articles,
     links,
+    articleMarkups,
     listPrices: heldPrices(listPrices.rows),
     purchasePrices: heldPrices(purchasePrices.rows),
     sellingPrices: heldPrices(sellingPrices.rows),

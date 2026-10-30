@@ -380,6 +380,11 @@ export function auditTextWords(screen: AuditValueWords, format: AuditFormat): Au
       return amount(Number(raw))
     }
 
+    // Hundredths of a percent, a markup or a rate: 2250 reads as 22,5 %.
+    if (field.endsWith('basis_points') && /^-?\d+$/.test(raw)) {
+      return `${amount(Number(raw) * 10)} %`
+    }
+
     if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
       return date(raw)
     }

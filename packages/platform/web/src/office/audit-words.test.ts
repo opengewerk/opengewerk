@@ -105,6 +105,7 @@ describe('the values of the change log', () => {
   it('writes amounts, thousandths, days, moments and yes or no as a person reads them', () => {
     expect(words.auditValue('letter_lines', 'total_cents', '12500', page)).toBe(euros(12500))
     expect(words.auditValue('letter_lines', 'weight_milli', '2500', page)).toBe('2,5')
+    expect(words.auditValue('letter_lines', 'basis_points', '2250', page)).toBe('22,5 %')
     expect(words.auditValue('letters', 'sent_on', '2026-10-03', page)).toBe('03.10.2026')
     expect(words.auditValue('shelves', 'closed', 'true', page)).toBe('Ja')
     expect(words.auditValue('shelves', 'closed', 'false', page)).toBe('Nein')

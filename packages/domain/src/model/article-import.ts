@@ -61,6 +61,8 @@ export interface ImportSample {
   readonly netPrice: ImportPrice | null
   /** The list price the supplier had before, for an update. */
   readonly previousListPrice: ImportPrice | null
+  /** The selling price the import makes from the purchase price and the markup (#463), where it makes one. */
+  readonly sellingPrice: ImportPrice | null
 }
 
 /** What reading found, and after the takeover what it did. */
@@ -74,6 +76,14 @@ export interface ImportSummary {
   readonly renumbered: number
   /** The short code a renumbered article got, the supplier's own or one from its name. */
   readonly shortCode: string
+  /** How many selling prices the import makes from purchase prices and the markup (#463). */
+  readonly sellingPrices: number
+  /**
+   * The markup on the supplier's articles in basis points: its own, else the
+   * business's. Null where neither is set, and then the import makes no
+   * selling price; the preview says so before anything is taken over.
+   */
+  readonly markup: number | null
   readonly unknownUnits: readonly { readonly text: string; readonly articles: number }[]
   readonly problems: number
   /** The first lines that could not be read, with their file and reason. */

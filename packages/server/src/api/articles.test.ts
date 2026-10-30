@@ -509,6 +509,69 @@ describe('an article kept by the office', () => {
   })
 })
 
+describe('the main supplier and a fixed selling price (#463)', () => {
+  async function mainOf(article: string): Promise<string[]> {
+    const { rows } = await admin.query<{ supplier_id: string }>(
+      'select supplier_id from supplier_articles where article_id = $1 and main',
+      [article],
+    )
+
+    return rows.map((row) => row.supplier_id)
+  }
+
+  async function markupOf(article: string) {
+    const { rows } = await admin.query<{ fixed: boolean; basis_points: number | null }>(
+      'select fixed, basis_points from article_markups where article_id = $1',
+      [article],
+    )
+
+    return rows
+  }
+
+  it('is the supplier that brought the article first, and the oldest left when it goes', async () => {
+    const clamp = (
+      await post('/articles', { number: '5002', designation: 'Verbindungsklemme', unit: 'piece' })
+    ).id
+    // Suppliers of their own, so that no other test counts the clamp.
+    const [solar, wagner, rhein] = [
+      (await post('/suppliers', { name: 'Solar-Direkt Süd GmbH' })).id,
+      (await post('/suppliers', { name: 'Leuchten Wagner GmbH' })).id,
+      (await post('/suppliers', { name: 'Elektro Rhein KG' })).id,
+    ]
+    const first = await post(`/articles/${clamp}/suppliers`, { supplierId: solar })
+
+    await post(`/articles/${clamp}/suppliers`, { supplierId: wagner })
+    await post(`/articles/${clamp}/suppliers`, { supplierId: rhein })
+    expect(await mainOf(clamp)).toEqual([solar])
+
+    await http()
+      .delete(`/articles/${clamp}/suppliers/${String(first.id)}`)
+      .set('x-test-identity', office)
+      .expect(200)
+    expect(await mainOf(clamp)).toEqual([wagner])
+  })
+
+  it('is fixed once a selling price is entered by hand, at a new article and at one there is', async () => {
+    // The cable came with its first price.
+    expect(await markupOf(cable)).toEqual([{ fixed: true, basis_points: null }])
+
+    const tape = (
+      await post('/articles', { number: '5003', designation: 'Isolierband', unit: 'piece' })
+    ).id
+
+    expect(await markupOf(tape)).toEqual([])
+
+    // An article with a markup of its own gives it up for the price entered by hand.
+    await admin.query(
+      `insert into article_markups (tenant_id, article_id, fixed, basis_points)
+         values ($1, $2, false, 1000)`,
+      [north.id, tape],
+    )
+    await post(`/articles/${tape}/prices`, { unitPriceCents: 250, validFrom: '2026-03-01' })
+    expect(await markupOf(tape)).toEqual([{ fixed: true, basis_points: null }])
+  })
+})
+
 describe('the list of articles', () => {
   it('finds by number, name, EAN, supplier and the supplier’s number', async () => {
     const numbers = async (search: string) =>
@@ -562,9 +625,11 @@ describe('what a device holds', () => {
 
       expect(articles.map((row) => row['number'])).toEqual(['1042'])
       expect(new Set(prices.map((row) => row['articleId']))).toEqual(new Set([cable]))
-      // What hangs on the suppliers never travels.
+      // What hangs on the suppliers never travels, nor a markup (#463).
       expect(rowsOf(pulled, 'supplier_articles')).toEqual([])
       expect(rowsOf(pulled, 'purchase_prices')).toEqual([])
+      expect(rowsOf(pulled, 'article_markups')).toEqual([])
+      expect(rowsOf(pulled, 'supplier_markups')).toEqual([])
     }
   })
 

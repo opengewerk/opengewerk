@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   type HeldArticle,
   type HeldLink,
+  type HeldMarkup,
   type HeldPrice,
   type Holdings,
   ImportRefused,
@@ -31,10 +32,14 @@ function holdings(parts: {
   readonly listPrices?: readonly (HeldPrice & { readonly linkId: string })[]
   readonly purchasePrices?: readonly (HeldPrice & { readonly linkId: string })[]
   readonly sellingPrices?: readonly (HeldPrice & { readonly articleId: string })[]
+  readonly articleMarkups?: readonly (HeldMarkup & { readonly articleId: string })[]
 }): Holdings {
   return {
     articles: new Map((parts.articles ?? []).map((article) => [article.id, article])),
     links: new Map((parts.links ?? []).map((link) => [link.supplierNumber, link])),
+    articleMarkups: new Map(
+      (parts.articleMarkups ?? []).map((markup) => [markup.articleId, markup]),
+    ),
     listPrices: new Map((parts.listPrices ?? []).map((price) => [price.linkId, price])),
     purchasePrices: new Map((parts.purchasePrices ?? []).map((price) => [price.linkId, price])),
     sellingPrices: new Map((parts.sellingPrices ?? []).map((price) => [price.articleId, price])),
@@ -47,6 +52,7 @@ function options(overrides: Partial<PlanOptions> = {}): PlanOptions {
   return {
     validFrom: day,
     shortCode: 'HAN',
+    markup: null,
     newId: () => {
       next += 1
 
@@ -65,6 +71,7 @@ const held: HeldArticle = {
   designation: 'Kabelbinder schwarz',
   unit: 'piece',
   ean: null,
+  supplied: true,
 }
 
 const heldLink: HeldLink = {
@@ -73,6 +80,7 @@ const heldLink: HeldLink = {
   supplierNumber: '5709912',
   discountGroup: 'RG12',
   copper: null,
+  main: true,
 }
 
 /** A cable with copper in fields 7 to 9 of its second record, as a real delivery writes it. */
@@ -84,6 +92,7 @@ const cableLink: HeldLink = {
   supplierNumber: '1001009',
   discountGroup: 'RG10',
   copper: null,
+  main: true,
 }
 const heldCable: HeldArticle = {
   id: 'article-2',
@@ -91,6 +100,7 @@ const heldCable: HeldArticle = {
   designation: 'Aderleitung H05V-U 1 schwarz',
   unit: 'metre',
   ean: null,
+  supplied: true,
 }
 
 function price(id: string, cents: number, validFrom: string, priceBase: 1 | 100 = 100) {
@@ -124,9 +134,13 @@ describe('an article the supplier does not sell yet', () => {
     expect(plan.listPrices).toEqual([
       { ownerId: 'new-2', cents: 350, priceBase: 100, replaces: null },
     ])
-    // The list price is the supplier's and no selling price (Feature-Gliederung v2.37).
+    // The list price is the supplier's list and purchase price, and without a
+    // markup no selling price (Feature-Gliederung v2.37, #463).
+    expect(plan.purchasePrices).toEqual([
+      { ownerId: 'new-2', cents: 350, priceBase: 100, replaces: null },
+    ])
     expect(plan.sellingPrices).toEqual([])
-    expect(plan.purchasePrices).toEqual([])
+    expect(plan.summary).toMatchObject({ sellingPrices: 0, markup: null })
     expect(plan.summary).toMatchObject({ articles: 1, created: 1, renumbered: 0, fileDate: day })
     expect(plan.summary.samples).toEqual([
       {
@@ -139,6 +153,7 @@ describe('an article the supplier does not sell yet', () => {
         listPrice: { cents: 350, priceBase: 100 },
         netPrice: null,
         previousListPrice: null,
+        sellingPrice: null,
       },
     ])
   })
@@ -255,6 +270,7 @@ describe('an article the supplier sells already', () => {
         listPrice: { cents: 350, priceBase: 100 },
         netPrice: null,
         previousListPrice: { cents: 300, priceBase: 100 },
+        sellingPrice: null,
       },
     ])
   })
@@ -266,9 +282,11 @@ describe('an article the supplier sells already', () => {
         articles: [held],
         links: [heldLink],
         listPrices: [{ ...price('list-1', 350, '2026-01-01'), linkId: 'link-1' }],
-        sellingPrices: [{ ...price('sell-1', 350, '2026-01-01'), articleId: 'article-1' }],
+        purchasePrices: [{ ...price('buy-1', 350, '2026-01-01'), linkId: 'link-1' }],
+        sellingPrices: [{ ...price('sell-1', 438, '2026-01-01'), articleId: 'article-1' }],
       }),
-      options(),
+      // 3,50 € with 25 % are 4,375 €, half a cent up 4,38 €.
+      options({ markup: 2500 }),
     )
 
     expect([
@@ -436,6 +454,142 @@ describe('an article the supplier sells already', () => {
     expect(plan.summary).toMatchObject({ removed: 1, articles: 0 })
     expect(plan.summary.samples).toEqual([
       expect.objectContaining({ kind: 'removed', number: 'KB-200', supplierNumber: '5709912' }),
+    ])
+  })
+})
+
+describe('the selling price from the purchase price and the markup (#463)', () => {
+  /** 3,50 € for 100 with 25 % are 4,375 €, half a cent up 4,38 €. */
+  const withMarkup = options({ markup: 2500 })
+
+  it('gives a new article its selling price from the list price, for the same price unit', () => {
+    const plan = planImport(delivery(cableTie), holdings({}), withMarkup)
+
+    expect(plan.sellingPrices).toEqual([
+      { ownerId: 'new-1', cents: 438, priceBase: 100, replaces: null },
+    ])
+    expect(plan.summary).toMatchObject({ sellingPrices: 1, markup: 2500 })
+    expect(plan.summary.samples[0]).toMatchObject({ sellingPrice: { cents: 438, priceBase: 100 } })
+  })
+
+  it('takes a net price as the purchase price before the list price, and the selling price follows it', () => {
+    const plan = planImport(
+      readDelivery([
+        { name: 'DATANORM.001', bytes: cp850([header('011026'), cableTie]) },
+        { name: 'DATPREIS.001', bytes: cp850([header('011026'), 'P;A;5709912;2;205;0;;;;;;']) },
+      ]),
+      holdings({}),
+      withMarkup,
+    )
+
+    expect(plan.purchasePrices).toEqual([expect.objectContaining({ cents: 205, priceBase: 100 })])
+    // 2,05 € with 25 % are 2,5625 €.
+    expect(plan.sellingPrices).toEqual([expect.objectContaining({ cents: 256, priceBase: 100 })])
+  })
+
+  it('makes no selling price without a markup, and says so in the summary', () => {
+    const plan = planImport(delivery(cableTie), holdings({}), options())
+
+    expect(plan.purchasePrices).toHaveLength(1)
+    expect(plan.sellingPrices).toEqual([])
+    expect(plan.summary).toMatchObject({ sellingPrices: 0, markup: null })
+  })
+
+  it("follows the article's own markup before the supplier's", () => {
+    const plan = planImport(
+      delivery(cableTie),
+      holdings({
+        articles: [held],
+        links: [heldLink],
+        articleMarkups: [{ articleId: 'article-1', fixed: false, basisPoints: 1000 }],
+      }),
+      withMarkup,
+    )
+
+    expect(plan.sellingPrices).toEqual([
+      { ownerId: 'article-1', cents: 385, priceBase: 100, replaces: null },
+    ])
+  })
+
+  it('leaves a fixed selling price as it is, and writes the purchase price', () => {
+    const plan = planImport(
+      delivery(cableTie),
+      holdings({
+        articles: [held],
+        links: [heldLink],
+        sellingPrices: [{ ...price('sell-1', 500, '2026-01-01'), articleId: 'article-1' }],
+        articleMarkups: [{ articleId: 'article-1', fixed: true, basisPoints: null }],
+      }),
+      withMarkup,
+    )
+
+    expect(plan.purchasePrices).toHaveLength(1)
+    expect(plan.sellingPrices).toEqual([])
+    expect(plan.summary).toMatchObject({ sellingPrices: 0 })
+  })
+
+  it('makes the selling price only where the supplier is the main one', () => {
+    const plan = planImport(
+      delivery(cableTie),
+      holdings({ articles: [held], links: [{ ...heldLink, main: false }] }),
+      withMarkup,
+    )
+
+    expect(plan.purchasePrices).toHaveLength(1)
+    expect(plan.sellingPrices).toEqual([])
+  })
+
+  it('gives an article found by its EAN a selling price only where it has no main supplier yet', () => {
+    const files = delivery(cableTie, cableTieEan)
+
+    for (const supplied of [false, true]) {
+      const plan = planImport(
+        files,
+        holdings({ articles: [{ ...held, ean: '4006381333931', supplied }] }),
+        withMarkup,
+      )
+
+      expect(plan.summary).toMatchObject({ linked: 1 })
+      expect(plan.sellingPrices).toEqual(
+        supplied ? [] : [{ ownerId: 'article-1', cents: 438, priceBase: 100, replaces: null }],
+      )
+    }
+  })
+
+  it('gives a held article its selling price once a markup is set, though its prices stay', () => {
+    const plan = planImport(
+      delivery(cableTie),
+      holdings({
+        articles: [held],
+        links: [heldLink],
+        listPrices: [{ ...price('list-1', 350, '2026-01-01'), linkId: 'link-1' }],
+        purchasePrices: [{ ...price('buy-1', 350, '2026-01-01'), linkId: 'link-1' }],
+        sellingPrices: [{ ...price('sell-1', 400, day), articleId: 'article-1' }],
+      }),
+      withMarkup,
+    )
+
+    expect([plan.listPrices, plan.purchasePrices]).toEqual([[], []])
+    // The one of the same day, from an import or worked out like this one, gives way.
+    expect(plan.sellingPrices).toEqual([
+      { ownerId: 'article-1', cents: 438, priceBase: 100, replaces: 'sell-1' },
+    ])
+    expect(plan.summary).toMatchObject({ updated: 1, unchanged: 0, sellingPrices: 1 })
+  })
+
+  it('names a selling price higher than a price may be as a problem of its line', () => {
+    const plan = planImport(
+      delivery('A;N;9000001;00;Trafostation;;1;0;Stck;60000000;;;;'),
+      holdings({}),
+      options({ markup: 10_000 }),
+    )
+
+    expect(plan.purchasePrices).toEqual([expect.objectContaining({ cents: 60_000_000 })])
+    expect(plan.sellingPrices).toEqual([])
+    expect(plan.summary.problemLines).toEqual([
+      expect.objectContaining({
+        reason: 'Der Verkaufspreis von 9000001 wäre höher, als OpenGewerk einen Preis nimmt.',
+      }),
     ])
   })
 })

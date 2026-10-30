@@ -296,7 +296,10 @@ describe('the tables', () => {
       // An import of DATANORM and the list prices it writes, read at the
       // routes of the supplier by whoever may read purchase prices (#297).
       name === 'article_imports' ||
-      name === 'list_prices'
+      name === 'list_prices' ||
+      // A markup, like a purchase price, is the office's alone (#463).
+      name === 'supplier_markups' ||
+      name === 'article_markups'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

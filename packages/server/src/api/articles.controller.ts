@@ -28,6 +28,7 @@ import {
   type SupplierArticleId,
   type SupplierId,
   supplierNumberProblem,
+  type TenantId,
 } from '@opengewerk/domain'
 import {
   Database,
@@ -53,6 +54,7 @@ import {
 } from 'drizzle-orm'
 
 import {
+  articleMarkups,
   articlePrices,
   articles,
   purchasePrices,
@@ -403,6 +405,7 @@ export class ArticlesController {
           await tx
             .insert(articlePrices)
             .values({ ...first, articleId: created.id, tenantId: identity.tenantId })
+          await fixedByHand(tx, identity.tenantId, created.id)
         }
 
         return created
@@ -468,7 +471,11 @@ export class ArticlesController {
     })
   }
 
-  /** A selling price from a day on. One a day; a price is never changed, only replaced or removed. */
+  /**
+   * A selling price from a day on. One a day; a price is never changed, only
+   * replaced or removed. Entered by hand, it makes the article's price fixed
+   * (#463): it no longer follows the purchase price.
+   */
   @Post(':id/prices')
   @RequiresPermission('article.write')
   async addPrice(
@@ -488,6 +495,8 @@ export class ArticlesController {
           .insert(articlePrices)
           .values({ ...price, articleId: article.id, tenantId: identity.tenantId })
           .returning()
+
+        await fixedByHand(tx, identity.tenantId, article.id)
 
         return created
       })
@@ -725,6 +734,31 @@ export class ArticlesController {
  * FOR UPDATE where its unit changes, so that no price for several units comes
  * in between the look at its prices and the change (#456).
  */
+/**
+ * A selling price entered by hand is fixed (#463, decided on 28.09.2026): it
+ * stays until somebody enters another, whatever the purchase price does, and
+ * an import leaves it alone. An article with a markup of its own gives it up.
+ */
+async function fixedByHand(
+  tx: TenantTransaction,
+  tenantId: TenantId,
+  articleId: ArticleId,
+): Promise<void> {
+  const [said] = await tx
+    .select({ id: articleMarkups.id, fixed: articleMarkups.fixed })
+    .from(articleMarkups)
+    .where(eq(articleMarkups.articleId, articleId))
+
+  if (said === undefined) {
+    await tx.insert(articleMarkups).values({ tenantId, articleId, fixed: true, basisPoints: null })
+  } else if (!said.fixed) {
+    await tx
+      .update(articleMarkups)
+      .set({ fixed: true, basisPoints: null, updatedAt: new Date() })
+      .where(eq(articleMarkups.id, said.id))
+  }
+}
+
 async function articleOf(
   tx: TenantTransaction,
   id: string,
