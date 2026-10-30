@@ -36,8 +36,8 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   am 28.09.2026 gepackt 24,6 MB und wächst, eine größere Lieferung hätte sich nicht mehr hochladen lassen. Gelesen
   wird je Betrieb eine solche Datei zur Zeit und auf der Instanz höchstens zwei, eine weitere bekommt 429, bevor ihr
   Inhalt gelesen ist, weil die Budgets erst nach dem Lesen zählen (Security-Review von #777). Wer langsam sendet,
-  hält keine Stelle: nach 30 Sekunden ohne Daten oder 10 Minuten insgesamt bricht die Route ab, und das Konto wartet
-  danach 5 Minuten.
+  hält keine Stelle: nach 30 Sekunden ohne Daten oder 10 Minuten insgesamt bricht die Route ab, und Konto und Betrieb
+  warten danach 5 Minuten.
 
 ### Behoben
 

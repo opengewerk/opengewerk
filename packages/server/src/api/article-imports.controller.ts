@@ -64,7 +64,11 @@ export class ArticleImportsController {
    */
   private readonly readingFor = new Set<string>()
 
-  /** The accounts whose last file was cut off for coming in too slowly, and when. */
+  /**
+   * The accounts and the tenants whose last file was cut off for coming in
+   * too slowly, and when. Both wait: a tenant with several accounts does not
+   * take the place again with the next one.
+   */
   private readonly cutAt = new Map<string, number>()
 
   /**
@@ -78,13 +82,21 @@ export class ArticleImportsController {
 
   /** Why a file of this person is not read now, or null when it is. */
   private busyFor(identity: RequestIdentity): string | null {
-    const cut = this.cutAt.get(identity.userId)
+    const now = Date.now()
 
-    if (cut !== undefined && cut + this.readLimits.waitAfterCutMs > Date.now()) {
-      return 'Die letzte Datei kam zu langsam an. Bitte in ein paar Minuten noch einmal versuchen.'
+    // What waited long enough goes, so that the list holds only who waits.
+    for (const [key, at] of this.cutAt) {
+      if (at + this.readLimits.waitAfterCutMs <= now) {
+        this.cutAt.delete(key)
+      }
     }
 
-    this.cutAt.delete(identity.userId)
+    const waiting =
+      this.cutAt.has(`account:${identity.userId}`) || this.cutAt.has(`tenant:${identity.tenantId}`)
+
+    if (waiting) {
+      return 'Die letzte Datei kam zu langsam an. Bitte in ein paar Minuten noch einmal versuchen.'
+    }
 
     if (this.readingFor.has(identity.tenantId)) {
       return 'Gerade wird schon eine Datei eines Imports dieses Betriebs gespeichert. Bitte gleich noch einmal versuchen.'
@@ -151,7 +163,10 @@ export class ArticleImportsController {
       return await this.stored(identity, sha256, request)
     } catch (error) {
       if (error instanceof RequestTimeoutException) {
-        this.cutAt.set(identity.userId, Date.now())
+        const now = Date.now()
+
+        this.cutAt.set(`account:${identity.userId}`, now)
+        this.cutAt.set(`tenant:${identity.tenantId}`, now)
       }
 
       throw error

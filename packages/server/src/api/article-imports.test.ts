@@ -397,7 +397,7 @@ describe('a file of a delivery', () => {
     },
   )
 
-  it('makes an account whose file was cut off wait, and nobody else', async () => {
+  it('makes an account whose file was cut off wait, and its business, and no other business', async () => {
     const controller = app.get(ArticleImportsController)
     const before = controller.readLimits
     const server = app.getHttpServer() as Server
@@ -433,11 +433,17 @@ describe('a file of a delivery', () => {
       await ended
 
       await put(new TextEncoder().encode('V wartet noch'), office).expect(429)
-      await put(new TextEncoder().encode('V ein anderes Konto'), owner).expect(200)
+      // Its business waits with it, another business does not.
+      await put(new TextEncoder().encode('V ein anderes Konto'), owner).expect(429)
+      await put(
+        new TextEncoder().encode('V ein anderer Betrieb'),
+        JSON.stringify({ userId: 'south', tenantId: south.id, roles: ['owner'] }),
+      ).expect(200)
 
-      // Its wait over, it stores again.
+      // Its wait over, both store again.
       controller.readLimits = { ...controller.readLimits, waitAfterCutMs: 0 }
       await put(new TextEncoder().encode('V wartet nicht mehr'), office).expect(200)
+      await put(new TextEncoder().encode('V auch nicht mehr'), owner).expect(200)
     } finally {
       controller.readLimits = before
       await new Promise((resolve) => server.close(resolve))
