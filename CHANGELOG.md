@@ -15,6 +15,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   hingen. Ein Trigger in der Datenbank markiert sie im selben Augenblick, damit es für jeden Weg gilt. Die Migration
   `0097_contacts_follow_deletion` holt es für Kunden und Objekte nach, die schon vorher entfernt wurden, mit deren
   Zeitpunkt und der Migration als Grund im Änderungsprotokoll.
+- Ein abgebrochener Auftrag bietet auf der Baustelle nicht mehr „Auftrag abschließen“ an, sondern sagt „Dieser Auftrag
+  ist abgebrochen.“ (#735). Warum: er bleibt noch 30 Tage auf den Geräten, und seit der Abgleich eine Stornierung nicht
+  mehr über `job.progress` aufheben lässt, endete ein Druck auf den Knopf als Konflikt in der Liste des Geräts.
 
 ## [0.6.5] - 2026-10-30
 
