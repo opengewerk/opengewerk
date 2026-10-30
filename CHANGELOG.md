@@ -13,6 +13,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Konfliktbildschirm jetzt „Funktion“, wie schon im Änderungsprotokoll (#556). Warum: „Rolle“ steht in dieser
   Anwendung für das, was ein Zugang darf (Inhaber, Büro, Monteur), und wer im Protokoll „Funktion: Hausmeister“ las,
   suchte das Feld im Formular unter einem anderen Wort.
+- Die Aufgaben im Büro und auf der Baustelle zeigt jetzt die Liste des Fundaments (`@opengewerk/platform-web/tasks`),
+  die Handwerkersoftware gibt nur noch die Anrede, ihr Recht `task.write` und den Link zum Auftrag herein (#597). Warum:
+  Reihenfolge, „überfällig“ und die Zeile einer Aufgabe standen zweimal im Code, einmal hier und einmal im Fundament.
+  Das HTML der Karten ist vorher und nachher gleich; nur „noch nicht übertragen“ steht jetzt in der Farbe dessen, was
+  wartet, wie überall sonst. Das Formular für eine neue Aufgabe bleibt das eigene, weil es eine Notiz kennt.
 
 ### Behoben
 

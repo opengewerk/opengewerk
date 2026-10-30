@@ -1,23 +1,23 @@
 import type { RecordState } from '@opengewerk/domain'
-import { Button, useEntry } from '@opengewerk/platform-web'
-import { date, today } from '@opengewerk/platform-web/format'
+import { today } from '@opengewerk/platform-web/format'
 import { accountQuery } from '@opengewerk/platform-web/session'
 import {
   RecordForm,
   asTextOrNull,
   maybeText,
-  refusalFor,
   text,
   useRecord,
   useSync,
 } from '@opengewerk/platform-web/sync'
+import {
+  TaskList as FoundationTaskList,
+  TaskTarget,
+  type TaskWords,
+} from '@opengewerk/platform-web/tasks'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import clsx from 'clsx'
 import { useState } from 'react'
 
 import { type Assignee, assignees } from '../session/tasks.js'
-import { taskStatusOf } from './labels.js'
 import { useMay } from './queries.js'
 
 /**
@@ -44,230 +44,53 @@ export function usePeople(): { readonly me: string | null; readonly people: read
   }
 }
 
-/** Who a task is for, as the person looking at it reads it. */
-export function responsibleFor(
-  task: RecordState,
-  me: string | null,
-  people: readonly Assignee[],
-): string {
-  const userId = text(task, 'assigneeUserId')
+/** How this application addresses the person looking: "du", on site as in the office. */
+const taskWords: TaskWords = { you: 'du' }
 
-  if (userId === me) {
-    return 'du'
-  }
+/**
+ * The job a task hangs on, as a link under its facts, for a list that is not
+ * already on the job's own screen.
+ */
+function JobOfTask({ task }: { readonly task: RecordState }) {
+  const job = useRecord('jobs', maybeText(task, 'jobId') ?? undefined)
 
-  return people.find((person) => person.userId === userId)?.name ?? 'jemand anderes'
-}
-
-/** Open and past its day. Said in words wherever it is shown, never by colour alone. */
-export function isOverdue(task: RecordState, on: string = today()): boolean {
-  return taskStatusOf(task) === 'open' && text(task, 'dueOn') < on
+  return job ? (
+    <TaskTarget to={`/auftraege/${String(job['id'])}`}>{text(job, 'designation')}</TaskTarget>
+  ) : null
 }
 
 /**
- * The order somebody works through a list in: what is open first, the one due
- * soonest at the top; what is done after it, the most recent first. The id
- * breaks a tie, so that two tasks due on the same day do not swap places
- * between two renders.
+ * Tasks in working order, or a sentence when there are none: the list of the
+ * foundation (#597), with the rows as `task_item()` and `task_row()` of the
+ * boards draw them. Whoever holds `task.write` may mark any of them done or
+ * open it again; this application has no narrower rule for a task.
  */
-export function inWorkingOrder(tasks: readonly RecordState[]): RecordState[] {
-  return [...tasks].sort((left, right) => {
-    const leftOpen = taskStatusOf(left) === 'open'
-    const rightOpen = taskStatusOf(right) === 'open'
-
-    if (leftOpen !== rightOpen) {
-      return leftOpen ? -1 : 1
-    }
-
-    const byDay = text(left, 'dueOn').localeCompare(text(right, 'dueOn'))
-
-    return (leftOpen ? byDay : -byDay) || String(left['id']).localeCompare(String(right['id']))
-  })
-}
-
-/**
- * One task: what, by when, for whom, and the one thing to do about it.
- *
- * Marking it done goes through the outbox like every other change on a
- * device, so it works in a basement and shows as not sent yet until there is
- * a connection. A task that is done can be opened again; a tick set by
- * mistake is not worth a phone call to the office.
- */
-export function TaskItem({
-  task,
-  me,
-  people,
-  showJob = false,
-}: {
-  readonly task: RecordState
-  readonly me: string | null
-  readonly people: readonly Assignee[]
-  /** For a list that is not already on the job's own screen. */
-  readonly showJob?: boolean
-}) {
-  const client = useSync()
-  const entry = useEntry()
-  const mayWrite = useMay('task.write')
-  const id = String(task['id'])
-  const status = taskStatusOf(task)
-  const job = useRecord('jobs', showJob ? (maybeText(task, 'jobId') ?? undefined) : undefined)
-  const [trouble, setTrouble] = useState<string | null>(null)
-
-  const facts = [
-    `Fällig am ${date(task['dueOn'])}`,
-    isOverdue(task) ? 'überfällig' : null,
-    `verantwortlich: ${responsibleFor(task, me, people)}`,
-    status === 'done' ? 'erledigt' : null,
-    client.isPending('tasks', id) ? 'noch nicht übertragen' : null,
-  ].filter((fact): fact is string => fact !== null)
-
-  const toggle = () => {
-    setTrouble(null)
-
-    void client
-      .update('tasks', id, { status: status === 'open' ? 'done' : 'open' })
-      .then((saved) => {
-        if (saved.outcome === 'refused') {
-          setTrouble(refusalFor(saved))
-        }
-      })
-  }
-
-  if (entry === 'office') {
-    // A row of the card, as `task_item()` of the canvas draws it (#219): what,
-    // then by when and for whom, red when it is overdue, the job it hangs
-    // on, and the one button at the right.
-    return (
-      <li className="flex items-start gap-2.5 border-b border-row py-[9px]">
-        <div className="min-w-0 grow">
-          <div
-            className={clsx(
-              'text-[14px] font-medium [overflow-wrap:anywhere]',
-              status === 'done' && 'text-ink-faint line-through',
-            )}
-          >
-            {text(task, 'title')}
-          </div>
-          <div
-            className={clsx(
-              'mt-0.5 text-[13px]',
-              isOverdue(task) ? 'text-conflict' : 'text-ink-faint',
-            )}
-          >
-            {facts.join(', ')}
-          </div>
-          {maybeText(task, 'notes') ? (
-            <p className="mt-1 whitespace-pre-line text-[13px] text-ink">{text(task, 'notes')}</p>
-          ) : null}
-          {job ? (
-            <Link
-              to={`/auftraege/${String(job['id'])}`}
-              className="text-[13px] text-copper-text underline underline-offset-2"
-            >
-              {text(job, 'designation')}
-            </Link>
-          ) : null}
-          {trouble ? (
-            <p role="alert" className="mt-1 text-[13px] font-semibold text-conflict">
-              {trouble}
-            </p>
-          ) : null}
-        </div>
-        {mayWrite ? (
-          <Button size="small" onClick={toggle}>
-            {status === 'open' ? 'Erledigt' : 'Wieder öffnen'}
-          </Button>
-        ) : null}
-      </li>
-    )
-  }
-
-  // A row of the card on site, `task_row()` of the boards: what, by when and
-  // for whom, red when it is overdue, the job it hangs on, and "Erledigt" at
-  // the right.
-  return (
-    <li className="flex items-start gap-2.5 border-b border-row py-2.5">
-      <div className="min-w-0 grow">
-        <div
-          className={clsx(
-            'text-[17px] font-semibold [overflow-wrap:anywhere]',
-            status === 'done' && 'font-normal text-ink-faint line-through',
-          )}
-        >
-          {text(task, 'title')}
-        </div>
-        <div
-          className={clsx(
-            'mt-0.5 text-[15px] leading-[1.35]',
-            isOverdue(task) ? 'text-conflict' : 'text-ink-muted',
-          )}
-        >
-          {facts.join(', ')}
-        </div>
-        {maybeText(task, 'notes') ? (
-          <p className="mt-1 text-[16px] whitespace-pre-line text-ink">{text(task, 'notes')}</p>
-        ) : null}
-        {job ? (
-          <div className="mt-1 text-[17px]">
-            <Link
-              to={`/auftraege/${String(job['id'])}`}
-              className="relative font-semibold text-copper-text underline underline-offset-2 before:absolute before:inset-x-0 before:-inset-y-2.5"
-            >
-              {text(job, 'designation')}
-            </Link>
-          </div>
-        ) : null}
-        {trouble ? (
-          <p role="alert" className="mt-1 text-[16px] font-semibold text-conflict">
-            {trouble}
-          </p>
-        ) : null}
-      </div>
-      {mayWrite ? (
-        <Button height={44} onClick={toggle}>
-          {status === 'open' ? 'Erledigt' : 'Wieder öffnen'}
-        </Button>
-      ) : null}
-    </li>
-  )
-}
-
-/** Tasks in working order, or a sentence when there are none. */
 export function TaskList({
   tasks,
   me,
   people,
-  showJob,
+  showJob = false,
   empty,
 }: {
   readonly tasks: readonly RecordState[]
   readonly me: string | null
   readonly people: readonly Assignee[]
+  /** For a list that is not already on the job's own screen. */
   readonly showJob?: boolean
   readonly empty: string
 }) {
-  const entry = useEntry()
-
-  if (tasks.length === 0) {
-    return (
-      <p
-        className={
-          entry === 'office'
-            ? 'text-[13px] leading-[1.4] text-ink-muted'
-            : 'text-[16px] leading-[1.45] text-ink-muted'
-        }
-      >
-        {empty}
-      </p>
-    )
-  }
+  const mayWrite = useMay('task.write')
 
   return (
-    <ul>
-      {inWorkingOrder(tasks).map((task) => (
-        <TaskItem key={String(task['id'])} task={task} me={me} people={people} showJob={showJob} />
-      ))}
-    </ul>
+    <FoundationTaskList
+      tasks={tasks}
+      me={me}
+      people={people}
+      words={taskWords}
+      mayChange={() => mayWrite}
+      {...(showJob ? { targetOf: (task: RecordState) => <JobOfTask task={task} /> } : {})}
+      empty={empty}
+    />
   )
 }
 

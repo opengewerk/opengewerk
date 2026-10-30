@@ -1,4 +1,4 @@
-import type { IsoDate, Synced, TaskStatus } from '@opengewerk/platform-domain'
+import type { TaskBase } from '@opengewerk/platform-domain'
 import type { CustomerId, JobId, SiteId, TaskId } from './identifier.js'
 
 // Open or done: the states of a task are the foundation's since
@@ -18,27 +18,16 @@ import type { CustomerId, JobId, SiteId, TaskId } from './identifier.js'
  * job and, with it, the customer and the site, so that it also turns up where
  * somebody looks for the customer; one written at a customer carries only the
  * customer.
+ *
+ * Text, day, the person who answers for it, whether it is done and who wrote
+ * it are the foundation's (`TaskBase`, #597); the person is a user of the
+ * instance who works in this business, held there by the database. A note and
+ * the three links are this application's.
  */
-export interface Task extends Synced {
+export interface Task extends TaskBase {
   readonly id: TaskId
-  readonly title: string
   readonly notes: string | null
-  /** The day it has to be done by. */
-  readonly dueOn: IsoDate
-  /**
-   * Who answers for it: a user of the instance who works in this business. The
-   * database holds it to a membership of the same tenant, so a task cannot be
-   * handed to somebody next door.
-   */
-  readonly assigneeUserId: string
-  readonly status: TaskStatus
   readonly customerId: CustomerId | null
   readonly siteId: SiteId | null
   readonly jobId: JobId | null
-  /**
-   * Who wrote it, or null when no person did. The deadline engine of phase 2
-   * creates tasks as well, and a task without an author is its way in: it
-   * writes the same row as everybody else and needs no second path.
-   */
-  readonly createdBy: string | null
 }
