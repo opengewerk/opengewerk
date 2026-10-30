@@ -295,7 +295,7 @@ Was nicht dazugehört: die Arten der Gewerke, deren erste mit der Wiederholungsp
 
 ## Ansprechpartner
 
-Ein Kunde hat mehrere Ansprechpartner, ein Objekt eigene (Feature-Gliederung 1.1 und 3.1): bei einer Hausverwaltung etwa Bauleitung und Buchhaltung, an einem ihrer Häuser ein Mieter und der Hausmeister. Im Büro stehen sie an der Kundenakte und am Objekt, mit Rolle, Telefon und E-Mail. Auf der Baustelle zeigt der Auftrag beide Listen getrennt, Telefon und E-Mail zum Antippen.
+Ein Kunde hat mehrere Ansprechpartner, ein Objekt eigene (Feature-Gliederung 1.1 und 3.1): bei einer Hausverwaltung etwa Bauleitung und Buchhaltung, an einem ihrer Häuser ein Mieter und der Hausmeister. Im Büro stehen sie an der Kundenakte und am Objekt, mit Funktion, Telefon und E-Mail. Auf der Baustelle zeigt der Auftrag beide Listen getrennt, Telefon und E-Mail zum Antippen.
 
 **Anlegen geht überall, auch ohne Netz, korrigieren nur mit Verbindung.** Ein neuer Ansprechpartner reist durch den Postausgang wie ein neuer Kunde, denn wer im Keller steht, soll aufschreiben können, wer ihm aufgemacht hat. Ändern und Entfernen gehen im Büro über `PATCH` und `DELETE` auf `/contacts/:id`, wie bei allen Stammdaten. Die Rechte sind die des Kunden: `customer.create` zum Anlegen, das auch ein Monteur hat, `customer.write` zum Korrigieren.
 

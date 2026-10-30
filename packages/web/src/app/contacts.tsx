@@ -20,7 +20,7 @@ export type ContactParent =
  */
 export const contactWords: ContactWords = {
   role: {
-    label: 'Rolle',
+    label: 'Funktion',
     hint: 'Zum Beispiel Bauleitung, Buchhaltung, Mieter oder Hausmeister.',
   },
   add: 'Anlegen',
