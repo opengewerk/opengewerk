@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 import { mkdtempSync, rmSync } from 'node:fs'
+import { request as httpRequest, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -15,6 +17,7 @@ import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/te
 import { ArticleImports, endInterruptedImports } from '../datanorm/imports.js'
 import { cp850, header, zipOf } from '../datanorm/test-files.js'
 import { ApiModule } from './api.module.js'
+import { ArticleImportsController } from './article-imports.controller.js'
 import { as, testIdentities as identities } from './test-identity.js'
 
 /**
@@ -68,18 +71,23 @@ async function get(path: string, who = office, status = 200) {
   return answer.body as unknown
 }
 
-async function upload(bytes: Uint8Array, who = office): Promise<string> {
-  const sha256 = createHash('sha256').update(bytes).digest('hex')
-
-  await http()
-    .put(`/files/${sha256}`)
+/** Stores a file of a delivery on the route of the imports, as the office does. */
+function put(
+  bytes: Uint8Array,
+  who = office,
+  sha256 = createHash('sha256').update(bytes).digest('hex'),
+) {
+  return http()
+    .put(`/suppliers/${hansa}/imports/files/${sha256}`)
     .set('x-test-identity', who)
     .set('Content-Type', 'application/octet-stream')
-    .set('X-Media-Type', 'application/octet-stream')
     .send(Buffer.from(bytes))
-    .expect(200)
+}
 
-  return sha256
+async function upload(bytes: Uint8Array, who = office): Promise<string> {
+  const answer = await put(bytes, who).expect(200)
+
+  return (answer.body as { sha256: string }).sha256
 }
 
 /** Uploads the files, starts the import and waits for its preview. */
@@ -230,6 +238,249 @@ afterAll(async () => {
   await database.close()
   await admin.end()
   rmSync(storageRoot, { recursive: true, force: true })
+})
+
+describe('a file of a delivery', () => {
+  it('is stored above the 25 MB of every other file, by whoever may import', async () => {
+    // An assortment of a little over 26 MB: the route of every other file refuses it.
+    const large = new Uint8Array(26_000_000).fill(0x41)
+    const sha256 = createHash('sha256').update(large).digest('hex')
+
+    await http()
+      .put(`/files/${sha256}`)
+      .set('x-test-identity', office)
+      .set('Content-Type', 'application/octet-stream')
+      .send(Buffer.from(large))
+      .expect(413)
+
+    const stored = await put(large).expect(200)
+
+    expect(stored.body).toEqual({ sha256, sizeBytes: 26_000_000 })
+    expect(
+      await count('select count(*) from files where tenant_id = $1 and sha256 = $2', [
+        north.id,
+        sha256,
+      ]),
+    ).toBe(1)
+  })
+
+  it('is refused without the rights of an import, with a hash of other bytes, and empty', async () => {
+    const bytes = new TextEncoder().encode('V 011026')
+
+    await put(bytes, technician).expect(403)
+    await put(bytes, office, 'a'.repeat(64)).expect(422)
+    await put(new Uint8Array(0)).expect(400)
+  })
+
+  it('is read one at a time for each business, and a second one meanwhile is refused before its body is read', async () => {
+    const server = app.getHttpServer() as Server
+
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+    try {
+      const { port } = server.address() as AddressInfo
+      const bytes = new Uint8Array(2_000_000).fill(0x42)
+      const sha256 = createHash('sha256').update(bytes).digest('hex')
+      // The first file, its body sent only in part and held open.
+      const first = httpRequest({
+        host: '127.0.0.1',
+        port,
+        method: 'PUT',
+        path: `/suppliers/${hansa}/imports/files/${sha256}`,
+        headers: {
+          'content-type': 'application/octet-stream',
+          'content-length': String(bytes.length),
+          'x-test-identity': office,
+        },
+      })
+      const answered = new Promise<number>((resolve, reject) => {
+        first.on('response', (response) => {
+          response.resume()
+          resolve(response.statusCode ?? 0)
+        })
+        first.on('error', reject)
+      })
+
+      first.write(Buffer.from(bytes.subarray(0, 1000)))
+
+      // Until the first is being read, a second goes through; once it is, a
+      // second is refused.
+      let second = 0
+
+      for (let attempt = 0; attempt < 100 && second !== 429; attempt += 1) {
+        second = (await put(new TextEncoder().encode(`V ${String(attempt)}`))).status
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+
+      expect(second).toBe(429)
+
+      // Another business is not locked out by it; with one place on the
+      // instance only, it would be.
+      await put(new TextEncoder().encode('V eines anderen Betriebs'), elsewhere).expect(200)
+
+      const controller = app.get(ArticleImportsController)
+      const before = controller.readLimits
+
+      controller.readLimits = { ...before, atOnce: 1 }
+
+      try {
+        await put(new TextEncoder().encode('V eines anderen Betriebs, voll'), elsewhere).expect(429)
+      } finally {
+        controller.readLimits = before
+      }
+
+      first.end(Buffer.from(bytes.subarray(1000)))
+      expect(await answered).toBe(200)
+
+      // And the next one after it is read again.
+      await put(new TextEncoder().encode('V nach dem ersten')).expect(200)
+    } finally {
+      await new Promise((resolve) => server.close(resolve))
+    }
+  })
+
+  it.each([
+    ['stalls', { quietMs: 300, wholeMs: 60_000, atOnce: 2, waitAfterCutMs: 0 }, 0],
+    ['trickles in too long', { quietMs: 60_000, wholeMs: 600, atOnce: 2, waitAfterCutMs: 0 }, 100],
+  ] as const)(
+    'is cut off when it %s, and the next one is read again',
+    async (_how, limits, every) => {
+      const controller = app.get(ArticleImportsController)
+      const before = controller.readLimits
+      const server = app.getHttpServer() as Server
+
+      controller.readLimits = limits
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+      try {
+        const { port } = server.address() as AddressInfo
+        const slow = httpRequest({
+          host: '127.0.0.1',
+          port,
+          method: 'PUT',
+          path: `/suppliers/${hansa}/imports/files/${'b'.repeat(64)}`,
+          headers: {
+            'content-type': 'application/octet-stream',
+            'content-length': '1000000',
+            'x-test-identity': office,
+          },
+        })
+        const ended = new Promise<void>((resolve) => {
+          slow.on('error', () => {
+            resolve()
+          })
+          slow.on('close', () => {
+            resolve()
+          })
+        })
+        const drip =
+          every > 0
+            ? setInterval(() => {
+                slow.write(Buffer.alloc(10, 0x43))
+              }, every)
+            : undefined
+
+        slow.write(Buffer.alloc(10, 0x43))
+
+        try {
+          await ended
+        } finally {
+          clearInterval(drip)
+        }
+
+        // The place is free again.
+        await put(new TextEncoder().encode(`V nach dem langsamen, ${_how}`)).expect(200)
+      } finally {
+        controller.readLimits = before
+        await new Promise((resolve) => server.close(resolve))
+      }
+    },
+  )
+
+  it.each([
+    ['cut off for stalling', false],
+    ['broken off by its sender', true],
+  ] as const)(
+    'makes an account whose file was %s wait, and its business, and no other business',
+    async (_how, breakOff) => {
+      const controller = app.get(ArticleImportsController)
+      const before = controller.readLimits
+      const server = app.getHttpServer() as Server
+      // Another account of the same business; `as` names everybody `test`.
+      const owner = JSON.stringify({ userId: 'other', tenantId: north.id, roles: ['owner'] })
+
+      controller.readLimits = { quietMs: 300, wholeMs: 60_000, atOnce: 2, waitAfterCutMs: 60_000 }
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+
+      try {
+        const { port } = server.address() as AddressInfo
+        const slow = httpRequest({
+          host: '127.0.0.1',
+          port,
+          method: 'PUT',
+          path: `/suppliers/${hansa}/imports/files/${'c'.repeat(64)}`,
+          headers: {
+            'content-type': 'application/octet-stream',
+            'content-length': '1000000',
+            'x-test-identity': office,
+          },
+        })
+        const ended = new Promise<void>((resolve) => {
+          slow.on('error', () => {
+            resolve()
+          })
+          slow.on('close', () => {
+            resolve()
+          })
+        })
+
+        slow.write(Buffer.alloc(10, 0x43))
+
+        if (breakOff) {
+          // Before any deadline: the sender breaks off itself, and the server
+          // sees it once its socket closes.
+          await new Promise((resolve) => setTimeout(resolve, 50))
+          slow.destroy()
+        }
+
+        await ended
+
+        // Until the server has seen the end of it the place is still taken; the
+        // wait is told apart from that by its sentence.
+        const waiting =
+          'Die letzte Datei kam nicht vollständig an. Bitte in ein paar Minuten noch einmal versuchen.'
+        let said = ''
+
+        for (let attempt = 0; attempt < 50 && said !== waiting; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 20))
+          said = String(
+            (
+              (await put(new TextEncoder().encode(`V wartet noch ${String(attempt)}`), office))
+                .body as { message?: string }
+            ).message,
+          )
+        }
+
+        expect(said).toBe(waiting)
+        // Its business waits with it, another business does not.
+        expect(
+          (await put(new TextEncoder().encode('V ein anderes Konto'), owner).expect(429)).body,
+        ).toMatchObject({ message: waiting })
+        await put(
+          new TextEncoder().encode('V ein anderer Betrieb'),
+          JSON.stringify({ userId: 'south', tenantId: south.id, roles: ['owner'] }),
+        ).expect(200)
+
+        // Its wait over, both store again.
+        controller.readLimits = { ...controller.readLimits, waitAfterCutMs: 0 }
+        await put(new TextEncoder().encode('V wartet nicht mehr'), office).expect(200)
+        await put(new TextEncoder().encode('V auch nicht mehr'), owner).expect(200)
+      } finally {
+        controller.readLimits = before
+        await new Promise((resolve) => server.close(resolve))
+      }
+    },
+  )
 })
 
 describe('an import from DATANORM', () => {

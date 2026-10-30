@@ -122,6 +122,15 @@ export interface ArticleImport {
 /** How many files one import takes, and how long a name of one may be. */
 export const importFileLimits = { files: 20, name: 200 } as const
 
+/**
+ * The bytes one file of a delivery may have (#297), above the 25 MB every
+ * other file may have: the whole assortment of one wholesaler was 24.6 MB
+ * packed on 28.09.2026, a hair below that, and grows. Its long texts, which
+ * are not read, were 104 MB. What a delivery may unpack to is bounded on its
+ * own, at 400 MB together.
+ */
+export const importFileBytes = 200_000_000
+
 /** How many lines a summary names at most, of problems and of samples each. */
 export const importSummaryLimits = { problemLines: 200, samplesPerKind: 20 } as const
 

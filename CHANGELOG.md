@@ -30,6 +30,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   liest er gar nicht (#297). Warum: so hat es Moritz am 28.09.2026 nach dem Test mit einer echten Lieferung
   entschieden (Feature-Gliederung v2.37); der Verkaufspreis entsteht künftig aus Einkaufspreis und Aufschlag (#463),
   der Metallzuschlag aus dem Kupfer (#462), und die Langtexte kamen ohne Umlaute und mitten im Wort abgeschnitten.
+- Die Dateien eines Imports aus DATANORM werden über eine eigene Route gespeichert,
+  `PUT /suppliers/:supplierId/imports/files/:sha256`, mit bis zu 200 MB statt der 25 MB jeder anderen Datei, unter
+  denselben Budgets je Stunde und demselben freien Platz (#297). Warum: das ganze Sortiment eines Großhändlers hatte
+  am 28.09.2026 gepackt 24,6 MB und wächst, eine größere Lieferung hätte sich nicht mehr hochladen lassen. Gelesen
+  wird je Betrieb eine solche Datei zur Zeit und auf der Instanz höchstens zwei, eine weitere bekommt 429, bevor ihr
+  Inhalt gelesen ist, weil die Budgets erst nach dem Lesen zählen (Security-Review von #777). Wer langsam sendet,
+  hält keine Stelle: nach 30 Sekunden ohne Daten oder 10 Minuten insgesamt bricht die Route ab, und Konto und Betrieb
+  warten danach 5 Minuten, ebenso nach einer Datei, die ihr Absender selbst abbricht.
 
 ### Behoben
 

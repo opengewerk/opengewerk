@@ -1,14 +1,42 @@
+import { createHash } from 'node:crypto'
+
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
   Get,
   HttpCode,
+  HttpException,
+  HttpStatus,
+  Inject,
   Param,
   Patch,
+  PayloadTooLargeException,
   Post,
+  Put,
+  Req,
+  UnprocessableEntityException,
 } from '@nestjs/common'
-import { type ArticleImportId, isAllowed, type SupplierId } from '@opengewerk/domain'
+import {
+  type ArticleImportId,
+  fileHashProblem,
+  importFileBytes,
+  isAllowed,
+  type SupplierId,
+} from '@opengewerk/domain'
+import {
+  AcceptsBody,
+  bodyBytesOf,
+  Database,
+  FILE_STORE,
+  type FileStorage,
+  fileRowFor,
+  fileUploadType,
+  storedMediaType,
+  UploadLimits,
+} from '@opengewerk/platform-server'
+import type { Request } from 'express'
 
 import { ArticleImports, type Importer } from '../datanorm/imports.js'
 import { RequiresPermission } from './authorization.js'
@@ -23,9 +51,72 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
  * Reading and taking over run in the background; the routes answer at once
  * with the import, and the screen asks again until its state moves on.
  */
+/** A file of a delivery that did not come in whole: too slow, or broken off by its sender. */
+class FileNotReceived extends HttpException {}
+
 @Controller('suppliers/:supplierId/imports')
 export class ArticleImportsController {
-  constructor(private readonly imports: ArticleImports) {}
+  /**
+   * The tenants whose file of a delivery is being read right now. A body of
+   * up to 200 MB is held in memory while it is read and hashed, and the
+   * budgets of the hour count it only afterwards, so they bound what is
+   * stored and not what is held (security reviews of #777). So one file at a
+   * time for each tenant, and a few in all on the instance, which bounds the
+   * memory without one tenant locking out the others.
+   */
+  private readonly readingFor = new Set<string>()
+
+  /**
+   * The accounts and the tenants whose last file was cut off for coming in
+   * too slowly, and when. Both wait: a tenant with several accounts does not
+   * take the place again with the next one.
+   */
+  private readonly cutAt = new Map<string, number>()
+
+  /**
+   * How long a file may take to come in: 30 seconds without a byte, ten
+   * minutes in all, which is still 200 MB at 2.7 Mbit/s. Two files at once on
+   * the instance, and five minutes of waiting for an account whose file was
+   * cut off, so that sending slowly does not hold a place again and again.
+   * Shorter in a test.
+   */
+  readLimits = { quietMs: 30_000, wholeMs: 600_000, atOnce: 2, waitAfterCutMs: 300_000 }
+
+  /** Why a file of this person is not read now, or null when it is. */
+  private busyFor(identity: RequestIdentity): string | null {
+    const now = Date.now()
+
+    // What waited long enough goes, so that the list holds only who waits.
+    for (const [key, at] of this.cutAt) {
+      if (at + this.readLimits.waitAfterCutMs <= now) {
+        this.cutAt.delete(key)
+      }
+    }
+
+    const waiting =
+      this.cutAt.has(`account:${identity.userId}`) || this.cutAt.has(`tenant:${identity.tenantId}`)
+
+    if (waiting) {
+      return 'Die letzte Datei kam nicht vollständig an. Bitte in ein paar Minuten noch einmal versuchen.'
+    }
+
+    if (this.readingFor.has(identity.tenantId)) {
+      return 'Gerade wird schon eine Datei eines Imports dieses Betriebs gespeichert. Bitte gleich noch einmal versuchen.'
+    }
+
+    if (this.readingFor.size >= this.readLimits.atOnce) {
+      return 'Gerade werden schon Dateien von Importen gespeichert. Bitte gleich noch einmal versuchen.'
+    }
+
+    return null
+  }
+
+  constructor(
+    private readonly imports: ArticleImports,
+    private readonly database: Database,
+    @Inject(FILE_STORE) private readonly store: FileStorage,
+    private readonly limits: UploadLimits,
+  ) {}
 
   private importerOf(identity: RequestIdentity): Importer {
     if (!isAllowed(identity, 'article.write')) {
@@ -33,6 +124,138 @@ export class ArticleImportsController {
     }
 
     return { tenantId: identity.tenantId, userId: identity.userId }
+  }
+
+  /**
+   * Stores one file of a delivery, before the import names it: as the route
+   * of the foundation stores every file, the body the file itself with its
+   * hash in the address, within what the account, the tenant and the
+   * instance may store in this hour and the room the volume keeps, only up
+   * to `importFileBytes` instead of 25 MB.
+   */
+  @Put('files/:sha256')
+  @RequiresPermission('purchase.write')
+  @AcceptsBody(
+    [fileUploadType],
+    'Eine Datei eines Imports wird als application/octet-stream geschickt.',
+  )
+  async upload(
+    @CurrentIdentity() identity: RequestIdentity,
+    @Param('sha256') sha256: string,
+    @Req() request: Request,
+  ) {
+    this.importerOf(identity)
+
+    const malformed = fileHashProblem(sha256)
+
+    if (malformed) {
+      throw new BadRequestException(malformed)
+    }
+
+    // Refused before a byte of the body is read.
+    const busy = this.busyFor(identity)
+
+    if (busy) {
+      throw new HttpException(
+        { statusCode: HttpStatus.TOO_MANY_REQUESTS, message: busy },
+        HttpStatus.TOO_MANY_REQUESTS,
+      )
+    }
+
+    this.readingFor.add(identity.tenantId)
+
+    try {
+      return await this.stored(identity, sha256, request)
+    } catch (error) {
+      if (error instanceof FileNotReceived) {
+        const now = Date.now()
+
+        this.cutAt.set(`account:${identity.userId}`, now)
+        this.cutAt.set(`tenant:${identity.tenantId}`, now)
+      }
+
+      throw error
+    } finally {
+      this.readingFor.delete(identity.tenantId)
+    }
+  }
+
+  /** The body, read within `readLimits`; one that stalls or takes too long is cut off. */
+  private async bodyOf(request: Request): Promise<Buffer | null> {
+    const late = new Error('The file came in too slowly')
+    const cut = () => request.destroy(late)
+    const deadline = setTimeout(cut, this.readLimits.wholeMs)
+    // A sender that breaks off ends the request with `close` and not always
+    // with an error; the place is given back either way.
+    let closed: () => void = () => undefined
+    const brokenOff = new Promise<never>((_, reject) => {
+      closed = () => {
+        if (!request.complete) {
+          reject(new Error('The sender broke off'))
+        }
+      }
+      request.once('close', closed)
+    })
+
+    request.setTimeout(this.readLimits.quietMs, cut)
+
+    try {
+      return await Promise.race([bodyBytesOf(request, importFileBytes), brokenOff])
+    } catch (error) {
+      // Whether cut off for being slow or broken off by the sender: a file
+      // that did not come in whole counts the same, so that breaking off
+      // just before the deadline is no way around the wait.
+      const status = error === late ? HttpStatus.REQUEST_TIMEOUT : HttpStatus.BAD_REQUEST
+
+      throw new FileNotReceived(
+        {
+          statusCode: status,
+          message:
+            error === late
+              ? 'Die Datei kam zu langsam an und wurde nicht gespeichert.'
+              : 'Die Datei kam nicht vollständig an und wurde nicht gespeichert.',
+        },
+        status,
+      )
+    } finally {
+      clearTimeout(deadline)
+      request.setTimeout(0)
+      request.off('close', closed)
+      brokenOff.catch(() => undefined)
+    }
+  }
+
+  private async stored(identity: RequestIdentity, sha256: string, request: Request) {
+    const body = await this.bodyOf(request)
+
+    if (body === null) {
+      throw new PayloadTooLargeException(
+        `Eine Datei eines Imports hat höchstens ${String(importFileBytes / 1_000_000)} MB.`,
+      )
+    }
+
+    if (body.byteLength === 0) {
+      throw new BadRequestException('Die Datei ist leer.')
+    }
+
+    const bytes = new Uint8Array(body.buffer, body.byteOffset, body.byteLength)
+
+    if (createHash('sha256').update(bytes).digest('hex') !== sha256) {
+      throw new UnprocessableEntityException(
+        'Der Inhalt passt nicht zu seiner Prüfsumme. Die Datei ist unterwegs beschädigt worden.',
+      )
+    }
+
+    await this.limits.admit(identity, bytes.byteLength)
+
+    // Into the store first, then the row, as the foundation does.
+    const blob = await this.store.put(bytes)
+
+    await this.database.forTenant(identity, (tx) =>
+      fileRowFor(tx, identity.tenantId, blob, storedMediaType(bytes, '')),
+    )
+
+    return { sha256: blob.sha256, sizeBytes: bytes.byteLength }
   }
 
   @Get()
