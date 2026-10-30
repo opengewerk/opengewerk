@@ -302,7 +302,7 @@ export function StaffDialogsScreen<Value = undefined>({
         !(person.twoFactorEnabled || person.hasPasskey) ? null : (
           <Button
             size="small"
-            aria-label={`Zweiten Faktor von ${person.name} zurücksetzen`}
+            aria-label={`Faktor zurücksetzen für ${person.name}`}
             disabled={reset.isPending}
             onClick={() => {
               setTrouble(null)

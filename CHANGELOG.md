@@ -13,6 +13,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Haustechnik nutzt, mit derselben Rückfrage wie in `StaffScreen`. Warum: #762 hatte den Knopf nur in `StaffScreen`
   eingebaut; in der Haustechnik setzte den zweiten Faktor eines Zugangs dann nur `reset-second-factor` auf dem Server
   zurück, obwohl die Route der Leitung offensteht.
+- Der Knopf „Faktor zurücksetzen“ heißt für Bildschirmleser „Faktor zurücksetzen für <Name>“, in beiden Listen der
+  Zugänge. Warum: Sein Name war „Zweiten Faktor von <Name> zurücksetzen“ und enthielt den sichtbaren Text nicht; wer
+  mit Sprache steuert, sagt, was er sieht, und traf ihn so nicht. Die Prüfung der Breiten in der Haustechnik (axe,
+  `label-content-name-mismatch`) hat es gezeigt.
 
 ## [0.6.3] - 2026-10-29
 
