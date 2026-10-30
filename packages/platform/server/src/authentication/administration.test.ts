@@ -7,6 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { newId } from '../database/identifier.js'
 import { applicationRole, standingInLine } from '../database/test-database.js'
 import { appointOperator } from '../instance/operators.js'
+import { addressNeedsMail } from './address-confirmation.js'
 import { listColleagues, removeAccountData, removedAddress } from './administration.js'
 import { authenticationPath } from './authentication.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
@@ -1335,14 +1336,13 @@ describe('correcting the name and the address of somebody', () => {
   it('changes what the account is called and writes into the log what became of what', async () => {
     const cookies = await workIn(lea.email, north.id)
     const asNora = await workIn(nora.email, north.id)
-    const corrected = { name: 'Nora Neumann', email: 'nora.neumann@nord.example.de' }
+    // The name at once; a new address waits for its link, which the tests of
+    // `address-confirmation` follow with a mail server (opengewerk#754).
+    const corrected = { name: 'Nora Neumann', email: nora.email }
 
-    const answer = await correct(cookies, idOf(nora), {
-      name: '  Nora Neumann ',
-      email: ' Nora.Neumann@Nord.Example.de',
-    }).expect(200)
+    const answer = await correct(cookies, idOf(nora), { name: '  Nora Neumann ' }).expect(200)
 
-    expect(answer.body).toEqual({ userId: idOf(nora), ...corrected })
+    expect(answer.body).toEqual({ userId: idOf(nora), ...corrected, pending: null })
     expect(await accountOf(idOf(nora))).toEqual(corrected)
 
     const list = await http().get('/staff').set('cookie', cookies).expect(200)
@@ -1355,23 +1355,14 @@ describe('correcting the name and the address of somebody', () => {
     for (const [field, value] of [
       ['name_before', nora.name],
       ['name_after', corrected.name],
-      ['email_before', nora.email],
-      ['email_after', corrected.email],
     ] as const) {
       expect(await logged(north.id, 'account_corrections', field)).toEqual([
         { old_value: null, new_value: value, reason: 'membership.write' },
       ])
     }
 
-    // The session she had open goes on: she is who she was. And the new
-    // address signs in where the old one no longer does.
+    // The session she had open goes on: she is who she was.
     await http().get('/probe/members').set('cookie', asNora).expect(200)
-    await http()
-      .post(`${authenticationPath}/sign-in/email`)
-      .set('origin', origin)
-      .send({ email: nora.email, password })
-      .expect(401)
-    expect(await signIn(corrected.email)).not.toBe('')
   })
 
   it('writes down the half that changed, and nothing where nothing did', async () => {
@@ -1399,7 +1390,12 @@ describe('correcting the name and the address of somebody', () => {
       email: before.email.toUpperCase(),
     }).expect(200)
 
-    expect(again.body).toEqual({ userId: idOf(nora), name: 'Nora Nachname', email: before.email })
+    expect(again.body).toEqual({
+      userId: idOf(nora),
+      name: 'Nora Nachname',
+      email: before.email,
+      pending: null,
+    })
     expect(await correctionsOf(idOf(nora))).toHaveLength(written + 1)
   })
 
@@ -1441,12 +1437,15 @@ describe('correcting the name and the address of somebody', () => {
     const before = await accountOf(idOf(nora))
     const written = (await correctionsOf(idOf(nora))).length
 
+    // Without a mail server of the instance no address changes, and the name
+    // that came with it is not written either; an address another account
+    // has is refused with a mail server (`address-confirmation.test.ts`).
     const taken = await correct(cookies, idOf(nora), {
       name: 'Nora Doppelt',
       email: mia.email.toUpperCase(),
     }).expect(409)
 
-    expect(taken.body.message).toBe('Diese E-Mail-Adresse gehört schon zu einem anderen Konto.')
+    expect(taken.body.message).toBe(addressNeedsMail)
 
     for (const body of [
       {},
@@ -1485,7 +1484,7 @@ describe('correcting the name and the address of somebody', () => {
    * whoever reads that inbox, which is the address the correction just took
    * off the account.
    */
-  it('ends a link to a new password with the address it went to, and not with a name', async () => {
+  it('ends no link to a new password with a name', async () => {
     const cookies = await workIn(lea.email, north.id)
     const { email } = await accountOf(idOf(nora))
 
@@ -1500,9 +1499,6 @@ describe('correcting the name and the address of somebody', () => {
 
     await correct(cookies, idOf(nora), { name: 'Nora Namenswechsel' }).expect(200)
     expect(await openResetsOf(idOf(nora))).toBe(1)
-
-    await correct(cookies, idOf(nora), { email: 'nora.wechsel@nord.example.de' }).expect(200)
-    expect(await openResetsOf(idOf(nora))).toBe(0)
   })
 
   /**
@@ -1532,10 +1528,7 @@ describe('correcting the name and the address of somebody', () => {
     await admin.query(`revoke insert on account_corrections from "${applicationRole}"`)
 
     try {
-      const failed = await correct(cookies, idOf(nora), {
-        name: 'Nora Ohneprotokoll',
-        email: 'ohne.protokoll@nord.example.de',
-      })
+      const failed = await correct(cookies, idOf(nora), { name: 'Nora Ohneprotokoll' })
 
       // What the database says to a write it does not allow, as every
       // route answers it.

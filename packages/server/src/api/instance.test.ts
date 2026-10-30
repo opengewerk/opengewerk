@@ -101,7 +101,7 @@ beforeAll(async () => {
 
   for (const [userId, person] of Object.entries(people)) {
     await admin.query(
-      'insert into auth_users (id, name, email, two_factor_enabled) values ($1, $2, $3, $4)',
+      'insert into auth_users (id, name, email, two_factor_enabled, email_verified) values ($1, $2, $3, $4, true)',
       [userId, person.name, person.email, person.secondFactor],
     )
     // The second factor is the session's (opengewerk-haustechnik#360): the one

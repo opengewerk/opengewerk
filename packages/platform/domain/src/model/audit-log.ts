@@ -692,6 +692,7 @@ const foundationReasonWords: Readonly<Record<string, string>> = {
   'passkey.remove': 'Passkey gelöscht',
   'recovery-codes.renew': 'Neue Wiederherstellungscodes',
   'account.own': 'Eigene Angaben geändert',
+  'account.address': 'Adresse berichtigt und bestätigt',
   'password.reset': 'Passwort zurückgesetzt',
   'second-factor.app': 'Authenticator-App eingerichtet',
   'second-factor.reset': 'Zweiter Faktor zurückgesetzt',

@@ -12,6 +12,7 @@ import { passkeys } from '../session/passkeys.js'
 import { accountQuery, legalTextsQuery } from '../session/queries.js'
 import { unreachable } from '../session/remembered.js'
 import {
+  addressToken,
   availableTenants,
   instanceVersion,
   invitationToken,
@@ -26,6 +27,7 @@ import { SyncProvider } from '../sync/provider.js'
 import { openLocalStore } from '../sync/store.js'
 import { workIn } from '../sync/transport.js'
 import { Gate, GateText, GateWaiting, InstanceLegalTexts, InstanceVersion } from './frame.js'
+import { AddressScreen } from './address.js'
 import { InvitationScreen } from './invitation.js'
 import { LegalScreen } from './legal.js'
 import { PasswordResetScreen } from './password-reset.js'
@@ -98,6 +100,9 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
   // The link to a new password, recognised the same way and for the same
   // reason: whoever holds it cannot sign in (#126).
   const [resetToken] = useState(() => passwordResetToken(globalThis.location.pathname))
+  // The link in the mail to an address (opengewerk#754), for the same reason:
+  // it may be opened signed in as nobody, on any device.
+  const [addressLink] = useState(() => addressToken(globalThis.location.pathname))
   // The legal texts of the instance, for anybody, signed in or not
   // (opengewerk-haustechnik#129): recognised the same way, before anybody is
   // asked who they are.
@@ -260,6 +265,10 @@ function BootSteps({ entry, children }: { readonly entry: Entry; readonly childr
 
   if (resetToken) {
     return <PasswordResetScreen token={resetToken} />
+  }
+
+  if (addressLink) {
+    return <AddressScreen token={addressLink} />
   }
 
   if (legal) {

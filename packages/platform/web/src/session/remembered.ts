@@ -61,6 +61,8 @@ export function rememberedAccount(): Account | null {
       name: typeof account.name === 'string' ? account.name : '',
       tenantId: account.tenantId as TenantId,
       twoFactorEnabled: account.twoFactorEnabled === true,
+      // Kept from before opengewerk#754 without it: says nothing is unconfirmed.
+      emailVerified: account.emailVerified !== false,
       signInMethod: isSignInMethod(account.signInMethod) ? account.signInMethod : 'password',
       secondFactor: account.secondFactor === true,
     }

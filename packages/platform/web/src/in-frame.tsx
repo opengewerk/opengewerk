@@ -54,8 +54,13 @@ export function standInServer(): StandIn {
       body: typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined,
     })
 
+    // A route that returns nothing answers with no body at all, as the
+    // server does: an answer of undefined stands for one.
+    const body =
+      answer !== undefined && answer.value === undefined ? '' : JSON.stringify(answer?.value ?? {})
+
     return Promise.resolve(
-      new Response(JSON.stringify(answer?.value ?? {}), {
+      new Response(body, {
         status: answer?.status ?? 404,
         headers: { 'Content-Type': 'application/json' },
       }),

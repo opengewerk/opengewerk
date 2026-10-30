@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common'
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common'
 import {
   type InstanceTenantView,
   invitationDays,
@@ -8,6 +8,7 @@ import {
 import { and, eq, sql } from 'drizzle-orm'
 
 import type { AccessRules } from '../authentication/access.js'
+import { addressUnconfirmed } from '../authentication/address-confirmation.js'
 import { accountsOf, normalise } from '../authentication/administration.js'
 import type { Authentication } from '../authentication/authentication.js'
 import { mintToken } from '../authentication/invitation.js'
@@ -220,11 +221,18 @@ export async function createTenantWithLead(
   return database.forInstanceAndTenant('tenant.cli', async (straddling: StraddlingTransaction) => {
     const { tx } = straddling
     const tenantId = await createTenantRow(tx, name)
-    const { userId, created } = await createAccount(context, tx, {
-      email: wanted.leadEmail,
-      name: wanted.leadName,
-      password: wanted.password,
-    })
+    const { userId, created, confirmed } = await createAccount(
+      context,
+      tx,
+      { email: wanted.leadEmail, name: wanted.leadName, password: wanted.password },
+      true,
+    )
+
+    // An account that is there leads the new tenant only through an address
+    // somebody confirmed (opengewerk#754).
+    if (!confirmed) {
+      throw new ConflictException(addressUnconfirmed)
+    }
 
     await enterNew(access, straddling, tenantId, userId)
     await grantMembership(tx, { tenantId, userId, roles: [firstRoleOf(access).key] })

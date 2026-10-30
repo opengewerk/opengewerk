@@ -92,6 +92,7 @@ beforeEach(() => {
   server.answer('GET', '/auth/tenants', [])
   server.answer('GET', '/auth/devices', [])
   server.answer('GET', '/auth/passkeys', [])
+  server.answer('GET', '/auth/account/address', undefined)
   vi.spyOn(globalThis.location, 'assign').mockImplementation(() => {})
 })
 
@@ -170,7 +171,11 @@ describe('the account screen', () => {
 describe('the own details on the account screen', () => {
   it('change after confirming again, and send only what changed', async () => {
     server.answer('POST', '/api/auth/reconfirm', { reconfirmedUntil: '2026-10-14T10:10:00.000Z' })
-    server.answer('PATCH', '/auth/account', { name: 'Mia Neuname', email: 'mia@nord.example.de' })
+    server.answer('PATCH', '/auth/account', {
+      name: 'Mia Neuname',
+      email: 'mia@nord.example.de',
+      pending: null,
+    })
     await account()
 
     const details = card('Eigene Angaben')
@@ -195,6 +200,90 @@ describe('the own details on the account screen', () => {
       { password: 'ein-ordentlich-langes-passwort' },
     ])
     expect(sent('PATCH', '/auth/account')).toEqual([{ name: 'Mia Neuname' }])
+  })
+
+  /**
+   * A new address waits for the link in the mail to it (opengewerk#754): the
+   * card says so and until when, sends the link again or takes the address
+   * back, and the field keeps the address that holds.
+   */
+  it('say that a new address waits for its link, send it again or take it back', async () => {
+    const waiting = { email: 'mia.neu@nord.example.de', expiresAt: '2026-10-31T09:14:00.000Z' }
+
+    server.answer('POST', '/api/auth/reconfirm', { reconfirmedUntil: '2026-10-14T10:10:00.000Z' })
+    server.answer('PATCH', '/auth/account', {
+      name: 'Mia Mitglied',
+      email: 'mia@nord.example.de',
+      pending: waiting,
+    })
+    server.answer('POST', '/auth/account/address', waiting)
+    server.answer('DELETE', '/auth/account/address', {})
+    await account()
+
+    const details = card('Eigene Angaben')
+    const email = (await details.findByDisplayValue('mia@nord.example.de')) as HTMLInputElement
+
+    await userEvent.clear(email)
+    await userEvent.type(email, 'mia.neu@nord.example.de')
+    await userEvent.click(details.getByRole('button', { name: 'Ändern' }))
+
+    const confirming = within(screen.getByRole('region', { name: 'Eigene Angaben bestätigen' }))
+
+    server.answer('GET', '/auth/account/address', waiting)
+    await userEvent.type(confirming.getByLabelText('Passwort'), 'ein-ordentlich-langes-passwort')
+    await userEvent.click(confirming.getByRole('button', { name: 'Weiter' }))
+
+    const status = await details.findByRole('status')
+
+    expect(status.textContent).toContain(
+      'Neue Adresse mia.neu@nord.example.de wartet auf Bestätigung',
+    )
+    expect(status.textContent).toContain('Die Mail ist unterwegs.')
+    expect(details.queryByText('Gespeichert.')).toBeNull()
+    expect(sent('PATCH', '/auth/account')).toEqual([{ email: 'mia.neu@nord.example.de' }])
+    // The field shows the address that holds, not the one that waits.
+    expect((await details.findByDisplayValue('mia@nord.example.de')).tagName).toBe('INPUT')
+
+    await userEvent.click(within(status).getByRole('button', { name: 'Mail erneut senden' }))
+    await waitFor(() => {
+      expect(sent('POST', '/auth/account/address')).toHaveLength(1)
+    })
+
+    server.answer('GET', '/auth/account/address', undefined)
+    await userEvent.click(within(status).getByRole('button', { name: 'Verwerfen' }))
+    await waitFor(() => {
+      expect(sent('DELETE', '/auth/account/address')).toHaveLength(1)
+    })
+    await waitFor(() => {
+      expect(details.queryByRole('status')).toBeNull()
+    })
+  })
+
+  it('offer a link to an address that was never confirmed, and nothing for one that was', async () => {
+    server.answer('GET', '/api/auth/get-session', {
+      user: {
+        id: 'u-1',
+        email: 'mia@nord.example.de',
+        name: 'Mia Mitglied',
+        twoFactorEnabled: false,
+        emailVerified: false,
+      },
+      session: { activeTenantId: 't-1', signInMethod: 'password' },
+    })
+    server.answer('POST', '/auth/account/address', {
+      email: 'mia@nord.example.de',
+      expiresAt: '2026-10-31T09:14:00.000Z',
+    })
+    await account()
+
+    const details = card('Eigene Angaben')
+    const status = await details.findByRole('status')
+
+    expect(status.textContent).toContain('Diese Adresse ist noch nicht bestätigt.')
+    await userEvent.click(within(status).getByRole('button', { name: 'Adresse bestätigen' }))
+    await waitFor(() => {
+      expect(sent('POST', '/auth/account/address')).toHaveLength(1)
+    })
   })
 
   it('ask nothing for a name that is missing or an address without an at sign', async () => {

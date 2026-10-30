@@ -67,10 +67,12 @@ describe('every route', () => {
       .sort()
 
     expect(publicRoutes).toEqual([
+      'GET /auth/address/:token',
       'GET /health',
       'GET /invitation/:token',
       'GET /legal-texts',
       'GET /setup',
+      'POST /auth/address/:token',
       'POST /invitation/:token',
       'POST /setup',
     ])
@@ -97,7 +99,14 @@ describe('every route', () => {
    * about that request is trusted, and the business it lands in is the one the
    * token names rather than one a body could ask for.
    *
-   * A third entry here would be a public route that writes for some other
+   * The third since #754 is the link in the mail to an address: it makes no
+   * account, it sets the address of one, and it may be opened on any device,
+   * signed in as nobody. What stands in for authentication is again the
+   * token, 32 random bytes that went in a mail to that address and nowhere
+   * else, good once and for a day; that the mail arrived is the very thing it
+   * proves.
+   *
+   * A fourth entry here would be a public route that writes for some other
    * reason, and there is no other reason.
    */
   it('that answers without an identity writes only where there is nobody to ask yet', () => {
@@ -106,7 +115,11 @@ describe('every route', () => {
       .map((route) => route.name)
       .sort()
 
-    expect(writingAndPublic).toEqual(['POST /invitation/:token', 'POST /setup'])
+    expect(writingAndPublic).toEqual([
+      'POST /auth/address/:token',
+      'POST /invitation/:token',
+      'POST /setup',
+    ])
   })
 
   /**
@@ -125,6 +138,8 @@ describe('every route', () => {
       'GET /invitation/:token',
       'POST /invitation/:token',
       'GET /legal-texts',
+      'GET /auth/address/:token',
+      'POST /auth/address/:token',
     ]) {
       expect(names).not.toContain(gone)
     }
@@ -154,8 +169,10 @@ describe('every route', () => {
       .sort()
 
     expect(sessionOnly).toEqual([
+      'DELETE /auth/account/address',
       'DELETE /auth/devices/:sessionId',
       'DELETE /auth/passkeys/:passkeyId',
+      'GET /auth/account/address',
       'GET /auth/devices',
       'GET /auth/passkeys',
       'GET /auth/recovery-codes',
@@ -163,6 +180,7 @@ describe('every route', () => {
       'GET /instance/access',
       'PATCH /auth/account',
       'PATCH /auth/passkeys/:passkeyId',
+      'POST /auth/account/address',
       'POST /auth/sign-out',
       'POST /auth/tenant',
     ])

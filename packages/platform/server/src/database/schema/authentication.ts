@@ -1,7 +1,9 @@
 import { signInMethods, type TenantId } from '@opengewerk/platform-domain'
+import { sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
+  check,
   integer,
   pgEnum,
   pgTable,
@@ -182,6 +184,43 @@ export const authVerifications = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   () => [outsideAnyTenant()],
+)
+
+/**
+ * An address that waits for the link in the mail to it (N28 of the security
+ * audit, opengewerk#754): a new one, until the link is opened, or the one an
+ * account already has, until it is confirmed. One per account; asking again
+ * replaces it. Only the SHA-256 of the token is kept, as for an invitation:
+ * whoever reads the table holds no link.
+ *
+ * `requested_by` is whoever asked for it, the account itself or whoever
+ * corrected its address in a tenant; it goes into the log with the change.
+ */
+export const authAddressConfirmations = pgTable(
+  'auth_address_confirmations',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    userId: text('user_id')
+      .notNull()
+      .unique()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    requestedBy: text('requested_by').references(() => authUsers.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    outsideAnyTenant(),
+    check(
+      'auth_address_confirmations_email_shaped',
+      sql`${table.email} = lower(btrim(${table.email})) and position('@' in ${table.email}) > 1 and char_length(${table.email}) <= 320`,
+    ),
+    check('auth_address_confirmations_token_shaped', sql`${table.tokenHash} ~ '^[0-9a-f]{64}$'`),
+    check('auth_address_confirmations_expiry', sql`${table.expiresAt} > ${table.createdAt}`),
+  ],
 )
 
 /** The TOTP secret and the backup codes, both encrypted by the library. */

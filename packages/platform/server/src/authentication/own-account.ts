@@ -1,21 +1,12 @@
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common'
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { eq } from 'drizzle-orm'
 
-import { isUniqueViolation } from '../api/database-errors.js'
 import type { SignedInUser } from '../api/identity.js'
 import type { Database } from '../database/database.js'
 import { accountCorrections, authUsers } from '../schema.js'
-import {
-  type CorrectedAccount,
-  normalise,
-  oneAccountPerAddress,
-  writeAccount,
-} from './administration.js'
+import { type PendingAddress, requestAddress } from './address-confirmation.js'
+import { type CorrectedAccount, normalise, writeAccount } from './administration.js'
+import type { AddressMail } from './notices.js'
 import { tenantsOf } from './passkeys.js'
 import { claimReconfirmation } from './reconfirmation.js'
 
@@ -39,15 +30,19 @@ import { claimReconfirmation } from './reconfirmation.js'
  * works in, through `account_corrections`, written as the person: one
  * transaction per tenant, as for a passkey. A record that cannot be written
  * takes the change of the account back; one already written in another
- * tenant stays and says too much rather than too little. A link to a new
- * password that is still open ends with a new address, since it went to the
- * old one.
+ * tenant stays and says too much rather than too little.
+ *
+ * A new address does not hold yet (N28 of the security audit,
+ * opengewerk#754): it waits for the link in a mail to it, and the link sets
+ * it and writes it into the logs (`address-confirmation.ts`). Without a mail
+ * server of the instance it is refused, the name changes all the same.
  */
 export async function changeOwnAccount(
   database: Database,
   user: SignedInUser,
   wanted: { readonly name?: unknown; readonly email?: unknown },
-): Promise<CorrectedAccount> {
+  mail: AddressMail | null,
+): Promise<CorrectedAccount & { readonly pending: PendingAddress | null }> {
   if (wanted.name === undefined && wanted.email === undefined) {
     throw new BadRequestException('Weder name noch email ist angegeben.')
   }
@@ -85,13 +80,14 @@ export async function changeOwnAccount(
     throw new NotFoundException()
   }
 
-  const after = { name: name ?? before.name, email: email ?? before.email }
+  // The address stays what it is here; a new one only waits for its link.
+  const after = { name: name ?? before.name, email: before.email }
   const nameChanged = after.name !== before.name
-  const emailChanged = after.email !== before.email
+  const emailChanged = email !== undefined && email !== before.email
 
   if (!nameChanged && !emailChanged) {
     // Nothing changed is no change: no confirmation spent, no entry in a log.
-    return after
+    return { ...after, pending: null }
   }
 
   if (!(await claimReconfirmation(database, user.sessionId))) {
@@ -100,15 +96,21 @@ export async function changeOwnAccount(
     )
   }
 
-  try {
-    await writeAccount(database, user.userId, user.userId, after, emailChanged)
-  } catch (error) {
-    if (isUniqueViolation(error, oneAccountPerAddress)) {
-      throw new ConflictException('Diese E-Mail-Adresse gehört schon zu einem anderen Konto.')
-    }
+  const pending = emailChanged
+    ? await requestAddress(
+        database,
+        mail,
+        { userId: user.userId, name: after.name, email: before.email },
+        email,
+        user.userId,
+      )
+    : null
 
-    throw error
+  if (!nameChanged) {
+    return { ...after, pending }
   }
+
+  await writeAccount(database, user.userId, user.userId, after, false)
 
   try {
     for (const tenantId of await tenantsOf(database, user.userId)) {
@@ -116,10 +118,10 @@ export async function changeOwnAccount(
         tx.insert(accountCorrections).values({
           tenantId,
           userId: user.userId,
-          nameBefore: nameChanged ? before.name : null,
-          nameAfter: nameChanged ? after.name : null,
-          emailBefore: emailChanged ? before.email : null,
-          emailAfter: emailChanged ? after.email : null,
+          nameBefore: before.name,
+          nameAfter: after.name,
+          emailBefore: null,
+          emailAfter: null,
         }),
       )
     }
@@ -129,5 +131,5 @@ export async function changeOwnAccount(
     throw error
   }
 
-  return after
+  return { ...after, pending }
 }

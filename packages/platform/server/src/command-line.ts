@@ -1,3 +1,5 @@
+import { HttpException } from '@nestjs/common'
+
 import { type Environment } from './configuration.js'
 import { ConfigurationError } from './configuration.js'
 import { Database } from './database/database.js'
@@ -60,7 +62,9 @@ export async function runCommand(work: () => Promise<void>, failure: string): Pr
   try {
     await work()
   } catch (error) {
-    if (error instanceof ConfigurationError) {
+    // A refusal with a sentence, as a route would answer it, is said as such:
+    // an address nobody confirmed (opengewerk#754), a name that is no name.
+    if (error instanceof ConfigurationError || error instanceof HttpException) {
       console.error(error.message)
     } else {
       console.error(failure, error)

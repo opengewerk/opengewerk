@@ -85,6 +85,14 @@ const messages: AccountMessages = {
     subject: change === 'app' ? 'Eine App als zweiter Faktor' : 'Der zweite Faktor ist weg',
     body: `Hallo ${name}, Ihr zweiter Faktor hat sich geändert. Ihr Konto: ${link}`,
   }),
+  addressConfirmation: ({ name, address, link }) => ({
+    subject: 'Neue Adresse bestätigen',
+    body: `Hallo ${name}, ${address} gilt mit diesem Link: ${link}`,
+  }),
+  addressChanged: ({ name, address, link }) => ({
+    subject: 'Neue Adresse',
+    body: `Hallo ${name}, Ihr Konto gilt jetzt für ${address}. ${link}`,
+  }),
   operatorsChanged: ({ name, appointed, person, link }) => ({
     subject: 'Die Verwaltung der Instanz',
     body: `Hallo ${name}, ${person} ${appointed ? 'verwaltet jetzt mit' : 'verwaltet nicht mehr'}. ${link}`,

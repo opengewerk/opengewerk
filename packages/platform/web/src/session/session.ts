@@ -58,6 +58,12 @@ export interface Account {
    * pair answers "can this person work here" (ADR 0006).
    */
   readonly twoFactorEnabled: boolean
+  /**
+   * Whether the address of the account was confirmed by a link in a mail to
+   * it (opengewerk#754). Left out, as by an account kept on the device from
+   * before, it was.
+   */
+  readonly emailVerified?: boolean
   /** With what this session was signed in (#167), the password or a passkey. */
   readonly signInMethod: SignInMethod
   /**
@@ -113,6 +119,7 @@ interface SessionAnswer {
     readonly email?: unknown
     readonly name?: unknown
     readonly twoFactorEnabled?: unknown
+    readonly emailVerified?: unknown
   }
   readonly session?: {
     readonly activeTenantId?: unknown
@@ -161,6 +168,7 @@ export async function currentAccount(): Promise<Account | null> {
     name: typeof user.name === 'string' ? user.name : '',
     tenantId: typeof tenantId === 'string' ? (tenantId as TenantId) : null,
     twoFactorEnabled: user.twoFactorEnabled === true,
+    emailVerified: user.emailVerified !== false,
     signInMethod: isSignInMethod(signInMethod) ? signInMethod : 'password',
     secondFactor: answer?.session?.secondFactor === true,
     deviceId: typeof deviceId === 'string' && deviceId !== '' ? deviceId : null,
@@ -450,6 +458,9 @@ export interface StaffEntry {
   readonly hasPasskey: boolean
   /** The last day they work here, none for an access without an end (for opengewerk-haustechnik#339). */
   readonly lastDay?: string | null
+  /** A corrected address that waits for the person to open its link (opengewerk#754). */
+  readonly pendingEmail?: string | null
+  readonly pendingUntil?: string | null
 }
 
 /** Where the message with an invitation stands, for one sent by mail. */
@@ -615,11 +626,63 @@ export interface InvitationOffer {
 export async function changeOwnAccount(change: {
   readonly name?: string
   readonly email?: string
-}): Promise<{ name: string; email: string }> {
-  return request<{ name: string; email: string }>('/auth/account', {
+}): Promise<{ name: string; email: string; pending: PendingAddress | null }> {
+  return request<{ name: string; email: string; pending: PendingAddress | null }>('/auth/account', {
     method: 'PATCH',
     body: JSON.stringify(change),
   })
+}
+
+/** An address that waits for the link in the mail to it (opengewerk#754). */
+export interface PendingAddress {
+  readonly email: string
+  readonly expiresAt: string
+}
+
+/** The address of one's own account that waits for its link, or null. */
+export async function waitingAddress(): Promise<PendingAddress | null> {
+  // Nothing waiting is an answer without a body, and a query may not hold
+  // undefined: it would fail and keep showing the address that waited.
+  return (await request<PendingAddress | undefined>('/auth/account/address')) ?? null
+}
+
+/**
+ * The link once more, to the address that waits, or to the one the account
+ * has where it was never confirmed.
+ */
+export function sendAddressLink(): Promise<PendingAddress> {
+  return request<PendingAddress>('/auth/account/address', { method: 'POST' })
+}
+
+/** Takes the address that waits away; the one the account has stays. */
+export async function discardWaitingAddress(): Promise<void> {
+  await request('/auth/account/address', { method: 'DELETE' })
+}
+
+/** Takes back a corrected address of somebody that waits for its link. */
+export async function discardCorrectedAddress(userId: string): Promise<void> {
+  await request(`/staff/${encodeURIComponent(userId)}/account/address`, { method: 'DELETE' })
+}
+
+/** What the page of the link shows before anything is confirmed. */
+export interface AddressOffer {
+  readonly state: 'open' | 'gone'
+  readonly name: string
+  readonly email: string
+}
+
+export function addressOffer(token: string): Promise<AddressOffer> {
+  return request<AddressOffer>(`/auth/address/${encodeURIComponent(token)}`)
+}
+
+/** Opens the link: the address holds for the account from now on. */
+export function confirmAddressLink(token: string): Promise<{ email: string; changed: boolean }> {
+  return request<{ email: string; changed: boolean }>(
+    `/auth/address/${encodeURIComponent(token)}`,
+    {
+      method: 'POST',
+    },
+  )
 }
 
 /**
@@ -661,6 +724,20 @@ export async function resetPassword(token: string, password: string): Promise<vo
 export const passwordResetPath = '/passwort'
 
 /** The token of a link to a new password out of the address bar, or nothing. */
+/** Where the link in the mail to an address leads (opengewerk#754), as the server writes it. */
+export const addressPath = '/adresse'
+
+/** The token of the link to an address out of the address bar, or nothing. */
+export function addressToken(path: string): string | null {
+  if (!path.startsWith(`${addressPath}/`)) {
+    return null
+  }
+
+  const token = path.slice(addressPath.length + 1).split('/')[0] ?? ''
+
+  return /^[A-Za-z0-9_-]{16,64}$/.test(token) ? token : null
+}
+
 export function passwordResetToken(path: string): string | null {
   if (!path.startsWith(`${passwordResetPath}/`)) {
     return null

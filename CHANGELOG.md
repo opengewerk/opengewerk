@@ -7,6 +7,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Sicherheit
+
+- Eine neue E-Mail-Adresse gilt erst, wenn der Link in einer Mail an sie geöffnet ist (#754). Unter „Konto“ und
+  als Berichtigung unter „Zugänge“ wartet sie, an sie geht ein Link, der einen Tag und einmal gilt, und bis dahin
+  gilt die bisherige; „Mail erneut senden“ und „Verwerfen“ stehen daneben. Die Seite des Links bestätigt erst mit
+  einem Knopf. Danach steht die Änderung im Änderungsprotokoll jedes Betriebs des Kontos, ein offener Link für ein
+  neues Passwort endet, und die bisherige Adresse bekommt einen Hinweis. Ohne Mailserver der Instanz ändert sich
+  keine Adresse, der Name schon. Wer die Instanz betreibt, ein Konto über `add-staff` oder `add-tenant` an die
+  Arbeit setzt oder es per Link einlädt, findet es nur noch über eine bestätigte Adresse; eine Einladung per Mail
+  bestätigt sie beim Einlösen. Die Migration `0095_address_confirmations` bringt die Tabelle
+  `auth_address_confirmations` und setzt jede Adresse, die es schon gibt, auf bestätigt (Moritz, 30.10.2026).
+  Warum: Eine Adresse kam bisher ohne Nachweis an ein Konto, und spätere Vergaben fanden das Konto genau über
+  sie; wer eine fremde Adresse eintrug, bekam so eine Benennung oder einen Zugang, der einer anderen Person galt
+  (Befund N28 der Sicherheitsprüfung).
+
 ### Behoben
 
 - „Faktor zurücksetzen“ steht auch in der Liste der Zugänge mit Dialogen (`StaffDialogsScreen`), die OpenGewerk

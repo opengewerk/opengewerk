@@ -1,9 +1,11 @@
-import type {
-  PasskeyNotice,
+import {
+  type AddressMail,
+  addressPath,
+  type PasskeyNotice,
   PasswordResetMail,
-  RecoveryCodesNotice,
-  SecondFactorChange,
-  SecondFactorNotice,
+  type RecoveryCodesNotice,
+  type SecondFactorChange,
+  type SecondFactorNotice,
 } from '../authentication/notices.js'
 import type { Database } from '../database/database.js'
 import type { MailContext } from '../mail/context.js'
@@ -113,6 +115,28 @@ export interface AccountMessages {
     readonly changedAt: Date
     readonly link: string
   }) => AccountMessageText
+  /**
+   * To an address that waits for its link (opengewerk#754): a new one of the
+   * account (`change`), or the one it has and never confirmed. `link` opens
+   * the page that confirms it, until `expiresAt`.
+   */
+  readonly addressConfirmation: (facts: {
+    readonly name: string
+    readonly address: string
+    readonly change: boolean
+    readonly expiresAt: Date
+    readonly link: string
+  }) => AccountMessageText
+  /**
+   * To the address an account had, once its link made `address` the one that
+   * holds (opengewerk#754); `link` is "Konto".
+   */
+  readonly addressChanged: (facts: {
+    readonly name: string
+    readonly address: string
+    readonly changedAt: Date
+    readonly link: string
+  }) => AccountMessageText
 }
 
 /** Where the link to a new password leads, the address the sign in of the foundation reads the token from. */
@@ -140,6 +164,7 @@ export function accountMails(
   readonly passkeyNotice: PasskeyNotice
   readonly recoveryCodesNotice: RecoveryCodesNotice
   readonly secondFactorNotice: SecondFactorNotice
+  readonly addressMail: AddressMail
 } {
   const send = async (
     to: { readonly name: string; readonly email: string },
@@ -205,5 +230,31 @@ export function accountMails(
           link: `${mail.origin}${messages.accountPath}`,
         }),
       ),
+    // The link to an address is awaited and throws where the server refuses
+    // it: nothing waits for a link that never went out (opengewerk#754).
+    addressMail: {
+      ready: async () => (await instanceMailConnection(database, mail.key))?.state === 'ready',
+      confirmation: (to, facts) =>
+        send(
+          to,
+          messages.addressConfirmation({
+            name: to.name,
+            address: to.email,
+            change: facts.change,
+            expiresAt: facts.expiresAt,
+            link: `${mail.origin}${addressPath}/${facts.token}`,
+          }),
+        ),
+      changed: (to, address) =>
+        send(
+          to,
+          messages.addressChanged({
+            name: to.name,
+            address,
+            changedAt: new Date(),
+            link: `${mail.origin}${messages.accountPath}`,
+          }),
+        ),
+    },
   }
 }

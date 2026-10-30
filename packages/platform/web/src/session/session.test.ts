@@ -47,6 +47,7 @@ const account: Account = {
   name: 'Erika Berg',
   tenantId,
   twoFactorEnabled: false,
+  emailVerified: true,
   signInMethod: 'password',
   secondFactor: false,
 }

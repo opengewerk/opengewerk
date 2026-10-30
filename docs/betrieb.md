@@ -224,6 +224,26 @@ ohne den Link. Einen Tag lang lassen sich danach für diesen Zugang keine App un
 kein Passkey einrichten; ein zweiter Faktor, den er schon hat, gilt weiter. So
 bleibt Zeit zu bemerken, wenn jemand anderes das Passwort zurückgesetzt hat.
 
+**Eine neue E-Mail-Adresse gilt erst mit ihrem Link.** Wer unter "Konto" eine
+neue Adresse einträgt oder als Inhaber die Adresse eines Zugangs unter
+"Zugänge" berichtigt, ändert sie nicht sofort: an die neue Adresse geht über
+den Mailserver der Instanz ein Link, der einen Tag und einmal gilt, und erst er
+macht sie zur Adresse des Kontos. Bis dahin meldet sich das Konto mit der
+bisherigen an, und beide Bildschirme zeigen die wartende Adresse mit "Mail
+erneut senden" und "Verwerfen". Danach steht die Änderung im
+Änderungsprotokoll jedes Betriebs, in dem der Zugang arbeitet, als wer sie
+angefordert hat, und die bisherige Adresse bekommt einen Hinweis. Ohne
+Mailserver der Instanz ändert sich keine Adresse; der Name schon.
+
+Ein Konto, das nur über seine Adresse gefunden wird, findet die Anwendung nur
+über eine bestätigte: beim Benennen als Betreiber, bei `add-staff` und
+`add-tenant` für ein Konto, das es schon gibt, und beim Einlösen einer
+Einladung per Link. Bestätigt ist jede Adresse, die es beim Update auf diese
+Fassung schon gab, jede, die ein Link bestätigt hat, und jede aus einer
+Einladung per Mail. Eine Einladung per Link legt ein Konto mit einer
+Adresse an, die noch nicht bestätigt ist; unter "Konto" geht dafür mit
+"Adresse bestätigen" ein Link an sie.
+
 Einen zweiten Faktor kann jedes Konto auch später einrichten, auf dem Bildschirm
 "Konto" im Büro. Für `owner` ist er Pflicht und die Anwendung fragt von selbst
 danach, für alle anderen ist er eine Empfehlung.

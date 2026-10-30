@@ -106,7 +106,8 @@ export async function setUpInstance(
       }
 
       const tenantId = created as TenantId
-      const { userId } = await createAccount(context, tx, firstRun)
+      // Whoever sets the instance up types their own address at the machine.
+      const { userId } = await createAccount(context, tx, firstRun, true)
 
       // Whoever sets an instance up also runs it (#188). Still outside any
       // tenant, where that table is in reach, and before the step in, so that

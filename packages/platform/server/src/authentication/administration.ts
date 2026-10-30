@@ -8,11 +8,11 @@ import {
 } from '@opengewerk/platform-domain'
 import { and, count, eq, inArray, isNull, like, max, ne, sql } from 'drizzle-orm'
 
-import { isUniqueViolation } from '../api/database-errors.js'
 import type { Actor, Database, TenantTransaction } from '../database/database.js'
 import { newId } from '../database/identifier.js'
 import {
   accountCorrections,
+  authAddressConfirmations,
   authAccounts,
   authPasskeys,
   authSessions,
@@ -26,9 +26,11 @@ import {
   tenantSessions,
 } from '../schema.js'
 import type { AccessRules } from './access.js'
+import { discardAddress, type PendingAddress, requestAddress } from './address-confirmation.js'
 import { mintToken } from './invitation.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
 import { beforeItsEnd, hasEnded, refuseWithoutLastDay, stillWorks } from './last-day.js'
+import type { AddressMail } from './notices.js'
 import { holdRoles, leadsItsTenant, rolesOfTenant } from './roles.js'
 import { removeSecondFactor } from './second-factor.js'
 
@@ -76,6 +78,9 @@ export interface StaffEntry {
   readonly twoFactorEnabled: boolean
   /** Whether the account has a passkey, which is a second factor too (#167). */
   readonly hasPasskey: boolean
+  /** A corrected address that waits for its link, none otherwise (opengewerk#754). */
+  readonly pendingEmail: string | null
+  readonly pendingUntil: Date | null
 }
 
 /**
@@ -237,6 +242,8 @@ export async function listStaff(
         lastSignInAt: lastSeen.get(row.userId) ?? null,
         twoFactorEnabled: account?.twoFactorEnabled === true,
         hasPasskey: account?.hasPasskey === true,
+        pendingEmail: account?.pendingEmail ?? null,
+        pendingUntil: account?.pendingUntil ?? null,
       }
     })
     .sort((left, right) => left.name.localeCompare(right.name, 'de'))
@@ -529,7 +536,7 @@ export interface CorrectedAccount {
 export const oneAccountPerAddress = 'auth_users_email_unique'
 
 /** How better-auth names a link to a new password that is still open. */
-const openPasswordResets = 'reset-password:%'
+export const openPasswordResets = 'reset-password:%'
 
 /**
  * Corrects the name or the address of somebody's account: the name that was
@@ -560,7 +567,8 @@ export async function correctAccount(
   identity: TenantIdentity,
   userId: string,
   wanted: { readonly name?: string; readonly email?: string },
-): Promise<CorrectedAccount> {
+  mail: AddressMail | null,
+): Promise<CorrectedAccount & { readonly pending: PendingAddress | null }> {
   await database.forTenant(identity, (tx) => membershipOf(access, tx, identity.tenantId, userId))
 
   const name = wanted.name?.trim()
@@ -589,35 +597,44 @@ export async function correctAccount(
     throw new NotFoundException(access.sentences.notAMember)
   }
 
-  const after = { name: name ?? before.name, email: email ?? before.email }
+  // A corrected address waits for the person to open the link in the mail to
+  // it (N28 of the security audit, opengewerk#754); the link sets it and
+  // writes it into the log, as asked for by whoever corrected it here.
+  const after = { name: name ?? before.name, email: before.email }
   const nameChanged = after.name !== before.name
-  const emailChanged = after.email !== before.email
+  const emailChanged = email !== undefined && email !== before.email
 
   if (!nameChanged && !emailChanged) {
     // Nothing to correct is not a correction, and the log gets no entry
     // saying that something stayed as it was.
-    return after
+    return { ...after, pending: null }
   }
 
-  try {
-    await writeAccount(database, identity.userId, userId, after, emailChanged)
-  } catch (error) {
-    if (isUniqueViolation(error, oneAccountPerAddress)) {
-      throw new ConflictException('Diese E-Mail-Adresse gehört schon zu einem anderen Konto.')
-    }
+  const pending = emailChanged
+    ? await requestAddress(
+        database,
+        mail,
+        { userId, name: after.name, email: before.email },
+        email,
+        identity.userId,
+      )
+    : null
 
-    throw error
+  if (!nameChanged) {
+    return { ...after, pending }
   }
+
+  await writeAccount(database, identity.userId, userId, after, false)
 
   try {
     await database.forTenant(identity, (tx) =>
       tx.insert(accountCorrections).values({
         tenantId: identity.tenantId,
         userId,
-        nameBefore: nameChanged ? before.name : null,
-        nameAfter: nameChanged ? after.name : null,
-        emailBefore: emailChanged ? before.email : null,
-        emailAfter: emailChanged ? after.email : null,
+        nameBefore: before.name,
+        nameAfter: after.name,
+        emailBefore: null,
+        emailAfter: null,
       }),
     )
   } catch (error) {
@@ -632,7 +649,26 @@ export async function correctAccount(
     throw error
   }
 
-  return after
+  return { ...after, pending }
+}
+
+/**
+ * Takes back a corrected address that waits for its link (opengewerk#754),
+ * for an account this tenant corrects, as `correctAccount` asks it.
+ */
+export async function discardCorrectedAddress(
+  access: Pick<AccessRules, 'sentences'>,
+  database: Database,
+  identity: TenantIdentity,
+  userId: string,
+): Promise<void> {
+  await database.forTenant(identity, (tx) => membershipOf(access, tx, identity.tenantId, userId))
+
+  if (!(await worksOnlyHere(database, identity.tenantId, userId))) {
+    throw new ConflictException(access.sentences.accountNotOnlyHere)
+  }
+
+  await discardAddress(database, userId, identity.userId)
 }
 
 /**
@@ -976,7 +1012,14 @@ export async function accountsOf(
 ): Promise<
   Map<
     string,
-    { name: string; email: string; twoFactorEnabled: boolean | null; hasPasskey: boolean }
+    {
+      name: string
+      email: string
+      twoFactorEnabled: boolean | null
+      hasPasskey: boolean
+      pendingEmail: string | null
+      pendingUntil: Date | null
+    }
   >
 > {
   if (userIds.length === 0) {
@@ -999,8 +1042,14 @@ export async function accountsOf(
           // account until N6 of the security audit.
           hasPasskey: sql<boolean>`exists (
             select 1 from auth_passkeys where auth_passkeys.user_id = auth_users.id)`,
+          // An address that waits for its link, while the link still works.
+          pendingEmail: sql<string | null>`case when ${authAddressConfirmations.expiresAt} > now()
+            then ${authAddressConfirmations.email} end`,
+          pendingUntil: sql<Date | null>`case when ${authAddressConfirmations.expiresAt} > now()
+            then ${authAddressConfirmations.expiresAt} end`,
         })
         .from(authUsers)
+        .leftJoin(authAddressConfirmations, eq(authAddressConfirmations.userId, authUsers.id))
         .where(inArray(authUsers.id, [...userIds])),
     asUser,
   )

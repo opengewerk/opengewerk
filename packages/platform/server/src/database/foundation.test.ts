@@ -155,7 +155,7 @@ describe('the foundation, built from its building blocks alone', () => {
   it('keeps every table from the owner and opens it to the application', async () => {
     const tables = await tableProtections(admin)
 
-    expect(tables).toHaveLength(32)
+    expect(tables).toHaveLength(33)
     expect(unprotected(tables)).toEqual([])
   })
 
@@ -968,6 +968,6 @@ describe('the rollback of the foundation', () => {
     expect(rows[0]?.schema).toBeNull()
 
     await kit.applyFoundation()
-    expect(await tableNames(admin)).toHaveLength(32)
+    expect(await tableNames(admin)).toHaveLength(33)
   })
 })
