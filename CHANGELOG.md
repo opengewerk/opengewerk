@@ -7,6 +7,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-10-30
+
+Eine Korrekturfassung zu 0.6.4. Deren Migration `0095_address_confirmations` bestätigte auf einer Instanz keine
+E-Mail-Adresse, die es schon gab, anders als unter 0.6.4 beschrieben; ein solches Konto ließ sich nicht zum Betreiber
+benennen und nicht über `add-staff` oder `add-tenant` an die Arbeit setzen. Wer 0.6.3 oder älter betreibt,
+aktualisiert gleich auf 0.6.5.
+
+Aktualisiert wird wie bei jeder Fassung, vorher gesichert. Eine Migration kommt dazu,
+`0096_confirm_existing_addresses`; von 0.6.3 aus laufen 0095 und 0096 zusammen.
+
 ### Behoben
 
 - Jede E-Mail-Adresse, die es vor 0.6.4 schon gab, gilt jetzt als bestätigt, wie es unter 0.6.4 versprochen war. Die
