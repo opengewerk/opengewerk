@@ -673,6 +673,13 @@
       "when": 1793331024473,
       "tag": "0095_address_confirmations",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1793337577902,
+      "tag": "0096_confirm_existing_addresses",
+      "breakpoints": true
     }
   ]
 }

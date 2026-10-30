@@ -1335,6 +1335,40 @@ describe('the log of an instance from before 0092', () => {
   })
 })
 
+/**
+ * 0095 brings the confirmation of a new address (opengewerk#754), and every
+ * address that was there before counts as confirmed. Migrated the way an
+ * installation does it, as the owner of the tables: 0095 alone found no
+ * account under FORCE ROW LEVEL SECURITY, and 0096 does what it meant to.
+ */
+describe('the addresses of the accounts from before 0095', () => {
+  const before = () =>
+    readMigrationIndex().findIndex((entry) => entry.tag === '0095_address_confirmations')
+
+  it('are all confirmed after the update, whatever they were before', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query(
+      `insert into auth_users (id, name, email, email_verified)
+         values ('confirmed', 'Clara Confirmed', 'clara@example.de', true),
+                ('unconfirmed', 'Uwe Unconfirmed', 'uwe@example.de', false)`,
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows } = await admin.query<{ id: string; email_verified: boolean }>(
+      'select id, email_verified from auth_users order by id',
+    )
+
+    expect(rows).toEqual([
+      { id: 'confirmed', email_verified: true },
+      { id: 'unconfirmed', email_verified: true },
+    ])
+  })
+})
+
 describe('the migration run', () => {
   it('refuses a migration that was changed after it had run', async () => {
     await olderInstallation()

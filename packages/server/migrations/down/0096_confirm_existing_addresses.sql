@@ -1,0 +1,5 @@
+-- Nothing to take back.
+--
+-- 0096 only marks addresses as confirmed, and the version before it reads
+-- them the same way. Which of them had been confirmed by a link before is not
+-- kept anywhere, so there is nothing to go back to either.
