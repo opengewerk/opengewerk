@@ -142,6 +142,8 @@ describe('the selling price of an article that follows its purchase price', () =
       basisPoints: null,
       markup: null,
       source: null,
+      inherited: null,
+      business: null,
     })
 
     // The business's, set by the owner under "Einstellungen", worked out in the background.
@@ -181,6 +183,8 @@ describe('the selling price of an article that follows its purchase price', () =
       basisPoints: 3000,
       markup: 3000,
       source: 'article',
+      inherited: 2200,
+      business: 2500,
     })
     expect(own.suppliers).toEqual([expect.objectContaining({ id: link, main: true, markup: 2200 })])
   })
@@ -205,7 +209,12 @@ describe('the selling price of an article that follows its purchase price', () =
 
     const fixed = await article(cable)
 
-    expect(fixed.pricing).toEqual({ fixed: true, basisPoints: null, markup: null, source: null })
+    expect(fixed.pricing).toMatchObject({
+      fixed: true,
+      basisPoints: null,
+      markup: null,
+      source: null,
+    })
     expect(listed(fixed).map((price) => price[1])).toEqual([7280, 7020])
   })
 

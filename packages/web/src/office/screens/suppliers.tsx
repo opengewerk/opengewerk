@@ -1,4 +1,9 @@
-import { type RecordState, supplierProblems } from '@opengewerk/domain'
+import {
+  basisPointsFrom,
+  markupLabel,
+  type RecordState,
+  supplierProblems,
+} from '@opengewerk/domain'
 import {
   Button,
   Cell,
@@ -35,18 +40,25 @@ import {
   useSyncStatus,
 } from '@opengewerk/platform-web/sync'
 import type { EditResult } from '@opengewerk/platform-web/sync'
-import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  type UseQueryResult,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { Check, Pencil, Trash2, Truck } from 'lucide-react'
 import { type FormEvent, type ReactNode, useState } from 'react'
 
 import { addressLine, countryOptions } from '../../app/format.js'
-import { lineUnitShort } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import {
+  setSupplierMarkup,
   supplierArticleCounts,
   type SupplierArticlePage,
   supplierArticles,
+  supplierMarkup,
 } from '../../session/articles.js'
 import { Frequent, PageFooter, pageSize, PriceWithBase, saidWhy } from './articles.js'
 import { ContactsSection } from './contacts.js'
@@ -161,6 +173,7 @@ export function SupplierScreen() {
   const supplier = useRecord('suppliers', supplierId)
   const writes = useMay('supplier.write')
   const readsArticles = useMay('article.read')
+  const readsPurchase = useMay('purchase.read')
   const navigate = useNavigate()
   const [page, setPage] = useState(0)
   const sold = useQuery({
@@ -213,7 +226,16 @@ export function SupplierScreen() {
         }
       />
       <RecordColumns
-        main={readsArticles ? <SupplierArticles query={sold} page={page} onPage={setPage} /> : null}
+        main={
+          readsArticles || readsPurchase ? (
+            <>
+              {readsPurchase ? <SupplierMarkupPanel supplierId={supplierId} /> : null}
+              {readsArticles ? (
+                <SupplierArticles query={sold} page={page} onPage={setPage} />
+              ) : null}
+            </>
+          ) : null
+        }
         side={
           <>
             <SupplierFacts supplier={supplier} />
@@ -251,6 +273,147 @@ function SupplierFacts({ supplier }: { readonly supplier: RecordState }) {
           { label: 'Notizen', value: maybeText(supplier, 'notes') },
         ]}
       />
+    </Panel>
+  )
+}
+
+/**
+ * "Aufschlag auf Material" (#463): the supplier's own markup on what it is
+ * the main supplier of, or the business's. Changed here by whoever keeps
+ * purchase prices; the selling prices follow from today on, in the background.
+ */
+function SupplierMarkupPanel({ supplierId }: { readonly supplierId: string }) {
+  const writes = useMay('purchase.write')
+  const queries = useQueryClient()
+  const held = useQuery({
+    queryKey: ['supplier-markup', supplierId],
+    queryFn: () => supplierMarkup(supplierId),
+  })
+  const [typed, setTyped] = useState<string | null>(null)
+  const [trouble, setTrouble] = useState<string | null>(null)
+
+  const save = useMutation({
+    mutationFn: (basisPoints: number | null) => setSupplierMarkup(supplierId, basisPoints),
+    onSuccess: () => {
+      setTyped(null)
+      setTrouble(null)
+      void queries.invalidateQueries({ queryKey: ['supplier-markup', supplierId] })
+      void queries.invalidateQueries({ queryKey: ['articles'] })
+    },
+    onError: (error) => {
+      setTrouble(saidWhy(error, 'Der Aufschlag ließ sich nicht speichern.'))
+    },
+  })
+
+  if (held.isPending || held.isError) {
+    return (
+      <Panel title="Aufschlag auf Material">
+        <p className="text-[13px] leading-[1.4] text-ink-muted">
+          {held.isPending
+            ? 'Wird geladen.'
+            : saidWhy(held.error, 'Der Aufschlag kam nicht an. Er braucht eine Verbindung.')}
+        </p>
+      </Panel>
+    )
+  }
+
+  const { basisPoints, business, pending } = held.data
+  const standing =
+    basisPoints !== null
+      ? `${markupLabel(basisPoints)}, ein eigener Aufschlag.`
+      : business !== null
+        ? `Der Aufschlag des Betriebs, ${markupLabel(business)}.`
+        : 'Kein Aufschlag: weder dieser Lieferant noch der Betrieb hat einen. Aus seinen Einkaufspreisen entsteht kein Verkaufspreis.'
+
+  if (typed === null) {
+    return (
+      <Panel
+        title="Aufschlag auf Material"
+        action={
+          writes ? (
+            <Button
+              size="small"
+              icon={Pencil}
+              onClick={() => {
+                setTyped(basisPoints === null ? '' : String(basisPoints / 100).replace('.', ','))
+              }}
+            >
+              Ändern
+            </Button>
+          ) : null
+        }
+      >
+        <p className="text-body">{standing}</p>
+        {pending ? (
+          <p className="mt-1 text-[13px] leading-[1.4] text-ink-muted">
+            Die Verkaufspreise werden im Hintergrund neu gerechnet.
+          </p>
+        ) : null}
+      </Panel>
+    )
+  }
+
+  const read = typed.trim() === '' ? { basisPoints: null } : basisPointsFrom(typed)
+  const problem = 'problem' in read ? read.problem : null
+
+  return (
+    <Panel title="Aufschlag auf Material">
+      <form
+        className="flex flex-col gap-2.5"
+        onSubmit={(event) => {
+          event.preventDefault()
+
+          if ('basisPoints' in read) {
+            save.mutate(read.basisPoints)
+          }
+        }}
+      >
+        <p className="text-[13px] leading-[1.4] text-ink-muted">
+          {`Bisher ${standing.charAt(0).toLowerCase()}${standing.slice(1)}`}
+        </p>
+        <div>
+          <Field
+            label="Eigener Aufschlag"
+            className="sm:max-w-[160px]"
+            name="supplierMarkup"
+            inputMode="decimal"
+            numeric
+            unit="%"
+            value={typed}
+            onChange={(event) => {
+              setTyped(event.target.value)
+            }}
+            {...(problem === null ? {} : { problem })}
+            hint={
+              'Leer heißt: der Aufschlag des Betriebs. Gilt ab heute für jeden Artikel, dessen ' +
+              'Hauptlieferant dieser Lieferant ist und der keinen eigenen Aufschlag hat.'
+            }
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="submit"
+            tone="primary"
+            icon={Check}
+            disabled={save.isPending || problem !== null}
+          >
+            {save.isPending ? 'Einen Moment' : 'Speichern'}
+          </Button>
+          <Button
+            onClick={() => {
+              setTyped(null)
+              setTrouble(null)
+            }}
+          >
+            Abbrechen
+          </Button>
+        </div>
+        {trouble ? (
+          <p role="alert" className="text-body font-semibold text-conflict">
+            {trouble}
+          </p>
+        ) : null}
+      </form>
     </Panel>
   )
 }
@@ -338,7 +501,7 @@ function SupplierArticles({
               Einkaufspreis
             </Column>
           ) : null}
-          <Column className="w-[72px] min-w-[64px]">Einheit</Column>
+          <Column className="w-[120px] min-w-[110px]">Hauptlieferant</Column>
         </tr>
       </thead>
       <tbody>
@@ -353,7 +516,7 @@ function SupplierArticles({
             </Cell>
             <Cell>{row.supplierNumber ?? ''}</Cell>
             {readsPurchase ? <Cell numeric>{purchase(row)}</Cell> : null}
-            <Cell className="text-ink-muted">{lineUnitShort[row.unit]}</Cell>
+            <Cell className="text-ink-muted">{row.main ? 'Ja' : 'Nein'}</Cell>
           </tr>
         ))}
       </tbody>

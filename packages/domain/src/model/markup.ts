@@ -82,6 +82,33 @@ export function markupProblem(value: unknown): string | null {
   return null
 }
 
+/** A markup as the office reads it: 2250 basis points are "22,5 %". */
+export function markupLabel(basisPoints: number): string {
+  const percent = (basisPoints / 100).toLocaleString('de-DE', { maximumFractionDigits: 2 })
+
+  return `${percent} %`
+}
+
+/**
+ * What a markup field holds, in basis points, or the sentence why it is
+ * none: "22", "22,5" and "22,50" with a comma or a point, at most two places
+ * after it. Empty is a problem here; where empty means "none of its own",
+ * the form asks before it comes this far.
+ */
+export function basisPointsFrom(
+  input: string,
+): { readonly basisPoints: number } | { readonly problem: string } {
+  const typed = input.trim().replace(/\s*%$/, '')
+  const shaped = /^(\d{1,4})(?:[,.](\d{1,2}))?$/.exec(typed)
+  const basisPoints =
+    shaped === null
+      ? Number.NaN
+      : Number(shaped[1]) * 100 + Number((shaped[2] ?? '').padEnd(2, '0'))
+  const problem = markupProblem(basisPoints)
+
+  return problem === null ? { basisPoints } : { problem }
+}
+
 /**
  * The selling price from a purchase price and a markup, rounded to the cent,
  * half a cent up, and for the same price unit as the purchase price. Null

@@ -47,6 +47,13 @@ export interface ArticleQuery {
 export interface PriceView {
   readonly id: string
   readonly validFrom: IsoDate
+  /**
+   * What a selling price that follows the purchase price came from (#463),
+   * for whoever may read purchase prices; null for one entered by hand.
+   */
+  readonly origin?: { readonly purchaseCents: number; readonly basisPoints: number } | null
+  /** The import it came with, null for one entered by hand or worked out. */
+  readonly importId?: string | null
   /** The price of `priceBase` units. */
   readonly unitPriceCents: number
   /** How many units the price is for (#456). */
@@ -58,6 +65,10 @@ export interface SupplierLinkView {
   readonly supplierId: string
   readonly supplierName: string
   readonly supplierNumber: string | null
+  /** The main supplier, whose purchase price makes the selling price (#463). */
+  readonly main: boolean
+  /** The supplier's own markup, for whoever may read purchase prices. */
+  readonly markup: number | null
   /** Null for whoever may not read purchase prices, not an empty list. */
   readonly purchasePrices: readonly PriceView[] | null
 }
@@ -73,6 +84,23 @@ export interface ArticleView {
   readonly frequent: boolean
   readonly prices: readonly PriceView[]
   readonly suppliers: readonly SupplierLinkView[]
+  /** How the selling price comes about (#463), for whoever may read purchase prices. */
+  readonly pricing: ArticlePricing | null
+}
+
+/**
+ * How an article's selling price comes about (#463): fixed, or following the
+ * purchase price of its main supplier with the markup that applies, its own
+ * or the supplier's or the business's; `markup` is null where none does.
+ */
+export interface ArticlePricing {
+  readonly fixed: boolean
+  readonly basisPoints: number | null
+  readonly markup: number | null
+  readonly source: 'article' | 'supplier' | 'business' | null
+  /** What applies without a markup of its own: the main supplier's, else the business's. */
+  readonly inherited: number | null
+  readonly business: number | null
 }
 
 /** The fields of an article as the form sends them. */
@@ -101,6 +129,8 @@ export interface SupplierArticleRow {
   readonly designation: string
   readonly unit: LineUnit
   readonly frequent: boolean
+  /** Whether this supplier is the article's main one (#463). */
+  readonly main: boolean
   readonly purchase: {
     readonly unitPriceCents: number
     readonly priceBase: PriceBase
@@ -216,6 +246,45 @@ export function removePurchasePrice(id: string, linkId: string, priceId: string)
     `/articles/${encodeURIComponent(id)}/suppliers/${encodeURIComponent(linkId)}/prices/${encodeURIComponent(priceId)}`,
     { method: 'DELETE' },
   )
+}
+
+/** Fixed, or following with a markup of its own, or with null the supplier's or the business's. */
+export function setArticlePricing(
+  id: string,
+  pricing: { readonly fixed: boolean; readonly basisPoints: number | null },
+): Promise<unknown> {
+  return request(`/articles/${encodeURIComponent(id)}/pricing`, {
+    method: 'PUT',
+    body: JSON.stringify(pricing),
+  })
+}
+
+export function setMainSupplier(id: string, linkId: string): Promise<unknown> {
+  return request(
+    `/articles/${encodeURIComponent(id)}/suppliers/${encodeURIComponent(linkId)}/main`,
+    { method: 'PUT', body: '{}' },
+  )
+}
+
+/** A supplier's own markup, the business's beside it, and whether prices are still worked out. */
+export interface SupplierMarkup {
+  readonly basisPoints: number | null
+  readonly business: number | null
+  readonly pending: boolean
+}
+
+export function supplierMarkup(supplierId: string): Promise<SupplierMarkup> {
+  return request<SupplierMarkup>(`/suppliers/${encodeURIComponent(supplierId)}/markup`)
+}
+
+export function setSupplierMarkup(
+  supplierId: string,
+  basisPoints: number | null,
+): Promise<unknown> {
+  return request(`/suppliers/${encodeURIComponent(supplierId)}/markup`, {
+    method: 'PUT',
+    body: JSON.stringify({ basisPoints }),
+  })
 }
 
 export interface SupplierArticlePage {

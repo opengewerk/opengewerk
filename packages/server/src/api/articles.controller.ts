@@ -922,6 +922,10 @@ async function pricingOf(
       basisPoints: own?.basisPoints ?? null,
       markup,
       source,
+      // What applies without a markup of its own, and the business's, which
+      // a supplier without its own has.
+      inherited: supplier ?? business,
+      business,
     },
     suppliers: suppliersOwn,
     origins: new Map(

@@ -33,6 +33,7 @@ import { InstructionsScreen } from './screens/instructions.js'
 import { JobList, JobScreen } from './screens/jobs.js'
 import { LetterheadScreen } from './screens/letterhead.js'
 import { NumberRangesScreen } from './screens/number-ranges.js'
+import { MarkupSettingScreen } from './screens/markup-setting.js'
 import { PaymentTermScreen } from './screens/payment-term.js'
 import { TagsScreen } from './screens/tags.js'
 import { ProtocolScreen } from './screens/protocols.js'
@@ -217,6 +218,11 @@ const routes = [
     getParentRoute: () => office,
     path: '/einstellungen/zahlungsziel',
     component: PaymentTermScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/einstellungen/aufschlag',
+    component: MarkupSettingScreen,
   }),
   createRoute({
     getParentRoute: () => office,

@@ -654,7 +654,7 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   await plantBoards(post, cabinet, today)
   await plantPhotovoltaic(post, berg, house)
 
-  const catalogue = await plantMaterial(post, today)
+  const catalogue = await plantMaterial(post, (path, body) => send(base, 'PUT', path, body), today)
   const circuitBreaker = catalogue.get('2140')
   const cableTies = catalogue.get('5010')
 
@@ -718,6 +718,7 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
  */
 async function plantMaterial(
   post: (path: string, body: unknown) => Promise<Answer>,
+  put: (path: string, body: unknown) => Promise<Answer>,
   today: IsoDate,
 ): Promise<Map<string, string>> {
   const supplier = async (values: Record<string, unknown>) =>
@@ -934,6 +935,18 @@ async function plantMaterial(
     price: { unitPriceCents: 210, validFrom: since, priceBase: 100 },
   })
   planted.set('5010', ties)
+
+  // The markup on material (#463): the business's 25 %, the wholesaler's own
+  // 22 %, and the cable following its purchase price from today, as the
+  // board "Artikel mit Verkaufspreis aus Einkaufspreis und Aufschlag" draws
+  // it. Every other article keeps the price entered by hand, fixed.
+  await post('/settings/parameters', {
+    key: 'material.markup_basis_points',
+    from: today,
+    value: 2500,
+  })
+  await put(`/suppliers/${hansa}/markup`, { basisPoints: 2200 })
+  await put(`/articles/${planted.get('1042') ?? ''}/pricing`, { fixed: false, basisPoints: null })
 
   return planted
 }

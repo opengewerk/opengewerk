@@ -348,6 +348,7 @@ describe('what each entry hands to the foundation', () => {
       'steuern',
       'nummernkreise',
       'zahlungsziel',
+      'aufschlag',
       'tags',
       'fristen',
       'belehrungen',
