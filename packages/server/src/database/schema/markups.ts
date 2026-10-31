@@ -13,8 +13,8 @@ import {
   unique,
 } from 'drizzle-orm/pg-core'
 
-import { articlePrices, articles } from './articles.js'
-import { suppliers } from './suppliers.js'
+import { articlePrices } from './articles.js'
+import { articles, suppliers } from './stock.js'
 
 const inRange = (column: unknown) =>
   sql`${column} between 0 and ${sql.raw(String(markupLimits.basisPoints))}`

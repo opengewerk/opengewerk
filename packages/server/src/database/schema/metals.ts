@@ -5,7 +5,7 @@ import { sql } from 'drizzle-orm'
 import { check, date, foreignKey, integer, pgEnum, pgTable, unique } from 'drizzle-orm/pg-core'
 
 import { supplierArticles } from './articles.js'
-import { suppliers } from './suppliers.js'
+import { suppliers } from './stock.js'
 
 export const metal = pgEnum('metal', metals)
 

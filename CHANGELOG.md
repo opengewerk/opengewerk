@@ -18,6 +18,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   festgeschriebener oder unterschriebener Beleg wird weiter nie gelöscht. Warum: ein Entwurf ist noch kein Beleg, er
   hat keine Nummer und hat den Betrieb nie verlassen, und GoBD Rz. 59 und 110 verlangen für eine Löschung nur, dass sie
   mit Löschmerker und Protokoll nachvollziehbar bleibt; bisher blieb ein verworfener Entwurf für immer in den Listen.
+- Das Lager am Server (#298, erster Teil): Lagerorte des Betriebs, Lager und Fahrzeuge mit Kennzeichen, der Bestand je
+  Artikel und Lagerort aus Bewegungen (Zugang, Umlagerung, Zählung mit Grund), Lagerplatz und Mindestbestand, ein
+  neues Recht „Lager buchen“ für Inhaber und Büro. Ein Regiebericht nennt seinen Lagerort und bucht beim
+  Unterschreiben jede Zeile eines Artikels, den ein Lager führt, einmal als Abgang am Auftrag ab. Unter dem
+  Mindestbestand legt die Fristen-Engine eine Aufgabe „Nachbestellen“ an, ein Bestand unter null wird gezählt und
+  nicht gesperrt, und jedes Gerät hält die Lagerorte und den Bestand der Fahrzeuge. Routen und Tabellen kommen als
+  Bausteine aus dem Fundament (ADR 0011), dessen Tabellenfabrik dafür eigene Spalten an Lieferant und Lagerort und eine
+  eigene Liste der Einheiten annimmt. Warum: Abschnitt 4.5 der Feature-Gliederung (v2.39), entschieden von Moritz am
+  31.10.2026; die Bildschirme folgen.
 - Die Bildschirme des Imports aus DATANORM, Teil von #297, nach den Tafeln aus Version 79 des Canvas: am Lieferanten
   die Karte „Importe aus DATANORM“ mit den letzten Importen und „Dateien einlesen“; die Seite „Import aus DATANORM“, auf
   der die Dateien einer Lieferung nacheinander hochgehen, mit Fortschritt, und das Einlesen beginnt, sobald alle oben

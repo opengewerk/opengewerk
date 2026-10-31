@@ -54,6 +54,11 @@ const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
     { table: 'article_markups', column: 'article_id' },
     { table: 'supplier_articles', column: 'article_id' },
   ],
+  // A store with what it keeps and its bookings (#298).
+  stores: [
+    { table: 'store_articles', column: 'store_id' },
+    { table: 'stock_movements', column: 'store_id' },
+  ],
   // A selling price with what it came from (#463).
   article_prices: [{ table: 'article_price_origins', column: 'article_price_id' }],
   // What a supplier sells with its purchase prices and its metal (#462).
@@ -174,6 +179,10 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   supplier_article_metals: ['metal'],
   supplier_metal_prices: ['metal', 'valid_from'],
   article_imports: ['supplier_id'],
+  // A store by its name, what it keeps by the article, a booking by its kind (#298).
+  stores: ['name'],
+  store_articles: ['article_id'],
+  stock_movements: ['kind'],
   // Hours are told apart by when they began; whose they are the list says anyway.
   time_entries: ['started_at'],
   letterheads: ['company_name'],

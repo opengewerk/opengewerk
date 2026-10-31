@@ -22,6 +22,7 @@ import {
   integer,
   pgEnum,
   pgTable,
+  type PgTableExtraConfigValue,
   text,
   timestamp,
   unique,
@@ -34,6 +35,7 @@ import { customers } from './customers.js'
 import { installations } from './installations.js'
 import { jobs } from './jobs.js'
 import { sites } from './sites.js'
+import { stores } from './stock.js'
 
 export const documentKind = pgEnum('document_kind', documentKinds)
 export const documentStatus = pgEnum('document_status', documentStatuses)
@@ -89,6 +91,8 @@ export const documents = pgTable(
      * that the change log did not name either.
      */
     createdBy: text('created_by'),
+    /** Where the material of a report comes from (#298), booked out when it is signed. */
+    storeId: reference<'store'>('store_id'),
     subject: text('subject'),
     /** The paragraphs above and below the lines, free text as it is printed. */
     introText: text('intro_text'),
@@ -121,9 +125,20 @@ export const documents = pgTable(
     ...timestamps,
     ...syncColumns,
   },
-  (table) => [
+  // Typed, because the stock names a line of a document, and a document its store in turn.
+  (table): PgTableExtraConfigValue[] => [
     tenantIsolation(table.tenantId),
     unique('documents_tenant_id_key').on(table.tenantId, table.id),
+    foreignKey({
+      columns: [table.tenantId, table.storeId],
+      foreignColumns: [stores.tenantId, stores.id],
+      name: 'documents_store_in_tenant',
+    }),
+    // Only a report takes material out of a store (#298).
+    check(
+      'documents_store_of_a_report',
+      sql`${table.storeId} is null or ${table.kind} = 'time_and_material_report'`,
+    ),
     foreignKey({
       columns: [table.tenantId, table.customerId],
       foreignColumns: [customers.tenantId, customers.id],

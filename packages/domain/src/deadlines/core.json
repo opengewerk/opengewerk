@@ -12,6 +12,18 @@
       "responsible": "source",
       "actions": ["task"],
       "taskTitle": "Angebot {quelle} nachfassen"
+    },
+    {
+      "key": "stock.reorder",
+      "trade": null,
+      "title": "Mindestbestand unterschritten",
+      "about": "Liegt der Bestand eines Artikels in einem Lager oder Fahrzeug unter dem Mindestbestand, ist er nachzubestellen. Ist der Bestand wieder beim Mindestbestand, entfällt die Frist von selbst.",
+      "source": "store_minimum",
+      "intervalDays": null,
+      "leadDays": 0,
+      "responsible": "lead",
+      "actions": ["task"],
+      "taskTitle": "Nachbestellen: {quelle}"
     }
   ]
 }

@@ -58,8 +58,9 @@ export async function deviceScope(
 
 /**
  * The articles every device holds (#296), the office's included: the ones
- * marked as frequent, and those a line of a document or a report took in the
- * last `recentlyUsedDays`, with their selling prices. A catalogue from
+ * marked as frequent, those a line of a document or a report took in the
+ * last `recentlyUsedDays`, and those a vehicle keeps or has bookings of
+ * (#298), with their selling prices. A catalogue from
  * DATANORM has a hundred thousand, and those stay at the routes of the office.
  *
  * Used lately is counted from when the line was written, not from the date of
@@ -85,7 +86,14 @@ export async function articlesOnDevices(tx: TenantTransaction): Promise<Articles
       and (frequent or id in (
         select article_id from document_lines
         where article_id is not null and deleted_at is null
-          and created_at >= now() - make_interval(days => ${recentlyUsedDays})))
+          and created_at >= now() - make_interval(days => ${recentlyUsedDays}))
+        or id in (
+          select a.article_id from store_articles a
+            join stores s on s.id = a.store_id and s.vehicle and s.deleted_at is null
+           where a.deleted_at is null
+          union
+          select m.article_id from stock_movements m
+            join stores s on s.id = m.store_id and s.vehicle and s.deleted_at is null))
     order by id`)
   const articleIds = rows.map((row) => row.id)
 
@@ -102,6 +110,35 @@ export function articlesNarrowedTo(held: ArticlesOnDevices, entity: string): SQL
 
   if (entity === 'article_prices') {
     return sql`${sql.identifier('article_prices')}.${sql.identifier('article_id')} = any(${ids})`
+  }
+
+  return undefined
+}
+
+/**
+ * The vehicles whose stock every device holds (#298, Feature-Gliederung 4.5):
+ * what they keep and their bookings. The stores themselves travel whole, so
+ * that a report can name any of them; the stock of a store in a building
+ * stays at the routes of the office. `value` changes when a store becomes a
+ * vehicle or stops being one, and a device then fetches the stock anew.
+ */
+export interface VehiclesOnDevices {
+  readonly storeIds: readonly string[]
+  readonly value: string
+}
+
+export async function vehiclesOnDevices(tx: TenantTransaction): Promise<VehiclesOnDevices> {
+  const { rows } = await tx.execute<{ id: string }>(sql`
+    select id from stores where vehicle and deleted_at is null order by id`)
+  const storeIds = rows.map((row) => row.id)
+
+  return { storeIds, value: `vehicles:${fingerprintOf(storeIds)}` }
+}
+
+/** The condition that keeps the pull of what a store keeps, or of its bookings, to the vehicles. */
+export function stockNarrowedTo(held: VehiclesOnDevices, entity: string): SQL | undefined {
+  if (entity === 'store_articles' || entity === 'stock_movements') {
+    return sql`${sql.identifier(entity)}.${sql.identifier('store_id')} = any(${idArray(held.storeIds)})`
   }
 
   return undefined

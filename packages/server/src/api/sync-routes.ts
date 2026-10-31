@@ -21,6 +21,8 @@ import {
   accessesOfOpenJobs,
   articlesNarrowedTo,
   articlesOnDevices,
+  stockNarrowedTo,
+  vehiclesOnDevices,
   deviceScope,
   narrowedTo,
   scopedEntities,
@@ -100,6 +102,11 @@ export function permissionFor(
     // from a device, and this names the right that keeps them.
     articles: 'article.write',
     article_prices: 'article.write',
+    // Booked at the routes of the office and by the server (#298); the
+    // policy refuses every write from a device.
+    stores: 'stock.write',
+    store_articles: 'stock.write',
+    stock_movements: 'stock.write',
     sites: 'site.write',
     installations: 'installation.write',
     distribution_boards: 'installation.write',
@@ -291,6 +298,7 @@ export function syncRoutes(key: SecretKey | null): SyncRoutes<Identity, Permissi
       const withValues = query['access'] === 'values' && identity.deviceId !== undefined
       const scope = wholeBusiness ? null : await deviceScope(tx, identity.userId)
       const held = await articlesOnDevices(tx)
+      const vehicles = await vehiclesOnDevices(tx)
       // The jobs of the person are asked for this alone where they hold the
       // whole business, and only when the device wants values.
       const own = scope ?? (withValues ? await deviceScope(tx, identity.userId) : null)
@@ -312,6 +320,11 @@ export function syncRoutes(key: SecretKey | null): SyncRoutes<Identity, Permissi
           // office's too, holds the frequent articles and their prices.
           if (entity === 'articles' || entity === 'article_prices') {
             return articlesNarrowedTo(held, entity)
+          }
+
+          // The stock of the vehicles, on every device (#298).
+          if (entity === 'store_articles' || entity === 'stock_movements') {
+            return stockNarrowedTo(vehicles, entity)
           }
 
           if (entity === 'site_accesses') {
@@ -348,6 +361,8 @@ export function syncRoutes(key: SecretKey | null): SyncRoutes<Identity, Permissi
           // not with who asks (#296).
           articles: held.value,
           article_prices: held.value,
+          store_articles: vehicles.value,
+          stock_movements: vehicles.value,
         },
         answer: (changes) =>
           key

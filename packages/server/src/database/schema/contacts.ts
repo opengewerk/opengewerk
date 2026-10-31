@@ -4,7 +4,7 @@ import { check, foreignKey, index } from 'drizzle-orm/pg-core'
 
 import { customers } from './customers.js'
 import { sites } from './sites.js'
-import { suppliers } from './suppliers.js'
+import { suppliers } from './stock.js'
 
 /** What a contact of this application hangs on: a customer, a site or a supplier. */
 const contactParents = {

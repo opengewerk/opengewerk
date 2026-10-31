@@ -42,6 +42,9 @@ export const syncEntityNames: Readonly<Record<string, string>> = {
   installation_labels: 'Etikett einer Anlage',
   articles: 'Artikel',
   article_prices: 'Verkaufspreis',
+  stores: 'Lagerort',
+  store_articles: 'Artikel eines Lagerorts',
+  stock_movements: 'Buchung im Lager',
 }
 
 export const syncFieldNames: Readonly<Record<string, string>> = {
@@ -135,6 +138,18 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   sha256: 'Prüfsumme',
   previewSha256: 'Vorschau',
   createdBy: 'Angelegt von',
+  // Where the material of a report comes from (#298).
+  storeId: 'Material aus',
+  // A store, what it keeps of an article and a booking (#298).
+  vehicle: 'Fahrzeug',
+  plate: 'Kennzeichen',
+  bin: 'Lagerplatz',
+  minimumMilli: 'Mindestbestand',
+  counterpartStoreId: 'Anderer Lagerort',
+  reason: 'Grund',
+  bookedBy: 'Gebucht von',
+  bookedAt: 'Gebucht am',
+  documentLineId: 'Position',
   taxExemptionCertificateNumber: 'Freistellungsbescheinigung',
   taxExemptionValidUntil: 'Freistellung gültig bis',
   parentJobId: 'Übergeordneter Auftrag',

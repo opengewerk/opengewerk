@@ -27,7 +27,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
 
-import { suppliers } from './suppliers.js'
+import { suppliers } from './stock.js'
 
 export const articleImportStatus = pgEnum('article_import_status', articleImportStatuses)
 

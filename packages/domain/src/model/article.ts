@@ -10,6 +10,7 @@ import {
   eanProblem,
   type Id,
   type IsoDate,
+  stockLimits,
   type Synced,
   type TenantOwned,
 } from '@opengewerk/platform-domain'
@@ -218,6 +219,13 @@ export function articleProblems(
 
   if ('frequent' in article && typeof article['frequent'] !== 'boolean') {
     problems['frequent'] = 'Häufig ist ja oder nein.'
+  }
+
+  // The bound of the stock of the foundation (#298), which holds it in the database too.
+  const description = article['description']
+
+  if (typeof description === 'string' && description.trim().length > stockLimits.description) {
+    problems['description'] = `Höchstens ${String(stockLimits.description)} Zeichen.`
   }
 
   return problems
