@@ -22,86 +22,12 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { articleImports } from './article-imports.js'
-import { lineUnit } from './line-enums.js'
-import { suppliers } from './suppliers.js'
-
-const fits = (column: unknown, limit: number) =>
-  sql`char_length(${column}) between 1 and ${sql.raw(String(limit))}`
+import { articles, suppliers } from './stock.js'
 
 const prices = (column: unknown) => sql`${column} between 0 and ${sql.raw(String(priceCentsMax))}`
 
 /** The four steps of `priceBases` (#456), which the forms and the routes ask first. */
 const knownBase = (column: unknown) => sql`${column} in (${sql.raw(priceBases.join(', '))})`
-
-/**
- * An article of the business (#296): the own number, what it is called and
- * counted in, and whether every device holds it. The prices are rows of their
- * own, each from a day on, so that a document of last year still finds the
- * price it was written with.
- *
- * The office reads the catalogue at its routes. A device holds the frequent
- * articles with their prices, whatever its role, and later those used lately
- * as well (decided on 27.09.2026): `articlesOnDevices` narrows the pull for
- * every device, the office's included, because a catalogue from DATANORM
- * does not fit on one.
- */
-export const articles = pgTable(
-  'articles',
-  {
-    id: primaryId<'article'>(),
-    ...tenantColumn,
-    number: text('number').notNull(),
-    designation: text('designation').notNull(),
-    description: text('description'),
-    ean: text('ean'),
-    unit: lineUnit('unit').notNull(),
-    groupOfGoods: text('group_of_goods'),
-    frequent: boolean('frequent').notNull().default(false),
-    importId: reference<'article-import'>('import_id'),
-    ...timestamps,
-    ...syncColumns,
-  },
-  (table) => [
-    tenantIsolation(table.tenantId),
-    unique('articles_tenant_id_key').on(table.tenantId, table.id),
-    foreignKey({
-      columns: [table.tenantId, table.importId],
-      foreignColumns: [articleImports.tenantId, articleImports.id],
-      name: 'articles_import_in_tenant',
-    }),
-    // An import finds an article of the business by its EAN (#297), and a
-    // scanner will as well.
-    index('articles_ean_idx')
-      .on(table.tenantId, table.ean)
-      .where(sql`${table.ean} is not null and ${table.deletedAt} is null`),
-    // A number once per business, however it is written: "a-1042" and
-    // "A-1042" are the same article to a person at the counter.
-    uniqueIndex('articles_number_once')
-      .on(table.tenantId, sql`lower(${table.number})`)
-      .where(sql`${table.deletedAt} is null`),
-    index('articles_group_idx').on(table.tenantId, table.groupOfGoods),
-    // The list in its two orders (#461), page by page from the index alone:
-    // the column itself at the end, so that PostgreSQL need not visit the
-    // table for each row the offset passes over. The last page of 700,000
-    // articles took 1.6 s by name and 0.3 s by number, and takes 0.08 s.
-    index('articles_number_order')
-      .on(table.tenantId, sql`lower(${table.number})`, table.id, table.number)
-      .where(sql`${table.deletedAt} is null`),
-    index('articles_designation_order')
-      .on(table.tenantId, sql`lower(${table.designation})`, table.id, table.designation)
-      .where(sql`${table.deletedAt} is null`),
-    // The limits of `articleProblems`, which the forms and the routes ask
-    // first, held here for every other way in. The check digit of an EAN is
-    // the routes' to judge; here only its shape.
-    check('articles_number_fits', fits(table.number, articleLimits.number)),
-    check('articles_designation_fits', fits(table.designation, articleLimits.designation)),
-    check(
-      'articles_group_fits',
-      sql`char_length(${table.groupOfGoods}) <= ${sql.raw(String(articleLimits.groupOfGoods))}`,
-    ),
-    check('articles_ean_shaped', sql`${table.ean} ~ '^([0-9]{8}|[0-9]{13})$'`),
-  ],
-)
 
 /**
  * A selling price from a day on. Never changed: a new price is a new row, and

@@ -246,6 +246,16 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
   articles: { create: false, change: 'never', reserved: ['importId'] },
   article_prices: { create: false, change: 'never', reserved: ['importId'] },
   /**
+   * The stores of the business, what they keep and their bookings (#298).
+   * Every device holds the stores, so that a report names where its material
+   * comes from, and the stock of the vehicles. Booked at the routes of the
+   * office and, for a report, by the server when the customer signs it; a
+   * device writes none.
+   */
+  stores: { create: false, change: 'never' },
+  store_articles: { create: false, change: 'never' },
+  stock_movements: { create: false, change: 'never' },
+  /**
    * That somebody saw the value of an access: written by the device that
    * showed it, also without a network, and never changed. Whose it is the
    * database writes from the request, and the server refuses one for an

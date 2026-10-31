@@ -923,6 +923,68 @@ const crossings: readonly {
       sql`insert into supplier_article_metals (tenant_id, supplier_article_id, metal, base_euros, grams_per_thousand)
             values (${own.tenant}, ${other.supplierArticle}, 'copper', 150, 43200)`,
   },
+  // A report names the store its material comes from (#298). A new one, since
+  // only a report may name a store and the document planted here is none.
+  {
+    key: 'documents_store_in_tenant',
+    write: (own, other) =>
+      sql`insert into documents (tenant_id, customer_id, kind, document_date, store_id)
+            values (${own.tenant}, ${own.customer}, 'time_and_material_report', '2026-10-01', ${other.store})`,
+  },
+  // The stock (#298): what a store keeps, and a booking with everything it
+  // may name. Each written fresh, with one reference into the other business.
+  {
+    key: 'store_articles_in_a_store_here',
+    write: (own, other) =>
+      sql`insert into store_articles (tenant_id, store_id, article_id) values (${own.tenant}, ${other.store}, ${own.article})`,
+  },
+  {
+    key: 'store_articles_of_an_article_here',
+    write: (own, other) =>
+      sql`insert into store_articles (tenant_id, store_id, article_id) values (${own.tenant}, ${own.store}, ${other.article})`,
+  },
+  {
+    key: 'stock_movements_in_a_store_here',
+    write: (own, other) =>
+      sql`insert into stock_movements (tenant_id, store_id, article_id, kind, quantity_milli)
+            values (${own.tenant}, ${other.store}, ${own.article}, 'receipt', 1000)`,
+  },
+  {
+    key: 'stock_movements_of_an_article_here',
+    write: (own, other) =>
+      sql`insert into stock_movements (tenant_id, store_id, article_id, kind, quantity_milli)
+            values (${own.tenant}, ${own.store}, ${other.article}, 'receipt', 1000)`,
+  },
+  {
+    key: 'stock_movements_from_a_supplier_here',
+    write: (own, other) =>
+      sql`insert into stock_movements (tenant_id, store_id, article_id, kind, quantity_milli, supplier_id)
+            values (${own.tenant}, ${own.store}, ${own.article}, 'receipt', 1000, ${other.supplier})`,
+  },
+  {
+    key: 'stock_movements_transfer_with_a_store_here',
+    write: (own, other) =>
+      sql`insert into stock_movements (tenant_id, store_id, article_id, kind, quantity_milli, counterpart_store_id)
+            values (${own.tenant}, ${own.store}, ${own.article}, 'transfer_out', 1000, ${other.store})`,
+  },
+  {
+    key: 'stock_movements_by_somebody_here',
+    write: (own, other) =>
+      sql`insert into stock_movements (tenant_id, store_id, article_id, kind, quantity_milli, booked_by)
+            values (${own.tenant}, ${own.store}, ${own.article}, 'receipt', 1000, ${other.user})`,
+  },
+  {
+    key: 'stock_movements_at_a_job_here',
+    write: (own, other) =>
+      sql`insert into stock_movements (tenant_id, store_id, article_id, kind, quantity_milli, job_id)
+            values (${own.tenant}, ${own.store}, ${own.article}, 'withdrawal', 1000, ${other.job})`,
+  },
+  {
+    key: 'stock_movements_of_a_line_here',
+    write: (own, other) =>
+      sql`insert into stock_movements (tenant_id, store_id, article_id, kind, quantity_milli, job_id, document_line_id)
+            values (${own.tenant}, ${own.store}, ${own.article}, 'withdrawal', 1000, ${own.job}, ${other.line})`,
+  },
   {
     key: 'supplier_metal_prices_supplier_in_tenant',
     write: (own, other) =>
@@ -1219,6 +1281,8 @@ interface Planted {
   readonly articleImport: string
   /** A selling price of the article above (#463). */
   readonly articlePrice: string
+  /** A store of the business (#298). */
+  readonly store: string
 }
 
 /**
@@ -1426,6 +1490,7 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
       "insert into article_prices (tenant_id, article_id, valid_from, unit_price_cents) values ($1, $2, '2026-03-01', 92)",
       [tenant, article],
     ),
+    store: await one("insert into stores (tenant_id, name) values ($1, 'Lager')", [tenant]),
   }
 }
 

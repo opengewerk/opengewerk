@@ -729,6 +729,13 @@
       "when": 1793390391271,
       "tag": "0103_article_search",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1793453880482,
+      "tag": "0104_stock",
+      "breakpoints": true
     }
   ]
 }

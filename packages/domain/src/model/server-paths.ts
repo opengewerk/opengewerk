@@ -21,6 +21,8 @@ export const serverPaths = [
   'customers',
   'suppliers',
   'articles',
+  // The stores of the business, on the routes of the foundation (#298).
+  'stores',
   'sites',
   'installations',
   'jobs',

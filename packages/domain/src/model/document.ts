@@ -1,4 +1,4 @@
-import type { IsoDate, Synced } from '@opengewerk/platform-domain'
+import type { IsoDate, StoreId, Synced } from '@opengewerk/platform-domain'
 import type { CustomerId, DocumentId, InstallationId, JobId, SiteId } from './identifier.js'
 
 /**
@@ -408,6 +408,13 @@ export interface Document extends Synced {
    * change log either.
    */
   readonly createdBy: string | null
+  /**
+   * Where the material of a report comes from (#298): a store or a vehicle,
+   * chosen for each report. When the customer signs, every line of an article
+   * the store can keep is booked out of it, once. Null on any other document
+   * and on a report that takes nothing out of a store.
+   */
+  readonly storeId: StoreId | null
   readonly subject: string | null
   /**
    * The paragraph above the lines and the one below them. Free text, usually

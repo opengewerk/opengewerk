@@ -51,6 +51,14 @@ export const permissions = [
   'supplier.read',
   'supplier.write',
   /**
+   * Booking the stores of the business (#298): a store and what it keeps,
+   * a receipt, a transfer and a count. The owner and the office, decided on
+   * 31.10.2026; a technician takes material out with a report, and that is
+   * booked when the customer signs it. Reading the stock goes with
+   * `article.read`, as a device holds the stock of the vehicles anyway.
+   */
+  'stock.write',
+  /**
    * What the business pays a supplier (#296), apart from the articles: only
    * the owner and the office see a purchase price, decided on 27.09.2026. A
    * technician works with what the business sells, and the difference is the
@@ -239,6 +247,7 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'article.write': 'Artikel pflegen',
   'supplier.read': 'Lieferanten ansehen',
   'supplier.write': 'Lieferanten pflegen',
+  'stock.write': 'Lager buchen',
   'purchase.read': 'Einkaufspreise ansehen',
   'purchase.write': 'Einkaufspreise pflegen',
   'job.read': 'Aufträge ansehen',
@@ -332,6 +341,7 @@ const officePermissions: readonly Permission[] = [
   'article.write',
   'supplier.read',
   'supplier.write',
+  'stock.write',
   'purchase.read',
   'purchase.write',
   'job.read',

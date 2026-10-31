@@ -8,9 +8,18 @@ import {
 } from '@opengewerk/platform-server'
 import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
-import { check, foreignKey, index, integer, pgTable, text } from 'drizzle-orm/pg-core'
+import {
+  check,
+  foreignKey,
+  index,
+  integer,
+  pgTable,
+  type PgTableExtraConfigValue,
+  text,
+  unique,
+} from 'drizzle-orm/pg-core'
 
-import { articles } from './articles.js'
+import { articles } from './stock.js'
 import { documents } from './documents.js'
 import { lineKind, lineUnit, vatRate } from './line-enums.js'
 
@@ -77,8 +86,11 @@ export const documentLines = pgTable(
     ...timestamps,
     ...syncColumns,
   },
-  (table) => [
+  // Typed, because a booking of the stock names a line, and the stock its articles in turn.
+  (table): PgTableExtraConfigValue[] => [
     tenantIsolation(table.tenantId),
+    // A booking of the stock names the line it books (#298), over the tenant as every key here.
+    unique('document_lines_tenant_id_key').on(table.tenantId, table.id),
     foreignKey({
       columns: [table.tenantId, table.documentId],
       foreignColumns: [documents.tenantId, documents.id],

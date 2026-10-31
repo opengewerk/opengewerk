@@ -40,7 +40,7 @@ const fitsIfThere = (column: unknown, most: number) =>
 const oneOf = (column: unknown, words: readonly string[]) =>
   sql`${column} in (${sql.raw(words.map((word) => `'${word}'`).join(', '))})`
 
-function articleParts() {
+function articleParts<Unit extends string = string>() {
   return {
     id: primaryId<'article'>(),
     ...tenantColumn,
@@ -48,7 +48,7 @@ function articleParts() {
     designation: text('designation').notNull(),
     description: text('description'),
     ean: text('ean'),
-    unit: text('unit').notNull(),
+    unit: text('unit').$type<Unit>().notNull(),
     ...timestamps,
     ...syncColumns,
   }
@@ -117,18 +117,42 @@ function movementParts() {
   }
 }
 
-export type StockArticleColumns = ReturnType<typeof articleParts>
+export type StockArticleColumns<Unit extends string = string> = ReturnType<
+  typeof articleParts<Unit>
+>
+export type StockSupplierColumns = ReturnType<typeof supplierParts>
+export type StockStoreColumns = ReturnType<typeof storeParts>
 export type StockMovementColumns = ReturnType<typeof movementParts>
 
 /** Columns an application adds to a table of the stock; none may take a name the table has. */
 export type OwnStockColumns = Record<string, PgColumnBuilderBase>
 
-/** The articles of an application with these columns of its own. */
-export type StockArticlesTable<Own extends OwnStockColumns = Record<never, never>> =
+/** The articles of an application with these columns of its own, counted in its units. */
+export type StockArticlesTable<
+  Own extends OwnStockColumns = Record<never, never>,
+  Unit extends string = string,
+> = PgTableWithColumns<{
+  name: 'articles'
+  schema: undefined
+  columns: BuildColumns<'articles', StockArticleColumns<Unit> & Own, 'pg'>
+  dialect: 'pg'
+}>
+
+/** The suppliers of an application with these columns of its own. */
+export type StockSuppliersTable<Own extends OwnStockColumns = Record<never, never>> =
   PgTableWithColumns<{
-    name: 'articles'
+    name: 'suppliers'
     schema: undefined
-    columns: BuildColumns<'articles', StockArticleColumns & Own, 'pg'>
+    columns: BuildColumns<'suppliers', StockSupplierColumns & Own, 'pg'>
+    dialect: 'pg'
+  }>
+
+/** The stores of an application with these columns of its own. */
+export type StockStoresTable<Own extends OwnStockColumns = Record<never, never>> =
+  PgTableWithColumns<{
+    name: 'stores'
+    schema: undefined
+    columns: BuildColumns<'stores', StockStoreColumns & Own, 'pg'>
     dialect: 'pg'
   }>
 
@@ -156,10 +180,13 @@ type PlainTable<
 export interface StockTables<
   OwnArticle extends OwnStockColumns = Record<never, never>,
   OwnMovement extends OwnStockColumns = Record<never, never>,
+  OwnSupplier extends OwnStockColumns = Record<never, never>,
+  OwnStore extends OwnStockColumns = Record<never, never>,
+  Unit extends string = string,
 > {
-  readonly articles: StockArticlesTable<OwnArticle>
-  readonly suppliers: PlainTable<'suppliers', ReturnType<typeof supplierParts>>
-  readonly stores: PlainTable<'stores', ReturnType<typeof storeParts>>
+  readonly articles: StockArticlesTable<OwnArticle, Unit>
+  readonly suppliers: StockSuppliersTable<OwnSupplier>
+  readonly stores: StockStoresTable<OwnStore>
   readonly storeArticles: PlainTable<'store_articles', ReturnType<typeof storeArticleParts>>
   readonly stockMovements: StockMovementsTable<OwnMovement>
 }
@@ -176,11 +203,24 @@ export interface OwnStockTable<Name extends string, Columns, Own extends OwnStoc
 export interface StockOptions<
   OwnArticle extends OwnStockColumns,
   OwnMovement extends OwnStockColumns,
+  OwnSupplier extends OwnStockColumns = Record<never, never>,
+  OwnStore extends OwnStockColumns = Record<never, never>,
+  Unit extends string = string,
 > {
   /** Columns of the application at an article, such as a price. */
-  readonly articles?: OwnStockTable<'articles', StockArticleColumns, OwnArticle>
+  readonly articles?: OwnStockTable<'articles', StockArticleColumns<Unit>, OwnArticle>
+  /** Columns of the application at a supplier, such as the short code of a catalogue. */
+  readonly suppliers?: OwnStockTable<'suppliers', StockSupplierColumns, OwnSupplier>
+  /** Columns of the application at a store, such as the number plate of a vehicle. */
+  readonly stores?: OwnStockTable<'stores', StockStoreColumns, OwnStore>
   /** Columns of the application at a booking, such as what a withdrawal hangs on. */
   readonly movements?: OwnStockTable<'stock_movements', StockMovementColumns, OwnMovement>
+  /**
+   * The units an article may be counted in, `stockUnits` unless the
+   * application counts in more: one whose articles are also sold by the hour
+   * or as a lump sum names those as well, and keeps them out of a store itself.
+   */
+  readonly units?: readonly Unit[]
 }
 
 /** The columns of the application, refused where one takes the name of a column the table has. */
@@ -212,12 +252,18 @@ function ownColumns<Own extends OwnStockColumns>(
 export function stockSchema<
   OwnArticle extends OwnStockColumns = Record<never, never>,
   OwnMovement extends OwnStockColumns = Record<never, never>,
->(options: StockOptions<OwnArticle, OwnMovement> = {}): StockTables<OwnArticle, OwnMovement> {
-  const articleBase = articleParts()
+  OwnSupplier extends OwnStockColumns = Record<never, never>,
+  OwnStore extends OwnStockColumns = Record<never, never>,
+  Unit extends string = string,
+>(
+  options: StockOptions<OwnArticle, OwnMovement, OwnSupplier, OwnStore, Unit> = {},
+): StockTables<OwnArticle, OwnMovement, OwnSupplier, OwnStore, Unit> {
+  const units: readonly string[] = options.units ?? stockUnits
+  const articleBase = articleParts<Unit>()
   const ownArticle = ownColumns('articles', articleBase, options.articles?.columns)
   const articles = pgTable(
     'articles',
-    { ...articleBase, ...ownArticle } as StockArticleColumns & OwnArticle,
+    { ...articleBase, ...ownArticle } as StockArticleColumns<Unit> & OwnArticle,
     (table) => [
       tenantIsolation(table.tenantId),
       unique('articles_tenant_id_key').on(table.tenantId, table.id),
@@ -234,28 +280,42 @@ export function stockSchema<
       check('articles_designation_fits', fits(table.designation, stockLimits.designation)),
       check('articles_description_fits', fitsIfThere(table.description, stockLimits.description)),
       check('articles_ean_shaped', sql`${table.ean} ~ '^([0-9]{8}|[0-9]{13})$'`),
-      check('articles_unit_known', oneOf(table.unit, stockUnits)),
+      check('articles_unit_known', oneOf(table.unit, units)),
       ...(options.articles?.constraints?.(table) ?? []),
     ],
   )
 
-  const suppliers = pgTable('suppliers', supplierParts(), (table) => [
-    tenantIsolation(table.tenantId),
-    unique('suppliers_tenant_id_key').on(table.tenantId, table.id),
-    check('suppliers_name_fits', fits(table.name, stockLimits.supplierName)),
-    check(
-      'suppliers_customer_number_fits',
-      fitsIfThere(table.customerNumber, stockLimits.customerNumber),
-    ),
-    check('suppliers_country_code', sql`${table.country} ~ '^[A-Z]{2}$'`),
-  ])
+  const supplierBase = supplierParts()
+  const ownSupplier = ownColumns('suppliers', supplierBase, options.suppliers?.columns)
+  const suppliers = pgTable(
+    'suppliers',
+    { ...supplierBase, ...ownSupplier } as StockSupplierColumns & OwnSupplier,
+    (table) => [
+      tenantIsolation(table.tenantId),
+      unique('suppliers_tenant_id_key').on(table.tenantId, table.id),
+      check('suppliers_name_fits', fits(table.name, stockLimits.supplierName)),
+      check(
+        'suppliers_customer_number_fits',
+        fitsIfThere(table.customerNumber, stockLimits.customerNumber),
+      ),
+      check('suppliers_country_code', sql`${table.country} ~ '^[A-Z]{2}$'`),
+      ...(options.suppliers?.constraints?.(table) ?? []),
+    ],
+  )
 
-  const stores = pgTable('stores', storeParts(), (table) => [
-    tenantIsolation(table.tenantId),
-    unique('stores_tenant_id_key').on(table.tenantId, table.id),
-    check('stores_name_fits', fits(table.name, stockLimits.storeName)),
-    check('stores_location_fits', fitsIfThere(table.location, stockLimits.location)),
-  ])
+  const storeBase = storeParts()
+  const ownStore = ownColumns('stores', storeBase, options.stores?.columns)
+  const stores = pgTable(
+    'stores',
+    { ...storeBase, ...ownStore } as StockStoreColumns & OwnStore,
+    (table) => [
+      tenantIsolation(table.tenantId),
+      unique('stores_tenant_id_key').on(table.tenantId, table.id),
+      check('stores_name_fits', fits(table.name, stockLimits.storeName)),
+      check('stores_location_fits', fitsIfThere(table.location, stockLimits.location)),
+      ...(options.stores?.constraints?.(table) ?? []),
+    ],
+  )
 
   const storeArticles = pgTable('store_articles', storeArticleParts(), (table) => [
     tenantIsolation(table.tenantId),

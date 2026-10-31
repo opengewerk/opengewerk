@@ -435,6 +435,14 @@ describe('the settings of each kind', () => {
           reminder: null,
         },
       }),
+      // An article below the minimum of its store (#298), for the lead of the business.
+      expect.objectContaining({
+        key: 'stock.reorder',
+        title: 'Mindestbestand unterschritten',
+        intervalDays: null,
+        responsible: 'lead',
+        actions: ['task'],
+      }),
     ])
   })
 

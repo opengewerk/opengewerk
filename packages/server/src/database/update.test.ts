@@ -1794,6 +1794,60 @@ describe('the articles before 0103', () => {
   })
 })
 
+describe('the articles and roles before 0104', () => {
+  const before = () => readMigrationIndex().findIndex((entry) => entry.tag === '0104_stock')
+
+  it('give the owner and the office the right to book the stores, cut a description to the bound of the stock and keep the unit', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+         values ($1, 'owner', 'Inhaber', '{article.write}', true, true),
+                ($1, 'office', 'Büro', '{article.write}', false, false),
+                ($1, 'technician', 'Monteur', '{article.read}', false, false)`,
+      [tenant.id],
+    )
+
+    const [long, short] = [newId<'article'>(), newId<'article'>()]
+
+    await admin.query(
+      `insert into articles (id, tenant_id, number, designation, unit, description)
+         values ($1, $3, 'A-1', 'Mantelleitung', 'metre', repeat('x', 2500)),
+                ($2, $3, 'A-2', 'Arbeitsstunde', 'hour', 'kurz')`,
+      [long, short, tenant.id],
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows: roles } = await admin.query<{ key: string; books: boolean }>(
+      `select key, 'stock.write' = any(rights) as books from tenant_roles order by key`,
+    )
+    expect(roles).toEqual([
+      { key: 'office', books: true },
+      { key: 'owner', books: true },
+      { key: 'technician', books: false },
+    ])
+
+    const { rows: kept } = await admin.query<{ id: string; unit: string; length: number }>(
+      'select id, unit, char_length(description) as length from articles order by number',
+    )
+    expect(kept).toEqual([
+      { id: long, unit: 'metre', length: 2000 },
+      { id: short, unit: 'hour', length: 4 },
+    ])
+
+    const { rows: forced } = await admin.query<{ forced: boolean }>(
+      `select relforcerowsecurity as forced from pg_class
+        where oid in ('articles'::regclass, 'tenant_roles'::regclass)`,
+    )
+    expect(forced).toEqual([{ forced: true }, { forced: true }])
+    expect(await chainProblem()).toBeNull()
+  })
+})
+
 describe('the migration run', () => {
   it('refuses a migration that was changed after it had run', async () => {
     await olderInstallation()

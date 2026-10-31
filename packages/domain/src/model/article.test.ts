@@ -39,9 +39,16 @@ describe('the fields of an article', () => {
       number: 'x'.repeat(41),
       designation: 'x'.repeat(201),
       groupOfGoods: 'x'.repeat(81),
+      description: 'x'.repeat(2001),
     })
 
-    expect(Object.keys(problems).sort()).toEqual(['designation', 'groupOfGoods', 'number'])
+    expect(Object.keys(problems).sort()).toEqual([
+      'description',
+      'designation',
+      'groupOfGoods',
+      'number',
+    ])
+    expect(articleProblems({ ...article, description: 'x'.repeat(2000) })).toEqual({})
     expect(supplierNumberProblem('x'.repeat(40))).toBeNull()
     expect(supplierNumberProblem('x'.repeat(41))).toMatch(/höchstens 40 Zeichen/)
   })

@@ -159,6 +159,7 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       issued_at: 'Festgeschrieben am',
       issued_by: 'Festgeschrieben von',
       created_by: 'Angelegt von',
+      store_id: 'Material aus',
       subject: 'Betreff',
       tax_treatment: 'Steuerfall',
       service_from: 'Leistung ab',
@@ -312,6 +313,40 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       metal: 'Metall',
       base_euros: 'Metallbasis in Euro je 100 kg',
       grams_per_thousand: 'Metallgewicht in Gramm je 1000 Einheiten',
+    },
+  },
+  stores: {
+    label: 'Lagerort',
+    fields: {
+      name: 'Bezeichnung',
+      location: 'Ort',
+      vehicle: 'Fahrzeug',
+      plate: 'Kennzeichen',
+    },
+  },
+  store_articles: {
+    label: 'Artikel eines Lagerorts',
+    fields: {
+      store_id: 'Lagerort',
+      article_id: 'Artikel',
+      bin: 'Lagerplatz',
+      minimum_milli: 'Mindestbestand',
+    },
+  },
+  stock_movements: {
+    label: 'Buchung im Lager',
+    fields: {
+      store_id: 'Lagerort',
+      article_id: 'Artikel',
+      kind: 'Art',
+      quantity_milli: 'Menge',
+      supplier_id: 'Lieferant',
+      counterpart_store_id: 'Anderer Lagerort',
+      reason: 'Grund',
+      booked_by: 'Gebucht von',
+      booked_at: 'Gebucht am',
+      job_id: 'Auftrag',
+      document_line_id: 'Position',
     },
   },
   supplier_metal_prices: {

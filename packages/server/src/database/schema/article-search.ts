@@ -2,7 +2,8 @@ import { reference, tenantIsolation } from '@opengewerk/platform-server'
 import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { foreignKey, index, pgTable, text, uuid } from 'drizzle-orm/pg-core'
 
-import { articles, supplierArticles } from './articles.js'
+import { supplierArticles } from './articles.js'
+import { articles } from './stock.js'
 
 /**
  * What the search over the catalogue reads (#461): one row for each article

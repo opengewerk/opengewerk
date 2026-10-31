@@ -70,8 +70,12 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  * - `quote`: an issued quote that no document has followed yet. The day it
  *   was issued is the anchor, and the deadline falls due a number of days
  *   later (3.3, the follow-up of an open quote).
+ * - `store_minimum`: an article below the minimum its store keeps (#298, 4.5).
+ *   Due on the day of the booking that took it there, and gone again once the
+ *   stock is back at the minimum: one deadline for each article and store, as
+ *   long as it lies below.
  */
-export const deadlineSources = ['quote'] as const
+export const deadlineSources = ['quote', 'store_minimum'] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
 
@@ -203,6 +207,15 @@ export const sourceWords: Readonly<
       hint: 'Gezählt ab dem Tag, an dem das Angebot festgeschrieben wurde.',
     },
     anchor: 'dem Festschreiben',
+  },
+  // Due on the day the stock fell below its minimum, without an interval (#298).
+  store_minimum: {
+    person: 'Wer zuletzt gebucht hat',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig am Tag der Buchung, die den Bestand unter den Mindestbestand gebracht hat.',
+    },
+    anchor: 'der Buchung',
   },
 }
 
