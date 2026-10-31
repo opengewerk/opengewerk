@@ -26,7 +26,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   nicht gesperrt, und jedes Gerät hält die Lagerorte und den Bestand der Fahrzeuge. Routen und Tabellen kommen als
   Bausteine aus dem Fundament (ADR 0011), dessen Tabellenfabrik dafür eigene Spalten an Lieferant und Lagerort und eine
   eigene Liste der Einheiten annimmt. Warum: Abschnitt 4.5 der Feature-Gliederung (v2.39), entschieden von Moritz am
-  31.10.2026; die Bildschirme folgen.
+  31.10.2026; die Bildschirme kommen mit dem zweiten Teil.
+- Die Bildschirme des Lagers (#298, zweiter Teil), nach den Tafeln aus Version 84 des Canvas: im Büro „Lager“ mit allen
+  Lagerorten, was unter dem Mindestbestand und unter null liegt, und „Neuer Lagerort“ mit Kennzeichen für ein
+  Servicefahrzeug; ein Lagerort mit seinem Bestand, Lagerplatz und Mindestbestand je Artikel, seinen Bewegungen und den
+  Buchungen „Zugang buchen“, „Umlagern“ und „Zählen“ mit Grund. Gebucht wird nur mit dem Recht „Lager buchen“, ohne
+  es zeigt der Bildschirm keine Buchung an. Am Auftrag die Karte „Warenausgang“ mit dem, was seine Regieberichte
+  abgebucht haben. Im Regiebericht auf dem Gerät wählt der Monteur unter „Material aus“ den Lagerort, und in „Material
+  eintragen“ steht neben jedem Artikel, was das gewählte Fahrzeug davon hat, aus den Buchungen auf dem Gerät, auch ohne
+  Netz; für ein Lager im Gebäude, dessen Buchungen auf keinem Gerät liegen, steht dort nichts. Lagerorte, Lagerort und
+  Buchungen sind Bildschirme des Fundaments, die Wörter der Buchungen und die Rechte kommen von der Anwendung
+  (ADR 0011). Warum: ohne Bildschirme ließ sich das Lager aus dem ersten Teil nur über die Routen buchen.
 - Die Bildschirme des Imports aus DATANORM, Teil von #297, nach den Tafeln aus Version 79 des Canvas: am Lieferanten
   die Karte „Importe aus DATANORM“ mit den letzten Importen und „Dateien einlesen“; die Seite „Import aus DATANORM“, auf
   der die Dateien einer Lieferung nacheinander hochgehen, mit Fortschritt, und das Einlesen beginnt, sobald alle oben

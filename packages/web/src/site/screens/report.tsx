@@ -1,4 +1,9 @@
-import type { DocumentStatus, LineUnit, RecordState } from '@opengewerk/domain'
+import {
+  type DocumentStatus,
+  type LineUnit,
+  type RecordState,
+  stockLevel,
+} from '@opengewerk/domain'
 import {
   lineUnits,
   longestDeviceInfo,
@@ -31,6 +36,7 @@ import {
   refusalFor,
   text,
   useRecord,
+  useRecords,
   useRelated,
   useSync,
 } from '@opengewerk/platform-web/sync'
@@ -53,7 +59,7 @@ import {
   lineUnitOf,
   lineUnitShort,
 } from '../../app/labels.js'
-import { ArticleChoice } from '../article-choice.js'
+import { ArticleChoice, type StockOf } from '../article-choice.js'
 import { SiteHeader } from '../header.js'
 import { signedContentOf } from '../signing.js'
 
@@ -390,6 +396,48 @@ type Editor = 'text' | 'hours' | 'material'
  * the fields of the business, the hours and the material. Every entry is safe
  * on the device the moment it is saved, and none of them needs a network.
  */
+/**
+ * "Material aus" (#298): the store or vehicle the material of this report
+ * comes from, chosen for each report as the board "Regiebericht: Material aus
+ * einem Lagerort" has it. Booked out of it when the customer signs, once;
+ * until then nothing is booked. No store, no booking.
+ */
+function StoreChoice({ report }: { readonly report: RecordState }) {
+  const client = useSync()
+  const stores = useRecords('stores')
+  const [trouble, setTrouble] = useState<string | null>(null)
+  const chosen = maybeText(report, 'storeId') ?? ''
+
+  if (stores.length === 0) {
+    return null
+  }
+
+  const options = [...stores]
+    .filter((store) => store['deletedAt'] == null)
+    .sort((left, right) => text(left, 'name').localeCompare(text(right, 'name'), 'de'))
+    .map((store) => ({ value: String(store['id']), label: text(store, 'name') }))
+
+  return (
+    <SelectField
+      label="Material aus"
+      value={chosen}
+      options={[{ value: '', label: 'Aus keinem Lager' }, ...options]}
+      hint={trouble ?? 'Beim Unterschreiben wird das Material dort abgebucht.'}
+      problem={trouble ?? undefined}
+      onChange={(value) => {
+        setTrouble(null)
+        void client
+          .update('documents', String(report['id']), { storeId: value === '' ? null : value })
+          .then((saved) => {
+            if (saved.outcome !== 'queued') {
+              setTrouble(refusalFor(saved))
+            }
+          })
+      }}
+    />
+  )
+}
+
 function WritingStep({
   report,
   lines,
@@ -485,6 +533,7 @@ function WritingStep({
           key={editor}
           editor={editor}
           day={text(report, 'documentDate')}
+          storeId={maybeText(report, 'storeId')}
           onSave={addLine}
           onCancel={() => {
             setEditor(null)
@@ -544,6 +593,7 @@ function WritingStep({
         action={<span className="text-[14px] text-ink-faint">{postsOf(lines)}</span>}
       >
         <div className="flex flex-col gap-3">
+          <StoreChoice report={report} />
           <HoursStepper
             line={hoursLine}
             working={working}
@@ -729,6 +779,58 @@ function WorkDoneForm({
 }
 
 /**
+ * What a vehicle holds of each article, from the bookings on this device
+ * (#298): a device holds the stock of the vehicles and nothing of a store in
+ * a building, so for one of those it says nothing rather than something wrong.
+ * As of the last sync; the report books when it is signed.
+ */
+function useStockOf(storeId: string | null): StockOf | undefined {
+  const store = useRecord('stores', storeId ?? undefined)
+  const movements = useRecords('stock_movements')
+
+  return useMemo(() => {
+    if (!store || store['vehicle'] !== true || store['deletedAt'] != null) {
+      return undefined
+    }
+
+    // "im Transporter", as the board has it: the report names the vehicle
+    // already, and the line under an article is narrow on a phone.
+    const plate = maybeText(store, 'plate')
+    const name = (plate ? text(store, 'name').replace(plate, '').trim() : '') || text(store, 'name')
+    const levels = new Map<string, number>()
+    const byArticle = new Map<string, { kind: string; quantityMilli: number; createdAt: Date }[]>()
+
+    for (const movement of movements) {
+      if (movement['storeId'] !== store['id'] || movement['deletedAt'] != null) {
+        continue
+      }
+
+      const articleId = String(movement['articleId'])
+      const list = byArticle.get(articleId) ?? []
+
+      list.push({
+        kind: text(movement, 'kind'),
+        quantityMilli: count(movement, 'quantityMilli'),
+        createdAt: new Date(text(movement, 'createdAt')),
+      })
+      byArticle.set(articleId, list)
+    }
+
+    for (const [articleId, list] of byArticle) {
+      levels.set(articleId, stockLevel(list as Parameters<typeof stockLevel>[0]))
+    }
+
+    return (articleId: string, unit: LineUnit) => {
+      const level = levels.get(articleId)
+
+      return level === undefined
+        ? `nicht im ${name}`
+        : `im ${name} ${amount(level)} ${lineUnitShort[unit]}`
+    }
+  }, [store, movements])
+}
+
+/**
  * One entry of time or material, the board "Material eintragen": a card of
  * its own over the list. Two variants of one form rather than one form with a
  * kind field: on site "Arbeitszeit eintragen" is a different action from
@@ -740,12 +842,15 @@ function WorkDoneForm({
 function LineForm({
   editor,
   day,
+  storeId,
   onSave,
   onCancel,
 }: {
   readonly editor: 'hours' | 'material'
   /** The date of the report. */
   readonly day: string
+  /** Where its material comes from (#298), for the stock beside each article. */
+  readonly storeId: string | null
   readonly onSave: (values: {
     readonly designation: string
     readonly quantityMilli: number
@@ -754,6 +859,7 @@ function LineForm({
   }) => Promise<EditResult>
   readonly onCancel: () => void
 }) {
+  const stock = useStockOf(storeId)
   const hours = editor === 'hours'
   const [designation, setDesignation] = useState(hours ? 'Arbeitszeit' : '')
   const [quantity, setQuantity] = useState(hours ? '' : '1')
@@ -816,6 +922,7 @@ function LineForm({
         {hours ? null : (
           <ArticleChoice
             day={day}
+            stock={stock}
             onPick={(article) => {
               setDesignation(article.designation)
               setArticleId(article.id)

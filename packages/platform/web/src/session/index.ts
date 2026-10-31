@@ -176,3 +176,18 @@ export type { PushBlocker } from './push-device.js'
 export { pushNotice, pushNoticeLink } from './push-notice.js'
 export { usePush, usePushRefresh } from './push-state.js'
 export type { PushState } from './push-state.js'
+
+// The stores of the office and their stock (ADR 0011, opengewerk#298).
+export {
+  bookCount,
+  bookReceipt,
+  bookTransfer,
+  keepArticle,
+  movementsOf,
+  newStore,
+  removeStore,
+  changeStore,
+  storeOf,
+  storesOf,
+} from './stock.js'
+export type { MovementPage, MovementRow, StockRow, StoreSummary, StoreWithStock } from './stock.js'

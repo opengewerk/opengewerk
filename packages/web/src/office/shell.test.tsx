@@ -154,7 +154,7 @@ describe('the header of the office', () => {
 
 describe('the navigation of the office', () => {
   const master = ['Stammdaten', 'Kunden *', 'Objekte', 'Anlagen', 'Textbausteine']
-  const material = ['Material', 'Artikel', 'Lieferanten']
+  const material = ['Material', 'Artikel', 'Lieferanten', 'Lager']
   const foot = ['Abgleich', 'Abgeglichen, gerade eben']
 
   it('lists everything for the owner, in the groups of the canvas', async () => {

@@ -509,51 +509,7 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
     ],
   )
 
-  // Signed the only way a signature is ever made: on a device, through the
-  // outbox, with a fingerprint of the page the customer saw. There is no
-  // route for it, and there should not be one for sample data either.
-  const signed = await post('/sync', {
-    deviceId: 'vorschau-tablet',
-    operations: [
-      {
-        id: newId<'operation'>(),
-        entity: 'document_signatures',
-        recordId: newId<'document-signature'>(),
-        kind: 'create',
-        baseVersion: null,
-        patches: Object.entries({
-          documentId: report.id,
-          signerName: 'Erika Berg',
-          signedAt: new Date().toISOString(),
-          deviceInfo: 'Tablet der Vorschau',
-          path: sampleSignature,
-          contentFingerprint: signedContentFingerprint({
-            introText: workDone,
-            lines: report.lines.map((line) => ({
-              id: String(line['id']),
-              position: Number(line['position']),
-              kind: line['kind'] === 'title' ? 'title' : 'item',
-              designation: String(line['designation']),
-              description: typeof line['description'] === 'string' ? line['description'] : null,
-              quantityMilli: Number(line['quantityMilli']),
-              unit: lineUnits.find((unit) => unit === line['unit']) ?? 'piece',
-            })),
-          }),
-        }).map(([field, to]) => ({ field, from: null, to })),
-        recordedAt: new Date().toISOString(),
-      },
-    ],
-  })
-  const [receipt] = (signed['receipts'] ?? []) as { outcome?: string; reason?: string | null }[]
-
-  // A refused signature is a receipt and not an error, so it has to be looked
-  // for. Unnoticed, the preview would show a draft where a signed report was
-  // meant, and nobody would know why.
-  if (receipt?.outcome !== 'applied') {
-    throw new Error(
-      `The sample signature was not taken: ${String(receipt?.outcome)} ${String(receipt?.reason)}`,
-    )
-  }
+  await signOnDevice(post, report, workDone)
 
   // Tasks travel like everything written on site, so they come through the
   // outbox as well. The only person of the preview is the one looking, so all
@@ -657,15 +613,47 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   const catalogue = await plantMaterial(post, (path, body) => send(base, 'PUT', path, body), today)
   const circuitBreaker = catalogue.get('2140')
   const cableTies = catalogue.get('5010')
+  const cable = catalogue.get('1042')
+  const breaker = catalogue.get('2101')
 
-  if (circuitBreaker === undefined || cableTies === undefined) {
-    throw new Error('The sample catalogue has no article 2140 or 5010.')
+  if (
+    circuitBreaker === undefined ||
+    cableTies === undefined ||
+    cable === undefined ||
+    breaker === undefined
+  ) {
+    throw new Error('The sample catalogue has no article 2140, 5010, 1042 or 2101.')
   }
+
+  // A report signed today out of the transporter (#298): its cable and its
+  // breakers are booked out at the signature, and the cable of the
+  // transporter falls below zero, as the board "Lagerort" shows it. The
+  // store is chosen on the device, as the site does it.
+  const { van } = await plantStock(base, catalogue)
+  const fromTheVan = 'Unterverteilung im Keller erweitert, zwei Stromkreise neu gelegt.'
+  const vanReport = await document(
+    {
+      customerId: berg,
+      jobId: renewal,
+      siteId: house,
+      kind: 'time_and_material_report',
+      subject: 'Unterverteilung erweitern',
+      introText: fromTheVan,
+    },
+    [
+      item('Arbeitszeit Elektriker', 3500, 'hour', 0),
+      { ...item('Mantelleitung NYM-J 3 × 1,5 mm²', 47_000, 'metre', 0), articleId: cable },
+      { ...item('Leitungsschutzschalter B16, 1-polig', 6000, 'piece', 0), articleId: breaker },
+    ],
+  )
+
+  await changeOnDevice(post, 'documents', vanReport.id, { storeId: van })
+  await signOnDevice(post, vanReport, fromTheVan)
 
   // A report of today still in draft, with material taken from an article
   // (#296): the walk of the check of widths opens "Material eintragen" on it
   // on site, and its article counts as used lately on every device.
-  await document(
+  const followUp = await document(
     {
       customerId: berg,
       jobId: renewal,
@@ -682,6 +670,8 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       },
     ],
   )
+
+  await changeOnDevice(post, 'documents', followUp.id, { storeId: van })
 
   // And the newest document of all, a quote in draft with material at a
   // wholesaler's price per 100 (#456). The walk of the check of widths meets
@@ -706,6 +696,195 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       item('Montage und Inbetriebnahme', 4000, 'hour', 6800),
     ],
   )
+}
+
+/**
+ * Signs a report the only way a signature is ever made: on a device, through
+ * the outbox, with a fingerprint of the page the customer saw. There is no
+ * route for it, and there should not be one for sample data either.
+ */
+async function signOnDevice(
+  post: (path: string, body: unknown) => Promise<Answer>,
+  report: { readonly id: string; readonly lines: readonly Answer[] },
+  introText: string,
+): Promise<void> {
+  const signed = await post('/sync', {
+    deviceId: 'vorschau-tablet',
+    operations: [
+      {
+        id: newId<'operation'>(),
+        entity: 'document_signatures',
+        recordId: newId<'document-signature'>(),
+        kind: 'create',
+        baseVersion: null,
+        patches: Object.entries({
+          documentId: report.id,
+          signerName: 'Erika Berg',
+          signedAt: new Date().toISOString(),
+          deviceInfo: 'Tablet der Vorschau',
+          path: sampleSignature,
+          contentFingerprint: signedContentFingerprint({
+            introText,
+            lines: report.lines.map((line) => ({
+              id: String(line['id']),
+              position: Number(line['position']),
+              kind: line['kind'] === 'title' ? 'title' : 'item',
+              designation: String(line['designation']),
+              description: typeof line['description'] === 'string' ? line['description'] : null,
+              quantityMilli: Number(line['quantityMilli']),
+              unit: lineUnits.find((unit) => unit === line['unit']) ?? 'piece',
+            })),
+          }),
+        }).map(([field, to]) => ({ field, from: null, to })),
+        recordedAt: new Date().toISOString(),
+      },
+    ],
+  })
+  const [receipt] = (signed['receipts'] ?? []) as { outcome?: string; reason?: string | null }[]
+
+  // A refused signature is a receipt and not an error, so it has to be looked
+  // for. Unnoticed, the preview would show a draft where a signed report was
+  // meant, and nobody would know why.
+  if (receipt?.outcome !== 'applied') {
+    throw new Error(
+      `The sample signature was not taken: ${String(receipt?.outcome)} ${String(receipt?.reason)}`,
+    )
+  }
+}
+
+/** Changes fields of a record the way a device does, through the outbox. */
+async function changeOnDevice(
+  post: (path: string, body: unknown) => Promise<Answer>,
+  entity: string,
+  recordId: string,
+  fields: Record<string, unknown>,
+): Promise<void> {
+  const sent = await post('/sync', {
+    deviceId: 'vorschau-tablet',
+    operations: [
+      {
+        id: newId<'operation'>(),
+        entity,
+        recordId,
+        kind: 'update',
+        baseVersion: null,
+        patches: Object.entries(fields).map(([field, to]) => ({ field, from: null, to })),
+        recordedAt: new Date().toISOString(),
+      },
+    ],
+  })
+  const [receipt] = (sent['receipts'] ?? []) as { outcome?: string; reason?: string | null }[]
+
+  if (receipt?.outcome !== 'applied') {
+    throw new Error(
+      `The sample change of ${entity} was not taken: ${String(receipt?.outcome)} ${String(receipt?.reason)}`,
+    )
+  }
+}
+
+/**
+ * The stores of the business (#298), as the boards "Lager" and "Lagerort"
+ * draw them: a store in the building and three vehicles, the stock of the
+ * transporter with its places and minimums, and a booking of every kind the
+ * office makes. What lies below a minimum gives the office a task to reorder.
+ * Answers the transporter and the store, for the report that takes from it.
+ */
+async function plantStock(
+  base: string,
+  catalogue: ReadonlyMap<string, string>,
+): Promise<{ readonly van: string; readonly store: string }> {
+  const post = (path: string, body: unknown) => send(base, 'POST', path, body)
+  const put = (path: string, body: unknown) => send(base, 'PUT', path, body)
+  const article = (number: string) => {
+    const id = catalogue.get(number)
+
+    if (id === undefined) {
+      throw new Error(`The sample catalogue has no article ${number}.`)
+    }
+
+    return id
+  }
+  const suppliers = (await send(base, 'GET', '/suppliers')) as unknown as {
+    id: string
+    name: string
+  }[]
+  const wholesaler = suppliers.find((supplier) => supplier.name.startsWith('Elektro-Großhandel'))
+
+  const store = idOf(
+    await post('/stores', { name: 'Lager Edingen', location: 'Halle 2, Regal A bis F' }),
+  )
+  const van = idOf(
+    await post('/stores', { name: 'Transporter HD-OG 412', vehicle: true, plate: 'HD-OG 412' }),
+  )
+  const other = idOf(
+    await post('/stores', { name: 'Transporter HD-OG 418', vehicle: true, plate: 'HD-OG 418' }),
+  )
+  const caddy = idOf(
+    await post('/stores', { name: 'Caddy HD-OG 77', vehicle: true, plate: 'HD-OG 77' }),
+  )
+
+  const receipt = (into: string, number: string, quantityMilli: number) =>
+    post(`/stores/${into}/receipts`, {
+      articleId: article(number),
+      quantityMilli,
+      ...(wholesaler ? { supplierId: wholesaler.id } : {}),
+    })
+  const place = (at: string, number: string, bin: string | null, minimumMilli: number | null) =>
+    put(`/stores/${at}/articles/${article(number)}`, { bin, minimumMilli })
+
+  // The store in the building, three articles of it below their minimum.
+  for (const [number, quantityMilli, bin, minimumMilli] of [
+    ['1042', 300_000, 'Regal A, Trommel 1', 100_000],
+    ['1043', 150_000, 'Regal A, Trommel 2', 50_000],
+    ['2101', 40_000, 'Regal C, Fach 4', 20_000],
+    ['4031', 1000, 'Regal C, Fach 9', 5000],
+    ['6001', 4000, 'Regal F', 10_000],
+    ['7001', 2000, 'Halle 2, Palette', 6000],
+  ] as const) {
+    await receipt(store, number, quantityMilli)
+    await place(store, number, bin, minimumMilli)
+  }
+
+  // The transporter, as the board "Lagerort" lists it.
+  for (const [number, bin, minimumMilli] of [
+    ['1042', 'Fach 1', 50_000],
+    ['1043', 'Fach 1', 20_000],
+    ['2101', 'Schublade 2', 6000],
+    ['4031', 'Schublade 3', 2000],
+    ['5001', 'Kiste A', 10_000],
+    ['5002', 'Kiste A', 2000],
+  ] as const) {
+    await place(van, number, bin, minimumMilli)
+  }
+
+  await post(`/stores/${van}/counts`, {
+    articleId: article('5001'),
+    quantityMilli: 18_000,
+    reason: 'Wochenkontrolle, Kiste A nachgezählt',
+  })
+  await receipt(van, '1043', 35_000)
+  await receipt(van, '4031', 2000)
+  await receipt(van, '5002', 3000)
+  await receipt(van, '2101', 10_000)
+  await post(`/stores/${store}/transfers`, {
+    articleId: article('1042'),
+    quantityMilli: 35_000,
+    toStoreId: van,
+  })
+
+  // The other vehicles: one in order, one with two articles below the minimum.
+  for (const [into, number, quantityMilli, minimumMilli] of [
+    [other, '1042', 80_000, 50_000],
+    [other, '2101', 12_000, 6000],
+    [caddy, '2101', 2000, 4000],
+    [caddy, '5001', 3000, 10_000],
+    [caddy, '1043', 25_000, 10_000],
+  ] as const) {
+    await receipt(into, number, quantityMilli)
+    await place(into, number, null, minimumMilli)
+  }
+
+  return { van, store }
 }
 
 /**

@@ -52,6 +52,7 @@ import { assignToJob } from '../../session/jobs.js'
 import { FilesPanel } from './attachments.js'
 import { DocumentChainCard, JobDocumentsPanel, useJobDocuments } from './documents.js'
 import { TasksSection } from './tasks.js'
+import { JobWithdrawals } from './job-stock.js'
 import { JobTimeSection } from './time.js'
 
 const kindOptions = jobKinds.map((kind) => ({ value: kind, label: jobKindLabel[kind] }))
@@ -449,6 +450,7 @@ function JobRecord({ job }: { readonly job: RecordState }) {
                 {documents}
                 {notes}
                 {time}
+                <JobWithdrawals jobId={jobId} />
                 {files}
               </>
             }

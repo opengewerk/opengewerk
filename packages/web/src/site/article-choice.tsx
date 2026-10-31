@@ -1,4 +1,4 @@
-import type { IsoDate } from '@opengewerk/domain'
+import type { IsoDate, LineUnit } from '@opengewerk/domain'
 import { Field } from '@opengewerk/platform-web'
 import { SiteLabel, SiteText } from '@opengewerk/platform-web/site'
 import { Plus, WifiOff } from 'lucide-react'
@@ -7,6 +7,12 @@ import { useDeferredValue, useState } from 'react'
 import { type FoundArticle, useArticleSearch } from '../app/article-search.js'
 import { lineUnitLabel } from '../app/labels.js'
 
+/**
+ * What the store of the report holds of an article, in words, where the
+ * device knows it (#298): "im Transporter 35 m", or null.
+ */
+export type StockOf = (articleId: string, unit: LineUnit) => string | null
+
 /** How many hits, and how many articles of each group, stand as buttons. */
 const shownHits = 8
 
@@ -14,10 +20,14 @@ const shownHits = 8
 function Hit({
   article,
   onPick,
+  stock,
 }: {
   readonly article: FoundArticle
   readonly onPick: (article: FoundArticle) => void
+  readonly stock?: StockOf
 }) {
+  const held = stock?.(article.id, article.unit) ?? null
+
   return (
     <button
       type="button"
@@ -32,7 +42,7 @@ function Hit({
           {article.designation}
         </span>
         <span className="mt-0.5 block text-[15px] text-ink-muted">
-          {`${article.number} · ${lineUnitLabel[article.unit]}`}
+          {[article.number, lineUnitLabel[article.unit], held].filter(Boolean).join(' · ')}
         </span>
       </span>
       <Plus size={22} strokeWidth={2.2} aria-hidden="true" className="shrink-0 text-copper-text" />
@@ -43,15 +53,17 @@ function Hit({
 function Hits({
   articles,
   onPick,
+  stock,
 }: {
   readonly articles: readonly FoundArticle[]
   readonly onPick: (article: FoundArticle) => void
+  readonly stock?: StockOf
 }) {
   return (
     <ul className="flex flex-col gap-2">
       {articles.map((article) => (
         <li key={article.id}>
-          <Hit article={article} onPick={onPick} />
+          <Hit article={article} onPick={onPick} {...(stock ? { stock } : {})} />
         </li>
       ))}
     </ul>
@@ -70,10 +82,13 @@ function Hits({
 export function ArticleChoice({
   day,
   onPick,
+  stock,
 }: {
   /** The date of the report. */
   readonly day: IsoDate
   readonly onPick: (article: FoundArticle) => void
+  /** What the store of the report holds of each article (#298), where the device knows it. */
+  readonly stock?: StockOf
 }) {
   const [search, setSearch] = useState('')
   const wanted = useDeferredValue(search)
@@ -126,24 +141,29 @@ export function ArticleChoice({
               : 'Kein Artikel passt zur Suche.'}
           </SiteText>
         ) : (
-          <Hits articles={found.found} onPick={pick} />
+          <Hits articles={found.found} onPick={pick} {...(stock ? { stock } : {})} />
         )
       ) : (
         <>
           {frequent.length > 0 ? (
             <div className="flex flex-col gap-2">
               <SiteLabel>Häufig</SiteLabel>
-              <Hits articles={frequent} onPick={pick} />
+              <Hits articles={frequent} onPick={pick} {...(stock ? { stock } : {})} />
             </div>
           ) : null}
           {recent.length > 0 ? (
             <div className="flex flex-col gap-2">
               <SiteLabel>Zuletzt benutzt</SiteLabel>
-              <Hits articles={recent} onPick={pick} />
+              <Hits articles={recent} onPick={pick} {...(stock ? { stock } : {})} />
             </div>
           ) : null}
         </>
       )}
+      {stock ? (
+        <SiteText muted size={15}>
+          Der Bestand ist der beim letzten Abgleich. Gebucht wird beim Unterschreiben.
+        </SiteText>
+      ) : null}
       <SiteText muted size={15}>
         Nicht dabei? Dann das Material unten von Hand eintragen.
       </SiteText>

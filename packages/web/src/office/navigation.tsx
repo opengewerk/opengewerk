@@ -13,6 +13,7 @@ import {
   TextAlignStart,
   Truck,
   Users,
+  Warehouse,
   Zap,
 } from 'lucide-react'
 import { useMemo } from 'react'
@@ -108,13 +109,14 @@ export function useNavigation(): readonly NavigationGroup[] {
         ...(readsTime ? [{ to: '/zeiten', label: 'Zeiterfassung', icon: Clock }] : []),
       ],
     },
-    // The articles and where they come from (#296), a group of their own as
-    // the module "Material" of the concept, which the store joins later.
+    // The articles, where they come from (#296) and the stores (#298), a
+    // group of their own as the module "Material" of the concept.
     {
       title: 'Material',
       entries: [
         ...(readsArticles ? [{ to: '/artikel', label: 'Artikel', icon: Package }] : []),
         ...(readsSuppliers ? [{ to: '/lieferanten', label: 'Lieferanten', icon: Truck }] : []),
+        ...(readsArticles ? [{ to: '/lager', label: 'Lager', icon: Warehouse }] : []),
       ],
     },
   ]
