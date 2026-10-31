@@ -86,6 +86,12 @@ const routes = [
     path: '/auftraege/$jobId/berichte/$documentId',
     component: SiteReportScreen,
   }),
+  // A delivery note (#299), read and signed on the same screen as a report.
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/lieferscheine/$documentId',
+    component: SiteReportScreen,
+  }),
   ...structureRoutes('/auftraege/$jobId'),
   // The tab "Scannen" and the installation a QR label opens (#308).
   createRoute({ getParentRoute: () => root, path: '/scannen', component: SiteLabelScanScreen }),

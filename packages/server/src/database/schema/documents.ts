@@ -134,10 +134,10 @@ export const documents = pgTable(
       foreignColumns: [stores.tenantId, stores.id],
       name: 'documents_store_in_tenant',
     }),
-    // Only a report takes material out of a store (#298).
+    // Only a report (#298) and a delivery note (#299) take material out of a store.
     check(
       'documents_store_of_a_report',
-      sql`${table.storeId} is null or ${table.kind} = 'time_and_material_report'`,
+      sql`${table.storeId} is null or ${table.kind} in ('time_and_material_report', 'delivery_note')`,
     ),
     foreignKey({
       columns: [table.tenantId, table.customerId],

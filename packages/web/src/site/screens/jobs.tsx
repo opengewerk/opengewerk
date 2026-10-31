@@ -338,6 +338,46 @@ function JobReports({ job }: { readonly job: RecordState }) {
 }
 
 /**
+ * The delivery notes of the job (#299), made in the office out of its order
+ * confirmation: here to be read and, if the recipient wants to, signed. Only
+ * where the job has one.
+ */
+function JobDeliveryNotes({ job }: { readonly job: RecordState }) {
+  const jobId = String(job['id'])
+  const documents = useRelated('documents', 'jobId', jobId)
+  const signatures = useRecords('document_signatures')
+  const notes = documents.filter((document) => documentKindOf(document) === 'delivery_note')
+
+  if (notes.length === 0) {
+    return null
+  }
+
+  return (
+    <Panel title="Lieferscheine">
+      <SiteRows label="Lieferscheine">
+        {notes.map((note) => (
+          <SiteRow
+            key={String(note['id'])}
+            to={`/auftraege/${jobId}/lieferscheine/${String(note['id'])}`}
+            title={`Lieferschein vom ${date(note['documentDate'])}`}
+            right={
+              <DocumentState
+                status={shownStatus(
+                  documentStatusOf(note),
+                  signatures.find(
+                    (signature) => String(signature['documentId']) === String(note['id']),
+                  ) ?? null,
+                )}
+              />
+            }
+          />
+        ))}
+      </SiteRows>
+    </Panel>
+  )
+}
+
+/**
  * Which job this one follows, and which follow it (#170). On site that is
  * where to look up what was done before: the meter cabinet the wallbox hangs
  * on, the handover a repair comes after. Only what this device holds; a job
@@ -556,7 +596,12 @@ export function SiteJobScreen() {
   // board "Auftrag, ganze Seite" puts the two together.
   const notes = <JobNotes job={job} />
   const time = <JobTime job={job} />
-  const writing = <JobReports job={job} />
+  const writing = (
+    <>
+      <JobReports job={job} />
+      <JobDeliveryNotes job={job} />
+    </>
+  )
   const files = <JobFiles job={job} />
   const tasks = <JobTasks job={job} />
 

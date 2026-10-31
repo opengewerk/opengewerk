@@ -24,6 +24,7 @@ import { amount, date, moment, parseQuantity } from '@opengewerk/platform-web/fo
 import {
   SignaturePad,
   SiteActionBar,
+  SiteLabel,
   SiteNoTabs,
   SiteScreen,
   SiteText,
@@ -155,11 +156,14 @@ function ReportView({ report }: { readonly report: RecordState }) {
   const status = shownStatus(documentStatusOf(report), signature)
   const [signing, setSigning] = useState(false)
   const navigate = useNavigate()
+  // A delivery note (#299) is read and signed here, never written: the office
+  // makes it out of its order confirmation.
+  const delivery = documentKindOf(report) === 'delivery_note'
 
   return (
     <SiteScreen>
       <SiteHeader
-        title="Regiebericht"
+        title={delivery ? 'Lieferschein' : 'Regiebericht'}
         sub={[
           job ? text(job, 'designation') : text(report, 'subject'),
           customer ? text(customer, 'name') : '',
@@ -180,6 +184,14 @@ function ReportView({ report }: { readonly report: RecordState }) {
           lines={lines}
           onBack={() => {
             setSigning(false)
+          }}
+        />
+      ) : delivery ? (
+        <DeliveryStep
+          note={report}
+          lines={lines}
+          onSign={() => {
+            setSigning(true)
           }}
         />
       ) : (
@@ -663,6 +675,78 @@ function WritingStep({
 }
 
 /**
+ * A delivery note on the device of whoever hands the goods over, the board
+ * "Lieferschein auf dem Gerät" (#299): what is delivered and from where, read
+ * only, and its recipient may sign it. Need not: without a signature the
+ * office fixes it by issuing it.
+ */
+function DeliveryStep({
+  note,
+  lines,
+  onSign,
+}: {
+  readonly note: RecordState
+  readonly lines: readonly RecordState[]
+  readonly onSign: () => void
+}) {
+  return (
+    <>
+      <div>
+        <DocumentState status="draft" />
+      </div>
+
+      <DeliveryContent note={note} lines={lines} />
+
+      <SiteActionBar note="Kein Muss: ohne Unterschrift schreibt das Büro den Lieferschein fest. Geht auch ohne Netz.">
+        <Button tone="primary" wide icon={Signature} className="text-[19px]" onClick={onSign}>
+          Vom Empfänger unterschreiben lassen
+        </Button>
+      </SiteActionBar>
+    </>
+  )
+}
+
+/** What a delivery note delivers, and from which store and confirmation. */
+function DeliveryContent({
+  note,
+  lines,
+}: {
+  readonly note: RecordState
+  readonly lines: readonly RecordState[]
+}) {
+  const store = useRecord('stores', maybeText(note, 'storeId') ?? undefined)
+  const confirmation = useRecord('documents', maybeText(note, 'predecessorDocumentId') ?? undefined)
+  const posts = lines.filter((line) => line['kind'] !== 'title').length
+
+  return (
+    <>
+      <Panel
+        title="Geliefert"
+        action={<SiteText muted size={15}>{`${String(posts)} Posten`}</SiteText>}
+      >
+        <ReadLines lines={lines} />
+      </Panel>
+      <Panel title="Angaben">
+        <div className="flex flex-col gap-3">
+          <div>
+            <SiteLabel>Material aus</SiteLabel>
+            <p className="text-[17px]">{store ? text(store, 'name') : 'Aus keinem Lager'}</p>
+          </div>
+          {confirmation ? (
+            <div>
+              <SiteLabel>Aus</SiteLabel>
+              <p className="text-[17px]">
+                {maybeText(confirmation, 'number') ?? 'Auftragsbestätigung'}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      </Panel>
+    </>
+  )
+}
+
+/**
  * A photo from the report, the camera beside "Material eintragen" on the
  * board: it goes to the files of the job, where the office finds it with the
  * others, and waits on the device like every photo taken here.
@@ -1010,6 +1094,7 @@ function SigningStep({
   const [working, setWorking] = useState(false)
   const formId = useId()
   const fingerprint = signedContentFingerprint(signedContentOf(report, lines))
+  const delivery = documentKindOf(report) === 'delivery_note'
 
   async function sign(event: FormEvent) {
     event.preventDefault()
@@ -1058,10 +1143,18 @@ function SigningStep({
   return (
     <>
       <p className="text-[18px] leading-[1.45] font-semibold">
-        Bitte lesen Sie den Bericht und unterschreiben Sie darunter.
+        {delivery
+          ? 'Bitte prüfen Sie die gelieferte Ware und unterschreiben Sie darunter.'
+          : 'Bitte lesen Sie den Bericht und unterschreiben Sie darunter.'}
       </p>
 
-      <ReadOnlyReport report={report} lines={lines} />
+      {delivery ? (
+        <Panel title="Geliefert">
+          <ReadLines lines={lines} />
+        </Panel>
+      ) : (
+        <ReadOnlyReport report={report} lines={lines} />
+      )}
 
       <form
         id={formId}
@@ -1093,7 +1186,7 @@ function SigningStep({
           Unterschreiben
         </Button>
         <Button wide height={48} disabled={working} onClick={onBack}>
-          Zurück zum Bericht
+          {delivery ? 'Zurück zum Lieferschein' : 'Zurück zum Bericht'}
         </Button>
       </SiteActionBar>
     </>
@@ -1141,6 +1234,7 @@ function SignedReport({
 }) {
   const client = useSync()
   const fixed = whyFixed({ kind: documentKindOf(report), status })
+  const delivery = documentKindOf(report) === 'delivery_note'
 
   return (
     <>
@@ -1157,10 +1251,14 @@ function SignedReport({
         </p>
       ) : null}
 
-      <ReadOnlyReport report={report} lines={lines} />
+      {delivery ? (
+        <DeliveryContent note={report} lines={lines} />
+      ) : (
+        <ReadOnlyReport report={report} lines={lines} />
+      )}
 
       {signature ? (
-        <Panel title="Unterschrift">
+        <Panel title={delivery ? 'Empfang' : 'Unterschrift'}>
           <div className="flex flex-col gap-2">
             <SignaturePicture
               path={text(signature, 'path')}

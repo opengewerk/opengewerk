@@ -458,6 +458,194 @@ describe('a signed report', () => {
   })
 })
 
+describe('a delivery note (#299)', () => {
+  interface Line {
+    readonly id: string
+    readonly position: number
+    readonly kind: 'item' | 'title'
+    readonly designation: string
+    readonly description: string | null
+    readonly quantityMilli: number
+    readonly unit: 'piece' | 'metre'
+    readonly unitPriceCents: number
+    readonly articleId: string | null
+  }
+
+  const linesOf = async (documentId: string) =>
+    (await get(`/documents/${documentId}/lines`)) as unknown as Line[]
+
+  /** An issued order confirmation of the job: three breakers and 20 m of cable at its prices. */
+  async function confirmed() {
+    const confirmation = await send('post', '/documents', {
+      customerId,
+      jobId,
+      kind: 'order_confirmation',
+      documentDate: '2026-10-31',
+    })
+
+    await send('post', `/documents/${confirmation.id}/lines`, {
+      designation: 'LS-Schalter B16',
+      quantityMilli: 3000,
+      unit: 'piece',
+      unitPriceCents: 890,
+      articleId: breaker,
+    })
+    await send('post', `/documents/${confirmation.id}/lines`, {
+      designation: 'NYM-J 3 × 1,5',
+      quantityMilli: 20_000,
+      unit: 'metre',
+      unitPriceCents: 150,
+      articleId: cable,
+    })
+    await send('post', `/documents/${confirmation.id}/issue`, {})
+
+    return confirmation.id
+  }
+
+  /** The delivery note out of a fresh confirmation, delivered from the store. */
+  async function deliveryNote() {
+    const confirmation = await confirmed()
+    const note = await send('post', `/documents/${confirmation}/successors`, {
+      kind: 'delivery_note',
+    })
+
+    await send('patch', `/documents/${note.id}`, { storeId: store }, office, 200)
+
+    return { confirmation, note: note.id }
+  }
+
+  async function withdrawalsOf(documentId: string) {
+    const { rows } = await admin.query<{
+      article_id: string
+      quantity_milli: number
+      store_id: string
+    }>(
+      `select m.article_id, m.quantity_milli, m.store_id from stock_movements m
+         join document_lines l on l.id = m.document_line_id
+        where l.document_id = $1 and m.kind = 'withdrawal' order by m.quantity_milli`,
+      [documentId],
+    )
+
+    return rows
+  }
+
+  async function signOnDevice(documentId: string) {
+    const lines = await linesOf(documentId)
+
+    return push(app, technician, [
+      created('document_signatures', newId<'document-signature'>(), {
+        documentId,
+        signerName: 'Thomas Brenner',
+        signedAt: '2026-10-31T10:14:00.000Z',
+        deviceInfo: 'Mozilla/5.0 (Linux; Android 15) Chrome/140 Mobile',
+        path: scribble,
+        contentFingerprint: signedContentFingerprint({
+          introText: null,
+          lines: lines.map((line) => ({
+            id: line.id,
+            position: line.position,
+            kind: line.kind,
+            designation: line.designation,
+            description: line.description,
+            quantityMilli: line.quantityMilli,
+            unit: line.unit,
+          })),
+        }),
+      }),
+    ])
+  }
+
+  it('is made once out of an order confirmation, with its lines and their prices', async () => {
+    const { confirmation, note } = await deliveryNote()
+
+    expect(
+      (await linesOf(note)).map((line) => [
+        line.articleId,
+        line.quantityMilli,
+        line.unitPriceCents,
+      ]),
+    ).toEqual([
+      [breaker, 3000, 890],
+      [cable, 20_000, 150],
+    ])
+    expect(
+      (
+        await send(
+          'post',
+          `/documents/${confirmation}/successors`,
+          { kind: 'delivery_note' },
+          office,
+          409,
+        )
+      ).message,
+    ).toContain(
+      'schon ein Lieferschein entstanden, noch als Entwurf. Die Kette geht bei ihm weiter',
+    )
+  })
+
+  it('takes its material out of its store when its recipient signs it, and issuing books it no second time', async () => {
+    const { note } = await deliveryNote()
+    const signed = await signOnDevice(note)
+
+    expect(signed.receipts.map((receipt) => receipt.outcome)).toEqual(['applied'])
+    expect(
+      (await admin.query<{ status: string }>('select status from documents where id = $1', [note]))
+        .rows[0]?.status,
+    ).toBe('signed')
+
+    const booked = [
+      { article_id: breaker, quantity_milli: 3000, store_id: store },
+      { article_id: cable, quantity_milli: 20_000, store_id: store },
+    ]
+
+    expect(await withdrawalsOf(note)).toEqual(booked)
+
+    const issued = await send('post', `/documents/${note}/issue`, {})
+
+    expect(issued['number']).toMatch(/^LS-2026-/)
+    expect(await withdrawalsOf(note)).toEqual(booked)
+  })
+
+  it('takes it out when the office issues it without a signature, once', async () => {
+    const { note } = await deliveryNote()
+
+    expect(await withdrawalsOf(note)).toEqual([])
+
+    await send('post', `/documents/${note}/issue`, {})
+
+    expect(await withdrawalsOf(note)).toEqual([
+      { article_id: breaker, quantity_milli: 3000, store_id: store },
+      { article_id: cable, quantity_milli: 20_000, store_id: store },
+    ])
+  })
+
+  it('gives the invoice out of it the prices of the confirmation, not those of the articles', async () => {
+    await send('post', `/articles/${breaker}/prices`, {
+      unitPriceCents: 1290,
+      validFrom: '2026-01-01',
+    })
+
+    const { note } = await deliveryNote()
+
+    await send('post', `/documents/${note}/issue`, {})
+
+    const invoice = await send('post', `/documents/${note}/successors`, { kind: 'final_invoice' })
+
+    expect((await linesOf(invoice.id)).map((line) => line.unitPriceCents)).toEqual([890, 150])
+  })
+
+  it('names a store, and no other kind but a report does', async () => {
+    const confirmation = await send('post', '/documents', {
+      customerId,
+      jobId,
+      kind: 'order_confirmation',
+      documentDate: '2026-10-31',
+    })
+
+    await send('patch', `/documents/${confirmation.id}`, { storeId: store }, office, 400)
+  })
+})
+
 describe('a device', () => {
   it('holds the stores, the stock of the vehicles and their articles, and nothing of a store in a building', async () => {
     const pulled = (

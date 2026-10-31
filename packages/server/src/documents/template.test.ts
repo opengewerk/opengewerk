@@ -486,6 +486,63 @@ describe('a report', () => {
 
     expect(html).toContain('<h1>Regiebericht (Entwurf)</h1>')
     expect(html).toContain('<div class="draft">ENTWURF</div>')
+    // The lines to sign on paper are a delivery note's (#299), not a report's.
+    expect(html).not.toContain('Unterschrift des Empfängers')
+  })
+})
+
+describe('a delivery note (#299)', () => {
+  const received: SignatureContent = {
+    signerName: 'Thomas Brenner',
+    // 12:32 in UTC is 14:32 in Hamburg in September.
+    signedAt: '2026-09-21T12:32:00.000Z',
+    path: 'M100,300L200,120L300,280L400,100',
+  }
+  const delivered = [
+    line(1, 0, {
+      designation: 'Kleinverteiler 3-reihig, 36 TE',
+      quantityMilli: 1000,
+      unit: 'piece',
+      unitPriceCents: 8600,
+      netCents: 8600,
+    }),
+  ]
+
+  function note(signature: SignatureContent | null, number: string | null = 'LS-2026-0001') {
+    return page(
+      {
+        kind: 'delivery_note',
+        number,
+        serviceFrom: null,
+        serviceUntil: null,
+        introText: null,
+        taxTreatment: 'standard',
+      },
+      { lines: delivered, signature },
+    )
+  }
+
+  it('is printed without the prices of the confirmation it keeps', () => {
+    const { html } = note(null)
+
+    expect(html).toContain('Kleinverteiler 3-reihig, 36 TE')
+    expect(html).not.toContain('86,00')
+    expect(html).not.toContain('Gesamtbetrag')
+    expect(html).toContain('<h1>Lieferschein LS-2026-0001</h1>')
+  })
+
+  it('says who received the goods where the recipient signed on the device', () => {
+    const { html } = note(received)
+
+    expect(html).toMatch(/Empfangen: Thomas Brenner, 21\.09\.2026, 14:32 Uhr/)
+    expect(html).not.toContain('Unterschrift des Empfängers')
+  })
+
+  it('keeps two empty lines to sign on paper where nobody signed', () => {
+    const { html } = note(null)
+
+    expect(html).toContain('<div class="signature-line">Datum</div>')
+    expect(html).toContain('<div class="signature-line">Unterschrift des Empfängers</div>')
   })
 })
 

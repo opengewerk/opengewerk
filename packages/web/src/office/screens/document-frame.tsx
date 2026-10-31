@@ -24,12 +24,15 @@ function FrameBody({ children }: { readonly children: ReactNode }) {
 export function DraftFrame({
   kind,
   action,
+  sub = 'Noch keine Nummer vergeben. Festschreiben vergibt sie, danach ist der Beleg unveränderlich.',
   children,
 }: {
   /** "Angebot", "Schlussrechnung": the head says "Angebot, Entwurf". */
   readonly kind: string
   /** What concerns the draft as a whole, on the right of its head: "Entwurf löschen" (#786). */
   readonly action?: ReactNode
+  /** The sentence under the head, where a kind is fixed another way as well. */
+  readonly sub?: string
   readonly children: ReactNode
 }) {
   return (
@@ -41,10 +44,7 @@ export function DraftFrame({
         <Pencil size={18} strokeWidth={2} aria-hidden="true" className="shrink-0" />
         <div className="min-w-0 grow">
           <p className="text-[16px] font-semibold">{`${kind}, Entwurf`}</p>
-          <p className="text-[12px]">
-            Noch keine Nummer vergeben. Festschreiben vergibt sie, danach ist der Beleg
-            unveränderlich.
-          </p>
+          <p className="text-[12px]">{sub}</p>
         </div>
         {action}
       </div>

@@ -315,6 +315,15 @@ describe('the chain of documents', () => {
     expect(successorsOf('time_and_material_report')).toEqual(['final_invoice'])
   })
 
+  it('lets one delivery note follow an order confirmation, and the invoice follow it (#299)', () => {
+    expect(successorsOf('order_confirmation')).toContain('delivery_note')
+    expect(successorsOf('delivery_note')).toEqual(['final_invoice'])
+    // Out of nothing else: a delivery note delivers what was confirmed.
+    for (const kind of documentKinds.filter((each) => each !== 'order_confirmation')) {
+      expect(successorsOf(kind)).not.toContain('delivery_note')
+    }
+  })
+
   it('chains progress invoices, each deducting the ones before it', () => {
     expect(successorsOf('progress_invoice')).toEqual(['progress_invoice', 'final_invoice'])
     expect(deducts('progress_invoice')).toBe(true)

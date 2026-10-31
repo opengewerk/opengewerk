@@ -4,7 +4,7 @@ import { Button, ButtonLink, Field, Panel, SignaturePicture } from '@opengewerk/
 import { moment } from '@opengewerk/platform-web/format'
 import { FactList } from '@opengewerk/platform-web/office'
 import type { Fact } from '@opengewerk/platform-web/office'
-import { maybeText, text, useRelated } from '@opengewerk/platform-web/sync'
+import { maybeText, text, useRecord, useRelated } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Download, Mail } from 'lucide-react'
@@ -340,11 +340,19 @@ export function ReportFieldsCard({ document }: { readonly document: RecordState 
  * "Unterschrift": the customer's signature as it was given on site, in its
  * box, and beside it the name typed with it, the moment and what the device
  * said about itself. The last two are what section 4.10 asks a simple
- * signature to carry.
+ * signature to carry. Under a delivery note it is the recipient's, "Empfang"
+ * (#299).
  */
-export function SignatureCard({ signature }: { readonly signature: RecordState }) {
+export function SignatureCard({
+  signature,
+  received = false,
+}: {
+  readonly signature: RecordState
+  /** Whether it confirms that goods were received, under a delivery note. */
+  readonly received?: boolean
+}) {
   return (
-    <Panel title="Unterschrift">
+    <Panel title={received ? 'Empfang' : 'Unterschrift'}>
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex h-[110px] w-[260px] max-w-full shrink-0 items-center justify-center rounded-control border border-line bg-input p-2">
           <SignaturePicture
@@ -357,7 +365,10 @@ export function SignatureCard({ signature }: { readonly signature: RecordState }
           <FactList
             keyWidth={140}
             facts={[
-              { label: 'Unterschrieben von', value: text(signature, 'signerName') },
+              {
+                label: received ? 'Empfangen von' : 'Unterschrieben von',
+                value: text(signature, 'signerName'),
+              },
               {
                 label: 'Unterschrieben am',
                 value: `${moment(maybeText(signature, 'signedAt'))} Uhr`,
@@ -367,6 +378,46 @@ export function SignatureCard({ signature }: { readonly signature: RecordState }
           />
         </div>
       </div>
+    </Panel>
+  )
+}
+
+/**
+ * "Angaben" of a fixed delivery note (#299): the order confirmation it came
+ * out of, the store it was delivered from and when that store gave the
+ * material up, with the signature of the recipient or with issuing.
+ */
+export function DeliveryFactsCard({
+  document,
+  signed,
+}: {
+  readonly document: RecordState
+  /** Whether its recipient signed it, which is when its material was booked. */
+  readonly signed: boolean
+}) {
+  const confirmation = useRecord(
+    'documents',
+    maybeText(document, 'predecessorDocumentId') ?? undefined,
+  )
+  const store = useRecord('stores', maybeText(document, 'storeId') ?? undefined)
+  const facts: Fact[] = [
+    {
+      label: 'Aus',
+      value: confirmation ? (
+        <Link to={`/belege/${String(confirmation['id'])}`}>
+          {maybeText(confirmation, 'number') ?? documentKindLabel.order_confirmation}
+        </Link>
+      ) : null,
+    },
+    { label: 'Material aus', value: store ? text(store, 'name') : 'Aus keinem Lager' },
+    ...(store
+      ? [{ label: 'Abgebucht', value: signed ? 'mit der Unterschrift' : 'beim Festschreiben' }]
+      : []),
+  ]
+
+  return (
+    <Panel title="Angaben">
+      <FactList keyWidth={120} facts={facts} />
     </Panel>
   )
 }

@@ -271,6 +271,7 @@ async function mount(
     document_signatures?: Row[]
     document_sources?: Row[]
     customers?: Row[]
+    stores?: Row[]
   } = {},
   roles: RoleKey[] = ['office'],
 ) {
@@ -298,6 +299,10 @@ async function mount(
     server.put('document_sources', row)
   }
 
+  for (const row of rows.stores ?? []) {
+    server.put('stores', row)
+  }
+
   const client = await SyncClient.start({
     store: await openLocalStore(`documents${String((counter += 1))}`),
     transport: server,
@@ -310,6 +315,7 @@ async function mount(
       'document_lines',
       'document_signatures',
       'document_sources',
+      'stores',
     ],
     onSignedOut: () => {},
   })
@@ -2944,6 +2950,75 @@ describe('the document as its boards draw it (#219)', () => {
     expect(
       await frame.findByText(/^Festgeschrieben 21\.09\.2026, \d\d:\d\d · Anna Weber$/),
     ).toBeDefined()
+  })
+
+  it('takes the store a delivery note is delivered from, with its head (#299)', async () => {
+    await mount('/belege/d-1', {
+      documents: [document({ kind: 'delivery_note', predecessorDocumentId: 'ab-1' })],
+      stores: [
+        { id: 's-lager', name: 'Lager Edingen', vehicle: false, version: 1, deletedAt: null },
+        { id: 's-van', name: 'Transporter HD-OG 412', vehicle: true, version: 1, deletedAt: null },
+      ],
+    })
+    const person = userEvent.setup()
+
+    await person.selectOptions(await screen.findByLabelText('Material aus'), 's-lager')
+    await person.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(valuesOf(server.operationsOn('documents').at(-1))).toMatchObject({
+        storeId: 's-lager',
+      })
+    })
+    // No prices on a delivery note, though its lines keep them.
+    expect(screen.queryByText('Einzelpreis')).toBeNull()
+  })
+
+  it('offers no store on any other kind (#299)', async () => {
+    await mount('/belege/d-1')
+
+    await screen.findByLabelText('Betreff')
+    expect(screen.queryByLabelText('Material aus')).toBeNull()
+  })
+
+  it('shows a signed delivery note with its receipt and where it came from (#299)', async () => {
+    await mount('/belege/d-1', {
+      documents: [
+        document({
+          id: 'ab-1',
+          kind: 'order_confirmation',
+          status: 'issued',
+          number: 'AB-2026-0031',
+        }),
+        document({
+          kind: 'delivery_note',
+          status: 'signed',
+          predecessorDocumentId: 'ab-1',
+          storeId: 's-lager',
+        }),
+      ],
+      document_signatures: [
+        {
+          id: 'sig-1',
+          documentId: 'd-1',
+          signerName: 'Thomas Brenner',
+          signedAt: '2026-10-31T09:14:00.000Z',
+          deviceInfo: 'Telefon Max',
+          path: 'M100,300L200,120L300,280L400,100',
+          version: 1,
+          deletedAt: null,
+        },
+      ],
+      stores: [
+        { id: 's-lager', name: 'Lager Edingen', vehicle: false, version: 1, deletedAt: null },
+      ],
+    })
+
+    expect(await screen.findByRole('heading', { name: 'Empfang' })).toBeTruthy()
+    expect(screen.getByText('Empfangen von')).toBeTruthy()
+    expect(screen.getByText('Lager Edingen')).toBeTruthy()
+    expect(screen.getByText('mit der Unterschrift')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'AB-2026-0031' })).toBeTruthy()
   })
 
   it('drops what was typed into the head with "Abbrechen", and waits while nothing changed', async () => {

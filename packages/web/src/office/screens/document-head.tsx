@@ -20,6 +20,7 @@ import {
   refusalFor,
   text,
   useRecord,
+  useRecords,
   useSync,
 } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
@@ -230,6 +231,8 @@ interface HeadValues {
   readonly term: string
   readonly introText: string
   readonly closingText: string
+  /** Where a delivery note is delivered from (#299); empty for none. */
+  readonly storeId: string
 }
 
 function storedValues(document: RecordState): HeadValues {
@@ -244,7 +247,26 @@ function storedValues(document: RecordState): HeadValues {
     term: own === null ? '' : String(own),
     introText: text(document, 'introText'),
     closingText: text(document, 'closingText'),
+    storeId: maybeText(document, 'storeId') ?? '',
   }
+}
+
+/**
+ * "Material aus" of a delivery note (#299, board "Lieferschein: Entwurf aus der
+ * Auftragsbestätigung"): the store or vehicle it is delivered from. Booked out
+ * of it once the delivery note is fixed, by the signature of its recipient or
+ * by issuing it. No store, no booking.
+ */
+function useStoreOptions(): readonly { readonly value: string; readonly label: string }[] {
+  const stores = useRecords('stores')
+
+  return [
+    { value: '', label: 'Aus keinem Lager' },
+    ...[...stores]
+      .filter((store) => store['deletedAt'] == null)
+      .sort((left, right) => text(left, 'name').localeCompare(text(right, 'name'), 'de'))
+      .map((store) => ({ value: String(store['id']), label: text(store, 'name') })),
+  ]
 }
 
 /**
@@ -280,6 +302,8 @@ function HeaderForm({
   const kind = documentKindOf(document)
   const invoice = isInvoice(kind)
   const statesTerm = statesPaymentTerm(kind)
+  const delivery = kind === 'delivery_note'
+  const storeOptions = useStoreOptions()
 
   function set(field: keyof HeadValues) {
     return (value: string) => {
@@ -341,6 +365,7 @@ function HeaderForm({
           : {}),
         introText: asTextOrNull(values.introText),
         closingText: asTextOrNull(values.closingText),
+        ...(delivery ? { storeId: asTextOrNull(values.storeId) } : {}),
       })
 
       if (saved.outcome === 'queued') {
@@ -398,7 +423,7 @@ function HeaderForm({
             }}
           />
           <Field
-            label="Belegdatum"
+            label={delivery ? 'Lieferdatum' : 'Belegdatum'}
             type="date"
             required
             value={values.documentDate}
@@ -406,13 +431,17 @@ function HeaderForm({
               set('documentDate')(event.target.value)
             }}
           />
-          <SelectField
-            label="Umsatzsteuer"
-            value={values.taxTreatment}
-            options={treatmentOptions}
-            hint="Beim Anlegen aus dem Kunden und den Angaben des Betriebs vorgeschlagen."
-            onChange={set('taxTreatment')}
-          />
+          {/* A delivery note has no prices (#299): its treatment comes from
+              the confirmation and goes on to the invoice out of it. */}
+          {delivery ? null : (
+            <SelectField
+              label="Umsatzsteuer"
+              value={values.taxTreatment}
+              options={treatmentOptions}
+              hint="Beim Anlegen aus dem Kunden und den Angaben des Betriebs vorgeschlagen."
+              onChange={set('taxTreatment')}
+            />
+          )}
           {statesTerm ? (
             <Field
               label="Zahlungsziel in Tagen"
@@ -426,6 +455,15 @@ function HeaderForm({
               }}
               {...(termProblem === null ? {} : { problem: termProblem })}
               hint={`Leer lassen für das Zahlungsziel aus den Einstellungen${shownSetting}. 0 heißt sofort zahlbar.`}
+            />
+          ) : null}
+          {delivery ? (
+            <SelectField
+              label="Material aus"
+              value={values.storeId}
+              options={storeOptions}
+              hint="Ist der Lieferschein festgeschrieben, wird das Material dort abgebucht."
+              onChange={set('storeId')}
             />
           ) : null}
           {invoice ? (

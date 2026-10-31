@@ -485,6 +485,9 @@ const pageStyle = `
   .totals .detail { font-size: 8pt; color: #5b6573; }
   .signature { margin-top: 12mm; width: 80mm; break-inside: avoid; }
   .signature-picture { display: block; width: 80mm; height: 32mm; }
+  .signature-blank { margin-top: 18mm; display: flex; gap: 12mm; break-inside: avoid; }
+  .signature-blank .signature-line:first-child { width: 40mm; }
+  .signature-blank .signature-line:last-child { width: 80mm; }
   .signature-line {
     border-top: 0.6pt solid #1b2430; padding-top: 1.2mm; font-size: 8.5pt; color: #5b6573;
   }
@@ -529,9 +532,18 @@ const moments = new Intl.DateTimeFormat('de-DE', {
  */
 function signatureOf(content: DocumentContent): string {
   const signature = content.signature
+  // A delivery note says who received the goods (#299). Its recipient need
+  // not sign on the device; where nobody did, the page keeps two empty lines
+  // to sign on paper.
+  const delivery = content.kind === 'delivery_note'
 
   if (!signature) {
-    return ''
+    return delivery
+      ? `<section class="signature-blank">
+    <div class="signature-line">Datum</div>
+    <div class="signature-line">Unterschrift des Empfängers</div>
+  </section>`
+      : ''
   }
 
   const picture = signaturePathIsValid(signature.path)
@@ -540,7 +552,7 @@ function signatureOf(content: DocumentContent): string {
 
   return `<section class="signature">
     ${picture}
-    <div class="signature-line">${text(signature.signerName)}, ${moments.format(new Date(signature.signedAt))} Uhr</div>
+    <div class="signature-line">${delivery ? 'Empfangen: ' : ''}${text(signature.signerName)}, ${moments.format(new Date(signature.signedAt))} Uhr</div>
   </section>`
 }
 

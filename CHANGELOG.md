@@ -27,6 +27,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Bausteine aus dem Fundament (ADR 0011), dessen Tabellenfabrik dafür eigene Spalten an Lieferant und Lagerort und eine
   eigene Liste der Einheiten annimmt. Warum: Abschnitt 4.5 der Feature-Gliederung (v2.39), entschieden von Moritz am
   31.10.2026; die Bildschirme kommen mit dem zweiten Teil.
+- Der Lieferschein (#299), nach der Feature-Gliederung v2.40 und den Tafeln aus Version 86 des Canvas: Aus einer
+  ausgestellten Auftragsbestätigung entsteht mit „Lieferschein erstellen“ einer, als Glied der Kette, mit ihren Positionen
+  und Mengen. Er zeigt keine Preise; seine Positionen behalten die der Auftragsbestätigung ungesehen, und die Rechnung aus
+  ihm stellt diese. Im Entwurf wählt das Büro unter „Material aus“ den Lagerort und ändert Mengen. Auf dem Gerät steht er
+  am Auftrag unter „Lieferscheine“, und der Empfänger kann ihn unterschreiben, auch ohne Netz; das schreibt ihn fest und
+  bucht seine Positionen aus dem Lagerort ab, die Nummer vergibt das Büro beim Festschreiben. Unterschreibt niemand,
+  schreibt das Büro ihn fest, und das bucht ab; abgebucht wird in beiden Fällen einmal (Migration `0105_delivery_note`).
+  Im PDF steht unter einem unterschriebenen „Empfangen:“ mit Name und Zeit, unter einem anderen zwei leere Linien zum
+  Unterschreiben auf Papier. Warum: Abschnitt 4.2 kennt den Lieferschein seit Phase 0, gebaut war er nicht, und Moritz
+  hat am 31.10.2026 entschieden, dass die Unterschrift möglich und keine Pflicht ist.
 - Die Bildschirme des Lagers (#298, zweiter Teil), nach den Tafeln aus Version 84 des Canvas: im Büro „Lager“ mit allen
   Lagerorten, was unter dem Mindestbestand und unter null liegt, und „Neuer Lagerort“ mit Kennzeichen für ein
   Servicefahrzeug; ein Lagerort mit seinem Bestand, Lagerplatz und Mindestbestand je Artikel, seinen Bewegungen und den
