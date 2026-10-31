@@ -100,6 +100,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Row-Level Security nimmt PostgreSQL für `LIKE` keinen Index, und jede Eingabe las den ganzen Katalog. Die
   Suchtabelle ist deshalb die einzige Tabelle ohne FORCE; die Anwendung hat kein Recht an ihr und erreicht sie nur
   über eine Funktion, die selbst nach dem Betrieb fragt. Entschieden von Moritz am 30.10.2026, festgehalten in ADR 0015.
+- Die Feature-Gliederung (v2.39) legt das Lager fest, wie Moritz es am 31.10.2026 entschieden hat (#298):
+  Lagerorte sind Lager und Servicefahrzeuge, der Bestand je Artikel und Lagerort entsteht aus Bewegungen, unter dem
+  Mindestbestand bekommt das Büro eine Aufgabe, und Material im Regiebericht kommt aus einem je Bericht gewählten
+  Lagerort und wird beim Unterschreiben einmal abgebucht; ein Bestand unter null nach dem Abgleich ist eine Warnung.
+  Warum: Abschnitt 4.5 nannte nur Lagerbestand und Fahrzeuglager, und gebaut wird, was im Konzept steht.
 - Ein Import aus DATANORM hält die Geräte nicht mehr auf (#297, Punkt 4): Artikel und Verkaufspreise, die kein Gerät
   hält, bekommen beim Schreiben die feste Nummer 1 des Abgleichs statt am Ende eine eigene. Ein Gerät holt sie, sobald
   der Artikel in seine Menge kommt, wie bisher beim Neuholen der Menge ab 0. Nummeriert werden am Ende nur noch die
