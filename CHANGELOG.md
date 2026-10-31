@@ -119,6 +119,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Row-Level Security nimmt PostgreSQL für `LIKE` keinen Index, und jede Eingabe las den ganzen Katalog. Die
   Suchtabelle ist deshalb die einzige Tabelle ohne FORCE; die Anwendung hat kein Recht an ihr und erreicht sie nur
   über eine Funktion, die selbst nach dem Betrieb fragt. Entschieden von Moritz am 30.10.2026, festgehalten in ADR 0015.
+- Die Feature-Gliederung (v2.40) legt den Lieferschein fest, wie Moritz es am 31.10.2026 entschieden hat (#299): einer
+  je Auftragsbestätigung, im Büro angelegt, ohne Preise; der Empfänger kann ihn auf dem Gerät unterschreiben, muss es
+  aber nicht, und sobald er festgeschrieben ist, bucht er sein Material aus dem gewählten Lagerort ab. Warum: Die
+  Unterschrift war seit v2.24 Pflicht, belegt aber nur die Übergabe, und mehrere Lieferscheine aus einer
+  Auftragsbestätigung hätten die Kette verzweigt.
 - Die Feature-Gliederung (v2.39) legt das Lager fest, wie Moritz es am 31.10.2026 entschieden hat (#298):
   Lagerorte sind Lager und Servicefahrzeuge, der Bestand je Artikel und Lagerort entsteht aus Bewegungen, unter dem
   Mindestbestand bekommt das Büro eine Aufgabe, und Material im Regiebericht kommt aus einem je Bericht gewählten
