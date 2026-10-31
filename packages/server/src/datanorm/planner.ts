@@ -181,7 +181,7 @@ export async function startPlanning(
           articles: part('articles'),
           links: part('links'),
           discountGroups: part('discountGroups'),
-          coppers: part('coppers'),
+          metals: part('metals'),
           removedLinks: part('removedLinks'),
           listPrices: part('listPrices'),
           purchasePrices: part('purchasePrices'),

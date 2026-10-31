@@ -181,7 +181,66 @@ describe('a record of DATANORM 4', () => {
       group: '0420',
       name: 'Kabelbinder',
     })
-    expect(recordOf('Z;N;4711;1;2;3;', 4)).toEqual({ kind: 'ignored', line: 4, letter: 'Z' })
+    expect(recordOf('J;N;4711;Z;4712;1;', 4)).toEqual({ kind: 'ignored', line: 4, letter: 'J' })
+  })
+
+  it('reads a metal of a Z record with its base and weight, as the second record has them (#782)', () => {
+    // Real lines of Rexel (01.09.2026): H05V-U 1 with 9.60 kg copper a
+    // kilometre, NAYY-J 4x35 with 406 kg aluminium, a main switch of Eaton
+    // with 2.56 g silver a piece.
+    expect(recordOf('Z;N;1001009;1;4;CU;000150;000010;000960;000100;', 5)).toEqual({
+      kind: 'metal',
+      line: 5,
+      number: '1001009',
+      metal: 'copper',
+      content: { baseEuros: 150, gramsPerThousand: 9600 },
+    })
+    expect(recordOf('Z;N;1005151;1;4;AL;000000;000010;040600;000100;', 5)).toMatchObject({
+      metal: 'aluminium',
+      content: { baseEuros: 0, gramsPerThousand: 406_000 },
+    })
+    expect(recordOf('Z;N;2000250;1;4;AG;000001;000010;000256;000001;', 5)).toMatchObject({
+      metal: 'silver',
+      content: { baseEuros: 1, gramsPerThousand: 2560 },
+    })
+    expect(recordOf('Z;N;2878984;1;4;MS;000150;000010;000092;000100;', 5)).toMatchObject({
+      metal: 'brass',
+      content: { baseEuros: 150, gramsPerThousand: 920 },
+    })
+  })
+
+  it('reads no weight that refers to another quantity or fills its field (#782)', () => {
+    // A transformer of 15 kVA: 17 kg copper in the second record, 1700.00 in
+    // the Z record beside a 10 that nothing explains.
+    expect(recordOf('Z;N;2015704;1;4;CU;000150;000010;170000;000010;', 5)).toMatchObject({
+      content: 'other-quantity',
+    })
+    expect(recordOf('Z;N;1019699;1;4;CU;000000;000010;105460;001000;', 5)).toMatchObject({
+      content: 'other-quantity',
+    })
+    expect(recordOf('Z;N;2057333;1;4;CU;000370;000010;999999;000001;', 5)).toMatchObject({
+      content: 'full',
+    })
+    expect(recordOf('Z;N;1001009;1;4;CU;000150;000010;9,60;000100;', 5)).toMatchObject({
+      content: 'unreadable',
+    })
+  })
+
+  it('knows a line of a surcharge table, and what it cannot read of a Z record (#782)', () => {
+    expect(recordOf('Z;N;1059899;1;3;MS;1;500;150;163;10;', 6)).toEqual({
+      kind: 'metal-table',
+      line: 6,
+      number: '1059899',
+      metal: 'brass',
+    })
+    expect(recordOf('Z;N;1059899;1;4;MS-Zuschlag: abhängig v. Auftragseingang;', 7)).toEqual({
+      line: 7,
+      reason: 'Ein Zuschlag von 1059899 nennt kein bekanntes Metall.',
+    })
+    expect(recordOf('Z;N;1059899;1;5;CU;000150;000010;000960;000100;', 8)).toEqual({
+      line: 8,
+      reason: 'Ein Zuschlag von 1059899 ist von unbekannter Art.',
+    })
   })
 
   it('reads the header in its fixed columns', () => {
@@ -231,7 +290,7 @@ function delivery() {
     'A;N;9001;00;Abzweigdose;;1;0;Gebinde;215;;042;;',
     'A;N;9002;00;Klemme;;1;0;Stck;x1;;042;;',
     'A;L;8888;00;Ausgelaufen;;1;0;Stck;100;;042;;',
-    'Z;N;1042;1;2;3;',
+    'J;N;1042;Z;5709912;1;',
   ])
   const prices = cp850([header('150926'), 'P;A;5709912;1;390;0;RG12;;;;;'])
   const groups = cp850([
@@ -274,7 +333,7 @@ describe('a delivery read into a catalogue', () => {
       discountGroup: 'RG12',
       groupOfGoods: 'Kabelbinder und Befestigung',
       ean: '4006381333931',
-      copper: null,
+      metals: new Map([['copper', null]]),
     })
     expect(catalogue.articles.get('1042')).toMatchObject({
       designation: 'Mantelleitung NYM-J 3 × 1,5 mm²',
@@ -294,7 +353,7 @@ describe('a delivery read into a catalogue', () => {
     expect(catalogue.ignored).toEqual(
       new Map([
         ['T', 1],
-        ['Z', 1],
+        ['J', 1],
       ]),
     )
     expect(catalogue.problems).toEqual([

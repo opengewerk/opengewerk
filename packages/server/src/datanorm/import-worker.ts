@@ -59,7 +59,7 @@ const parts: readonly PlanPart[] = [
   'articles',
   'links',
   'discountGroups',
-  'coppers',
+  'metals',
   'removedLinks',
   'listPrices',
   'purchasePrices',

@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Metall aus den Z-Sätzen von DATANORM (#782), nach der Feature-Gliederung v2.41 und den Tafeln aus Version 89 des
+  Canvas: Ein Import liest die Z-Sätze, die Basis und Gewicht eines Metalls nennen, wie das Kupfer des zweiten Satzes
+  und vor ihm, und kennt dafür Silber und Messing neben Kupfer und Aluminium (Migration `0107_silver_and_brass`). Ein
+  Metall, über das die Lieferung nichts sagt, bleibt, etwa ein von Hand eingetragenes Aluminium. Eine Zuschlagsstaffel
+  der Z-Sätze übernimmt er nicht, ebenso wenig einen Z-Satz, dessen Gewicht sich auf eine andere Menge bezieht oder sein
+  Feld füllt; dort bleibt das Kupfer, das der Artikel schon hat. Die Vorschau zählt die Artikel je Metall und die Staffeln, die
+  nicht übernommen werden. Warum: In der Lieferung von Rexel tragen rund 6.800 Artikel Silber, 811 Aluminium und 166
+  Messing nur in den Z-Sätzen; Moritz hat am 31.10.2026 entschieden, erst diese Form zu lesen und die Staffel, in der
+  die übrigen 20.620 Kupferartikel stehen, erst, wenn eine Rechnung zeigt, wie ihr Betrag gemeint ist.
+
 - Entwürfe lassen sich löschen, im Büro und auf der Baustelle (#786), entschieden von Moritz am 30.10.2026: „Entwurf
   löschen“ im Kopf eines Entwurfs und leise unter einem Regiebericht auf dem Gerät, mit Rückfrage, auch ohne Netz über
   den Postausgang. Den eigenen Entwurf löscht, wer Belege bearbeiten darf, einen fremden nur, wer das neue Recht

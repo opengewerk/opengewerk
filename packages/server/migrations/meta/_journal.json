@@ -750,6 +750,13 @@
       "when": 1793484028380,
       "tag": "0106_delivery_note_mail_on_signature",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1793489373439,
+      "tag": "0107_silver_and_brass",
+      "breakpoints": true
     }
   ]
 }

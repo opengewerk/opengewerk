@@ -79,9 +79,12 @@ const heldLink: HeldLink = {
   articleId: 'article-1',
   supplierNumber: '5709912',
   discountGroup: 'RG12',
-  copper: null,
+  metals: new Map(),
   main: true,
 }
+
+/** The copper of that cable, 9.6 kg a kilometre at a base of 150 euros. */
+const copper = { baseEuros: 150, gramsPerThousand: 9600 }
 
 /** A cable with copper in fields 7 to 9 of its second record, as a real delivery writes it. */
 const cable = 'A;N;1001009;00;KAB+LTG H05V-U 1 SW;;1;2;mtr;1418;RG10;104;;'
@@ -91,7 +94,7 @@ const cableLink: HeldLink = {
   articleId: 'article-2',
   supplierNumber: '1001009',
   discountGroup: 'RG10',
-  copper: null,
+  metals: new Map(),
   main: true,
 }
 const heldCable: HeldArticle = {
@@ -128,7 +131,7 @@ describe('an article the supplier does not sell yet', () => {
         articleId: 'new-1',
         supplierNumber: '5709912',
         discountGroup: 'RG12',
-        copper: null,
+        metals: [],
       },
     ])
     expect(plan.listPrices).toEqual([
@@ -191,7 +194,7 @@ describe('an article the supplier does not sell yet', () => {
         articleId: 'article-1',
         supplierNumber: '5709912',
         discountGroup: 'RG12',
-        copper: null,
+        metals: [],
       },
     ])
     expect(plan.listPrices).toEqual([
@@ -347,21 +350,21 @@ describe('an article the supplier sells already', () => {
     expect(plan.links).toEqual([
       expect.objectContaining({
         supplierNumber: '1001009',
-        copper: { baseEuros: 150, gramsPerThousand: 9600 },
+        metals: [{ metal: 'copper', content: { baseEuros: 150, gramsPerThousand: 9600 } }],
       }),
     ])
   })
 
   it('changes the copper of a link where the delivery names other, and clears it where it names none', () => {
-    const known = { ...cableLink, copper: { baseEuros: 150, gramsPerThousand: 9600 } }
+    const known = { ...cableLink, metals: new Map([['copper', copper]] as const) }
     const changed = planImport(
       delivery(cable, cableCopper.replace(';1;150;96;', ';1;128;96;')),
       holdings({ articles: [heldCable], links: [known] }),
       options(),
     )
 
-    expect(changed.coppers).toEqual([
-      { linkId: 'link-2', copper: { baseEuros: 128, gramsPerThousand: 9600 } },
+    expect(changed.metals).toEqual([
+      { linkId: 'link-2', metal: 'copper', content: { baseEuros: 128, gramsPerThousand: 9600 } },
     ])
     expect(changed.summary).toMatchObject({ updated: 1, unchanged: 0 })
 
@@ -371,11 +374,13 @@ describe('an article the supplier sells already', () => {
       options(),
     )
 
-    expect(cleared.coppers).toEqual([{ linkId: 'link-2', copper: null }])
+    expect(cleared.metals).toEqual([{ linkId: 'link-2', metal: 'copper', content: null }])
+    // An article the delivery says has no copper is no article with copper (#782).
+    expect(cleared.summary.metals).toEqual([])
   })
 
   it('leaves the copper of a link where the delivery brings no second record, or the same', () => {
-    const known = { ...cableLink, copper: { baseEuros: 150, gramsPerThousand: 9600 } }
+    const known = { ...cableLink, metals: new Map([['copper', copper]] as const) }
 
     for (const lines of [[cable], [cable, cableCopper]]) {
       const plan = planImport(
@@ -384,7 +389,7 @@ describe('an article the supplier sells already', () => {
         options(),
       )
 
-      expect(plan.coppers).toEqual([])
+      expect(plan.metals).toEqual([])
     }
   })
 
@@ -393,17 +398,113 @@ describe('an article the supplier sells already', () => {
       delivery(cable, cableCopper.replace(';1;150;96;', ';1;150;9,6;')),
       holdings({
         articles: [heldCable],
-        links: [{ ...cableLink, copper: { baseEuros: 150, gramsPerThousand: 9600 } }],
+        links: [{ ...cableLink, metals: new Map([['copper', copper]] as const) }],
       }),
       options(),
     )
 
-    expect(plan.coppers).toEqual([])
+    expect(plan.metals).toEqual([])
     expect(plan.summary.problemLines).toEqual([
       expect.objectContaining({
         reason: 'Die Kupferangaben von 1001009 sind nicht zu lesen und werden nicht übernommen.',
       }),
     ])
+  })
+
+  it('takes the metals of Z records with base and weight, before the copper of the second record (#782)', () => {
+    const plan = planImport(
+      delivery(
+        cable,
+        cableCopper,
+        'Z;N;1001009;1;4;CU;000150;000010;000963;000100;',
+        'Z;N;1001009;2;4;AG;000001;000010;000038;000100;',
+      ),
+      holdings({}),
+      options(),
+    )
+
+    expect(plan.links).toEqual([
+      expect.objectContaining({
+        metals: [
+          { metal: 'copper', content: { baseEuros: 150, gramsPerThousand: 9630 } },
+          { metal: 'silver', content: { baseEuros: 1, gramsPerThousand: 380 } },
+        ],
+      }),
+    ])
+    expect(plan.summary.metals).toEqual([
+      { metal: 'copper', articles: 1 },
+      { metal: 'silver', articles: 1 },
+    ])
+  })
+
+  it('leaves a metal the delivery says nothing about, such as aluminium entered by hand (#782)', () => {
+    const aluminium = { baseEuros: 0, gramsPerThousand: 406_000 }
+    const known = {
+      ...cableLink,
+      metals: new Map([
+        ['copper', copper],
+        ['aluminium', aluminium],
+      ] as const),
+    }
+    const plan = planImport(
+      delivery(cable, cableCopper, 'Z;N;1001009;2;4;AG;000001;000010;000038;000100;'),
+      holdings({ articles: [heldCable], links: [known] }),
+      options(),
+    )
+
+    expect(plan.metals).toEqual([
+      { linkId: 'link-2', metal: 'silver', content: { baseEuros: 1, gramsPerThousand: 380 } },
+    ])
+  })
+
+  it('keeps the copper of the second record where the Z record refers to another quantity (#782)', () => {
+    const plan = planImport(
+      delivery(cable, cableCopper, 'Z;N;1001009;1;4;CU;000150;000010;009600;000010;'),
+      holdings({}),
+      options(),
+    )
+
+    expect(plan.links[0]?.metals).toEqual([{ metal: 'copper', content: copper }])
+    expect(plan.summary.problemLines).toEqual([
+      expect.objectContaining({
+        reason:
+          'Die Angaben zu Kupfer von 1001009 beziehen sich auf eine andere Menge und werden nicht übernommen.',
+      }),
+    ])
+  })
+
+  it('keeps a copper held where its Z record is not read and the second record names none (#782)', () => {
+    const known = { ...cableLink, metals: new Map([['copper', copper]] as const) }
+    const plan = planImport(
+      delivery(
+        cable,
+        cableCopper.replace(';1;150;96;', ';;;;'),
+        'Z;N;1001009;1;4;CU;000150;000010;999999;000001;',
+      ),
+      holdings({ articles: [heldCable], links: [known] }),
+      options(),
+    )
+
+    expect(plan.metals).toEqual([])
+    expect(plan.summary.problems).toBe(1)
+  })
+
+  it('counts a surcharge table and keeps the metal it names, which the second record says is none (#782)', () => {
+    const known = { ...cableLink, metals: new Map([['copper', copper]] as const) }
+    const plan = planImport(
+      delivery(
+        cable,
+        cableCopper.replace(';1;150;96;', ';;;;'),
+        'Z;N;1001009;1;3;CU;3;317;525;575;10;',
+        'Z;N;1001009;2;3;CU;3;352;575;625;10;',
+      ),
+      holdings({ articles: [heldCable], links: [known] }),
+      options(),
+    )
+
+    expect(plan.metals).toEqual([])
+    expect(plan.summary.metalTables).toEqual([{ metal: 'copper', articles: 1 }])
+    expect(plan.summary.metals).toEqual([])
   })
 
   it('takes the price of a price file with the price base of the price before it', () => {

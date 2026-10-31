@@ -8,6 +8,8 @@ import {
   type ImportSummary,
   type IsoDate,
   markupLabel,
+  type Metal,
+  metalNames,
 } from '@opengewerk/domain'
 import {
   Button,
@@ -664,6 +666,9 @@ function ImportMain({
           {shown.status === 'applying' ? null : (
             <SellingPrices summary={summary} past={shown.status === 'applied'} />
           )}
+          {shown.status === 'applying' ? null : (
+            <Metals summary={summary} past={shown.status === 'applied'} />
+          )}
           {shown.status === 'ready' ? (
             <p className="text-[13px] leading-[1.45] text-ink-muted">
               Übernommen wird ganz oder gar nicht. Das Änderungsprotokoll hält den Import als einen
@@ -951,12 +956,58 @@ function FilesPanel({ summary }: { readonly summary: ImportSummary }) {
   )
 }
 
-/** "Was nicht übernommen wird": long texts, kinds of record, other files, units, lines. */
+/** "Kupfer bei 312, Silber bei 41 und Messing bei 6 Artikeln": metals with their articles. */
+function countedMetals(
+  entries: readonly { readonly metal: Metal; readonly articles: number }[],
+): string {
+  const parts = entries.map(
+    (entry) => `${metalNames[entry.metal]} bei ${whole.format(entry.articles)}`,
+  )
+  const last = entries.at(-1)?.articles ?? 0
+  const listed =
+    parts.length > 1
+      ? `${parts.slice(0, -1).join(', ')} und ${parts.at(-1) ?? ''}`
+      : (parts[0] ?? '')
+
+  return `${listed} ${last === 1 ? 'Artikel' : 'Artikeln'}`
+}
+
+/**
+ * The metals that come with the import (#782), as `metal_note` of the board
+ * writes them. Nothing for a delivery without any, or a preview from before.
+ */
+function Metals({ summary, past }: { readonly summary: ImportSummary; readonly past: boolean }) {
+  const metals = summary.metals ?? []
+
+  if (metals.length === 0) {
+    return null
+  }
+
+  return (
+    <p className="text-[14px] leading-[1.45]">
+      {`${past ? 'Metall kam mit' : 'Metall kommt mit'}: ${countedMetals(metals)}. `}
+      Einen Metallzuschlag gibt es nur für ein Metall, für das beim Lieferanten ein Metallpreis
+      steht.
+    </p>
+  )
+}
+
+/** "Was nicht übernommen wird": long texts, surcharge tables, kinds of record, other files, units, lines. */
 function LeftOut({ summary }: { readonly summary: ImportSummary }) {
   const lines: (readonly [string, string])[] = []
 
   for (const name of summary.longTextFiles) {
     lines.push(['Langtexte', `${name} bringt nur Langtexte und wird nicht gebraucht.`])
+  }
+
+  // What its amounts mean is described nowhere (#782).
+  const tables = summary.metalTables ?? []
+
+  if (tables.length > 0) {
+    lines.push([
+      'Zuschlagsstaffel',
+      `${countedMetals(tables)}. Eine Staffel aus den Z-Sätzen wird noch nicht übernommen.`,
+    ])
   }
 
   for (const kind of summary.ignored) {

@@ -8,6 +8,8 @@ import {
   type IsoDate,
   type LineUnit,
   markupOf,
+  type Metal,
+  metals,
   type PriceBase,
   priceCentsMax,
   sellingCentsOf,
@@ -42,8 +44,9 @@ import type { PriceKind } from './records.js'
  *   unit. None for an article with a fixed selling price, and none at all
  *   where no markup is set; the summary says so. The first supplier of an
  *   article is its main one, as the trigger of 0099 makes it.
- * - The copper of the second record goes to the link, as the discount group
- *   does; a delivery without a second record for an article leaves it.
+ * - The metals the delivery states go to the link, as the discount group
+ *   does: the copper of the second record and every metal of a Z record with
+ *   base and weight (#782); a metal it says nothing about stays as it is.
  * - An article the files delete loses the supplier, not its existence.
  * - A price never applies backwards; the day comes from the options.
  */
@@ -79,7 +82,7 @@ export interface HeldLink {
   readonly articleId: string
   readonly supplierNumber: string
   readonly discountGroup: string | null
-  readonly copper: Copper | null
+  readonly metals: ReadonlyMap<Metal, Copper>
   /** Whether the supplier is the article's main supplier, whose purchase price makes the selling price. */
   readonly main: boolean
 }
@@ -127,7 +130,20 @@ export interface NewLink {
   readonly articleId: string
   readonly supplierNumber: string
   readonly discountGroup: string | null
-  readonly copper: Copper | null
+  readonly metals: readonly LinkMetal[]
+}
+
+/** One metal of a link, as an import writes it. */
+export interface LinkMetal {
+  readonly metal: Metal
+  readonly content: Copper
+}
+
+/** A metal of a link written anew, or taken away where its content is null. */
+export interface ChangedMetal {
+  readonly linkId: string
+  readonly metal: Metal
+  readonly content: Copper | null
 }
 
 export interface NewPrice {
@@ -149,7 +165,7 @@ export interface ImportPlan {
   readonly articles: readonly NewArticle[]
   readonly links: readonly NewLink[]
   readonly discountGroups: readonly { readonly linkId: string; readonly discountGroup: string }[]
-  readonly coppers: readonly { readonly linkId: string; readonly copper: Copper | null }[]
+  readonly metals: readonly ChangedMetal[]
   readonly removedLinks: readonly string[]
   readonly listPrices: readonly NewPrice[]
   readonly purchasePrices: readonly NewPrice[]
@@ -195,10 +211,16 @@ function heldPriceOf(held: HeldPrice | undefined): ImportPrice | null {
   return held === undefined ? null : { cents: held.cents, priceBase: held.priceBase }
 }
 
-function sameCopper(held: Copper | null, offered: Copper | null): boolean {
+function sameMetal(held: Copper | undefined, offered: Copper | null): boolean {
   return (
-    held?.baseEuros === offered?.baseEuros && held?.gramsPerThousand === offered?.gramsPerThousand
+    (held ?? null)?.baseEuros === offered?.baseEuros &&
+    (held ?? null)?.gramsPerThousand === offered?.gramsPerThousand
   )
+}
+
+/** The metals the delivery states for a new link, without those it says it has none of. */
+function linkMetals(offered: ReadonlyMap<Metal, Copper | null>): LinkMetal[] {
+  return [...offered].flatMap(([metal, content]) => (content === null ? [] : [{ metal, content }]))
 }
 
 function sameAs(held: HeldPrice | undefined, offered: Priced): boolean {
@@ -247,7 +269,9 @@ export function planImport(
   const articles: NewArticle[] = []
   const links: NewLink[] = []
   const discountGroups: { linkId: string; discountGroup: string }[] = []
-  const coppers: { linkId: string; copper: Copper | null }[] = []
+  const changedMetals: ChangedMetal[] = []
+  // How many articles of the delivery bring each metal, for the preview (#782).
+  const metalCounts = new Map<Metal, number>()
   const removedLinks: string[] = []
   const listPrices: NewPrice[] = []
   const purchasePrices: NewPrice[] = []
@@ -443,6 +467,12 @@ export function planImport(
 
     articleCount += 1
 
+    for (const [metal, content] of entry.metals) {
+      if (content !== null) {
+        metalCounts.set(metal, (metalCounts.get(metal) ?? 0) + 1)
+      }
+    }
+
     if (entry.unknownUnit !== null) {
       unknownUnits.set(entry.unknownUnit, (unknownUnits.get(entry.unknownUnit) ?? 0) + 1)
     }
@@ -457,17 +487,17 @@ export function planImport(
       const changedPrices = offerPrices(held, link.id, offered, entry.unit, where)
       const sellingPrice = followPurchase(held, link.id, link.main, where)
       const changedGroup = discountGroup !== null && discountGroup !== link.discountGroup
-      const changedCopper = entry.copper !== undefined && !sameCopper(link.copper, entry.copper)
+      const metalChanges = [...entry.metals]
+        .filter(([metal, content]) => !sameMetal(link.metals.get(metal), content))
+        .map(([metal, content]) => ({ linkId: link.id, metal, content }))
 
       if (changedGroup) {
         discountGroups.push({ linkId: link.id, discountGroup })
       }
 
-      if (changedCopper) {
-        coppers.push({ linkId: link.id, copper: entry.copper ?? null })
-      }
+      changedMetals.push(...metalChanges)
 
-      if (changedPrices || changedGroup || changedCopper || sellingPrice !== null) {
+      if (changedPrices || changedGroup || metalChanges.length > 0 || sellingPrice !== null) {
         counts.updated += 1
         sample({
           kind: 'updated',
@@ -499,7 +529,7 @@ export function planImport(
         articleId: found.id,
         supplierNumber: entry.number,
         discountGroup,
-        copper: entry.copper ?? null,
+        metals: linkMetals(entry.metals),
       })
       offerPrices(found, linkId, offered, entry.unit, where)
       // The main supplier where the article has none yet.
@@ -555,7 +585,7 @@ export function planImport(
       articleId: article.id,
       supplierNumber: entry.number,
       discountGroup,
-      copper: entry.copper ?? null,
+      metals: linkMetals(entry.metals),
     })
     offerPrices(article, linkId, offered, null, where)
     const sellingPrice = followPurchase(article, linkId, true, where)
@@ -658,7 +688,7 @@ export function planImport(
     articles,
     links,
     discountGroups,
-    coppers,
+    metals: changedMetals,
     removedLinks,
     listPrices,
     purchasePrices,
@@ -678,6 +708,12 @@ export function planImport(
       skipped: delivery.skipped,
       longTextFiles: delivery.longTextFiles,
       ignored: [...catalogue.ignored].map(([letter, lines]) => ({ letter, lines })),
+      metals: metals
+        .filter((metal) => metalCounts.has(metal))
+        .map((metal) => ({ metal, articles: metalCounts.get(metal) ?? 0 })),
+      metalTables: metals
+        .filter((metal) => catalogue.metalTables.has(metal))
+        .map((metal) => ({ metal, articles: catalogue.metalTables.get(metal) ?? 0 })),
       fileDate: catalogue.header?.date ?? null,
       samples,
     },

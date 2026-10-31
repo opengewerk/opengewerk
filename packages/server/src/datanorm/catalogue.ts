@@ -1,4 +1,11 @@
-import { type Copper, eanProblem, type LineUnit, type PriceBase } from '@opengewerk/domain'
+import {
+  type Copper,
+  eanProblem,
+  type LineUnit,
+  type Metal,
+  metalNames,
+  type PriceBase,
+} from '@opengewerk/domain'
 
 import {
   type ArticleRecord,
@@ -43,11 +50,16 @@ export interface CatalogueArticle {
   readonly groupOfGoods: string | null
   readonly ean: string | null
   /**
-   * The copper the second record names, null where it names none, and
-   * undefined where the delivery brings no second record for the article:
-   * then the link keeps what it has.
+   * The metals the delivery states for the article, null for one it says the
+   * article has none of; a metal it says nothing about is missing, and the
+   * link keeps what it has (#782). The second record states copper, a Z
+   * record with base and weight states its metal and goes before it. A
+   * surcharge table, or a Z record that is not read, states nothing that is
+   * read, and an article with one for a metal keeps that metal as it is: the
+   * second records of the Z variant of Rexel name no copper at all, and a
+   * weight from another delivery or from the office's hand is not taken away.
    */
-  readonly copper: Copper | null | undefined
+  readonly metals: ReadonlyMap<Metal, Copper | null>
 }
 
 export interface CatalogueFile {
@@ -73,6 +85,8 @@ export interface Catalogue {
   readonly problems: readonly (LineProblem & { readonly file: string })[]
   /** Kinds of record not taken over, by letter, and how many lines. */
   readonly ignored: ReadonlyMap<string, number>
+  /** How many articles of the delivery bring a surcharge table, per metal (#782). */
+  readonly metalTables: ReadonlyMap<Metal, number>
   /** How many lines each file had, the header included. */
   readonly lines: number
 }
@@ -83,7 +97,13 @@ interface Pending {
   /** The line of the second record, which the EAN came in. */
   eanLine: number
   group: string
-  copper: Copper | null | undefined
+  metals: Map<Metal, Copper | null>
+  /** The metals a Z record gave, which the second record does not change. */
+  fromZ: Set<Metal>
+  /** The metals of a surcharge table. */
+  tables: Set<Metal>
+  /** The metals of a Z record that is not read. */
+  unread: Set<Metal>
   dimension: { index: number; text: string }[]
 }
 
@@ -167,7 +187,10 @@ export function readCatalogue(files: readonly CatalogueFile[]): Catalogue {
               ean: null,
               eanLine: record.line,
               group: '',
-              copper: undefined,
+              metals: new Map(),
+              fromZ: new Set(),
+              tables: new Set(),
+              unread: new Set(),
               dimension: [],
             })
           }
@@ -190,13 +213,47 @@ export function readCatalogue(files: readonly CatalogueFile[]): Catalogue {
                 line: record.line,
                 reason: `Die Kupferangaben von ${record.number} sind nicht zu lesen und werden nicht übernommen.`,
               })
-            } else {
-              entry.copper = record.copper
+            } else if (!entry.fromZ.has('copper')) {
+              entry.metals.set('copper', record.copper)
             }
           }
 
           break
         }
+
+        case 'metal': {
+          // A Z record follows the records of its article, as the second one does.
+          const entry = pending.get(record.number)
+
+          if (!entry) {
+            break
+          }
+
+          if (typeof record.content === 'string') {
+            const name = metalNames[record.metal]
+
+            entry.unread.add(record.metal)
+            problems.push({
+              file: file.name,
+              line: record.line,
+              reason:
+                record.content === 'other-quantity'
+                  ? `Die Angaben zu ${name} von ${record.number} beziehen sich auf eine andere Menge und werden nicht übernommen.`
+                  : record.content === 'full'
+                    ? `Das Gewicht an ${name} von ${record.number} füllt das Feld und wird nicht übernommen.`
+                    : `Die Angaben zu ${name} von ${record.number} sind nicht zu lesen und werden nicht übernommen.`,
+            })
+          } else {
+            entry.metals.set(record.metal, record.content)
+            entry.fromZ.add(record.metal)
+          }
+
+          break
+        }
+
+        case 'metal-table':
+          pending.get(record.number)?.tables.add(record.metal)
+          break
 
         case 'dimension': {
           const entry = pending.get(record.key)
@@ -247,8 +304,23 @@ export function readCatalogue(files: readonly CatalogueFile[]): Catalogue {
   }
 
   const articles = new Map<string, CatalogueArticle>()
+  const metalTables = new Map<Metal, number>()
 
-  for (const [number, { article, ean, eanLine, group, copper, dimension }] of pending) {
+  for (const [number, entry] of pending) {
+    const { article, ean, eanLine, group, metals, fromZ, tables, unread, dimension } = entry
+
+    for (const metal of tables) {
+      metalTables.set(metal, (metalTables.get(metal) ?? 0) + 1)
+    }
+
+    // A table or an unread Z record names the metal; the second record's
+    // "none" does not take away what the link holds for it.
+    for (const metal of new Set([...tables, ...unread])) {
+      if (!fromZ.has(metal) && metals.get(metal) === null) {
+        metals.delete(metal)
+      }
+    }
+
     const { unit, known } = unitOf(article.unit)
     const text = [...dimension]
       .sort((left, right) => left.index - right.index)
@@ -285,9 +357,9 @@ export function readCatalogue(files: readonly CatalogueFile[]): Catalogue {
       discountGroup: article.discountGroup === '' ? null : article.discountGroup,
       groupOfGoods,
       ean: validEan,
-      copper,
+      metals,
     })
   }
 
-  return { header, articles, priceChanges, deletions, problems, ignored, lines }
+  return { header, articles, priceChanges, deletions, problems, ignored, metalTables, lines }
 }
