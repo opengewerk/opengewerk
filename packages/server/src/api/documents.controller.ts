@@ -39,7 +39,7 @@ import {
   paymentTermProblem,
   RuleError,
   shippedRules,
-  showsPrices,
+  repricedFrom,
   successorsOf,
   type TaxTreatment,
   whyFixed,
@@ -175,8 +175,8 @@ function lacking(missing: readonly Missing[]): UnprocessableEntityException {
 /**
  * The refusal for a second successor out of the same document (#129), naming
  * the one the chain goes on at. Every kind a successor can be is a feminine
- * noun, Auftragsbestätigung, Abschlagsrechnung and Rechnung, which the
- * articles here rely on.
+ * noun, Auftragsbestätigung, Abschlagsrechnung and Rechnung, but for the
+ * Lieferschein (#299), which takes the masculine articles.
  */
 function branchRefusal(successor: {
   readonly kind: DocumentKind
@@ -184,18 +184,28 @@ function branchRefusal(successor: {
   readonly number: string | null
 }): string {
   const title = documentTitle(successor.kind)
+  const masculine = successor.kind === 'delivery_note'
+  const [some, the, it] = masculine ? ['ein', 'der', 'ihm'] : ['eine', 'die', 'ihr']
 
-  if (successor.status === 'draft' || successor.number === null) {
+  if (successor.status === 'draft') {
     return (
-      `Aus diesem Beleg ist schon eine ${title} entstanden, noch als Entwurf. Die Kette geht ` +
-      'bei ihr weiter und verzweigt sich nicht; soll es ein anderer Folgebeleg sein, zuerst ' +
+      `Aus diesem Beleg ist schon ${some} ${title} entstanden, noch als Entwurf. Die Kette geht ` +
+      `bei ${it} weiter und verzweigt sich nicht; soll es ein anderer Folgebeleg sein, zuerst ` +
       'den Entwurf löschen.'
     )
   }
 
+  // Signed on site and not issued yet: fixed, without a number.
+  if (successor.number === null) {
+    return (
+      `Aus diesem Beleg ist schon ${some} ${title} entstanden, unterschrieben und noch ohne ` +
+      `Nummer. Die Kette geht bei ${it} weiter und verzweigt sich nicht.`
+    )
+  }
+
   return (
-    `Aus diesem Beleg ist schon die ${title} ${successor.number} entstanden. Die Kette geht bei ` +
-    'ihr weiter und verzweigt sich nicht, damit keine Rechnung ein zweites Mal stellt, was eine ' +
+    `Aus diesem Beleg ist schon ${the} ${title} ${successor.number} entstanden. Die Kette geht bei ` +
+    `${it} weiter und verzweigt sich nicht, damit keine Rechnung ein zweites Mal stellt, was eine ` +
     'andere schon gestellt hat.' +
     (isCancellable(successor.kind)
       ? ' Soll sie ersetzt werden, wird sie storniert; danach entsteht der neue Folgebeleg ' +
@@ -230,6 +240,10 @@ const writableFields = [
   'taxTreatment',
   // The document's own payment term, or null for the business's setting.
   'paymentTermDays',
+  // The store a delivery note is delivered from (#299), chosen in the office.
+  // A report gets its store on site; any other kind none, which the check
+  // `documents_store_of_a_report` refuses.
+  'storeId',
 ] as const
 
 /**
@@ -647,8 +661,9 @@ export class DocumentsController {
 
       // A report carries no prices. The invoice made out of it gives a line
       // taken from an article the price of the invoice's date (#296); every
-      // other successor keeps the prices of its predecessor.
-      const prices = showsPrices(predecessor.kind)
+      // other successor keeps the prices of its predecessor, an invoice out
+      // of a delivery note those its order confirmation agreed (#299).
+      const prices = !repricedFrom(predecessor.kind)
         ? new Map<string, PriceOfDay>()
         : await articlePricesOn(
             tx,

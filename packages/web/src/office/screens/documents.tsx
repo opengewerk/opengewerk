@@ -61,6 +61,7 @@ import {
 import type { Assignee } from '../../session/tasks.js'
 import {
   ChainCard,
+  DeliveryFactsCard,
   documentName,
   EInvoiceCard,
   MailCard,
@@ -509,6 +510,20 @@ function hangsOnClaim(document: RecordState): boolean {
  * treats the two differently, and a business that sends an estimate should
  * know what it has promised and what it has not.
  */
+/**
+ * Where the positions of a delivery note come from (#299, board "Lieferschein:
+ * Entwurf aus der Auftragsbestätigung"), and that they are changed here.
+ */
+function DeliveryNotice({ confirmation }: { readonly confirmation: string | null }) {
+  return (
+    <NoteBox>
+      {`Aus der Auftragsbestätigung${confirmation ? ` ${confirmation}` : ''} übernommen. `}
+      Ein Lieferschein zeigt keine Preise. Was diesmal nicht geliefert wird, hier ändern oder
+      entfernen.
+    </NoteBox>
+  )
+}
+
 function EstimateNotice() {
   return (
     <NoteBox>
@@ -612,6 +627,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
   // cancellation goes into the books like the invoice did.
   const cancellable = status === 'issued' && isCancellable(kind) && mayIssue
   const report = kind === 'time_and_material_report'
+  const delivery = kind === 'delivery_note'
 
   async function follow(successor: DocumentKind) {
     setFollowing(true)
@@ -747,10 +763,16 @@ function DocumentView({ document }: { readonly document: RecordState }) {
 
   let body: ReactNode
 
-  if (report && status !== 'draft') {
+  if ((report || delivery) && status !== 'draft') {
     // A report as the board "Regiebericht, unterschrieben" lays it out: no
     // frame, what was done, the lines, and the fields beside the signature.
-    const fields = <ReportFieldsCard document={document} />
+    // A delivery note the same way, with where it came from beside the
+    // receipt (#299, board "Lieferschein: unterschrieben, noch ohne Nummer").
+    const fields = delivery ? (
+      <DeliveryFactsCard document={document} signed={signature !== undefined} />
+    ) : (
+      <ReportFieldsCard document={document} />
+    )
     const intro = maybeText(document, 'introText')
     const closingText = maybeText(document, 'closingText')
 
@@ -767,11 +789,11 @@ function DocumentView({ document }: { readonly document: RecordState }) {
         <div
           className={clsx(
             'grid gap-3',
-            hasFields && signature && 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]',
+            (hasFields || delivery) && signature && 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]',
           )}
         >
           {fields}
-          {signature ? <SignatureCard signature={signature} /> : null}
+          {signature ? <SignatureCard signature={signature} received={delivery} /> : null}
         </div>
         {chainKnown ? chain : null}
         <InstructionsCard document={document} />
@@ -786,6 +808,14 @@ function DocumentView({ document }: { readonly document: RecordState }) {
     body = (
       <DraftFrame
         kind={heading}
+        {...(delivery
+          ? {
+              sub:
+                'Noch keine Nummer. Der Empfänger kann ihn auf dem Gerät unterschreiben, dann ist ' +
+                'er festgeschrieben, und Festschreiben vergibt die Nummer. Ohne Unterschrift ' +
+                'schreibt Festschreiben ihn fest.',
+            }
+          : {})}
         action={
           <DeleteDraft
             document={document}
@@ -799,6 +829,9 @@ function DocumentView({ document }: { readonly document: RecordState }) {
       >
         {kind === 'cost_estimate' ? <EstimateNotice /> : null}
         <HeaderCard document={document} editable={editable} billedCents={figures.billedCents} />
+        {delivery ? (
+          <DeliveryNotice confirmation={predecessor ? maybeText(predecessor, 'number') : null} />
+        ) : null}
         <ReportFieldsCard document={document} />
         <LinesPanel document={document} editable={editable} figures={figures} />
         <InstructionsCard document={document} />

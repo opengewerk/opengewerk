@@ -436,7 +436,7 @@ describe('the signature', () => {
    * technician does not hold, and under a draft that continues a chain it
    * fixed a link of that chain.
    */
-  it.each(['final_invoice', 'quote', 'order_confirmation'])(
+  it.each(['final_invoice', 'quote', 'order_confirmation', 'delivery_note'])(
     'is refused under a %s, which stays a draft',
     async (kind) => {
       const draft = await writeReport('2026-09-21', kind)
@@ -462,9 +462,30 @@ describe('the signature', () => {
     expect((await documentRow(report.id)).status).toBe('draft')
   })
 
+  /**
+   * A delivery note is signed as the one out of its order confirmation (#299).
+   * A draft whose kind was changed to a delivery note hangs at anything else,
+   * and a signature would fix it past `document.issue`.
+   */
+  it('is refused under a delivery note that hangs at no order confirmation', async () => {
+    const earlier = await writeReport()
+    const note = await writeReport('2026-09-21', 'delivery_note')
+
+    await admin.query('update documents set predecessor_document_id = $1 where id = $2', [
+      earlier.id,
+      note.id,
+    ])
+
+    const { receipts } = await push([signing(note)])
+
+    expect(receipts[0]).toMatchObject({ outcome: 'conflict', reason: 'record_is_fixed' })
+    expect((await documentRow(note.id)).status).toBe('draft')
+  })
+
   it.each([
     ['an invoice', 'final_invoice', false],
     ['a report that continues a chain', 'time_and_material_report', true],
+    ['a delivery note out of no order confirmation', 'delivery_note', true],
   ] as const)(
     'is refused by the database under %s, past the check of the sync',
     async (_, kind, chained) => {

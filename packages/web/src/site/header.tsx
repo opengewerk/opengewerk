@@ -13,6 +13,7 @@ export function useWayBack(): WayBack | null {
   const matchRoute = useMatchRoute()
   const onJob = matchRoute({ to: '/auftraege/$jobId' })
   const onReport = matchRoute({ to: '/auftraege/$jobId/berichte/$documentId' })
+  const onDeliveryNote = matchRoute({ to: '/auftraege/$jobId/lieferscheine/$documentId' })
   const onProtocol = matchRoute({ to: '/auftraege/$jobId/pruefprotokolle/$recordId' })
   const onFiles = matchRoute({ to: '/auftraege/$jobId/dateien' })
   const onNote = matchRoute({ to: '/auftraege/$jobId/notiz' })
@@ -76,7 +77,7 @@ export function useWayBack(): WayBack | null {
 
   // Everything else below a job back to the job, the job back to the list,
   // and the installation a label opened back to the camera.
-  const underJob = onReport || onProtocol || onFiles || onNote
+  const underJob = onReport || onDeliveryNote || onProtocol || onFiles || onNote
 
   if (underJob) {
     return { to: `/auftraege/${underJob.jobId}`, label: 'Zurück zum Auftrag' }

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import { permissionsOfRoles } from './authorization.js'
-import { closesProgressInvoices, mayDeleteDraft, servicePeriodProblem } from './document.js'
+import {
+  closesProgressInvoices,
+  isSignable,
+  mayDeleteDraft,
+  repricedFrom,
+  servicePeriodProblem,
+  showsPrices,
+} from './document.js'
 
 describe('a service period', () => {
   it('is a single day, a period in order, or nothing yet', () => {
@@ -81,5 +88,25 @@ describe('deleting a draft', () => {
     expect(permissionsOfRoles(['owner'])).toContain('document.delete')
     expect(office.has('document.delete')).toBe(true)
     expect(technician.has('document.delete')).toBe(false)
+  })
+})
+
+describe('a delivery note (#299)', () => {
+  it('may be signed by its recipient, though it hangs at its order confirmation', () => {
+    expect(isSignable({ kind: 'delivery_note', predecessorDocumentId: 'ab' })).toBe(true)
+    // Not one out of nothing: a draft changed to a delivery note is no delivery.
+    expect(isSignable({ kind: 'delivery_note', predecessorDocumentId: null })).toBe(false)
+    // A report still signs only on its own, and nothing else signs at all.
+    expect(isSignable({ kind: 'time_and_material_report', predecessorDocumentId: 'ab' })).toBe(
+      false,
+    )
+    expect(isSignable({ kind: 'time_and_material_report', predecessorDocumentId: null })).toBe(true)
+    expect(isSignable({ kind: 'order_confirmation', predecessorDocumentId: null })).toBe(false)
+  })
+
+  it('shows no prices, and the invoice out of it keeps those of the confirmation', () => {
+    expect(showsPrices('delivery_note')).toBe(false)
+    expect(repricedFrom('delivery_note')).toBe(false)
+    expect(repricedFrom('time_and_material_report')).toBe(true)
   })
 })

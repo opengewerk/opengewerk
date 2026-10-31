@@ -213,6 +213,11 @@ async function mount(path: string, rows: Readonly<Record<string, Row[]>> = {}) {
         path: '/auftraege/$jobId/berichte/$documentId',
         component: SiteReportScreen,
       }),
+      createRoute({
+        getParentRoute: () => root,
+        path: '/auftraege/$jobId/lieferscheine/$documentId',
+        component: SiteReportScreen,
+      }),
     ]),
     history: createMemoryHistory({ initialEntries: [path] }),
   })
@@ -701,6 +706,109 @@ describe('a report on site', () => {
 })
 
 /** Deleting a draft on site (#786): whoever made it, after asking, also without a network. */
+describe('a delivery note (#299)', () => {
+  const confirmation = {
+    id: 'ab-1',
+    customerId: 'c-1',
+    jobId: 'j-1',
+    kind: 'order_confirmation',
+    status: 'issued',
+    number: 'AB-2026-0031',
+    documentDate: '2026-10-30',
+    version: 1,
+    deletedAt: null,
+  }
+  const note = {
+    id: 'ls-1',
+    customerId: 'c-1',
+    jobId: 'j-1',
+    kind: 'delivery_note',
+    status: 'draft',
+    number: null,
+    documentDate: '2026-10-31',
+    introText: null,
+    predecessorDocumentId: 'ab-1',
+    storeId: 's-lager',
+    version: 1,
+    deletedAt: null,
+  }
+  const delivered = [
+    {
+      id: 'l-1',
+      documentId: 'ls-1',
+      kind: 'item',
+      position: 1,
+      designation: 'Leitungsschutzschalter B16, 1-polig',
+      description: null,
+      quantityMilli: 12_000,
+      unit: 'piece',
+      unitPriceCents: 890,
+      version: 1,
+      deletedAt: null,
+    },
+  ]
+  const lager = {
+    id: 's-lager',
+    name: 'Lager Edingen',
+    vehicle: false,
+    version: 1,
+    deletedAt: null,
+  }
+
+  it('stands at its job, to be read there and not written', async () => {
+    await mount('/auftraege/j-1', {
+      documents: [confirmation, note],
+      document_lines: delivered,
+      stores: [lager],
+    })
+
+    const link = await screen.findByRole('link', { name: /Lieferschein vom 31\.10\.2026/ })
+
+    expect(link.getAttribute('href')).toBe('/auftraege/j-1/lieferscheine/ls-1')
+  })
+
+  it('shows what is delivered from where, and its recipient may sign it', async () => {
+    const user = userEvent.setup()
+
+    await mount('/auftraege/j-1/lieferscheine/ls-1', {
+      documents: [confirmation, note],
+      document_lines: delivered,
+      stores: [lager],
+    })
+
+    expect(await screen.findByText('Leitungsschutzschalter B16, 1-polig')).toBeTruthy()
+    expect(screen.getByText('12 Stk.')).toBeTruthy()
+    expect(screen.getByText('Lager Edingen')).toBeTruthy()
+    expect(screen.getByText('AB-2026-0031')).toBeTruthy()
+    // Prices stay in the office, and nothing here changes the positions.
+    expect(screen.queryByText(/8,90/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Material eintragen' })).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Vom Empfänger unterschreiben lassen' }))
+    expect(
+      screen.getByText('Bitte prüfen Sie die gelieferte Ware und unterschreiben Sie darunter.'),
+    ).toBeTruthy()
+
+    await user.type(screen.getByLabelText('Name'), 'Thomas Brenner')
+    signOn(screen.getByRole('img', { name: 'Unterschriftsfeld' }))
+    await user.click(screen.getByRole('button', { name: 'Unterschreiben' }))
+
+    expect(await screen.findByRole('img', { name: 'Unterschrift von Thomas Brenner' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Empfang' })).toBeTruthy()
+
+    await waitFor(() => {
+      const signed = server
+        .operations()
+        .filter((operation) => operation.entity === 'document_signatures')
+        .map((operation) =>
+          Object.fromEntries(operation.patches.map((patch) => [patch.field, patch.to])),
+        )
+
+      expect(signed).toMatchObject([{ documentId: 'ls-1', signerName: 'Thomas Brenner' }])
+    })
+  })
+})
+
 describe('the store of a report (#298)', () => {
   const stores = [
     {

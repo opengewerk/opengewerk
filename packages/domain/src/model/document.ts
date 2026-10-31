@@ -30,22 +30,33 @@ export const documentKinds = [
 export type DocumentKind = (typeof documentKinds)[number]
 
 /**
- * The kinds a customer signs on site (#73). Signing fixes a document without a
- * number, which every other kind gets only by being issued (`document.issue`),
- * so a signature on any other kind would fix it past that right.
+ * The kinds a customer signs on site: the report (#73) and the delivery note,
+ * which its recipient may sign and need not (#299, Feature-Gliederung v2.40).
+ * Signing fixes a document without a number, which every other kind gets only
+ * by being issued (`document.issue`), so a signature on any other kind would
+ * fix it past that right.
  */
-export const signableKinds: readonly DocumentKind[] = ['time_and_material_report']
+export const signableKinds: readonly DocumentKind[] = ['time_and_material_report', 'delivery_note']
 
 /**
- * Whether a document can be signed: a draft of a signable kind that continues
- * no chain. A report is never made out of another document (`successorKinds`),
- * and a draft that names a predecessor but had its kind changed to a report is
- * a link of that chain all the same.
+ * Whether a document can be signed: a draft of a signable kind. A report
+ * continues no chain: it is never made out of another document
+ * (`successorKinds`), and a draft that names a predecessor but had its kind
+ * changed to a report is a link of that chain all the same. A delivery note
+ * is made out of its order confirmation and signed only as one: a draft of
+ * another kind changed to a delivery note would otherwise be fixed by a
+ * signature past `document.issue`. That the predecessor is an order
+ * confirmation the server checks where it knows it (`signatureRefusal`), and
+ * the trigger that signs holds the same.
  */
 export function isSignable(document: {
   readonly kind: DocumentKind
   readonly predecessorDocumentId: string | null
 }): boolean {
+  if (document.kind === 'delivery_note') {
+    return document.predecessorDocumentId !== null
+  }
+
   return signableKinds.includes(document.kind) && document.predecessorDocumentId === null
 }
 
@@ -94,8 +105,11 @@ export function isInvoice(kind: DocumentKind): boolean {
 export const successorKinds: Readonly<Partial<Record<DocumentKind, readonly DocumentKind[]>>> = {
   quote: ['order_confirmation', 'progress_invoice', 'final_invoice'],
   cost_estimate: ['order_confirmation', 'progress_invoice', 'final_invoice'],
-  order_confirmation: ['progress_invoice', 'final_invoice'],
+  order_confirmation: ['progress_invoice', 'final_invoice', 'delivery_note'],
   time_and_material_report: ['final_invoice'],
+  // One delivery note to an order confirmation, as a link of the chain (#299),
+  // and the invoice out of it.
+  delivery_note: ['final_invoice'],
   progress_invoice: ['progress_invoice', 'final_invoice'],
 }
 
@@ -190,11 +204,25 @@ export function isCancellable(kind: DocumentKind): boolean {
  * anything, and signed for its hours and materials; the prices come with the
  * invoice made out of it. A report printed with a column of zero euros would
  * say something nobody meant.
+ *
+ * And the delivery note (#299): it says what was delivered, and its recipient
+ * is not always who pays. Its lines keep the prices of the order confirmation
+ * they come from, unseen, for the invoice made out of it (`repricedFrom`).
  */
-export const unpricedKinds: readonly DocumentKind[] = ['time_and_material_report']
+export const unpricedKinds: readonly DocumentKind[] = ['time_and_material_report', 'delivery_note']
 
 export function showsPrices(kind: DocumentKind): boolean {
   return !unpricedKinds.includes(kind)
+}
+
+/**
+ * Whether a successor prices its lines anew from their articles, at its own
+ * date (#296): out of a report, which was written on site without prices. A
+ * delivery note keeps the prices its order confirmation agreed, unshown, and
+ * the invoice out of it charges those.
+ */
+export function repricedFrom(kind: DocumentKind): boolean {
+  return kind === 'time_and_material_report'
 }
 
 /**
