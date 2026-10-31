@@ -4,6 +4,7 @@ import type {
   DocumentContentV1,
   DocumentContentV11,
   DocumentContentV12,
+  DocumentContentV13,
   LineContent,
 } from '../model/document-content.js'
 import { continuesChain, deducts, documentKinds, successorsOf } from '../model/document.js'
@@ -234,7 +235,7 @@ describe('a snapshot written in the first shape', () => {
     const read = currentContent(first)
 
     // Lifted all the way to today, one version at a time.
-    expect(read.version).toBe(13)
+    expect(read.version).toBe(14)
     expect(read.introText).toBeNull()
     expect(read.closingText).toBeNull()
     expect(read.signature).toBeNull()
@@ -295,6 +296,15 @@ describe('a snapshot written in the first shape', () => {
     } satisfies DocumentContentV12
 
     expect(currentContent(twelfth).lines).toEqual([{ ...plain, kind: 'item', priceBase: 1 }])
+
+    // Before version 14 a delivery note named no order confirmation (#299).
+    const thirteenth = {
+      ...read,
+      version: 13 as const,
+      kind: 'delivery_note' as const,
+    } satisfies DocumentContentV13
+
+    expect(currentContent(thirteenth)).toMatchObject({ version: 14, delivers: null })
   })
 })
 
