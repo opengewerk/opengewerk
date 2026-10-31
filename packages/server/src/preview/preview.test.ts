@@ -182,13 +182,14 @@ describe('the sample data', () => {
       ),
     ).toHaveLength(1)
     expect(byKind.get('cost_estimate')).toMatchObject({ status: 'draft' })
-    // The report signed on site and waiting in the office, and the two days of
-    // work in the stairwell that one invoice can bill (#135).
+    // The reports signed on site and waiting in the office, one of them out of
+    // the transporter (#298), and the two days of work in the stairwell that
+    // one invoice can bill (#135).
     const reports = documents.filter((document) => document.kind === 'time_and_material_report')
 
     expect(
       reports.filter((report) => report.status === 'signed' && report.number === null),
-    ).toHaveLength(1)
+    ).toHaveLength(2)
     expect(reports.filter((report) => report.status === 'issued')).toHaveLength(2)
     // The newest two: a quote in draft with a price per 100 (#456), on which
     // the check of widths opens "Position hinzufügen", and today's report in
@@ -241,6 +242,31 @@ describe('the sample data', () => {
     expect(jobs.find((job) => job.predecessorJobId === before?.id)?.designation).toBe(
       'Wallbox in der Garage',
     )
+  })
+
+  it('keeps the stores as the boards draw them, the transporter below zero after a signed report (#298)', async () => {
+    const stores =
+      await read<{ id: string; name: string; vehicle: boolean; belowZero: number }[]>('/stores')
+    const van = stores.find((store) => store.name === 'Transporter HD-OG 412')
+
+    expect(stores.map((store) => store.name).sort()).toEqual([
+      'Caddy HD-OG 77',
+      'Lager Edingen',
+      'Transporter HD-OG 412',
+      'Transporter HD-OG 418',
+    ])
+    expect(van).toMatchObject({ vehicle: true, belowZero: 1 })
+
+    const movements = await read<{ rows: { kind: string; job_id: string | null }[] }>(
+      `/stores/${van?.id ?? ''}/movements?offset=0&limit=20`,
+    )
+    const kinds = new Set(movements.rows.map((row) => row.kind))
+
+    expect([...kinds].sort()).toEqual(['count', 'receipt', 'transfer_in', 'withdrawal'])
+
+    const job = movements.rows.find((row) => row.kind === 'withdrawal')?.job_id ?? ''
+
+    expect(await read<unknown[]>(`/jobs/${job}/withdrawals`)).toHaveLength(2)
   })
 
   it('has an invoice to a business whose XRechnung can be fetched', async () => {
