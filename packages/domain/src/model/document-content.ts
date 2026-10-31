@@ -35,9 +35,10 @@ import type { InstructionTemplate, WithdrawalVariant } from './instruction.js'
  * version 9 the number of the job it belongs to, version 10 what came in on
  * the progress invoices it takes off, version 11 the fields a business gives
  * its reports, version 12 the graphic an instruction is printed as, version 13
- * how many units the price of a line is for.
+ * how many units the price of a line is for, version 14 the order confirmation
+ * a delivery note delivers.
  */
-export const documentContentVersion = 13
+export const documentContentVersion = 14
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -153,6 +154,16 @@ export type DeductionContentV9 = Omit<DeductionContent, 'received' | 'receivedOn
  */
 export interface CorrectionContent {
   readonly kind: DocumentKind
+  readonly number: string
+  readonly documentDate: IsoDate
+}
+
+/**
+ * The order confirmation a delivery note delivers, as the delivery note names
+ * it: its number and its date (#299). Printed at the top, because the person
+ * who receives the goods checks them against what was ordered.
+ */
+export interface DeliveredContent {
   readonly number: string
   readonly documentDate: IsoDate
 }
@@ -294,6 +305,11 @@ export interface DocumentContent {
    * document issued before version 11.
    */
   readonly reportFields: readonly ReportFieldContent[]
+  /**
+   * The order confirmation a delivery note was made out of (#299). Null for
+   * every other kind, and for every document issued before version 14.
+   */
+  readonly delivers: DeliveredContent | null
 }
 
 /** One field of a report as it is printed: "Anfahrt", "25 km". */
@@ -302,8 +318,13 @@ export interface ReportFieldContent {
   readonly text: string
 }
 
+/** The thirteenth shape, from #456: the price unit, and no delivery note naming its confirmation yet. */
+export interface DocumentContentV13 extends Omit<DocumentContent, 'version' | 'delivers'> {
+  readonly version: 13
+}
+
 /** The twelfth shape, from #431: the graphic of an instruction, and every price for one unit. */
-export interface DocumentContentV12 extends Omit<DocumentContent, 'version' | 'lines'> {
+export interface DocumentContentV12 extends Omit<DocumentContentV13, 'version' | 'lines'> {
   readonly version: 12
   readonly lines: readonly Omit<LineContent, 'priceBase'>[]
 }
@@ -380,6 +401,7 @@ export interface DocumentContentV1 extends Omit<
 /** Any shape a snapshot may have been written in. */
 export type StoredDocumentContent =
   | DocumentContent
+  | DocumentContentV13
   | DocumentContentV12
   | DocumentContentV11
   | DocumentContentV10

@@ -164,7 +164,15 @@ function information(content: DocumentContent): string {
     numberLabel,
     content.number === null ? 'folgt beim Festschreiben' : text(content.number),
   ])
-  rows.push(['Datum', day(content.documentDate)])
+  rows.push([content.kind === 'delivery_note' ? 'Lieferdatum' : 'Datum', day(content.documentDate)])
+
+  // What the goods are checked against (#299).
+  if (content.delivers !== null) {
+    rows.push([
+      'Zur Auftragsbestätigung',
+      `${text(content.delivers.number)} vom ${day(content.delivers.documentDate)}`,
+    ])
+  }
 
   if (content.corrects !== null) {
     rows.push([

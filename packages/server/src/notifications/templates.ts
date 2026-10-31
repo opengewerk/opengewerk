@@ -245,15 +245,19 @@ export function documentMessage(facts: {
 }
 
 /**
- * The message a report goes to its customer with, right after the signature.
+ * The message a report or a delivery note goes to its customer with, right
+ * after the signature.
  *
  * It has no number yet when it is signed; the office gives it one later, and
- * the invoice made out of it names that. So the report is named by its day,
- * and the sentence says what the customer did with it, which is why it comes.
+ * the invoice made out of it names that. So the document is named by its day,
+ * and the sentence says what was signed, which is why it comes. A report is
+ * signed by the customer; a delivery note by whoever received the goods
+ * (#299), who need not be the customer the message goes to, so it is named.
  */
-export function signedReportMessage(facts: {
+export function signedDocumentMessage(facts: {
   readonly content: DocumentContent
   readonly signedOn: string
+  readonly signerName: string
   readonly issuer: IssuerContent
   readonly signature: string
 }): MessageText {
@@ -265,8 +269,11 @@ export function signedReportMessage(facts: {
   const body = [
     'Guten Tag,',
     '',
-    `im Anhang erhalten Sie ${asObject[content.kind]} vom ${germanDate(content.documentDate)}, ` +
-      `den Sie am ${germanDate(facts.signedOn)} unterschrieben haben.`,
+    content.kind === 'delivery_note'
+      ? `im Anhang erhalten Sie den Lieferschein vom ${germanDate(content.documentDate)}. ` +
+        `Den Empfang hat ${facts.signerName} am ${germanDate(facts.signedOn)} unterschrieben.`
+      : `im Anhang erhalten Sie ${asObject[content.kind]} vom ${germanDate(content.documentDate)}, ` +
+        `den Sie am ${germanDate(facts.signedOn)} unterschrieben haben.`,
     '',
     'Mit freundlichen Grüßen',
     '',

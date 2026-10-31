@@ -3,6 +3,7 @@ import {
   type DeadlineId,
   type DeadlineRegistry,
   type DocumentId,
+  type DocumentKind,
   type InvitationId,
   type IssuerContent,
   type IsoDate,
@@ -10,8 +11,10 @@ import {
   remindsBy,
   renderSignature,
   shippedRules,
+  signableKinds,
   type TaskId,
   type TenantId,
+  type TenantParameterKey,
 } from '@opengewerk/domain'
 import {
   accountsOf,
@@ -49,7 +52,7 @@ import {
   type DocumentAttachment,
   documentMessage,
   invitationMessage,
-  signedReportMessage,
+  signedDocumentMessage,
   taskDueMessage,
 } from './templates.js'
 
@@ -88,9 +91,11 @@ export type Notification =
     }
   | {
       /**
-       * A report the customer signed on site, sent to that customer at once
-       * where the business has switched that on. A change of status like the
-       * one above, raised by the signature instead of by a button.
+       * A report or a delivery note signed on site, sent to the customer at
+       * once where the business has switched that on for its kind. A change
+       * of status like the one above, raised by the signature instead of by a
+       * button. Named after the report, the only kind signed on site when it
+       * came: the name is part of the cause of every message written for it.
        */
       readonly kind: 'report_signed'
       readonly documentId: DocumentId
@@ -468,7 +473,10 @@ export async function documentToCustomer(
       // A report signed on site and not issued yet: read from its rows, which
       // the signature has fixed, and named by its day and the signature.
       const [signed] = await tx
-        .select({ signedAt: documentSignatures.signedAt })
+        .select({
+          signedAt: documentSignatures.signedAt,
+          signerName: documentSignatures.signerName,
+        })
         .from(documentSignatures)
         .where(eq(documentSignatures.documentId, document.id))
 
@@ -476,9 +484,10 @@ export async function documentToCustomer(
         return []
       }
 
-      text = signedReportMessage({
+      text = signedDocumentMessage({
         content: await contentOf(tx, document, shippedRules),
         signedOn: berlinClock(signed.signedAt).day,
+        signerName: signed.signerName,
         issuer,
         signature,
       })
@@ -524,15 +533,31 @@ export async function documentToCustomer(
 const signaturesWithinHours = 48
 
 /**
- * The reports signed lately that the business wants sent to their customer
- * and that have not been, as notifications.
+ * The setting that sends a document of this kind to its customer once it is
+ * signed on site: one for a report, one for a delivery note (#299), and none
+ * for a kind nobody signs.
+ */
+function mailOnSignature(kind: DocumentKind): TenantParameterKey | null {
+  switch (kind) {
+    case 'time_and_material_report':
+      return 'report.mail_on_signature'
+    case 'delivery_note':
+      return 'delivery_note.mail_on_signature'
+    default:
+      return null
+  }
+}
+
+/**
+ * The reports and delivery notes signed lately that the business wants sent
+ * to their customer and that have not been, as notifications.
  *
- * Whether it wants that is the setting `report.mail_on_signature` on the day
- * of the signature, in Berlin: a report signed before it was switched on is
- * not sent afterwards, one signed while it was on is sent even if it was
+ * Whether it wants that is the setting of the kind (`mailOnSignature`) on the
+ * day of the signature, in Berlin: a document signed before it was switched
+ * on is not sent afterwards, one signed while it was on is sent even if it was
  * switched off since.
  */
-export async function signedReports(
+export async function signedDocuments(
   database: Database,
   tenantId: TenantId,
   now: Date,
@@ -541,12 +566,12 @@ export async function signedReports(
 
   return database.forTenant({ tenantId, reason: 'notification' }, async (tx) => {
     const rows = await tx
-      .select({ id: documents.id, signedAt: documentSignatures.signedAt })
+      .select({ id: documents.id, kind: documents.kind, signedAt: documentSignatures.signedAt })
       .from(documents)
       .innerJoin(documentSignatures, eq(documentSignatures.documentId, documents.id))
       .where(
         and(
-          eq(documents.kind, 'time_and_material_report'),
+          inArray(documents.kind, [...signableKinds]),
           isNull(documents.deletedAt),
           gte(documentSignatures.signedAt, since),
           sql`not exists (
@@ -560,11 +585,8 @@ export async function signedReports(
     const wanted: Extract<Notification, { readonly kind: 'report_signed' }>[] = []
 
     for (const row of rows) {
-      const setting = await parameterAt(
-        tx,
-        'report.mail_on_signature',
-        berlinClock(row.signedAt).day,
-      )
+      const key = mailOnSignature(row.kind)
+      const setting = key ? await parameterAt(tx, key, berlinClock(row.signedAt).day) : undefined
 
       if (setting?.value === 1) {
         wanted.push({ kind: 'report_signed', documentId: row.id })
@@ -576,14 +598,14 @@ export async function signedReports(
 }
 
 /**
- * A signed report on its way to the customer who signed it.
+ * A signed report or delivery note on its way to its customer.
  *
  * To the address the customer has now, and to nobody when there is none: the
- * office can still send it from the report once there is one. The report is
- * read the way its PDF is, from what it froze if it was issued in the
+ * office can still send it from the document once there is one. The document
+ * is read the way its PDF is, from what it froze if it was issued in the
  * meantime, otherwise from its rows, which the signature has fixed.
  */
-export async function signedReport(
+export async function signedDocument(
   database: Database,
   tenantId: TenantId,
   notification: Extract<Notification, { kind: 'report_signed' }>,
@@ -599,7 +621,10 @@ export async function signedReport(
     }
 
     const [signature] = await tx
-      .select({ signedAt: documentSignatures.signedAt })
+      .select({
+        signedAt: documentSignatures.signedAt,
+        signerName: documentSignatures.signerName,
+      })
       .from(documentSignatures)
       .where(eq(documentSignatures.documentId, document.id))
 
@@ -622,10 +647,11 @@ export async function signedReport(
     }
 
     const issuer = await issuerOf(tx, tenantId)
-    // Sent because the customer signed, and by nobody in the business.
-    const text = signedReportMessage({
+    // Sent because somebody signed, and by nobody in the business.
+    const text = signedDocumentMessage({
       content,
       signedOn: berlinClock(signature.signedAt).day,
+      signerName: signature.signerName,
       issuer,
       signature: await signatureFor(tx, tenantId, issuer, null),
     })

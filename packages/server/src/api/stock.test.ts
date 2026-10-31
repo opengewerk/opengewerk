@@ -619,6 +619,24 @@ describe('a delivery note (#299)', () => {
     ])
   })
 
+  it('freezes the order confirmation it delivers, by its number and its date', async () => {
+    const { confirmation, note } = await deliveryNote()
+
+    await send('post', `/documents/${note}/issue`, {})
+
+    const { rows } = await admin.query<{ number: string; content: { delivers: unknown } }>(
+      `select c.number, s.content from document_snapshots s, documents c
+        where s.document_id = $1 and c.id = $2`,
+      [note, confirmation],
+    )
+
+    expect(rows[0]?.number).toMatch(/^AB-2026-/)
+    expect(rows[0]?.content.delivers).toEqual({
+      number: rows[0]?.number,
+      documentDate: '2026-10-31',
+    })
+  })
+
   it('gives the invoice out of it the prices of the confirmation, not those of the articles', async () => {
     await send('post', `/articles/${breaker}/prices`, {
       unitPriceCents: 1290,

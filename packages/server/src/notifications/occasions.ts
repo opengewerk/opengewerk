@@ -10,8 +10,8 @@ import {
   invitationByMail,
   type Notification,
   type NotifyContext,
-  signedReport,
-  signedReports,
+  signedDocument,
+  signedDocuments,
   taskDue,
 } from './notify.js'
 import { pushDeadlineDue, type PushNotifyContext, pushTaskDue } from './push.js'
@@ -27,10 +27,10 @@ export interface NotificationExtra {
  * itself, who is told, what a message says and what it carries.
  *
  * A task due this morning and a deadline that reminds go by mail and by push;
- * a document the office sends, a report signed on site and an invitation by
- * mail only. The task, the signed report and the deadline are raised by the
- * jobs every minute, the document and the invitation by the route that
- * records the wish.
+ * a document the office sends, a report or a delivery note signed on site and
+ * an invitation by mail only. The task, the signed document and the deadline
+ * are raised by the jobs every minute, the document and the invitation by the
+ * route that records the wish.
  */
 export const occasions = occasionsOf<Notification, NotificationExtra>({
   task_due: {
@@ -49,8 +49,8 @@ export const occasions = occasionsOf<Notification, NotificationExtra>({
   },
   report_signed: {
     causeOf,
-    raise: { mail: (database, tenantId, now) => signedReports(database, tenantId, now) },
-    mail: (database, tenantId, notification) => signedReport(database, tenantId, notification),
+    raise: { mail: (database, tenantId, now) => signedDocuments(database, tenantId, now) },
+    mail: (database, tenantId, notification) => signedDocument(database, tenantId, notification),
   },
   invitation: {
     causeOf,

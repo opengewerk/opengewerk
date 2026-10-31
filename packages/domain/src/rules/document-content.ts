@@ -8,6 +8,7 @@ import {
 } from '../model/document.js'
 import type {
   DeductionContent,
+  DeliveredContent,
   DocumentContent,
   DocumentContentV2,
   DocumentContentV3,
@@ -20,6 +21,7 @@ import type {
   DocumentContentV10,
   DocumentContentV11,
   DocumentContentV12,
+  DocumentContentV13,
   InstructionContent,
   IssuerContent,
   LineContent,
@@ -92,6 +94,11 @@ export interface ContentSources {
    * there are none, as for every kind but a report.
    */
   readonly reportFields?: readonly ReportFieldContent[]
+  /**
+   * The order confirmation a delivery note was made out of (#299). Left out,
+   * it is none, as for every kind but a delivery note.
+   */
+  readonly delivers?: DeliveredContent | null
 }
 
 /**
@@ -224,6 +231,7 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
     instructions: sources.instructions,
     jobNumber: sources.jobNumber ?? null,
     reportFields: sources.reportFields ?? [],
+    delivers: sources.delivers ?? null,
   }
 }
 
@@ -239,8 +247,9 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
  * e-invoice needs; a record from version 6 stated no payment term; a record
  * from version 7 carried no instructions; a record from version 8 named no
  * job number; a record from version 9 took off what its progress invoices
- * billed; a report from version 10 had no fields of the business. That is
- * exactly what each of them
+ * billed; a report from version 10 had no fields of the business; a delivery
+ * note from version 13 named no order confirmation. That is exactly what each
+ * of them
  * said when it was printed. The figures, the addresses and the notes are
  * carried over as they are.
  *
@@ -255,12 +264,17 @@ export function currentContent(stored: StoredDocumentContent): DocumentContent {
   switch (stored.version) {
     case documentContentVersion:
       return stored
-    case 12:
-      return {
+    case 13:
+      return { ...stored, version: documentContentVersion, delivers: null }
+    case 12: {
+      const thirteenth: DocumentContentV13 = {
         ...stored,
-        version: documentContentVersion,
+        version: 13,
         lines: stored.lines.map((line) => ({ ...line, priceBase: 1 as const })),
       }
+
+      return currentContent(thirteenth)
+    }
     case 11: {
       const twelfth: DocumentContentV12 = {
         ...stored,

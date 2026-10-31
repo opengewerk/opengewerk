@@ -75,6 +75,13 @@ export const tenantParameterKeys = [
    * wholesaler charges it.
    */
   'material.markup_on_metal',
+  /**
+   * Whether a delivery note its recipient signs on site goes to the customer
+   * by mail right away, with its PDF (#299), like `report.mail_on_signature`
+   * for a report and switched apart from it: a business may want the one
+   * paper sent and not the other. Read on the day of the signature.
+   */
+  'delivery_note.mail_on_signature',
 ] as const
 
 export type TenantParameterKey = (typeof tenantParameterKeys)[number]
@@ -92,6 +99,7 @@ export const tenantParameterNames: Readonly<Record<TenantParameterKey, string>> 
   'report.mail_on_signature': 'den Regiebericht nach der Unterschrift',
   'material.markup_basis_points': 'den Aufschlag auf Material',
   'material.markup_on_metal': 'den Aufschlag auf den Metallzuschlag',
+  'delivery_note.mail_on_signature': 'den Lieferschein nach der Unterschrift',
 }
 
 export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>> = {
@@ -102,6 +110,7 @@ export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>
   'report.mail_on_signature': 'flag',
   'material.markup_basis_points': 'basis_points',
   'material.markup_on_metal': 'flag',
+  'delivery_note.mail_on_signature': 'flag',
 }
 
 /**

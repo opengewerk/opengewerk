@@ -2,6 +2,7 @@ import {
   cancellationOf,
   type ContentSources,
   type DeductionContent,
+  type DeliveredContent,
   documentContent,
   type InstructionContent,
   type IssuerContent,
@@ -73,6 +74,7 @@ function invoice(
     readonly paymentTermDays?: number
     readonly instructions?: readonly InstructionContent[]
     readonly jobNumber?: string | null
+    readonly delivers?: DeliveredContent | null
   } = {},
 ) {
   const content = documentContent(shippedRules, {
@@ -109,6 +111,7 @@ function invoice(
     paymentTermDays: parts.paymentTermDays ?? 14,
     instructions: parts.instructions ?? [],
     jobNumber: parts.jobNumber ?? null,
+    delivers: parts.delivers ?? null,
   })
 
   return content
@@ -508,6 +511,8 @@ describe('a delivery note (#299)', () => {
     }),
   ]
 
+  const confirmation: DeliveredContent = { number: 'AB-2026-0031', documentDate: '2026-09-14' }
+
   function note(signature: SignatureContent | null, number: string | null = 'LS-2026-0001') {
     return page(
       {
@@ -518,9 +523,17 @@ describe('a delivery note (#299)', () => {
         introText: null,
         taxTreatment: 'standard',
       },
-      { lines: delivered, signature },
+      { lines: delivered, signature, delivers: confirmation },
     )
   }
+
+  it('names the order confirmation it delivers, and its date as the day of delivery', () => {
+    const { html } = note(null)
+
+    expect(html).toContain('<th>Lieferdatum</th><td>21.09.2026</td>')
+    expect(html).toContain('<th>Zur Auftragsbestätigung</th><td>AB-2026-0031 vom 14.09.2026</td>')
+    expect(html).not.toContain('<th>Datum</th>')
+  })
 
   it('is printed without the prices of the confirmation it keeps', () => {
     const { html } = note(null)

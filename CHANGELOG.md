@@ -39,6 +39,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Im PDF steht unter einem unterschriebenen „Empfangen:“ mit Name und Zeit, unter einem anderen zwei leere Linien zum
   Unterschreiben auf Papier. Warum: Abschnitt 4.2 kennt den Lieferschein seit Phase 0, gebaut war er nicht, und Moritz
   hat am 31.10.2026 entschieden, dass die Unterschrift möglich und keine Pflicht ist.
+- Zwei Nachträge zum Lieferschein (#299), nach den Tafeln aus Version 88 des Canvas: Sein PDF nennt die
+  Auftragsbestätigung, aus der er stammt, mit Nummer und Datum, und das Datum heißt dort „Lieferdatum“; dafür trägt der
+  eingefrorene Inhalt eines Belegs ab Fassung 14 das Feld `delivers`, ein älterer Stand wird ohne gelesen. Unter
+  „E-Mail-Einstellungen“ schaltet der Inhaber eigens ein, dass ein Lieferschein, den der Empfänger auf der Baustelle
+  unterschreibt, gleich als PDF an den Kunden geht, wie es das für den Regiebericht schon gibt
+  (`delivery_note.mail_on_signature`, Migration `0106_delivery_note_mail_on_signature`); die Nachricht nennt, wer den
+  Empfang unterschrieben hat, weil das nicht der Kunde sein muss. Warum: wer die Ware annimmt, prüft sie gegen die
+  Bestellung, und Moritz hat am 31.10.2026 die Mail an den Kunden mit eigenem Schalter gewählt.
 - Die Bildschirme des Lagers (#298, zweiter Teil), nach den Tafeln aus Version 84 des Canvas: im Büro „Lager“ mit allen
   Lagerorten, was unter dem Mindestbestand und unter null liegt, und „Neuer Lagerort“ mit Kennzeichen für ein
   Servicefahrzeug; ein Lagerort mit seinem Bestand, Lagerplatz und Mindestbestand je Artikel, seinen Bewegungen und den

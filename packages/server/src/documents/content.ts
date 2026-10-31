@@ -21,7 +21,7 @@ import { instructionsFor } from './instructions.js'
 import {
   customers,
   documentLines,
-  type documents,
+  documents,
   documentSignatures,
   documentSnapshots,
   files,
@@ -108,6 +108,9 @@ export async function issuerOf(tx: TenantTransaction, tenantId: TenantId): Promi
  * The instructions go in filled with the same letterhead the document prints,
  * and what they lack comes back beside the content, for the one caller that
  * has to refuse over it: issuing.
+ *
+ * A delivery note names the order confirmation it was made out of (#299), by
+ * the number and the date that confirmation was issued with.
  */
 export async function contentAndGapsOf(
   tx: TenantTransaction,
@@ -165,6 +168,18 @@ export async function contentAndGapsOf(
     ? await tx.select({ number: jobs.number }).from(jobs).where(eq(jobs.id, document.jobId))
     : []
 
+  const [confirmation] =
+    document.kind === 'delivery_note' && document.predecessorDocumentId
+      ? await tx
+          .select({
+            kind: documents.kind,
+            number: documents.number,
+            documentDate: documents.documentDate,
+          })
+          .from(documents)
+          .where(eq(documents.id, document.predecessorDocumentId))
+      : []
+
   const content = documentContent(rules, {
     document,
     lines: rows,
@@ -198,6 +213,10 @@ export async function contentAndGapsOf(
     // The fields the business gives its reports (#78), in the version the
     // report was filled in, as the customer read them before signing.
     reportFields: await reportFieldContent(tx, document),
+    delivers:
+      confirmation?.kind === 'order_confirmation' && confirmation.number !== null
+        ? { number: confirmation.number, documentDate: confirmation.documentDate }
+        : null,
   })
 
   return { content, gaps: instructions.gaps }
