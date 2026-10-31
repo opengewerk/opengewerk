@@ -32,7 +32,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   und Mengen. Er zeigt keine Preise; seine Positionen behalten die der Auftragsbestätigung ungesehen, und die Rechnung aus
   ihm stellt diese. Im Entwurf wählt das Büro unter „Material aus“ den Lagerort und ändert Mengen. Auf dem Gerät steht er
   am Auftrag unter „Lieferscheine“, und der Empfänger kann ihn unterschreiben, auch ohne Netz; das schreibt ihn fest und
-  bucht seine Positionen aus dem Lagerort ab, die Nummer vergibt das Büro beim Festschreiben. Unterschreibt niemand,
+  bucht seine Positionen aus dem Lagerort ab, die Nummer vergibt das Büro beim Festschreiben; unterschrieben wird nur ein
+  Lieferschein, der an einer Auftragsbestätigung hängt, damit kein Entwurf mit geänderter Art am Recht zum Festschreiben
+  vorbei fixiert wird. Unterschreibt niemand,
   schreibt das Büro ihn fest, und das bucht ab; abgebucht wird in beiden Fällen einmal (Migration `0105_delivery_note`).
   Im PDF steht unter einem unterschriebenen „Empfangen:“ mit Name und Zeit, unter einem anderen zwei leere Linien zum
   Unterschreiben auf Papier. Warum: Abschnitt 4.2 kennt den Lieferschein seit Phase 0, gebaut war er nicht, und Moritz

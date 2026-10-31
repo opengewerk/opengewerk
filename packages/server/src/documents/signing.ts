@@ -61,6 +61,19 @@ export async function signatureRefusal(
     return { reason: 'record_is_fixed', fields: ['documentId'] }
   }
 
+  // A delivery note is signed as the one out of its order confirmation
+  // (#299), and not as any draft whose kind was changed to it.
+  if (document.kind === 'delivery_note') {
+    const [confirmation] = await tx
+      .select({ kind: documents.kind })
+      .from(documents)
+      .where(eq(documents.id, document.predecessorDocumentId as DocumentId))
+
+    if (confirmation?.kind !== 'order_confirmation') {
+      return { reason: 'record_is_fixed', fields: ['documentId'] }
+    }
+  }
+
   const lines = await tx
     .select({
       id: documentLines.id,

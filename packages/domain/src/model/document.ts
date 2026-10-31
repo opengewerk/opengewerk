@@ -43,15 +43,18 @@ export const signableKinds: readonly DocumentKind[] = ['time_and_material_report
  * continues no chain: it is never made out of another document
  * (`successorKinds`), and a draft that names a predecessor but had its kind
  * changed to a report is a link of that chain all the same. A delivery note
- * is always made out of its order confirmation, and its signature only
- * confirms that the goods arrived.
+ * is made out of its order confirmation and signed only as one: a draft of
+ * another kind changed to a delivery note would otherwise be fixed by a
+ * signature past `document.issue`. That the predecessor is an order
+ * confirmation the server checks where it knows it (`signatureRefusal`), and
+ * the trigger that signs holds the same.
  */
 export function isSignable(document: {
   readonly kind: DocumentKind
   readonly predecessorDocumentId: string | null
 }): boolean {
   if (document.kind === 'delivery_note') {
-    return true
+    return document.predecessorDocumentId !== null
   }
 
   return signableKinds.includes(document.kind) && document.predecessorDocumentId === null

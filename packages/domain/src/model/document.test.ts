@@ -94,6 +94,8 @@ describe('deleting a draft', () => {
 describe('a delivery note (#299)', () => {
   it('may be signed by its recipient, though it hangs at its order confirmation', () => {
     expect(isSignable({ kind: 'delivery_note', predecessorDocumentId: 'ab' })).toBe(true)
+    // Not one out of nothing: a draft changed to a delivery note is no delivery.
+    expect(isSignable({ kind: 'delivery_note', predecessorDocumentId: null })).toBe(false)
     // A report still signs only on its own, and nothing else signs at all.
     expect(isSignable({ kind: 'time_and_material_report', predecessorDocumentId: 'ab' })).toBe(
       false,

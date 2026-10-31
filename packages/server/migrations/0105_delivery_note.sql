@@ -6,14 +6,18 @@
 ALTER TABLE "documents" DROP CONSTRAINT "documents_store_of_a_report";--> statement-breakpoint
 ALTER TABLE "documents" ADD CONSTRAINT "documents_store_of_a_report" CHECK ("documents"."store_id" is null or "documents"."kind" in ('time_and_material_report', 'delivery_note'));--> statement-breakpoint
 -- A signature fixes a draft report that continues no chain (0090) and now a
--- draft delivery note as well, which always hangs at its order confirmation.
--- Any other document is refused with OG001, as before.
+-- draft delivery note as well, one that hangs at an order confirmation. A
+-- draft of another kind changed to a delivery note is no delivery, and its
+-- signature would fix it past `document.issue`. Any other document is refused
+-- with OG001, as before.
 CREATE OR REPLACE FUNCTION "sign_document"() RETURNS trigger AS $$
 BEGIN
-	UPDATE "documents" SET "status" = 'signed'
-		WHERE "id" = new."document_id" AND "status" = 'draft' AND "deleted_at" IS NULL
-			AND (("kind" = 'time_and_material_report' AND "predecessor_document_id" IS NULL)
-				OR "kind" = 'delivery_note');
+	UPDATE "documents" d SET "status" = 'signed'
+		WHERE d."id" = new."document_id" AND d."status" = 'draft' AND d."deleted_at" IS NULL
+			AND ((d."kind" = 'time_and_material_report' AND d."predecessor_document_id" IS NULL)
+				OR (d."kind" = 'delivery_note' AND EXISTS (
+					SELECT 1 FROM "documents" p
+					 WHERE p."id" = d."predecessor_document_id" AND p."kind" = 'order_confirmation')));
 
 	IF NOT FOUND THEN
 		RAISE EXCEPTION 'Unterschrieben wird nur ein Regiebericht im Entwurf, der an keinem anderen Beleg hängt, oder ein Lieferschein im Entwurf.'
