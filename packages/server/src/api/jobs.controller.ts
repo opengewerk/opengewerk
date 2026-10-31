@@ -14,13 +14,14 @@ import {
 import type { JobId } from '@opengewerk/domain'
 import {
   Database,
+  isUuid,
   pick,
   requireFields,
   requireSomething,
   type TenantTransaction,
   stillWorks,
 } from '@opengewerk/platform-server'
-import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 
 import { assignNumber } from '../database/number-ranges.js'
 import { jobAssignments, jobs, memberships } from '../database/schema/index.js'
@@ -74,6 +75,34 @@ export class JobsController {
     return this.database.forTenant(identity, (tx) =>
       tx.select().from(jobs).where(isNull(jobs.deletedAt)),
     )
+  }
+
+  /**
+   * What the job took out of the stores (#298): the withdrawals booked when
+   * its reports were signed, the latest first, with the article, the store
+   * and the report. Its goods out, as Feature-Gliederung 4.5 has it.
+   */
+  @Get(':id/withdrawals')
+  @RequiresPermission('job.read')
+  withdrawals(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
+    if (!isUuid(id)) {
+      throw new NotFoundException('Diesen Auftrag gibt es nicht.')
+    }
+
+    return this.database.forTenant(identity, async (tx) => {
+      const { rows } = await tx.execute(sql`
+        select m.id, m.created_at, m.quantity_milli, a.id as article_id, a.number, a.designation, a.unit,
+               s.name as store_name, d.id as document_id, d.number as document_number
+          from stock_movements m
+          join articles a on a.id = m.article_id
+          join stores s on s.id = m.store_id
+          left join document_lines l on l.id = m.document_line_id
+          left join documents d on d.id = l.document_id
+         where m.job_id = ${id} and m.kind = 'withdrawal' and m.deleted_at is null
+         order by m.created_at desc, m.id desc`)
+
+      return rows
+    })
   }
 
   @Post()

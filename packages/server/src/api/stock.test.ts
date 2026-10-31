@@ -11,7 +11,7 @@ import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/te
 import { storesBelowMinimum } from '../deadlines/sources.js'
 import { ApiModule } from './api.module.js'
 import { as, testIdentities as identities } from './test-identity.js'
-import { created, push } from './test-structure.js'
+import { changed, created, push } from './test-structure.js'
 
 /**
  * The stores of the business (#298, Feature-Gliederung v2.39): a store and a
@@ -287,7 +287,8 @@ describe('the stock', () => {
 })
 
 describe('a signed report', () => {
-  async function report(storeId: string | null) {
+  /** A report signed on the device; `later`, its store chosen once the report was begun. */
+  async function report(storeId: string | null, later = false) {
     const id = newId<'document'>()
     const introText = 'Unterverteilung erweitert.'
     const lines = [
@@ -323,8 +324,9 @@ describe('a signed report', () => {
         kind: 'time_and_material_report',
         documentDate: '2026-10-31',
         introText,
-        storeId,
+        storeId: later ? null : storeId,
       }),
+      ...(later ? [changed('documents', id, { storeId: { from: null, to: storeId } })] : []),
       ...lines.map((line) =>
         created('document_lines', line.id, {
           documentId: id,
@@ -339,12 +341,7 @@ describe('a signed report', () => {
       ),
     ])
 
-    expect(receipts.map((receipt) => receipt.outcome)).toEqual([
-      'applied',
-      'applied',
-      'applied',
-      'applied',
-    ])
+    expect(receipts.every((receipt) => receipt.outcome === 'applied')).toBe(true)
 
     const fingerprint = signedContentFingerprint({
       introText,
@@ -396,10 +393,47 @@ describe('a signed report', () => {
       { article_id: cable, quantity_milli: 25_000, job_id: jobId, store_id: van },
     ])
 
+    // The job shows it as its goods out, with the store and the report.
+    const out = (await get(`/jobs/${jobId}/withdrawals`)) as unknown as {
+      number: string
+      quantity_milli: number
+      store_name: string
+      document_id: string
+    }[]
+
+    expect(
+      out.map((row) => [row.number, row.quantity_milli, row.store_name, row.document_id]),
+    ).toEqual(
+      [
+        ['1042', 25_000, 'Transporter HD-OG 412', signed.id],
+        ['2101', 2000, 'Transporter HD-OG 412', signed.id],
+      ].sort((left, right) => (String(left[0]) < String(right[0]) ? -1 : 1)),
+    )
+
     const after = await stockOf(van)
 
     expect(after['2101']?.levelMilli).toBe((before['2101']?.levelMilli ?? 0) - 2000)
     expect(after['1042']?.levelMilli).toBe((before['1042']?.levelMilli ?? 0) - 25_000)
+
+    // A receipt at the job is no goods out, and another job shows nothing of it.
+    await admin.query(
+      `insert into stock_movements (tenant_id, store_id, article_id, kind, quantity_milli, job_id)
+         values ($1, $2, $3, 'receipt', 1000, $4)`,
+      [north.id, van, breaker, jobId],
+    )
+
+    const other = (
+      await send('post', '/jobs', { customerId, kind: 'service', designation: 'Zählerschrank' })
+    ).id
+
+    expect(await get(`/jobs/${jobId}/withdrawals`)).toHaveLength(2)
+    expect(await get(`/jobs/${other}/withdrawals`)).toEqual([])
+  })
+
+  it('takes it out of the store chosen on the device once the report was begun', async () => {
+    const signed = await report(van, true)
+
+    expect((await bookedFor(signed.id)).map((row) => row.store_id)).toEqual([van, van])
   })
 
   it('takes nothing out where it names no store', async () => {
@@ -412,11 +446,15 @@ describe('a signed report', () => {
     await report(van)
     await report(van)
 
-    expect((await stockOf(van))['1042']?.levelMilli).toBeLessThan(0)
+    const held = await stockOf(van)
+
+    expect(held['1042']?.levelMilli).toBeLessThan(0)
 
     const listed = (await get('/stores')) as unknown as { name: string; belowZero: number }[]
 
-    expect(listed.find((row) => row.name === 'Transporter HD-OG 412')?.belowZero).toBe(1)
+    expect(listed.find((row) => row.name === 'Transporter HD-OG 412')?.belowZero).toBe(
+      Object.values(held).filter((row) => row.levelMilli < 0).length,
+    )
   })
 })
 

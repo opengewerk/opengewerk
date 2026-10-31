@@ -192,6 +192,8 @@ async function mount(path: string, rows: Readonly<Record<string, Row[]>> = {}) {
       'document_signatures',
       'articles',
       'article_prices',
+      'stores',
+      'stock_movements',
     ],
     onSignedOut: () => {},
   })
@@ -699,6 +701,104 @@ describe('a report on site', () => {
 })
 
 /** Deleting a draft on site (#786): whoever made it, after asking, also without a network. */
+describe('the store of a report (#298)', () => {
+  const stores = [
+    {
+      id: 's-van',
+      name: 'Transporter HD-OG 412',
+      vehicle: true,
+      plate: 'HD-OG 412',
+      version: 1,
+      deletedAt: null,
+    },
+    {
+      id: 's-lager',
+      name: 'Lager Edingen',
+      vehicle: false,
+      plate: null,
+      version: 1,
+      deletedAt: null,
+    },
+  ]
+
+  it('is chosen for the report and sent with it, to be booked out when it is signed', async () => {
+    const user = userEvent.setup()
+
+    await mount('/auftraege/j-1/berichte/d-1', { documents: [draftReport], stores })
+    await user.selectOptions(await screen.findByLabelText('Material aus'), 's-van')
+
+    await waitFor(() => {
+      const changes = server
+        .operations()
+        .filter((operation) => operation.entity === 'documents' && operation.kind === 'update')
+
+      expect(
+        changes.flatMap((operation) => operation.patches.map((patch) => [patch.field, patch.to])),
+      ).toEqual([['storeId', 's-van']])
+    })
+  })
+
+  const movements = [
+    {
+      id: 'm-1',
+      storeId: 's-van',
+      articleId: 'a-1044',
+      kind: 'receipt',
+      quantityMilli: 35_000,
+      createdAt: '2026-10-30T08:00:00.000Z',
+      version: 1,
+      deletedAt: null,
+    },
+    // In the other store: no part of what the vehicle holds.
+    {
+      id: 'm-2',
+      storeId: 's-lager',
+      articleId: 'a-2101',
+      kind: 'receipt',
+      quantityMilli: 12_000,
+      createdAt: '2026-10-30T08:00:00.000Z',
+      version: 1,
+      deletedAt: null,
+    },
+  ]
+
+  async function materialFrom(storeId: string) {
+    const user = userEvent.setup()
+
+    await mount('/auftraege/j-1/berichte/d-1', {
+      documents: [{ ...draftReport, storeId }],
+      articles: heldArticles,
+      stores,
+      stock_movements: movements,
+    })
+    server.offline = true
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+    await user.click(await screen.findByRole('button', { name: 'Material eintragen' }))
+  }
+
+  it('shows beside each article what the vehicle holds of it, from the bookings on the device', async () => {
+    await materialFrom('s-van')
+
+    expect(screen.getByText('1044 · Meter · im Transporter 35 m')).toBeTruthy()
+    expect(screen.getByText('2101 · Stück · nicht im Transporter')).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Der Bestand ist der beim letzten Abgleich. Gebucht wird beim Unterschreiben.',
+      ),
+    ).toBeTruthy()
+  })
+
+  it('says nothing of a store in a building, whose bookings are on no device', async () => {
+    await materialFrom('s-lager')
+
+    expect(screen.getByText('2101 · Stück')).toBeTruthy()
+    expect(screen.queryByText(/Lager Edingen/)).toBeNull()
+    expect(screen.queryByText(/Der Bestand ist der beim letzten Abgleich/)).toBeNull()
+  })
+})
+
 describe('a report in draft', () => {
   /** Signed in as somebody with the rights of a technician. */
   function signedInAs(userId: string) {

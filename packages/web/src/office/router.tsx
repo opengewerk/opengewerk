@@ -47,6 +47,7 @@ import {
   SupplierScreen,
 } from './screens/suppliers.js'
 import { ImportScreen, NewImportScreen } from './screens/imports.js'
+import { StockList, StockStoreScreen } from './screens/stock.js'
 import { BoardScreen, CircuitScreen } from './screens/structure.js'
 import { InverterScreen, PvStringScreen } from './screens/pv-structure.js'
 import { TaskListScreen } from './screens/tasks.js'
@@ -171,6 +172,13 @@ const routes = [
     component: EditArticleScreen,
   }),
   createRoute({ getParentRoute: () => office, path: '/lieferanten', component: SupplierList }),
+  // The stores and their stock (#298), on the screens of the foundation.
+  createRoute({ getParentRoute: () => office, path: '/lager', component: StockList }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/lager/$storeId',
+    component: StockStoreScreen,
+  }),
   createRoute({
     getParentRoute: () => office,
     path: '/lieferanten/neu',

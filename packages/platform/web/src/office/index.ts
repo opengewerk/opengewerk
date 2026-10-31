@@ -113,6 +113,16 @@ export type {
 // that name its records the application hands in; the pieces both entries
 // share are under `/contacts`.
 export { ContactsPanel } from './contacts.js'
+
+// The stores, their stock and its bookings (ADR 0011, opengewerk#298).
+export { StoreScreen, StoresScreen } from './stock.js'
+export type {
+  StockArticleChoice,
+  StockPaths,
+  StockScreenProps,
+  StockWords,
+  StoreScreenProps,
+} from './stock.js'
 export type { ContactsPanelProps, ContactsPanelWords } from './contacts.js'
 
 // The card of the label of a record, in the side column of its page: the
