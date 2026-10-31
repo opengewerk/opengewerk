@@ -32,11 +32,14 @@ import { invoiceable, readyToInvoice } from './test-invoice.js'
  * A report signed on site goes to the customer who signed it, where the
  * business wants that. Asked for by Moritz on 22.09.2026: the setting decides,
  * on the day of the signature, and the job sends the PDF of the signed report
- * a moment after it arrived.
+ * a moment after it arrived. A delivery note its recipient signs goes the same
+ * way, by a setting of its own (#299, Moritz on 31.10.2026).
  */
 
-/** Wants signed reports sent, and has for a while. */
+/** Wants signed reports and delivery notes sent, and has for a while. */
 const north = { id: newId<'tenant'>() as TenantId, name: 'Elektro Nord GmbH' }
+/** Wants signed reports sent, and delivery notes not. */
+const east = { id: newId<'tenant'>() as TenantId, name: 'Elektro Ost' }
 /** Has never switched it on. */
 const south = { id: newId<'tenant'>() as TenantId, name: 'Elektro Süd' }
 /** Switches it on tomorrow, after the reports here are signed. */
@@ -171,6 +174,88 @@ async function signedReport(business: Business, email: string | null = 'berg@exa
   return id
 }
 
+/**
+ * A delivery note out of an issued order confirmation, signed by whoever
+ * received the goods on a device (#299).
+ */
+async function signedDeliveryNote(business: Business) {
+  const office = as(business.id, 'office')
+  const { customerId, jobId } = await customerAndJob(business, 'berg@example.org')
+  const confirmation = await http()
+    .post('/documents')
+    .set('x-test-identity', office)
+    .send({ customerId, jobId, kind: 'order_confirmation', documentDate: signedOn })
+    .expect(201)
+  const confirmationId = (confirmation.body as { id: string }).id
+
+  await http()
+    .post(`/documents/${confirmationId}/lines`)
+    .set('x-test-identity', office)
+    .send({
+      designation: 'LS-Schalter B16',
+      quantityMilli: 3000,
+      unit: 'piece',
+      unitPriceCents: 890,
+    })
+    .expect(201)
+  await http().post(`/documents/${confirmationId}/issue`).set('x-test-identity', office).send({})
+
+  const note = await http()
+    .post(`/documents/${confirmationId}/successors`)
+    .set('x-test-identity', office)
+    .send({ kind: 'delivery_note' })
+    .expect(201)
+  const id = (note.body as { id: string }).id
+  const lines = (
+    await http().get(`/documents/${id}/lines`).set('x-test-identity', office).expect(200)
+  ).body as {
+    id: string
+    position: number
+    kind: 'item' | 'title'
+    designation: string
+    description: string | null
+    quantityMilli: number
+    unit: 'piece'
+  }[]
+
+  const pushed = await http()
+    .post('/sync')
+    .set('x-test-identity', as(business.id, 'technician'))
+    .send({
+      deviceId: 'handy-im-keller',
+      operations: [
+        creating('document_signatures', newId<'document-signature'>(), {
+          documentId: id,
+          signerName: 'Thomas Brenner',
+          signedAt: signedAt.toISOString(),
+          deviceInfo: 'Mozilla/5.0 (Linux; Android 15) Chrome/140 Mobile',
+          path: scribble,
+          contentFingerprint: signedContentFingerprint({
+            introText: null,
+            lines: lines.map(
+              ({ id, position, kind, designation, description, quantityMilli, unit }) => ({
+                id,
+                position,
+                kind,
+                designation,
+                description,
+                quantityMilli,
+                unit,
+              }),
+            ),
+          }),
+        }),
+      ],
+    })
+    .expect(201)
+
+  expect(
+    (pushed.body as { receipts: { outcome: string }[] }).receipts.map((receipt) => receipt.outcome),
+  ).toEqual(['applied'])
+
+  return id
+}
+
 function recording() {
   const sent: OutgoingMail[] = []
   const transport: MailTransport = {
@@ -197,11 +282,11 @@ function cycle(transport: MailTransport, now: Date = aMomentLater()) {
   })
 }
 
-async function switchedOn(business: Business, from: string) {
+async function switchedOn(business: Business, from: string, key = 'report.mail_on_signature') {
   await http()
     .post('/settings/parameters')
     .set('x-test-identity', as(business.id, 'owner'))
-    .send({ key: 'report.mail_on_signature', from, value: 1, note: null })
+    .send({ key, from, value: 1, note: null })
     .expect(201)
 }
 
@@ -209,20 +294,21 @@ beforeAll(async () => {
   admin = await connect()
   await resetToMigrated()
 
-  for (const business of [north, south, west]) {
+  for (const business of [north, south, west, east]) {
     await admin.query('insert into tenants (id, name) values ($1, $2)', [
       business.id,
       business.name,
     ])
   }
 
-  await readyToInvoice(admin, north.id, south.id, west.id)
+  await readyToInvoice(admin, north.id, south.id, west.id, east.id)
 
   storageRoot = mkdtempSync(join(tmpdir(), 'opengewerk-report-mail-'))
   for (const [tenant, from] of [
     [north, 'rechnung@nord.example.de'],
     [south, 'buero@sued.example.de'],
     [west, 'buero@west.example.de'],
+    [east, 'buero@ost.example.de'],
   ] as const) {
     await aMailServer(admin, tenant.id, { from })
   }
@@ -247,7 +333,9 @@ beforeAll(async () => {
   await app.init()
 
   await switchedOn(north, '2026-01-01')
+  await switchedOn(north, '2026-01-01', 'delivery_note.mail_on_signature')
   await switchedOn(west, tomorrow.toISOString().slice(0, 10))
+  await switchedOn(east, '2026-01-01')
 })
 
 beforeEach(async () => {
@@ -328,6 +416,33 @@ describe('a report signed on site', () => {
     expect(await cycle(post.transport)).toMatchObject({ sent: 1 })
     expect(post.sent[0]?.to.address).toBe('erika.berg@example.org')
     expect(post.sent[0]?.attachments[0]?.filename).toBe('Regiebericht unterschrieben.pdf')
+  })
+})
+
+describe('a delivery note signed on site (#299)', () => {
+  it('goes to the customer, naming who received the goods, with its PDF', async () => {
+    await signedDeliveryNote(north)
+    const post = recording()
+
+    expect(await cycle(post.transport)).toMatchObject({ written: 1, sent: 1 })
+
+    const [mail] = post.sent
+
+    expect(mail?.to).toEqual({ name: 'Familie Berg', address: 'berg@example.org' })
+    expect(mail?.subject).toBe(`Lieferschein vom ${german(signedOn)} von Elektro Nord GmbH`)
+    expect(mail?.text).toContain(
+      `im Anhang erhalten Sie den Lieferschein vom ${german(signedOn)}. Den Empfang hat ` +
+        `Thomas Brenner am ${german(signedOn)} unterschrieben.`,
+    )
+    expect(mail?.attachments.map((file) => file.filename)).toEqual([
+      'Lieferschein unterschrieben.pdf',
+    ])
+  })
+
+  it('stays with the office where only signed reports are sent', async () => {
+    await signedDeliveryNote(east)
+
+    expect(await cycle(recording().transport)).toMatchObject({ written: 0 })
   })
 })
 

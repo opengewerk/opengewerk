@@ -743,6 +743,13 @@
       "when": 1793476827268,
       "tag": "0105_delivery_note",
       "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1793484028380,
+      "tag": "0106_delivery_note_mail_on_signature",
+      "breakpoints": true
     }
   ]
 }

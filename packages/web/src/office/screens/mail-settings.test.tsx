@@ -388,3 +388,53 @@ describe('a signed report', () => {
     })
   })
 })
+
+describe('a signed delivery note (#299)', () => {
+  it('is switched on its own, beside the report and from today', async () => {
+    signedInAs('owner')
+    serverSays('GET', '/settings/parameters', [
+      {
+        id: 'p-1',
+        key: 'report.mail_on_signature',
+        validFrom: '2026-09-01',
+        validUntil: null,
+        value: 1,
+        note: null,
+      },
+    ])
+    serverSays('POST', '/settings/parameters', {})
+    render(inQueries(<MailSettingsScreen />))
+
+    await screen.findByText('Aus: unterschriebene Lieferscheine bleiben beim Büro.')
+
+    const section = region('Lieferschein nach der Unterschrift')
+
+    expect(within(section).getByText('Gilt ab dem 22.09.2026.')).toBeTruthy()
+
+    await userEvent
+      .setup()
+      .click(await within(section).findByRole('button', { name: 'Einschalten' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+        key: 'delivery_note.mail_on_signature',
+        from: '2026-09-22',
+        value: 1,
+        note: null,
+      })
+    })
+  })
+
+  it('shows the office the setting and nothing to change it with', async () => {
+    signedInAs('office')
+    render(inQueries(<MailSettingsScreen />))
+
+    const section = await screen.findByRole('region', {
+      name: 'Lieferschein nach der Unterschrift',
+    })
+
+    await waitFor(() => {
+      expect(within(section).queryByRole('button')).toBeNull()
+    })
+  })
+})

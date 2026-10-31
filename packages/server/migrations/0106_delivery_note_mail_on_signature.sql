@@ -1,0 +1,11 @@
+-- Whether a delivery note its recipient signs on site goes to the customer by
+-- mail at once (#299), switched apart from the same setting for a report
+-- (0023) and read like it on the day of the signature.
+--
+-- Adding a value to an enum inside the transaction all pending migrations run
+-- in is allowed since PostgreSQL 12; using it in the same transaction is not,
+-- and nothing here does.
+--
+-- **Fits the version before it**: it reads no setting by a key it does not
+-- know, and nobody stores this one before the new version is running.
+ALTER TYPE "public"."tenant_parameter_key" ADD VALUE 'delivery_note.mail_on_signature';

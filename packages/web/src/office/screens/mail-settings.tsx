@@ -1,4 +1,4 @@
-import type { IsoDate } from '@opengewerk/domain'
+import type { IsoDate, TenantParameterKey } from '@opengewerk/domain'
 import { Button, Panel } from '@opengewerk/platform-web'
 import { date, today } from '@opengewerk/platform-web/format'
 import {
@@ -18,8 +18,43 @@ import { type ParameterPeriod, parameterHistory, setParameter } from '../../sess
 import { mailServerWords, mailStatusWords } from './mail-words.js'
 import { History, latestPeriod, proposedFrom } from './taxes.js'
 
-/** The setting this screen switches: a signed report goes to its customer at once. */
-const reportSetting = 'report.mail_on_signature'
+/**
+ * What a document signed on site is called in the sentences of its switch:
+ * the setting that sends it to its customer at once, the name of the panel,
+ * the sentence that explains it, and what the state says while it is on and
+ * while it is off.
+ */
+interface SignedWords {
+  readonly setting: TenantParameterKey
+  readonly title: string
+  readonly explanation: string
+  readonly on: string
+  readonly off: string
+}
+
+const reportWords: SignedWords = {
+  setting: 'report.mail_on_signature',
+  title: 'Regiebericht nach der Unterschrift',
+  explanation:
+    'Unterschreibt der Kunde einen Regiebericht auf der Baustelle, kann er ihn gleich danach ' +
+    'per E-Mail bekommen, als PDF mit seiner Unterschrift. Die Nachricht geht an die Adresse, ' +
+    'die beim Kunden hinterlegt ist; fehlt sie, lässt sich der Bericht vom Büro aus verschicken.',
+  on: 'ein unterschriebener Regiebericht geht gleich an den Kunden.',
+  off: 'unterschriebene Regieberichte bleiben beim Büro.',
+}
+
+/** The delivery note (#299): signed by whoever received the goods, sent to the customer. */
+const deliveryWords: SignedWords = {
+  setting: 'delivery_note.mail_on_signature',
+  title: 'Lieferschein nach der Unterschrift',
+  explanation:
+    'Unterschreibt der Empfänger einen Lieferschein auf der Baustelle, kann der Kunde ihn gleich ' +
+    'danach per E-Mail bekommen, als PDF mit der Unterschrift. Die Nachricht geht an die ' +
+    'Adresse, die beim Kunden hinterlegt ist; fehlt sie, lässt sich der Lieferschein vom Büro ' +
+    'aus verschicken.',
+  on: 'ein unterschriebener Lieferschein geht gleich an den Kunden.',
+  off: 'unterschriebene Lieferscheine bleiben beim Büro.',
+}
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -35,8 +70,9 @@ function saidWhy(error: unknown, fallback: string): string {
  * about the server.
  *
  * What the business decides beyond that is here as well: whether a report the
- * customer signs on site goes to that customer at once. Only the owner
- * switches it; the office sees it with nothing to press, like the letterhead.
+ * customer signs on site goes to that customer at once, and the same for a
+ * delivery note its recipient signs. Only the owner switches them; the office
+ * sees them with nothing to press, like the letterhead.
  */
 export function MailSettingsScreen() {
   const history = useQuery({ queryKey: ['parameters'], queryFn: parameterHistory })
@@ -61,28 +97,35 @@ export function MailSettingsScreen() {
           {saidWhy(history.error, 'Die Einstellungen kamen nicht an.')}
         </SettingsText>
       ) : (
-        <ReportSection
-          periods={history.data.filter((period) => period.key === reportSetting)}
-          mayWrite={mayWrite}
-        />
+        [reportWords, deliveryWords].map((words) => (
+          <SignedSection
+            key={words.setting}
+            words={words}
+            periods={history.data.filter((period) => period.key === words.setting)}
+            mayWrite={mayWrite}
+          />
+        ))
       )}
     </SettingsPage>
   )
 }
 
 /**
- * Whether a signed report goes to its customer right away.
+ * Whether a signed report, or a signed delivery note, goes to its customer
+ * right away.
  *
  * Switched from today, never for a day in the past: the job reads the setting
- * on the day of the signature, and a start in the past would send the reports
+ * on the day of the signature, and a start in the past would send the papers
  * signed since then, which nobody switching it on today expects. Switched
  * off, it is off from today as well; what was signed while it was on and has
  * not gone yet still goes.
  */
-function ReportSection({
+function SignedSection({
+  words,
   periods,
   mayWrite,
 }: {
+  readonly words: SignedWords
   readonly periods: readonly ParameterPeriod[]
   readonly mayWrite: boolean
 }) {
@@ -95,7 +138,7 @@ function ReportSection({
   const from = proposedFrom(periods, today() as IsoDate)
 
   const change = useMutation({
-    mutationFn: () => setParameter({ key: reportSetting, from, value: on ? 0 : 1, note: null }),
+    mutationFn: () => setParameter({ key: words.setting, from, value: on ? 0 : 1, note: null }),
     onSuccess: () => {
       setTrouble(null)
       setSaved(true)
@@ -108,23 +151,16 @@ function ReportSection({
   })
 
   return (
-    <Panel title="Regiebericht nach der Unterschrift" roomy>
+    <Panel title={words.title} roomy>
       <div className="flex flex-col gap-[11px]">
-        <SettingsText>
-          Unterschreibt der Kunde einen Regiebericht auf der Baustelle, kann er ihn gleich danach
-          per E-Mail bekommen, als PDF mit seiner Unterschrift. Die Nachricht geht an die Adresse,
-          die beim Kunden hinterlegt ist; fehlt sie, lässt sich der Bericht vom Büro aus
-          verschicken.
-        </SettingsText>
+        <SettingsText>{words.explanation}</SettingsText>
 
         <SettingsState>
           {standing === null
-            ? 'Aus: unterschriebene Regieberichte bleiben beim Büro.'
+            ? `Aus: ${words.off}`
             : on
-              ? `An seit dem ${date(standing.validFrom)}: ein unterschriebener Regiebericht geht ` +
-                'gleich an den Kunden.'
-              : `Aus seit dem ${date(standing.validFrom)}: unterschriebene Regieberichte bleiben ` +
-                'beim Büro.'}
+              ? `An seit dem ${date(standing.validFrom)}: ${words.on}`
+              : `Aus seit dem ${date(standing.validFrom)}: ${words.off}`}
         </SettingsState>
 
         <History periods={periods} stated="an" notStated="aus" />
