@@ -27,6 +27,7 @@ export type LocationConsentId = Id<'location-consent'>
 export type JobNoteId = Id<'job-note'>
 export type AppointmentId = Id<'appointment'>
 export type AppointmentPersonId = Id<'appointment-person'>
+export type CalendarFeedId = Id<'calendar-feed'>
 export type DeadlineId = Id<'deadline'>
 export type DeadlineSettingId = Id<'deadline-setting'>
 export type PushSubscriptionId = Id<'push-subscription'>

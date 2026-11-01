@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Das Kalender-Abo (#291), nach der Feature-Gliederung v2.48 und den Tafeln aus Version 100 des Canvas: Unter „Konto“
+  und unter „Meine Termine“ erstellt jede Person die Adresse ihres eigenen Kalenders, im Format iCalendar, das Google
+  Kalender, Apple, Outlook, Thunderbird und auf Android ICSx⁵ lesen. Der Kalender zeigt ihre Termine mit Auftrag, Kunde,
+  Anschrift und Notiz, Serien mit Regel und ausgenommenen Tagen, in deutscher Zeit, von 90 Tagen zurück an. Die Adresse
+  steht nur gleich nach dem Erstellen da, gespeichert ist nur ihr Hash; eine neue beendet die alte, und ein beendetes Abo
+  und das einer Person, die nicht mehr im Betrieb arbeitet, liefern einen leeren Kalender. Warum: Ein Monteur will seine
+  Termine im Kalender seines Telefons sehen, ohne OpenGewerk zu öffnen, und OpenGewerk soll dafür keine Zugangsdaten
+  fremder Kalender halten; ein CalDAV-Server, nur lesend, folgt später (#810).
 - Die Plantafel (#290), nach der Feature-Gliederung v2.47 und den Tafeln aus Version 98 des Canvas: Unter „Arbeit“,
   „Plantafel“ steht für jede Person mit Zugang eine Zeile, eine Woche oder vier Wochen nebeneinander, dazu die
   freigegebenen Abwesenheiten und die Feiertage des Betriebs; am Rand warten die offenen Aufträge, die ab heute keinen

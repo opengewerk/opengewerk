@@ -163,6 +163,8 @@ const auditPersonTables: readonly string[] = [
   'location_consents',
   // Who goes to an appointment (#290), by the person.
   'appointment_people',
+  // The calendar of a person (#291), by the person.
+  'calendar_feeds',
 ]
 
 /**
@@ -293,6 +295,9 @@ export const auditVocabulary: AuditVocabulary = {
       'tenant.cli': 'Betrieb über die Kommandozeile',
     },
   },
+  // What a calendar is recognised by: a hash, which opens nothing, and
+  // still nothing to spell out to everybody who reads the log (#291).
+  secretFields: { calendar_feeds: ['token_hash'] },
   parts: auditParts,
   records: auditRecordTables,
   references: auditReferences,
