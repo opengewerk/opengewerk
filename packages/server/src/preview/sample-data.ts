@@ -794,6 +794,9 @@ async function changeOnDevice(
  * draw them: the preview's own account with the working time agreed since it
  * joined, a later one still to come and five qualifications, one running out
  * and one run out, and six files without an account, a helper among them.
+ * The own account joins on the first of January of the year before, not in
+ * 2023 as on the boards, so that its time account (#289) has a year to carry
+ * over and not three years of days to fill.
  */
 async function plantPeople(base: string, today: IsoDate): Promise<void> {
   const post = (path: string, body: unknown) => send(base, 'POST', path, body)
@@ -802,11 +805,12 @@ async function plantPeople(base: string, today: IsoDate): Promise<void> {
       weekdays.map((day, at) => [weekdayMinutes[day], Math.round((hours[at] ?? 0) * 60)]),
     )
   const full = [8, 8, 8, 8, 8]
+  const joined = `${String(Number(today.slice(0, 4)) - 1)}-01-01`
   const own = (await post('/people', {
     name: 'Anna Weber',
     userId: previewUser.id,
-    joinedOn: '2023-03-01',
-    workingTime: { validFrom: '2023-03-01', ...week(full) },
+    joinedOn: joined,
+    workingTime: { validFrom: joined, ...week(full) },
   })) as { id: string }
 
   await post(`/people/${own.id}/working-times`, {
@@ -857,6 +861,84 @@ async function plantPeople(base: string, today: IsoDate): Promise<void> {
   }
 
   await plantAbsences(base, today, ids)
+  await plantTime(base, today)
+}
+
+/**
+ * The time of the preview's own account (#289), so that its time account has
+ * something to count: on every day with a target since the account began,
+ * travel, work and a break, a little more or less than agreed, by a pattern
+ * that comes out at about two minutes a day over. The targets come from the
+ * account itself, after the absences and the holidays are planted, so that a
+ * day of leave or a holiday has no time recorded. Nothing today: the screens
+ * show today as not yet counted.
+ */
+async function plantTime(base: string, today: IsoDate): Promise<void> {
+  const get = (path: string) => send(base, 'GET', path)
+  const target: { on: string; minutes: number }[] = []
+  const yesterday = addDays(today, -1)
+
+  for (
+    let first = `${String(Number(today.slice(0, 4)) - 1)}-01-01` as IsoDate;
+    first <= yesterday;
+    first = addDays(first, 400)
+  ) {
+    const last = addDays(first, 399) < yesterday ? addDays(first, 399) : yesterday
+    const account = (await get(`/time-account/mine?from=${first}&to=${last}`)) as {
+      days?: { on: string; targetMinutes: number }[]
+    }
+
+    for (const day of account.days ?? []) {
+      if (day.targetMinutes > 0) {
+        target.push({ on: day.on, minutes: day.targetMinutes })
+      }
+    }
+  }
+
+  const over = [0, 15, -10, 20, 5, -5, 15, 0, -15, -5]
+  // In Greenwich time: an hour or two earlier than in Germany, the same day.
+  const at = (on: string, minutes: number) =>
+    new Date(Date.parse(`${on}T05:30:00Z`) + minutes * 60_000).toISOString()
+  const entries = target.flatMap(({ on, minutes }, index) => {
+    const worked = minutes + (over[index % over.length] ?? 0)
+    const morning = Math.min(worked - 30, 270)
+    const stretches: [string, number, number][] = [
+      ['travel', 0, 30],
+      ['work', 30, 30 + morning],
+    ]
+
+    if (worked - 30 > morning) {
+      stretches.push(['break', 30 + morning, 60 + morning], ['work', 60 + morning, 30 + worked])
+    }
+
+    return stretches.map(([kind, start, end]) => ({
+      kind,
+      startedAt: at(on, start),
+      endedAt: at(on, end),
+    }))
+  })
+
+  for (let start = 0; start < entries.length; start += 200) {
+    const sent = await send(base, 'POST', '/sync', {
+      deviceId: 'vorschau-telefon',
+      operations: entries.slice(start, start + 200).map((values) => ({
+        id: newId<'operation'>(),
+        entity: 'time_entries',
+        recordId: newId<'time-entry'>(),
+        kind: 'create',
+        baseVersion: null,
+        patches: Object.entries(values).map(([field, to]) => ({ field, from: null, to })),
+        recordedAt: new Date().toISOString(),
+      })),
+    })
+    const refused = ((sent['receipts'] ?? []) as { outcome?: string }[]).filter(
+      (receipt) => receipt.outcome !== 'applied',
+    )
+
+    if (refused.length > 0) {
+      throw new Error(`The sample time was not all taken: ${JSON.stringify(refused[0])}`)
+    }
+  }
 }
 
 /**

@@ -41,12 +41,13 @@ export function useWayBack(): WayBack | null {
     matchRoute({ to: '/zeiten/$day/nachtragen' }) ||
     matchRoute({ to: '/zeiten/$day/korrigieren/$entryId' })
 
-  // Asking for leave goes back to one's leave, and that to the time (#288).
+  // Asking for leave goes back to one's leave, and that to the time (#288),
+  // as one's time account does (#289).
   if (matchRoute({ to: '/urlaub/beantragen' })) {
     return { to: '/urlaub', label: 'Zurück zum Urlaub' }
   }
 
-  if (matchRoute({ to: '/urlaub' })) {
+  if (matchRoute({ to: '/urlaub' }) || matchRoute({ to: '/zeitkonto' })) {
     return { to: '/zeiten', label: 'Zurück zu den Zeiten' }
   }
 

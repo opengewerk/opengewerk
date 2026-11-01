@@ -39,4 +39,6 @@ export const serverPaths = [
   // Leave and sickness, and the public holidays they count with (#288).
   'absences',
   'holidays',
+  // The time account, from the file, the absences and the time recorded (#289).
+  'time-account',
 ] as const

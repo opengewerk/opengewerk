@@ -15,7 +15,7 @@ import { StopwatchBar } from './screens/time.js'
 const tabs: readonly SiteTab[] = [
   { to: '/', label: 'Aufträge', icon: Calendar, also: ['/auftraege'] },
   { to: '/scannen', label: 'Scannen', icon: ScanLine, also: ['/anlagen'] },
-  { to: '/zeiten', label: 'Zeiten', icon: Clock, also: ['/urlaub'] },
+  { to: '/zeiten', label: 'Zeiten', icon: Clock, also: ['/urlaub', '/zeitkonto'] },
 ]
 
 /**

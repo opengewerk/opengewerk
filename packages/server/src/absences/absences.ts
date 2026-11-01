@@ -90,11 +90,12 @@ export async function holidaySettingOf(tx: TenantTransaction): Promise<HolidaySe
 }
 
 /** Without a state no day is a holiday, and the screens say so. */
-function holidaysOf(setting: HolidaySetting | null): (on: IsoDate) => boolean {
+export function holidaysOf(setting: HolidaySetting | null): (on: IsoDate) => boolean {
   return setting === null ? () => false : holidayCalendar(shippedRules, setting)
 }
 
-async function timesOf(tx: TenantTransaction, personIds: readonly string[]) {
+/** The working times of some people, by person. */
+export async function timesOf(tx: TenantTransaction, personIds: readonly string[]) {
   const rows =
     personIds.length === 0
       ? []
@@ -117,7 +118,7 @@ async function timesOf(tx: TenantTransaction, personIds: readonly string[]) {
 }
 
 /** The absences of some people that touch a stretch of days, without those taken out. */
-async function absencesBetween(
+export async function absencesBetween(
   tx: TenantTransaction,
   personIds: readonly string[],
   from: IsoDate,
@@ -169,7 +170,8 @@ async function personOf(tx: TenantTransaction, id: string) {
   return person
 }
 
-async function ownPersonOf(tx: TenantTransaction, userId: string) {
+/** The file of whoever signs in with an account, or nothing where they have none in this business. */
+export async function personOfUser(tx: TenantTransaction, userId: string) {
   const [person] = await tx
     .select()
     .from(people)
@@ -305,7 +307,7 @@ export async function ownYear(
   userId: string,
   year: number,
 ): Promise<PersonYear | null> {
-  const person = await ownPersonOf(tx, userId)
+  const person = await personOfUser(tx, userId)
 
   return person === null ? null : yearOfPerson(tx, person, year)
 }
@@ -687,7 +689,7 @@ export async function requestLeave(
   userId: string,
   input: AbsenceInput,
 ): Promise<Row> {
-  const person = await ownPersonOf(tx, userId)
+  const person = await personOfUser(tx, userId)
 
   if (person === null) {
     throw new AbsenceRefused(
@@ -718,7 +720,7 @@ export async function withdraw(
   id: string,
   now: Date,
 ): Promise<void> {
-  const person = await ownPersonOf(tx, userId)
+  const person = await personOfUser(tx, userId)
   const row = await absenceOf(tx, id)
 
   if (person === null || row.personId !== person.id) {
@@ -910,7 +912,7 @@ export async function countForMe(
   userId: string,
   input: AbsenceInput,
 ): Promise<DayCount> {
-  const person = await ownPersonOf(tx, userId)
+  const person = await personOfUser(tx, userId)
 
   if (person === null) {
     throw new AbsenceNotFound()
