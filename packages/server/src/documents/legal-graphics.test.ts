@@ -149,6 +149,18 @@ describe('the label of a guarantee of durability (#433)', () => {
     expect(first.filter((id) => second.includes(id))).toEqual([])
   })
 
+  it('takes a dollar sign in a field as a dollar sign, never as a part of the file', async () => {
+    const label = filledDurabilityLabel(
+      await durabilityLabelSource(),
+      { halfYears: 6, producer: "A$'B$`C", model: '$&$$' },
+      'one',
+    )
+
+    expect(label).toContain('<tspan x="0" y="0">A$\'B$`C</tspan>')
+    expect(label).toContain('<tspan x="0" y="0">$&amp;$$</tspan>')
+    expect(label.split('<svg').length).toBe(2)
+  })
+
   it('refuses a file whose fields do not stand where they should', async () => {
     const source = (await durabilityLabelSource()).replace('Model identifier', 'Model')
 

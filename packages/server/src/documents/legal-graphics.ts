@@ -171,7 +171,10 @@ export function filledDurabilityLabel(
       )
     }
 
-    svg = svg.replace(field, filled)
+    // As a function and not as a text: a text replacement reads "$&", "$`"
+    // and "$'" in what somebody typed as parts of the file (security review
+    // of #801).
+    svg = svg.replace(field, () => filled)
   }
 
   return svg
