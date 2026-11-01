@@ -41,7 +41,12 @@ import { documentFiles, documents, files } from '../database/schema/index.js'
 import { ciiInvoice } from '../documents/cii.js'
 import { contentOf, frozenContent } from '../documents/content.js'
 import { checkedCii, CiiTooLargeError, SchemaCheckError } from '../documents/cii-schema.js'
-import { LegalGraphicError, legalPage, withLegalPages } from '../documents/legal-graphics.js'
+import {
+  durabilityLabelSource,
+  LegalGraphicError,
+  legalPage,
+  withLegalPages,
+} from '../documents/legal-graphics.js'
 import {
   documentTitle,
   headingOf,
@@ -336,7 +341,7 @@ export class DocumentFiles {
   }
 
   /** A file of the Commission that is missing or changed is a fault of the installation. */
-  private async legal(make: () => Promise<Uint8Array>): Promise<Uint8Array> {
+  private async legal<Made>(make: () => Promise<Made>): Promise<Made> {
     try {
       return await make()
     } catch (error) {
@@ -360,8 +365,14 @@ export class DocumentFiles {
         }
       : null
 
+    // The label of a guarantee of durability (#433), read and checked only for
+    // a document that prints one.
+    const durabilityLabel = content.lines.some((line) => line.durability !== null)
+      ? await this.legal(durabilityLabelSource)
+      : null
+
     try {
-      return await this.render(job({ logo }), printedFor)
+      return await this.render(job({ logo, durabilityLabel }), printedFor)
     } catch (error) {
       if (error instanceof RendererUnavailableError) {
         throw new ServiceUnavailableException(error.message)

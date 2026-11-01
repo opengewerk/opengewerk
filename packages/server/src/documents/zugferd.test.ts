@@ -209,7 +209,7 @@ describe.runIf(process.env['ZUGFERD_SAMPLES_DIR'])('the ZUGFeRD PDFs of the samp
     for (const sample of printed) {
       const xml = checkedCii(ciiInvoice(sample.content, 'en16931'))
       const pdf = await zugferdPdf(
-        await render(printJob(sample.content, { logo: sample.logo })),
+        await render(printJob(sample.content, { logo: sample.logo, durabilityLabel: null })),
         xml,
         at,
       )

@@ -66,6 +66,7 @@ function position(netCents: number): LineContent {
     priceBase: 1,
     vatRate: 'standard',
     netCents,
+    durability: null,
   }
 }
 

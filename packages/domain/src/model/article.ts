@@ -55,6 +55,18 @@ export interface Article extends Synced {
    * files prove what it came with; null for one the office entered.
    */
   readonly importId: ArticleImportId | null
+  /**
+   * The commercial guarantee of durability the producer gives for the article
+   * (#433), in half years, so that 2,5 years is a whole number: more than two
+   * years, entered by hand once the producer has told the business about it.
+   * With the producer and the model identifier it fills the label of annex II
+   * to Implementing Regulation (EU) 2025/1960. All three or none.
+   */
+  readonly durabilityHalfYears: number | null
+  /** The producer, as the field "Brand/Trademark" of the label shows it. */
+  readonly durabilityProducer: string | null
+  /** The model the guarantee is for, as the field "Model identifier" of the label shows it. */
+  readonly durabilityModel: string | null
 }
 
 /** A selling price from a day on. The price of a day is the latest that began by then. */
@@ -151,6 +163,33 @@ export const articleLimits = {
   discountGroup: 20,
 } as const
 
+/**
+ * The bounds of a guarantee of durability (#433): more than two years and in
+ * half years, as the guidelines of the Commission allow 2,5 but not 2,4, at
+ * most fifty, and producer and model short enough for their fields of the
+ * label, which print at 9 point beside each other on 95 millimetres.
+ */
+export const durabilityLimits = { halfYearsMin: 5, halfYearsMax: 100, text: 20 } as const
+
+/** The three fields of a guarantee of durability, which come and go together. */
+export const durabilityFields = [
+  'durabilityHalfYears',
+  'durabilityProducer',
+  'durabilityModel',
+] as const
+
+/** The years of a guarantee as the label and the office write them: "5", "2,5". */
+export function durabilityYears(halfYears: number): string {
+  return halfYears % 2 === 0 ? String(halfYears / 2) : `${String((halfYears - 1) / 2)},5`
+}
+
+/** The half years in years as somebody types them, "5", "2,5" or "2.5", or null for anything else. */
+export function halfYearsOf(text: string): number | null {
+  const match = /^(\d{1,2})(?:[,.](0|5))?$/.exec(text.trim())
+
+  return match ? Number(match[1]) * 2 + (match[2] === '5' ? 1 : 0) : null
+}
+
 /** The most a price may be, in cents: 999.999,99 euros for one unit. */
 export const priceCentsMax = 99_999_999
 
@@ -221,6 +260,12 @@ export function articleProblems(
     problems['frequent'] = 'Häufig ist ja oder nein.'
   }
 
+  const given = durabilityFields.filter((field) => field in article)
+
+  if (given.length > 0) {
+    durabilityProblems(article, given.length, problems)
+  }
+
   // The bound of the stock of the foundation (#298), which holds it in the database too.
   const description = article['description']
 
@@ -242,6 +287,56 @@ export function eanFromScan(code: string): string | null {
   const ean = /^\d{12}$/.test(digits) ? `0${digits}` : digits
 
   return eanProblem(ean) === null ? ean : null
+}
+
+/**
+ * What is wrong with a guarantee of durability (#433), into `problems`: the
+ * three fields come together, and either all are empty or all are set.
+ */
+function durabilityProblems(
+  article: Readonly<Record<string, unknown>>,
+  given: number,
+  problems: Record<string, string>,
+): void {
+  const halfYears = article['durabilityHalfYears']
+  const texts = (['durabilityProducer', 'durabilityModel'] as const).map((field) => {
+    const value = article[field]
+
+    return [field, typeof value === 'string' ? value.trim() : value] as const
+  })
+  const empty = (halfYears ?? null) === null && texts.every(([, value]) => (value ?? '') === '')
+
+  if (given < durabilityFields.length) {
+    problems['durabilityHalfYears'] = 'Dauer, Hersteller und Modellkennung kommen zusammen.'
+
+    return
+  }
+
+  if (empty) {
+    return
+  }
+
+  if (
+    typeof halfYears !== 'number' ||
+    !Number.isInteger(halfYears) ||
+    halfYears < durabilityLimits.halfYearsMin ||
+    halfYears > durabilityLimits.halfYearsMax
+  ) {
+    problems['durabilityHalfYears'] =
+      'Mehr als zwei Jahre, ganz oder halb, etwa 3 oder 2,5, und höchstens 50.'
+  }
+
+  for (const [field, value] of texts) {
+    if (typeof value !== 'string' || value === '') {
+      problems[field] =
+        field === 'durabilityProducer'
+          ? 'Der Hersteller, wie er auf der Kennzeichnung steht.'
+          : 'Das Modell, für das die Garantie gilt.'
+    } else if (value.length > durabilityLimits.text) {
+      problems[field] =
+        `Höchstens ${String(durabilityLimits.text)} Zeichen, sonst passt es nicht in sein Feld der Kennzeichnung.`
+    }
+  }
 }
 
 /** What is wrong with the supplier's number for an article, or null. */

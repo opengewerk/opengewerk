@@ -2,6 +2,8 @@ import {
   closesProgressInvoices,
   type DocumentContent,
   type DocumentKind,
+  type DurabilityContent,
+  durabilityYears,
   instructionBlocks,
   type IsoDate,
   isInvoice,
@@ -24,6 +26,8 @@ import {
   text,
   typeface,
 } from '@opengewerk/platform-server'
+
+import { durabilityLabelFonts, filledDurabilityLabel } from './legal-graphics.js'
 
 /**
  * The one letterhead template every document is printed with.
@@ -128,6 +132,66 @@ const units: Readonly<Record<LineUnit, string>> = {
 /** The logo as a data address, so the renderer has nothing to fetch. */
 export interface PrintAssets {
   readonly logo: { readonly mediaType: string; readonly bytes: Uint8Array } | null
+  /**
+   * The label of a guarantee of durability as the Commission publishes it
+   * (#433), checked by the caller, or null for a document whose lines carry
+   * no guarantee.
+   */
+  readonly durabilityLabel: string | null
+}
+
+/** One label of a guarantee of durability after the document, and the positions it is for. */
+interface Annex {
+  readonly number: number
+  readonly durability: DurabilityContent
+  readonly positions: string[]
+  readonly designation: string
+}
+
+/** Two lines of the same good, which share one label: the same years, producer and model. */
+function goodOf(durability: DurabilityContent): string {
+  return JSON.stringify([durability.halfYears, durability.producer, durability.model])
+}
+
+/**
+ * The labels after the document (#433), one per good, numbered in the order
+ * their first position is read, with the positions each is for.
+ */
+function annexesOf(content: DocumentContent): ReadonlyMap<string, Annex> {
+  const annexes = new Map<string, Annex>()
+
+  for (const row of outlineRows(content.lines)) {
+    if (row.row !== 'item' || row.line.durability === null) {
+      continue
+    }
+
+    const good = goodOf(row.line.durability)
+    const known = annexes.get(good)
+
+    if (known) {
+      known.positions.push(row.number)
+    } else {
+      annexes.set(good, {
+        number: annexes.size + 1,
+        durability: row.line.durability,
+        positions: [row.number],
+        designation: row.line.designation,
+      })
+    }
+  }
+
+  return annexes
+}
+
+/** Under a position whose good has a guarantee: how long, and which annex has its label. */
+function durabilityReference(line: LineContent, annexes: ReadonlyMap<string, Annex>): string {
+  const annex = line.durability === null ? undefined : annexes.get(goodOf(line.durability))
+
+  return annex
+    ? `<div class="description">Haltbarkeitsgarantie des Herstellers, ${text(
+        durabilityYears(annex.durability.halfYears),
+      )} Jahre: Kennzeichnung in Anlage ${String(annex.number)}</div>`
+    : ''
 }
 
 function head(content: DocumentContent, assets: PrintAssets): string {
@@ -247,6 +311,7 @@ function lines(content: DocumentContent): string {
     content.totals.byRate.map((entry) => [entry.rate, entry.basisPoints]),
   )
 
+  const annexes = annexesOf(content)
   const rows = outlineRows(content.lines)
     .map((row) => {
       switch (row.row) {
@@ -274,14 +339,14 @@ function lines(content: DocumentContent): string {
           if (!priced) {
             return `<tr>
         <td class="position">${row.number}</td>
-        <td>${text(line.designation)}${descriptionOf(line)}</td>
+        <td>${text(line.designation)}${descriptionOf(line)}${durabilityReference(line, annexes)}</td>
         <td class="figure">${quantities.format(line.quantityMilli / quantityFactor)} ${units[line.unit]}</td>
       </tr>`
           }
 
           return `<tr>
         <td class="position">${row.number}</td>
-        <td>${text(line.designation)}${descriptionOf(line)}</td>
+        <td>${text(line.designation)}${descriptionOf(line)}${durabilityReference(line, annexes)}</td>
         <td class="figure">${quantities.format(line.quantityMilli / quantityFactor)} ${units[line.unit]}</td>
         <td class="figure">${euros(line.unitPriceCents)}${priceBaseOf(line)}</td>
         ${taxed ? `<td class="figure">${rate === undefined ? '' : percent(rate)}</td>` : ''}
@@ -509,6 +574,10 @@ const pageStyle = `
   .closing { margin-top: 8mm; break-inside: avoid; }
   .instruction { break-before: page; }
   .legal-page { break-before: page; height: 1px; }
+  .durability { break-before: page; }
+  .durability h2 { font-size: 13pt; font-weight: 600; margin: 0 0 1mm; }
+  .durability p { margin: 0 0 6mm; color: #5b6573; }
+  .durability svg { display: block; width: 95mm; height: 100mm; }
   .annex { font-size: 8.5pt; color: #5b6573; margin: 0 0 2mm; }
   .instruction h2 { font-size: 13pt; font-weight: 600; margin: 0 0 4mm; }
   .instruction h3, .sheet h3 { font-size: 10pt; font-weight: 600; margin: 5mm 0 1.5mm; }
@@ -625,6 +694,44 @@ function appendix(content: DocumentContent): string {
     ${instructionBody(instruction.text)}
   </section>`,
     )
+    .join('\n')
+}
+
+/**
+ * The labels of the guarantees of durability (#433), each on a page of its
+ * own after the instructions and before the notice on the legal guarantee:
+ * which document and positions it belongs to, and the label of the
+ * Commission at its minimum size of 95 by 100 millimetres, of which only
+ * years, producer and model are filled in.
+ */
+function durabilityPages(content: DocumentContent, assets: PrintAssets): string {
+  const annexes = [...annexesOf(content).values()]
+
+  if (annexes.length === 0) {
+    return ''
+  }
+
+  if (assets.durabilityLabel === null) {
+    // A document with a guarantee goes nowhere without its label; the caller
+    // reads the file whenever a line has one, so this is a fault, not a case.
+    throw new Error('The label of a guarantee of durability was not read for this document.')
+  }
+
+  const label = assets.durabilityLabel
+
+  return annexes
+    .map((annex) => {
+      const positions =
+        annex.positions.length === 1
+          ? `Position ${annex.positions[0] ?? ''}, ${text(annex.designation)}`
+          : `den Positionen ${annex.positions.slice(0, -1).join(', ')} und ${annex.positions.at(-1) ?? ''}`
+
+      return `<section class="durability">
+    <h2>Anlage ${String(annex.number)} zu ${text(reference(content))}</h2>
+    <p>Kennzeichnung der Haltbarkeitsgarantie des Herstellers zu ${positions}</p>
+    ${filledDurabilityLabel(label, annex.durability, `durability-${String(annex.number)}`)}
+  </section>`
+    })
     .join('\n')
 }
 
@@ -781,6 +888,7 @@ export function printJob(
 <title>${text(`${title}, ${content.issuer.name}`)}</title>
 <style>
 ${fontFaces([400, 600])}
+${assets.durabilityLabel === null ? '' : durabilityLabelFonts()}
 ${pageStyle}
 </style>
 </head>
@@ -799,6 +907,7 @@ ${draft ? '<div class="draft">ENTWURF</div>' : ''}
   ${closing}
   ${signatureOf(content)}
   ${appendix(content)}
+  ${durabilityPages(content, assets)}
   ${legalPlaceholders(content)}
 </main>
 </body>

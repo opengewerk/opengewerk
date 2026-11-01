@@ -22,9 +22,12 @@ import type {
   DocumentContentV11,
   DocumentContentV12,
   DocumentContentV13,
+  DocumentContentV14,
+  DurabilityContent,
   InstructionContent,
   IssuerContent,
   LineContent,
+  LineContentV14,
   RecipientContent,
   ReportFieldContent,
   SignatureContent,
@@ -51,7 +54,10 @@ export interface ContentSources {
     | 'closingText'
     | 'taxTreatment'
   >
-  readonly lines: readonly Pick<DocumentLine, keyof LineContent>[]
+  readonly lines: readonly (Pick<DocumentLine, keyof LineContentV14> & {
+    /** The guarantee of durability of the line's article (#433), where the document carries one. */
+    readonly durability?: DurabilityContent | null
+  })[]
   readonly issuer: IssuerContent
   readonly recipient: RecipientContent
   readonly site: SiteContent | null
@@ -178,6 +184,7 @@ export function documentContent(rules: RuleSet, sources: ContentSources): Docume
       priceBase: line.priceBase,
       vatRate: line.vatRate,
       netCents: line.netCents,
+      durability: line.durability ?? null,
     }))
 
   const totals = totalsFor(rules, lines, document)
@@ -264,8 +271,17 @@ export function currentContent(stored: StoredDocumentContent): DocumentContent {
   switch (stored.version) {
     case documentContentVersion:
       return stored
-    case 13:
-      return { ...stored, version: documentContentVersion, delivers: null }
+    case 14:
+      return {
+        ...stored,
+        version: documentContentVersion,
+        lines: stored.lines.map((line) => ({ ...line, durability: null })),
+      }
+    case 13: {
+      const fourteenth: DocumentContentV14 = { ...stored, version: 14, delivers: null }
+
+      return currentContent(fourteenth)
+    }
     case 12: {
       const thirteenth: DocumentContentV13 = {
         ...stored,

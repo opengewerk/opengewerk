@@ -804,3 +804,51 @@ describe('a supplier', () => {
     expect((people[0] as { deleted_at: Date | null }).deleted_at).not.toBeNull()
   })
 })
+
+describe('a guarantee of durability of the producer (#433)', () => {
+  const guarantee = {
+    durabilityHalfYears: 5,
+    durabilityProducer: 'Voltaro',
+    durabilityModel: 'WB-11 Pro',
+  }
+
+  it('is kept at the article, all three fields or none', async () => {
+    const wallbox = await post('/articles', {
+      number: '3010',
+      designation: 'Wallbox 11 kW, lastmanagementfähig',
+      unit: 'piece',
+      ...guarantee,
+    })
+
+    try {
+      expect(await get(`/articles/${wallbox.id}`)).toMatchObject(guarantee)
+
+      const patch = (body: Record<string, unknown>, status: number) =>
+        http()
+          .patch(`/articles/${wallbox.id}`)
+          .set('x-test-identity', office)
+          .send(body)
+          .expect(status)
+
+      await patch({ durabilityModel: 'WB-22' }, 400)
+      await patch({ ...guarantee, durabilityHalfYears: 4 }, 400)
+      await patch({ ...guarantee, durabilityProducer: '' }, 400)
+      await patch({ ...guarantee, durabilityModel: 'M'.repeat(21) }, 400)
+      await patch({ durabilityHalfYears: null, durabilityProducer: '', durabilityModel: ' ' }, 200)
+
+      expect(await get(`/articles/${wallbox.id}`)).toMatchObject({
+        durabilityHalfYears: null,
+        durabilityProducer: null,
+        durabilityModel: null,
+      })
+    } finally {
+      await http().delete(`/articles/${wallbox.id}`).set('x-test-identity', office).expect(200)
+    }
+  })
+
+  it('is refused half, by the database as well', async () => {
+    await expect(
+      admin.query('update articles set durability_half_years = 6 where id = $1', [cable]),
+    ).rejects.toThrow(/articles_durability_whole/)
+  })
+})

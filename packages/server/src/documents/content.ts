@@ -1,9 +1,12 @@
 import {
+  type ArticleId,
   currentContent,
   defaultPaymentTermDays,
   type DocumentContent,
   documentContent,
   type DocumentId,
+  type DurabilityContent,
+  type InstructionContent,
   type InstructionGap,
   type IssuerContent,
   type LogoContent,
@@ -12,13 +15,14 @@ import {
   type TenantId,
 } from '@opengewerk/domain'
 import type { TenantTransaction } from '@opengewerk/platform-server'
-import { and, asc, eq, isNull } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
 
 import { parameterAt } from '../database/parameters.js'
 import { reportFieldContent } from '../forms/report-fields.js'
 import { deductionsFor } from './deductions.js'
 import { instructionsFor } from './instructions.js'
 import {
+  articles,
   customers,
   documentLines,
   documents,
@@ -32,6 +36,49 @@ import {
 } from '../database/schema/index.js'
 
 type DocumentRow = typeof documents.$inferSelect
+
+/**
+ * Whether a document carries the harmonised notice on the legal guarantee
+ * (#431) in its PDF. The label of a guarantee of durability goes with exactly
+ * those (#433): both are owed to a consumer before a contract about goods.
+ */
+function carriesGuaranteeNotice(instructions: readonly InstructionContent[]): boolean {
+  return instructions.some(
+    (instruction) => instruction.withDocument && instruction.model?.template === 'guarantee_notice',
+  )
+}
+
+/**
+ * The guarantee of durability of each article the lines came from, as the
+ * article states it now; the snapshot of an issued document keeps what it was
+ * then. An article deleted since still answers: the line came from it.
+ */
+async function durabilitiesOf(
+  tx: TenantTransaction,
+  articleIds: readonly ArticleId[],
+): Promise<ReadonlyMap<string, DurabilityContent>> {
+  if (articleIds.length === 0) {
+    return new Map()
+  }
+
+  const rows = await tx
+    .select({
+      id: articles.id,
+      halfYears: articles.durabilityHalfYears,
+      producer: articles.durabilityProducer,
+      model: articles.durabilityModel,
+    })
+    .from(articles)
+    .where(and(inArray(articles.id, [...articleIds]), isNotNull(articles.durabilityHalfYears)))
+
+  return new Map(
+    rows.flatMap(({ id, halfYears, producer, model }) =>
+      halfYears !== null && producer !== null && model !== null
+        ? [[id, { halfYears, producer, model }] as const]
+        : [],
+    ),
+  )
+}
 
 /**
  * The letterhead of a business as a document prints it.
@@ -162,6 +209,12 @@ export async function contentAndGapsOf(
 
   const issuer = await issuerOf(tx, document.tenantId)
   const instructions = await instructionsFor(tx, document, issuer, customer.isBusiness)
+  const durabilities = carriesGuaranteeNotice(instructions.contents)
+    ? await durabilitiesOf(
+        tx,
+        rows.flatMap((row) => (row.articleId ? [row.articleId] : [])),
+      )
+    : new Map<string, DurabilityContent>()
   // The number of the job, which the customer names on the phone (#145). A
   // deleted job still has it: the document was written for that job.
   const [job] = document.jobId
@@ -182,7 +235,10 @@ export async function contentAndGapsOf(
 
   const content = documentContent(rules, {
     document,
-    lines: rows,
+    lines: rows.map((row) => ({
+      ...row,
+      durability: (row.articleId ? durabilities.get(row.articleId) : undefined) ?? null,
+    })),
     issuer,
     recipient: {
       name: customer.name,

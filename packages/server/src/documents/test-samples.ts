@@ -101,6 +101,7 @@ function title(designation: string): LineContent {
     priceBase: 1,
     vatRate: 'standard',
     netCents: 0,
+    durability: null,
   }
 }
 
@@ -124,6 +125,7 @@ export function item(
     priceBase,
     vatRate: 'standard',
     netCents: lineNetCents({ quantityMilli, unitPriceCents, priceBase }),
+    durability: null,
     ...over,
   }
 }

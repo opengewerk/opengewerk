@@ -1,4 +1,10 @@
-import { articleLimits, lineUnits, storeLimits, supplierLimits } from '@opengewerk/domain'
+import {
+  articleLimits,
+  durabilityLimits,
+  lineUnits,
+  storeLimits,
+  supplierLimits,
+} from '@opengewerk/domain'
 import { reference, stockSchema } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import {
@@ -6,6 +12,7 @@ import {
   check,
   foreignKey,
   index,
+  integer,
   type PgTableExtraConfigValue,
   text,
   uniqueIndex,
@@ -38,6 +45,10 @@ export const { articles, suppliers, stores, storeArticles, stockMovements } = st
       groupOfGoods: text('group_of_goods'),
       frequent: boolean('frequent').notNull().default(false),
       importId: reference<'article-import'>('import_id'),
+      // The guarantee of durability of the producer (#433), all three or none.
+      durabilityHalfYears: integer('durability_half_years'),
+      durabilityProducer: text('durability_producer'),
+      durabilityModel: text('durability_model'),
     },
     constraints: (table): PgTableExtraConfigValue[] => [
       foreignKey({
@@ -59,6 +70,17 @@ export const { articles, suppliers, stores, storeArticles, stockMovements } = st
       check(
         'articles_group_fits',
         sql`char_length(${table.groupOfGoods}) <= ${sql.raw(String(articleLimits.groupOfGoods))}`,
+      ),
+      check(
+        'articles_durability_whole',
+        sql`(${table.durabilityHalfYears} is null) = (${table.durabilityProducer} is null)
+          and (${table.durabilityHalfYears} is null) = (${table.durabilityModel} is null)`,
+      ),
+      check(
+        'articles_durability_fits',
+        sql`${table.durabilityHalfYears} between ${sql.raw(String(durabilityLimits.halfYearsMin))} and ${sql.raw(String(durabilityLimits.halfYearsMax))}
+          and char_length(${table.durabilityProducer}) <= ${sql.raw(String(durabilityLimits.text))}
+          and char_length(${table.durabilityModel}) <= ${sql.raw(String(durabilityLimits.text))}`,
       ),
     ],
   },

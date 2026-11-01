@@ -65,6 +65,7 @@ function position(position: number, netCents: number, designation = 'Untervertei
     priceBase: 1,
     vatRate: 'standard',
     netCents,
+    durability: null,
   } satisfies LineContent
 }
 
@@ -420,6 +421,7 @@ describe('the content record', () => {
       [
         'description',
         'designation',
+        'durability',
         'kind',
         'netCents',
         'position',

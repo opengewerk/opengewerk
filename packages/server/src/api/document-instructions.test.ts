@@ -557,3 +557,114 @@ describe('the notice on the legal guarantee', () => {
     expect(page.getPage(0).getSize().height).toBeCloseTo(841.89, 1)
   })
 })
+
+describe('the label of a guarantee of durability (#433)', () => {
+  // The day the law asks for the notice from (#431); the label goes with it.
+  const onTheDay = { documentDate: '2026-09-27' }
+  const guarantee = {
+    durabilityHalfYears: 10,
+    durabilityProducer: 'Voltaro',
+    durabilityModel: 'WB-11 Pro',
+  }
+  let articles = 0
+
+  async function article(fields: Record<string, unknown> = guarantee) {
+    articles += 1
+
+    const created = await http()
+      .post('/articles')
+      .set('x-test-identity', office())
+      .send({
+        number: `GW-${String(articles)}`,
+        designation: 'Wallbox 11 kW',
+        unit: 'piece',
+        ...fields,
+      })
+      .expect(201)
+
+    return (created.body as { id: string }).id
+  }
+
+  async function lineOf(documentId: string, articleId: string, designation = 'Wallbox 11 kW') {
+    await http()
+      .post(`/documents/${documentId}/lines`)
+      .set('x-test-identity', office())
+      .send({ ...oneLine, designation, unit: 'piece', articleId })
+      .expect(201)
+  }
+
+  async function printed(documentId: string): Promise<string> {
+    await pdf(`/documents/${documentId}/pdf`).expect(200)
+
+    return jobs.at(-1)?.html ?? ''
+  }
+
+  it('goes with a quote to a consumer about goods, one per good, after it and before the notice', async () => {
+    const wallbox = await article()
+    const cable = await article({})
+    const id = await quote(consumer, onTheDay)
+
+    await lineOf(id, wallbox)
+    await lineOf(id, cable, 'Mantelleitung')
+    await lineOf(id, wallbox, 'Wallbox, zweite Garage')
+    await choose(id, { variant: 'goods' }).expect(200)
+
+    const html = await printed(id)
+
+    expect(html.match(/<section class="durability">/g)).toHaveLength(1)
+    expect(html.match(/Kennzeichnung in Anlage 1/g)).toHaveLength(2)
+    expect(html).toContain(
+      'Haltbarkeitsgarantie des Herstellers, 5 Jahre: Kennzeichnung in Anlage 1',
+    )
+    expect(html).toContain(
+      'Kennzeichnung der Haltbarkeitsgarantie des Herstellers zu den Positionen 2 und 4',
+    )
+    expect(html).toContain('<tspan x="0" y="0">Voltaro</tspan>')
+    expect(html).toContain('<tspan x="0" y="0">WB-11 Pro</tspan>')
+    expect(html).toContain('<tspan x="0" y="0">5</tspan>')
+    expect(html).not.toContain('Model identifier')
+    expect(html).toContain("font-family:'Inter'")
+    expect(html.indexOf('<section class="durability">')).toBeLessThan(
+      html.indexOf('class="legal-page"'),
+    )
+  })
+
+  it('does not go with a quote to a business, nor with one dated before the notice', async () => {
+    const wallbox = await article()
+    const toBusiness = await quote(business, onTheDay)
+    const earlier = await quote()
+
+    for (const id of [toBusiness, earlier]) {
+      await lineOf(id, wallbox)
+      await choose(id, { variant: 'goods' }).expect(200)
+
+      const html = await printed(id)
+
+      expect(html).not.toContain('<section class="durability">')
+      expect(html).not.toContain('Haltbarkeitsgarantie des Herstellers')
+      expect(html).not.toContain("font-family:'Inter'")
+    }
+  })
+
+  it('is frozen with the quote as the article stood, whatever the article says later', async () => {
+    const wallbox = await article()
+    const id = await quote(consumer, onTheDay)
+
+    await lineOf(id, wallbox)
+    await choose(id, { variant: 'goods' }).expect(200)
+    await issue(id).expect(201)
+
+    await http()
+      .patch(`/articles/${wallbox}`)
+      .set('x-test-identity', office())
+      .send({ ...guarantee, durabilityHalfYears: 5, durabilityModel: 'WB-22' })
+      .expect(200)
+
+    const content = await snapshotOf(id)
+
+    expect(content.lines.map((line) => line.durability)).toEqual([
+      null,
+      { halfYears: 10, producer: 'Voltaro', model: 'WB-11 Pro' },
+    ])
+  })
+})
