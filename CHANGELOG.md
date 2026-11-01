@@ -9,6 +9,20 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Mitarbeiterakte (#287), nach ADR 0016, der Feature-Gliederung v2.44 und den Tafeln aus Version 93 des Canvas:
+  Unter „Personal“, „Mitarbeiter“ liegt je Person eine Akte, mit Zugang oder ohne, mit Name, Eintritt und Austritt
+  (Migration `0109_people`). Die vereinbarte Arbeitszeit steht als Stunden je Wochentag ab einem Tag und gilt bis zum
+  Tag vor der nächsten; hat ihr Tag begonnen, bleibt sie, wie sie ist, und eine neue beginnt frühestens heute. Die
+  Qualifikationen hängen an der Person, mit einer Art aus dem Katalog (Elektrofachkraft, PV-Zertifizierung,
+  Höhenarbeit, Führerschein) oder einer eigenen Art des Betriebs, mit gültig bis und Notiz; die Akte zeigt, was bald
+  abläuft und was abgelaufen ist. Lesen und pflegen darf die Akten nur der Inhaber, mit den neuen Rechten „Akten der
+  Mitarbeiter ansehen“ und „Akten der Mitarbeiter pflegen“; jede Person liest ihre eigene unter „Konto“ in der Karte
+  „Meine Akte“. Läuft eine Qualifikation ab, legt die Fristen-Engine 60 Tage vorher eine Aufgabe „Qualifikation
+  erneuern: Höhenarbeit von Anna Weber“ an, zuständig die Leitung des Betriebs; Art und Person stehen damit auch in
+  Fristen und Aufgaben des Büros (entschieden am 01.11.2026). Den Nachweis als Datei bringt #802. Warum: Urlaub,
+  Zeitkonto und Plantafel lesen aus der Akte, und ein Helfer ohne Telefon braucht eine Akte und Qualifikationen,
+  obwohl er keinen Zugang hat.
+
 - Die Kennzeichnung einer Haltbarkeitsgarantie des Herstellers (#433), nach der Feature-Gliederung v2.43 und den Tafeln
   aus Version 91 des Canvas: Am Artikel stehen Dauer, Hersteller und Modellkennung, alle drei oder keine (Migration
   `0108_article_durability`), die Dauer in ganzen oder halben Jahren über zwei. Ein Angebot, dem die Mitteilung zur
@@ -159,6 +173,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   und Aufschlag an der Position im dritten.
 
 ### Geändert
+
+- Der Baustein der Qualifikationen im Fundament hängt eine Qualifikation an eine Person aus der neuen Fabrik
+  `peopleSchema` statt an ein Konto (`person_id` statt `user_id`, ADR 0016, ergänzt ADR 0012). Warum: eine Person ohne
+  Zugang hält sonst keine Qualifikation. OpenGewerk Haustechnik braucht dafür beim nächsten Anheben des Submoduls eine
+  Migration, die je Konto mit Qualifikation eine Person anlegt.
 
 - Die Suche im Artikelkatalog antwortet auch bei einem ganzen Großhandelssortiment schnell (#461): über eine eigene
   Suchtabelle mit Trigramm-Index für Nummer, Bezeichnung, EAN und die Nummern der Lieferanten, die die Trigger der

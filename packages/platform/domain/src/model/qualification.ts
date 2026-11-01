@@ -1,5 +1,6 @@
 import { addDays } from './calendar.js'
 import type { Id, IsoDate, Synced } from './identifier.js'
+import type { PersonId } from './person.js'
 
 /**
  * The qualifications of the people who work for a tenant (ADR 0012,
@@ -57,10 +58,14 @@ export interface OwnQualificationKind extends Synced {
   readonly level: PersonLevel
 }
 
-/** A qualification a person holds: one kind, until a day or without one, with its certificate. */
+/**
+ * A qualification a person holds: one kind, until a day or without one, with
+ * its certificate. It hangs on the person and not on their account, so that
+ * somebody without one holds it as well (ADR 0016).
+ */
 export interface Qualification extends Synced {
   readonly id: QualificationId
-  readonly userId: string
+  readonly personId: PersonId
   /** The kind from a catalogue, or null where it is one of the tenant's own. */
   readonly kindKey: string | null
   /** The tenant's own kind, or null where it comes from a catalogue. */
@@ -172,10 +177,10 @@ export function qualificationProblems(
   qualification: Readonly<Record<string, unknown>>,
 ): Readonly<Problems> {
   const problems: Problems = {}
-  const userId = qualification['userId']
+  const personId = qualification['personId']
 
-  if (typeof userId !== 'string' || userId.trim() === '') {
-    problems['userId'] = 'Wählen Sie die Person.'
+  if (typeof personId !== 'string' || personId.trim() === '') {
+    problems['personId'] = 'Wählen Sie die Person.'
   }
 
   const kindKey = qualification['kindKey'] ?? null

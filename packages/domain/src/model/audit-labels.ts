@@ -318,6 +318,33 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       grams_per_thousand: 'Metallgewicht in Gramm je 1000 Einheiten',
     },
   },
+  people: {
+    label: 'Akte',
+    fields: {
+      name: 'Name',
+      user_id: 'Zugang',
+      joined_on: 'Eintritt',
+      left_on: 'Austritt',
+    },
+  },
+  qualification_kinds: {
+    label: 'Eigene Art einer Qualifikation',
+    fields: {
+      label: 'Bezeichnung',
+      level: 'Stufe',
+    },
+  },
+  qualifications: {
+    label: 'Qualifikation',
+    fields: {
+      person_id: 'Person',
+      kind_key: 'Art',
+      own_kind_id: 'Eigene Art',
+      valid_until: 'Gültig bis',
+      note: 'Notiz',
+      certificate_sha256: 'Nachweis',
+    },
+  },
   stores: {
     label: 'Lagerort',
     fields: {
@@ -376,6 +403,20 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
     },
   },
   text_snippets: { label: 'Textbaustein', fields: { purpose: 'Zweck' } },
+  working_times: {
+    label: 'Vereinbarte Arbeitszeit',
+    fields: {
+      person_id: 'Person',
+      valid_from: 'Gültig ab',
+      monday_minutes: 'Montag',
+      tuesday_minutes: 'Dienstag',
+      wednesday_minutes: 'Mittwoch',
+      thursday_minutes: 'Donnerstag',
+      friday_minutes: 'Freitag',
+      saturday_minutes: 'Samstag',
+      sunday_minutes: 'Sonntag',
+    },
+  },
   time_entries: {
     label: 'Arbeitszeit',
     fields: {

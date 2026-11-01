@@ -191,3 +191,7 @@ export {
   storesOf,
 } from './stock.js'
 export type { MovementPage, MovementRow, StockRow, StoreSummary, StoreWithStock } from './stock.js'
+
+// The files of the people (ADR 0016, opengewerk#287).
+export { ownFile, peopleOf, personOf } from './people.js'
+export type { PersonFile, PersonSummary } from './people.js'

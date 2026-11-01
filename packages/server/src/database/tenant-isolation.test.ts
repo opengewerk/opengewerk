@@ -967,6 +967,35 @@ const crossings: readonly {
       sql`insert into stock_movements (tenant_id, store_id, article_id, kind, quantity_milli, counterpart_store_id)
             values (${own.tenant}, ${own.store}, ${own.article}, 'transfer_out', 1000, ${other.store})`,
   },
+  // The files of the people (#287): a person with an account here, a working
+  // time and a qualification of a person here, of an own kind and with a
+  // certificate of this business.
+  {
+    key: 'people_account_here',
+    write: (own, other) =>
+      sql`insert into people (tenant_id, name, user_id) values (${own.tenant}, 'Fremd', ${other.user})`,
+  },
+  {
+    key: 'working_times_of_a_person_here',
+    write: (own, other) =>
+      sql`insert into working_times (tenant_id, person_id, valid_from) values (${own.tenant}, ${other.person}, '2026-11-01')`,
+  },
+  {
+    key: 'qualifications_of_somebody_here',
+    write: (own, other) =>
+      sql`insert into qualifications (tenant_id, person_id, kind_key) values (${own.tenant}, ${other.person}, 'core.driving_licence')`,
+  },
+  {
+    key: 'qualifications_of_an_own_kind',
+    write: (own, other) =>
+      sql`insert into qualifications (tenant_id, person_id, own_kind_id) values (${own.tenant}, ${own.person}, ${other.qualificationKind})`,
+  },
+  {
+    key: 'qualifications_certificate_stored',
+    write: (own, other) =>
+      sql`insert into qualifications (tenant_id, person_id, kind_key, certificate_sha256)
+            values (${own.tenant}, ${own.person}, 'core.driving_licence', ${other.fileHash})`,
+  },
   {
     key: 'stock_movements_by_somebody_here',
     write: (own, other) =>
@@ -1283,6 +1312,9 @@ interface Planted {
   readonly articlePrice: string
   /** A store of the business (#298). */
   readonly store: string
+  /** A person in the files, with the owner's account, and a kind of qualification of the business (#287). */
+  readonly person: string
+  readonly qualificationKind: string
 }
 
 /**
@@ -1491,6 +1523,14 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
       [tenant, article],
     ),
     store: await one("insert into stores (tenant_id, name) values ($1, 'Lager')", [tenant]),
+    person: await one(
+      "insert into people (tenant_id, name, user_id) values ($1, 'Inhaberin', $2)",
+      [tenant, user],
+    ),
+    qualificationKind: await one(
+      "insert into qualification_kinds (tenant_id, label, level) values ($1, 'Ersthelfer', 'instructed_person')",
+      [tenant],
+    ),
   }
 }
 

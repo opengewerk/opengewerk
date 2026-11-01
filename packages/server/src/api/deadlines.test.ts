@@ -443,6 +443,15 @@ describe('the settings of each kind', () => {
         responsible: 'lead',
         actions: ['task'],
       }),
+      // A qualification in the files that runs out (#287), 60 days ahead, for the lead.
+      expect.objectContaining({
+        key: 'qualification.renewal',
+        title: 'Qualifikation läuft ab',
+        intervalDays: null,
+        leadDays: 60,
+        responsible: 'lead',
+        actions: ['task'],
+      }),
     ])
   })
 

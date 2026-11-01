@@ -10,6 +10,7 @@ import {
   backupStatusParts,
   contactParts,
   stockParts,
+  peopleParts,
   Database,
   deadlineParts,
   fileParts,
@@ -55,6 +56,7 @@ import { InstallationLabelsController } from './installation-labels.controller.j
 import { CollectiveInvoicesController } from './collective-invoices.controller.js'
 import { contactRights, contactRoutes } from './contact-routes.js'
 import { stockRights, stockRoutes } from './stock-routes.js'
+import { peopleRights, peopleRoutes } from './people-routes.js'
 import { CustomersController } from './customers.controller.js'
 import { DatabaseExceptionFilter } from './database-errors.js'
 import { DocumentFiles } from './document-files.js'
@@ -265,6 +267,9 @@ export class ApiModule {
     // The stores of the business, their stock and its bookings (#298), on the
     // routes of the foundation (ADR 0011).
     const stocking = stockParts({ access, rights: stockRights, routes: stockRoutes })
+    // The files of the people who work for the business (#287), on the routes
+    // of the foundation (ADR 0016).
+    const filingPeople = peopleParts({ access, rights: peopleRights, routes: peopleRoutes })
     const mailing = mailSettingsParts({
       access,
       rights: { status: 'settings.read', read: 'mail.read', write: 'mail.write' },
@@ -283,6 +288,7 @@ export class ApiModule {
         ArticleImportsController,
         ArticlesController,
         ...stocking.controllers,
+        ...filingPeople.controllers,
         SitesController,
         SiteAccessesController,
         InstallationsController,
@@ -342,6 +348,7 @@ export class ApiModule {
         ...deadlining.providers,
         ...contacting.providers,
         ...stocking.providers,
+        ...filingPeople.providers,
         { provide: TRUSTED_ORIGINS, useValue: trustedOrigins },
         { provide: IDENTITY_SOURCE, useValue: identities },
         // What a right is and who holds it, for the guard of the foundation.

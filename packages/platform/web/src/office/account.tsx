@@ -50,9 +50,17 @@ import { Saved, SettingsText } from './settings.js'
  * factor and the password, under them the passkeys and the devices. What an
  * application adds to the account, its own cards, stands between the passkeys
  * and the devices (ADR 0010): the tenants somebody works in, with the way to a
- * further one, and what it sends to this device.
+ * further one, and what it sends to this device. What it adds above
+ * everything else (`first`) is what somebody reads rather than sets: their
+ * own file (opengewerk#287).
  */
-export function AccountScreen({ children }: { readonly children?: ReactNode }) {
+export function AccountScreen({
+  first,
+  children,
+}: {
+  readonly first?: ReactNode
+  readonly children?: ReactNode
+}) {
   const { sentences } = useApplication()
   const who = useWho()
   const client = useSync()
@@ -133,6 +141,7 @@ export function AccountScreen({ children }: { readonly children?: ReactNode }) {
           />
         }
       />
+      {first}
 
       {trouble ? (
         <p role="alert" className="text-[13px] font-semibold text-conflict">

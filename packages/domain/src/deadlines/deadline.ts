@@ -74,8 +74,11 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  *   Due on the day of the booking that took it there, and gone again once the
  *   stock is back at the minimum: one deadline for each article and store, as
  *   long as it lies below.
+ * - `qualification`: a qualification of a person in the files that runs out
+ *   (#287, 4.9). Due on its last day; a later day moves the deadline, and a
+ *   qualification taken out, or a person who left, lets it drop.
  */
-export const deadlineSources = ['quote', 'store_minimum'] as const
+export const deadlineSources = ['quote', 'store_minimum', 'qualification'] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
 
@@ -216,6 +219,15 @@ export const sourceWords: Readonly<
       hint: 'Fällig am Tag der Buchung, die den Bestand unter den Mindestbestand gebracht hat.',
     },
     anchor: 'der Buchung',
+  },
+  // Due on the last day of the qualification, without an interval (#287).
+  qualification: {
+    person: 'Die Person, deren Qualifikation abläuft',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig am letzten Tag, an dem die Qualifikation gilt.',
+    },
+    anchor: 'dem letzten Tag',
   },
 }
 

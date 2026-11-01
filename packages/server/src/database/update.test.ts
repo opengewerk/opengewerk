@@ -1794,6 +1794,37 @@ describe('the articles before 0103', () => {
   })
 })
 
+describe('the roles before 0109', () => {
+  const before = () => readMigrationIndex().findIndex((entry) => entry.tag === '0109_people')
+
+  it('give the owner the rights of the files of the people, and nobody else', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+         values ($1, 'owner', 'Inhaber', '{article.write}', true, true),
+                ($1, 'office', 'Büro', '{article.write}', false, false),
+                ($1, 'technician', 'Monteur', '{article.read}', false, false)`,
+      [tenant.id],
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows: roles } = await admin.query<{ key: string; reads: boolean; keeps: boolean }>(
+      `select key, 'person.read' = any(rights) as reads, 'person.write' = any(rights) as keeps
+         from tenant_roles order by key`,
+    )
+    expect(roles).toEqual([
+      { key: 'office', reads: false, keeps: false },
+      { key: 'owner', reads: true, keeps: true },
+      { key: 'technician', reads: false, keeps: false },
+    ])
+  })
+})
+
 describe('the articles and roles before 0104', () => {
   const before = () => readMigrationIndex().findIndex((entry) => entry.tag === '0104_stock')
 

@@ -24,6 +24,18 @@
       "responsible": "lead",
       "actions": ["task"],
       "taskTitle": "Nachbestellen: {quelle}"
+    },
+    {
+      "key": "qualification.renewal",
+      "trade": null,
+      "title": "Qualifikation läuft ab",
+      "about": "Eine Qualifikation in der Akte einer Person läuft an ihrem letzten Tag ab. Rechtzeitig davor entsteht eine Aufgabe, sie zu erneuern. Trägt die Akte ein späteres Datum ein, wandert die Frist mit; ist die Person ausgetreten oder die Qualifikation entfernt, entfällt sie.",
+      "source": "qualification",
+      "intervalDays": null,
+      "leadDays": 60,
+      "responsible": "lead",
+      "actions": ["task"],
+      "taskTitle": "Qualifikation erneuern: {quelle}"
     }
   ]
 }

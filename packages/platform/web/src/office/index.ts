@@ -125,6 +125,11 @@ export type {
 } from './stock.js'
 export type { ContactsPanelProps, ContactsPanelWords } from './contacts.js'
 
+// The files of the people with working time and qualifications, and the own
+// file under "Konto" (ADR 0016, opengewerk#287).
+export { NewPersonScreen, OwnFilePanel, PeopleScreen, PersonScreen } from './people.js'
+export type { PeoplePaths, PeopleScreenProps, PeopleWords, PersonScreenProps } from './people.js'
+
 // The card of the label of a record, in the side column of its page: the
 // valid label with its QR code, printing it for a label printer or a sheet,
 // blocking it, and making one where there is none. What a label hangs on,

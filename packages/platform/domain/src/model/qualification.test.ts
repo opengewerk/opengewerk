@@ -96,33 +96,33 @@ describe('a qualification', () => {
   it('names a person and exactly one kind, a last day where it has one, and a note within its bound', () => {
     expect(
       qualificationProblems({
-        userId: 'u-1',
+        personId: 'u-1',
         kindKey: 'elektro.skilled',
         validUntil: '2027-03-31',
       }),
     ).toEqual({})
-    expect(qualificationProblems({ userId: 'u-1', ownKindId: 'k-own', validUntil: null })).toEqual(
-      {},
-    )
+    expect(
+      qualificationProblems({ personId: 'u-1', ownKindId: 'k-own', validUntil: null }),
+    ).toEqual({})
     expect(
       qualificationProblems({
-        userId: '',
+        personId: '',
         kindKey: 'elektro.skilled',
         ownKindId: 'k-own',
         validUntil: '31.03.2027',
         note: 'x'.repeat(qualificationLimits.note + 1),
       }),
     ).toEqual({
-      userId: 'Wählen Sie die Person.',
+      personId: 'Wählen Sie die Person.',
       kind: 'Wählen Sie die Art der Qualifikation.',
       validUntil: 'Gültig bis ist ein Tag, geschrieben 2026-10-03, oder leer.',
       note: `Höchstens ${String(qualificationLimits.note)} Zeichen.`,
     })
-    expect(qualificationProblems({ userId: 'u-1' })).toEqual({
+    expect(qualificationProblems({ personId: 'u-1' })).toEqual({
       kind: 'Wählen Sie die Art der Qualifikation.',
     })
     expect(
-      qualificationProblems({ userId: 'u-1', kindKey: 'x', validUntil: '2026-02-30' }),
+      qualificationProblems({ personId: 'u-1', kindKey: 'x', validUntil: '2026-02-30' }),
     ).toEqual({
       validUntil: 'Gültig bis ist ein Tag, geschrieben 2026-10-03, oder leer.',
     })

@@ -23,6 +23,10 @@ export const serverPaths = [
   'articles',
   // The stores of the business, on the routes of the foundation (#298).
   'stores',
+  // The files of the people and the kinds of their qualifications, on the
+  // routes of the foundation (#287).
+  'people',
+  'qualification-kinds',
   'sites',
   'installations',
   'jobs',

@@ -8,6 +8,7 @@ import {
   Clock,
   File,
   House,
+  IdCard,
   Package,
   SquareCheck,
   TextAlignStart,
@@ -40,6 +41,7 @@ export function useNavigation(): readonly NavigationGroup[] {
   const readsTime = useMay('time.read')
   const readsArticles = useMay('article.read')
   const readsSuppliers = useMay('supplier.read')
+  const readsPeople = useMay('person.read')
   const mine = useOpenTasksOfMine()
   const drafts = useRecords('documents').filter(
     (document) => documentStatusOf(document) === 'draft',
@@ -118,6 +120,12 @@ export function useNavigation(): readonly NavigationGroup[] {
         ...(readsSuppliers ? [{ to: '/lieferanten', label: 'Lieferanten', icon: Truck }] : []),
         ...(readsArticles ? [{ to: '/lager', label: 'Lager', icon: Warehouse }] : []),
       ],
+    },
+    // The files of the people (#287), the module "Personal" of the concept;
+    // leave, the time account and the planning board join it with their issues.
+    {
+      title: 'Personal',
+      entries: readsPeople ? [{ to: '/mitarbeiter', label: 'Mitarbeiter', icon: IdCard }] : [],
     },
   ]
 }

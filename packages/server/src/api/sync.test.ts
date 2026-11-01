@@ -156,12 +156,25 @@ describe('the tables', () => {
         order by c.relname`,
     )
 
+    // The files of the people (#287) carry the columns because the tables of
+    // the foundation's factory do (ADR 0016), and travel to no device yet: a
+    // person reads their own file online, and nobody else's leaves the server.
+    // Named here, so that a device that is to hold them is a decision.
+    const keptOnTheServer = new Set([
+      'people',
+      'working_times',
+      'qualifications',
+      'qualification_kinds',
+    ])
     const prepared = new Set(
-      rows.filter((row) => Number(row.columns) === 5).map((row) => row.table_name),
+      rows
+        .filter((row) => Number(row.columns) === 5 && !keptOnTheServer.has(row.table_name))
+        .map((row) => row.table_name),
     )
     const declared = new Set(syncEntities)
 
     expect(declared.size).toBeGreaterThanOrEqual(13)
+    expect([...keptOnTheServer].filter((table) => declared.has(table))).toEqual([])
     expect([...declared].filter((entity) => !prepared.has(entity))).toEqual([])
     expect([...prepared].filter((table) => !declared.has(table))).toEqual([])
   })
@@ -307,7 +320,13 @@ describe('the tables', () => {
       name === 'supplier_metal_prices' ||
       // The search over the catalogue (#461), which no device asks: one
       // without a network searches what it holds.
-      name === 'article_search'
+      name === 'article_search' ||
+      // The files of the people (#287), read at the routes of the office by
+      // the owner and by each person for their own, online.
+      name === 'people' ||
+      name === 'working_times' ||
+      name === 'qualifications' ||
+      name === 'qualification_kinds'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

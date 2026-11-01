@@ -1,5 +1,6 @@
 import {
   AccountScreen as Account,
+  OwnFilePanel,
   PushPanel,
   type PushPanelWords,
 } from '@opengewerk/platform-web/office'
@@ -24,11 +25,12 @@ const pushWords: PushPanelWords = {
  * the password, as the board "Konto" draws them: the businesses somebody
  * works in, with a further one for an owner (#142, #242), which is its own,
  * and push on this device (#284), which is the foundation's and says here
- * what only this application knows.
+ * what only this application knows. Above them all the own file (#287),
+ * read only, as the board "Konto mit der eigenen Akte" draws it.
  */
 export function AccountScreen() {
   return (
-    <Account>
+    <Account first={<OwnFilePanel />}>
       <BusinessesPanel />
       <PushPanel entry="office" words={pushWords} />
     </Account>
