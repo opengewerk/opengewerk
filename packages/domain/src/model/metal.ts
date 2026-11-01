@@ -15,10 +15,12 @@ export type SupplierMetalPriceId = Id<'supplier-metal-price'>
  * supplier on the document's date, so that a consumer sees one final price as
  * the price indication ordinance asks; the office sees the part.
  *
- * Copper and aluminium first, as the wholesaler quotes them; further metals
- * come with the Z records of DATANORM when somebody reads them.
+ * Copper and aluminium first, as the wholesaler quotes them; silver and brass
+ * came with the Z records of DATANORM (#782). A metal without a price at the
+ * supplier adds nothing, so silver and brass cost nothing until the office
+ * enters a price for them.
  */
-export const metals = ['copper', 'aluminium'] as const
+export const metals = ['copper', 'aluminium', 'silver', 'brass'] as const
 
 export type Metal = (typeof metals)[number]
 
@@ -26,6 +28,8 @@ export type Metal = (typeof metals)[number]
 export const metalNames: Readonly<Record<Metal, string>> = {
   copper: 'Kupfer',
   aluminium: 'Aluminium',
+  silver: 'Silber',
+  brass: 'Messing',
 }
 
 /**

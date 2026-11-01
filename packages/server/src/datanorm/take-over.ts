@@ -5,13 +5,14 @@ import type {
   ArticlePriceId,
   IsoDate,
   ListPriceId,
+  Metal,
   PurchasePriceId,
   SupplierArticleId,
   SupplierId,
   TenantId,
 } from '@opengewerk/domain'
 import { idArray, type TenantTransaction } from '@opengewerk/platform-server'
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { inArray, sql } from 'drizzle-orm'
 
 import {
   articlePriceOrigins,
@@ -79,7 +80,7 @@ export function rowsOf(plan: ImportPlan): number {
     plan.articles.length +
     plan.links.length +
     plan.discountGroups.length +
-    plan.coppers.length +
+    plan.metals.length +
     plan.listPrices.length +
     plan.purchasePrices.length +
     plan.sellingPrices.length
@@ -149,10 +150,12 @@ export async function takeOver(
         importId,
       })),
     )
-    await insertCopper(
+    await insertMetals(
       tx,
       tenantId,
-      rows.map((link) => ({ linkId: link.id, copper: link.copper })),
+      rows.flatMap((link) =>
+        link.metals.map(({ metal, content }) => ({ linkId: link.id, metal, content })),
+      ),
     )
     advance(rows.length)
   }
@@ -171,20 +174,25 @@ export async function takeOver(
     advance(rows.length)
   }
 
-  // A changed copper is written anew (#462); what the catalogue no longer
-  // names goes, and the link counts as last set by this import.
-  for (const rows of batches(plan.coppers)) {
-    const ids = rows.map((row) => row.linkId) as SupplierArticleId[]
+  // A changed metal is written anew (#462, #782); one the catalogue says the
+  // article has none of goes, and the link counts as last set by this import.
+  for (const rows of batches(plan.metals)) {
+    const ids = [...new Set(rows.map((row) => row.linkId))] as SupplierArticleId[]
+    const pairs = sql.join(
+      rows.map((row) => sql`(${row.linkId}::uuid, ${row.metal}::metal)`),
+      sql`, `,
+    )
 
-    await tx
-      .delete(supplierArticleMetals)
-      .where(
-        and(
-          eq(supplierArticleMetals.metal, 'copper'),
-          inArray(supplierArticleMetals.supplierArticleId, ids),
-        ),
-      )
-    await insertCopper(tx, tenantId, rows)
+    await tx.execute(sql`
+      delete from supplier_article_metals
+       where (supplier_article_id, metal) in (values ${pairs})`)
+    await insertMetals(
+      tx,
+      tenantId,
+      rows.flatMap(({ linkId, metal, content }) =>
+        content === null ? [] : [{ linkId, metal, content }],
+      ),
+    )
     await tx
       .update(supplierArticles)
       .set({ importId, updatedAt: sql`now()` })
@@ -328,25 +336,19 @@ async function numberWhatDevicesHold(
   }
 }
 
-/** The copper of these links from the second record, where it names one. */
-async function insertCopper(
+/** The metals of these links, as the catalogue states them. */
+async function insertMetals(
   tx: TenantTransaction,
   tenantId: TenantId,
-  links: readonly { readonly linkId: string; readonly copper: Copper | null }[],
+  metals: readonly { readonly linkId: string; readonly metal: Metal; readonly content: Copper }[],
 ): Promise<void> {
-  const rows = links.flatMap(({ linkId, copper }) =>
-    copper === null
-      ? []
-      : [
-          {
-            tenantId,
-            supplierArticleId: linkId as SupplierArticleId,
-            metal: 'copper' as const,
-            baseEuros: copper.baseEuros,
-            gramsPerThousand: copper.gramsPerThousand,
-          },
-        ],
-  )
+  const rows = metals.map(({ linkId, metal, content }) => ({
+    tenantId,
+    supplierArticleId: linkId as SupplierArticleId,
+    metal,
+    baseEuros: content.baseEuros,
+    gramsPerThousand: content.gramsPerThousand,
+  }))
 
   if (rows.length > 0) {
     await tx.insert(supplierArticleMetals).values(rows)

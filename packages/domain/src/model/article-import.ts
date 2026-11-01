@@ -1,5 +1,6 @@
 import { isCalendarDay } from './article.js'
 import type { LineUnit, PriceBase } from './document-line.js'
+import type { Metal } from './metal.js'
 import type { Id, IsoDate } from '@opengewerk/platform-domain'
 import type { SupplierId } from './supplier.js'
 
@@ -104,8 +105,21 @@ export interface ImportSummary {
    * (decided on 28.09.2026), and so does not read either.
    */
   readonly longTextFiles: readonly string[]
-  /** Kinds of record not taken over, such as the surcharges of Z. */
+  /** Kinds of record not taken over. */
   readonly ignored: readonly { readonly letter: string; readonly lines: number }[]
+  /**
+   * How many articles of the delivery bring a metal, per metal (#782): the
+   * copper of the second record and every metal of a Z record with base and
+   * weight. Absent in a preview from before.
+   */
+  readonly metals?: readonly { readonly metal: Metal; readonly articles: number }[]
+  /**
+   * How many articles bring a surcharge table for a metal in their Z records,
+   * which is not taken over (#782): what its amounts mean is described
+   * nowhere, and a guess would put a wrong surcharge on the price. Absent in a
+   * preview from before.
+   */
+  readonly metalTables?: readonly { readonly metal: Metal; readonly articles: number }[]
   /** The day the header of the files names. */
   readonly fileDate: IsoDate | null
   /** The first articles of each kind, for the table of the preview. */

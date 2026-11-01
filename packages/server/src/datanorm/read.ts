@@ -31,7 +31,7 @@ export interface ReadDelivery {
   readonly longTextFiles: readonly string[]
 }
 
-const order: Readonly<Record<string, number>> = { A: 0, B: 0, D: 0, T: 0, P: 1, S: 2, R: 3 }
+const order: Readonly<Record<string, number>> = { A: 0, B: 0, D: 0, T: 0, Z: 0, P: 1, S: 2, R: 3 }
 
 /** Whether a line has anything but blanks on it. */
 const filled = /\S/
@@ -43,7 +43,7 @@ const headBytes = 4096
  * The end of a line and the letter of every kind of record that is read, the
  * same bytes in every charset; both line ends, as `filledLines` takes them.
  */
-const recordsRead = ['A', 'B', 'D', 'P', 'S', 'R'].flatMap((letter) =>
+const recordsRead = ['A', 'B', 'D', 'Z', 'P', 'S', 'R'].flatMap((letter) =>
   [0x0a, 0x0d].map((end) => Buffer.from([end, letter.charCodeAt(0), 0x3b])),
 )
 

@@ -1,4 +1,4 @@
-import type { IsoDate, LineUnit, PriceBase, SupplierId } from '@opengewerk/domain'
+import type { Copper, IsoDate, LineUnit, Metal, PriceBase, SupplierId } from '@opengewerk/domain'
 import type { TenantTransaction } from '@opengewerk/platform-server'
 import { type SQL, sql } from 'drizzle-orm'
 
@@ -88,12 +88,17 @@ export async function holdingsOf(
 
   // A link without the supplier's number cannot be found by one; the oldest
   // where a number stands twice.
-  // The copper of a link stands beside it since #462, with any other metal.
+  // The metals of a link stand beside it since #462, each in a row of its
+  // own; gathered once per link, so that a link with four metals is one row.
   const linkRows = await tx.execute(sql`
-    select s.id, s.article_id, s.supplier_number, s.discount_group, s.main,
-           m.base_euros as copper_base_euros, m.grams_per_thousand as copper_grams_per_thousand
+    select s.id, s.article_id, s.supplier_number, s.discount_group, s.main, m.metals
       from supplier_articles s
-      left join supplier_article_metals m on m.supplier_article_id = s.id and m.metal = 'copper'
+      left join (
+        select supplier_article_id,
+               json_agg(json_build_array(metal, base_euros, grams_per_thousand)) as metals
+          from supplier_article_metals
+         group by supplier_article_id
+      ) m on m.supplier_article_id = s.id
      where s.supplier_id = ${supplierId}
        and s.supplier_number is not null ${ofLinks}
      order by s.created_at desc, s.id desc`)
@@ -106,13 +111,14 @@ export async function holdingsOf(
         articleId: row['article_id'] as string,
         supplierNumber: row['supplier_number'] as string,
         discountGroup: (row['discount_group'] as string | null) ?? null,
-        copper:
-          row['copper_base_euros'] === null || row['copper_grams_per_thousand'] === null
-            ? null
-            : {
-                baseEuros: Number(row['copper_base_euros']),
-                gramsPerThousand: Number(row['copper_grams_per_thousand']),
-              },
+        metals: new Map<Metal, Copper>(
+          ((row['metals'] as [Metal, number, number][] | null) ?? []).map(
+            ([metal, baseEuros, gramsPerThousand]) => [
+              metal,
+              { baseEuros: Number(baseEuros), gramsPerThousand: Number(gramsPerThousand) },
+            ],
+          ),
+        ),
         main: row['main'] === true,
       },
     ]),

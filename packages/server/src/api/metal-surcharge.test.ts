@@ -296,7 +296,7 @@ describe('the metal of an article at a supplier', () => {
     await send(
       'put',
       path,
-      { metals: [{ metal: 'silver', baseEuros: 1, gramsPerThousand: 1 }] },
+      { metals: [{ metal: 'gold', baseEuros: 1, gramsPerThousand: 1 }] },
       office,
       400,
     )

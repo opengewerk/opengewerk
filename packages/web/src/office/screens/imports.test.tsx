@@ -122,7 +122,18 @@ const summary: ImportSummary = {
   files: [{ name: 'DATANORM.001', charset: 'cp850', lines: 1712 }],
   skipped: ['Liesmich.pdf'],
   longTextFiles: ['DATANORM.T01'],
-  ignored: [{ letter: 'Z', lines: 412 }],
+  ignored: [{ letter: 'J', lines: 412 }],
+  metals: [
+    { metal: 'copper', articles: 312 },
+    { metal: 'aluminium', articles: 18 },
+    { metal: 'silver', articles: 41 },
+    { metal: 'brass', articles: 6 },
+  ],
+  metalTables: [
+    { metal: 'copper', articles: 96 },
+    { metal: 'silver', articles: 104 },
+    { metal: 'brass', articles: 31 },
+  ],
   fileDate: '2026-10-01',
   samples: [
     {
@@ -379,7 +390,22 @@ describe('the preview of an import', () => {
     expect(
       screen.getByText('DATANORM.T01 bringt nur Langtexte und wird nicht gebraucht.'),
     ).toBeTruthy()
-    expect(screen.getByText('Z-Sätze: 412 Zeilen.')).toBeTruthy()
+    expect(screen.getByText('J-Sätze: 412 Zeilen.')).toBeTruthy()
+    // The metals that come along, and the surcharge tables that do not (#782).
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === 'P' &&
+          element.textContent ===
+            'Metall kommt mit: Kupfer bei 312, Aluminium bei 18, Silber bei 41 und Messing bei 6 Artikeln. ' +
+              'Einen Metallzuschlag gibt es nur für ein Metall, für das beim Lieferanten ein Metallpreis steht.',
+      ),
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Kupfer bei 96, Silber bei 104 und Messing bei 31 Artikeln. Eine Staffel aus den Z-Sätzen wird noch nicht übernommen.',
+      ),
+    ).toBeTruthy()
     expect(screen.getByText('„Rol“ bei 2 Artikeln; sie kommen in Stück.')).toBeTruthy()
     expect(screen.getByText('DATANORM.001, Zeile 4.711: Der Preis ist keine Zahl.')).toBeTruthy()
 

@@ -1,4 +1,10 @@
-import { type Copper, copperLimits, type IsoDate, type PriceBase } from '@opengewerk/domain'
+import {
+  type Copper,
+  copperLimits,
+  type IsoDate,
+  type Metal,
+  type PriceBase,
+} from '@opengewerk/domain'
 
 /**
  * The records of a DATANORM 4 file (#297), one per line, as the descriptions
@@ -21,8 +27,7 @@ import { type Copper, copperLimits, type IsoDate, type PriceBase } from '@openge
  * for 1000 units. Read off a real delivery on 30.10.2026 (see `Copper`): the
  * fields are the same whether the catalogue prices per 100 or per piece, and
  * every article with the 1 has copper in the Z records of the same delivery.
- * Silver, brass and aluminium stand in those Z records only, which are not
- * read.
+ * Silver, brass and aluminium stand in those Z records only (`zMetalOf`).
  */
 function copperOf(flag: string, base: string, weight: string): Copper | null | 'unreadable' {
   if (flag !== '1') {
@@ -38,6 +43,49 @@ function copperOf(flag: string, base: string, weight: string): Copper | null | '
   return copper.baseEuros <= copperLimits.baseEuros &&
     copper.gramsPerThousand <= copperLimits.gramsPerThousand
     ? copper
+    : 'unreadable'
+}
+
+/** The letters of the metals in a Z record, as the delivery of Rexel writes them (#782). */
+const metalOf: Readonly<Record<string, Metal>> = {
+  CU: 'copper',
+  AL: 'aluminium',
+  AG: 'silver',
+  MS: 'brass',
+}
+
+/** What a Z record of form 4 says, or why it is not taken over. */
+export type ZMetal = Copper | 'unreadable' | 'full' | 'other-quantity'
+
+/**
+ * Fields 7, 9 and 10 of a Z record of form 4 (#782): the base in euros for
+ * 100 kg, the weight in hundredths of a kilogram for 1000 units, and a field
+ * that is 1 or 100 at nearly every article. Read off the delivery of Rexel of
+ * 01.09.2026 against its second records: with 1 or 100 the base and the weight
+ * are those of the second record, to the hundredth instead of the tenth, at
+ * every one of the 47,723 articles with copper in both. At the 386 articles
+ * with 10 or 1000 the weight is a tenth of it, and as nothing says what the
+ * field means there, they are not read; their second record keeps the copper.
+ * A weight of 999999 fills the field and is no weight either.
+ */
+function zMetalOf(base: string, weight: string, quantity: string): ZMetal {
+  if (!/^\d{1,7}$/.test(base) || !/^\d{1,7}$/.test(weight) || !/^\d{1,7}$/.test(quantity)) {
+    return 'unreadable'
+  }
+
+  if (Number(quantity) !== 1 && Number(quantity) !== 100) {
+    return 'other-quantity'
+  }
+
+  if (Number(weight) === 999_999) {
+    return 'full'
+  }
+
+  const metal = { baseEuros: Number(base), gramsPerThousand: Number(weight) * 10 }
+
+  return metal.baseEuros <= copperLimits.baseEuros &&
+    metal.gramsPerThousand <= copperLimits.gramsPerThousand
+    ? metal
     : 'unreadable'
 }
 
@@ -86,6 +134,30 @@ export interface ExtraRecord {
   readonly copper: Copper | null | 'unreadable'
 }
 
+/**
+ * A Z record of form 4 (#782): one metal of an article with its base and its
+ * weight, as the second record carries copper.
+ */
+export interface MetalRecord {
+  readonly kind: 'metal'
+  readonly line: number
+  readonly number: string
+  readonly metal: Metal
+  readonly content: ZMetal
+}
+
+/**
+ * A line of a surcharge table, a Z record of form 3 (#782): from which metal
+ * price to which one an amount comes on. Counted per article and metal and
+ * not taken over, since nothing says what the amount is for.
+ */
+export interface MetalTableRecord {
+  readonly kind: 'metal-table'
+  readonly line: number
+  readonly number: string
+  readonly metal: Metal
+}
+
 export interface TextRecord {
   readonly kind: 'dimension' | 'long-text'
   readonly line: number
@@ -124,8 +196,8 @@ export interface DiscountRecord {
 }
 
 /**
- * A kind of record this import does not take over, such as the surcharges of
- * `Z`: counted per letter and named once, not once per line.
+ * A kind of record this import does not take over: counted per letter and
+ * named once, not once per line.
  */
 export interface IgnoredRecord {
   readonly kind: 'ignored'
@@ -136,6 +208,8 @@ export interface IgnoredRecord {
 export type DatanormRecord =
   | ArticleRecord
   | ExtraRecord
+  | MetalRecord
+  | MetalTableRecord
   | TextRecord
   | PriceRecord
   | GroupRecord
@@ -336,6 +410,36 @@ export function recordOf(text: string, line: number): DatanormRecord | LineProbl
         group: field(11),
         copper: copperOf(field(6), field(7), field(8)),
       }
+
+    case 'Z': {
+      // Form 4 carries a metal with its base and weight, form 3 a line of a
+      // surcharge table, both read off the delivery of Rexel (#782).
+      if (!processing || field(2) === '') {
+        return { line, reason: 'Ein Zuschlagssatz ohne Artikelnummer.' }
+      }
+
+      const metal = metalOf[field(5)]
+
+      if (!metal) {
+        return { line, reason: `Ein Zuschlag von ${field(2)} nennt kein bekanntes Metall.` }
+      }
+
+      if (field(4) === '3') {
+        return { kind: 'metal-table', line, number: field(2), metal }
+      }
+
+      if (field(4) !== '4') {
+        return { line, reason: `Ein Zuschlag von ${field(2)} ist von unbekannter Art.` }
+      }
+
+      return {
+        kind: 'metal',
+        line,
+        number: field(2),
+        metal,
+        content: zMetalOf(field(6), field(8), field(9)),
+      }
+    }
 
     case 'D':
     case 'T':

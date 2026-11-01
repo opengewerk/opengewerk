@@ -927,6 +927,49 @@ describe('an import from DATANORM', () => {
     ])
   })
 
+  it('writes the metals of Z records, keeps one the delivery says nothing about, and counts a table (#782)', async () => {
+    const changed = await preview([
+      {
+        name: 'Datanorm.075',
+        bytes: cp850([
+          header('011026'),
+          'A;N;5700123;00;Mantelleitung NYM-J;3 × 1,5 mm²;1;3;m;98000;RG12;042;;',
+          'B;N;5700123; ; ; ;1;128;400; ; ;0420;0;0; ; ;',
+          // The copper to the hundredth, before the second record, and silver.
+          'Z;N;5700123;1;4;CU;000128;000010;004012;000100;',
+          'Z;N;5700123;2;4;AG;000001;000010;000038;000100;',
+          'A;N;6200002;00;Abzweigdose;AP 80x80 grau;2;0;Stck;145;RG30;042;;',
+          'B;N;6200002; ; ; ;0;;; ; ;0420;0;0; ; ;',
+          // A surcharge table for brass, which is not taken over.
+          'Z;N;6200002;1;3;MS;1;500;150;163;10;',
+          'Z;N;6200002;2;3;MS;1;1000;163;176;10;',
+        ]),
+      },
+    ])
+
+    expect(changed.summary).toMatchObject({
+      metals: [
+        { metal: 'copper', articles: 1 },
+        { metal: 'silver', articles: 1 },
+      ],
+      metalTables: [{ metal: 'brass', articles: 1 }],
+    })
+    await takeOver(changed.id)
+
+    const { rows: metals } = await admin.query<{ number: string; metal: string; figures: string }>(
+      `select s.supplier_number as number, m.metal, m.base_euros || '/' || m.grams_per_thousand as figures
+         from supplier_article_metals m join supplier_articles s on s.id = m.supplier_article_id
+        where s.supplier_id = $1 order by s.supplier_number, m.metal`,
+      [hansa],
+    )
+    // The aluminium entered by hand stays: the delivery says nothing about it.
+    expect(metals).toEqual([
+      { number: '5700123', metal: 'copper', figures: '128/40120' },
+      { number: '5700123', metal: 'aluminium', figures: '0/1000' },
+      { number: '5700123', metal: 'silver', figures: '1/380' },
+    ])
+  })
+
   it('leaves the texts of the articles of the business as they are', async () => {
     const { rows } = await admin.query<{ id: string; designation: string }>(
       'select id, designation from articles where id = any($1) order by number',
