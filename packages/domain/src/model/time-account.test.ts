@@ -151,7 +151,7 @@ describe('what was recorded on a day', () => {
     const worked = workedByDay([
       entry('travel', '2026-11-02T06:20:00Z', '2026-11-02T06:50:00Z'),
       entry('work', '2026-11-02T06:50:00Z', '2026-11-02T11:00:00Z'),
-      entry('break', '2026-11-02T11:00:00Z', '2026-11-02T11:30:00Z'),
+      entry('break', '2026-11-02T11:00:00Z', '2026-11-02T11:20:00Z'),
       // Half past midnight in Germany, still the evening before in Greenwich.
       entry('work', '2026-11-03T23:30:00Z', '2026-11-04T01:00:00Z'),
     ])

@@ -348,10 +348,11 @@ describe('a time account', () => {
   })
 
   it('stands at what came before a stretch and at the end, and counts nothing after leaving', async () => {
-    const week = await account('/time-account/mine?from=2026-10-05&to=2026-10-09', anna)
+    const week = await account('/time-account/mine?from=2026-10-06&to=2026-10-09', anna)
     const after = await account('/time-account/mine?from=2026-11-02&to=2026-11-06', anna)
 
-    // 22 weekdays of 480 less two of leave and a sick afternoon, against 2010 recorded.
+    // Before the 6th, a day eight hours short: 990 recorded against 960 and 480 against
+    // 480. In all, 22 weekdays of 480 less two of leave and a sick afternoon, against 2010.
     expect([week.balanceBeforeMinutes, week.balanceMinutes]).toEqual([30, -7350])
     expect(after.days.map((each) => [each.targetMinutes, each.counted])).toEqual(
       Array.from({ length: 5 }, () => [0, false]),
