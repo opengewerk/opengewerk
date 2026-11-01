@@ -308,7 +308,7 @@ describe('a year of leave', () => {
     })
   })
 
-  it('refuses leave on days that already have some, and a sickness with a note', async () => {
+  it('refuses leave on days that already have some, and a note on a sickness, entered or changed', async () => {
     const overlap = await send(
       'post',
       '/absences',
@@ -330,6 +330,18 @@ describe('a year of leave', () => {
       office,
       400,
     )
+    const sick = await send(
+      'post',
+      '/absences',
+      { personId: annasFile, kind: 'sickness', ...days('2026-11-30', '2026-11-30') },
+      office,
+    )
+
+    const noted = await send('patch', `/absences/${sick.id}`, { note: 'Grippe' }, office, 400)
+
+    // The rule says why; the check of the database behind it would not.
+    expect(noted.message).toBe('Zu einer Krankheit gibt es keine Notiz.')
+    await send('patch', `/absences/${sick.id}`, { lastDay: '2026-12-01' }, office)
     // The afternoon after a morning off is no overlap.
     await send(
       'post',
