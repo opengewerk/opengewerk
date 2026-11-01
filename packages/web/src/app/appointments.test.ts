@@ -2,6 +2,7 @@ import type { IsoDate } from '@opengewerk/domain'
 import { describe, expect, it } from 'vitest'
 
 import {
+  appointmentOf,
   type AppointmentRow,
   myDays,
   type PersonRow,
@@ -158,5 +159,23 @@ describe('shifted', () => {
       startsAt: '2026-11-02T06:00:00.000Z',
       endsAt: '2026-11-04T15:00:00.000Z',
     })
+  })
+})
+
+describe('appointmentOf', () => {
+  it('reads the days a series takes out as the sync carries them, as JSON text', () => {
+    const record = {
+      id: 'a-kita',
+      jobId: 'j-kita',
+      startsAt: '2026-10-19T05:00:00.000Z',
+      endsAt: '2026-10-19T06:00:00.000Z',
+      rrule: 'FREQ=WEEKLY',
+      exdates: '["2026-11-16"]',
+      revision: 2,
+      version: 4,
+    }
+
+    expect(appointmentOf(record).exdates).toEqual(['2026-11-16'])
+    expect(appointmentOf({ ...record, exdates: 'kein JSON' }).exdates).toEqual([])
   })
 })

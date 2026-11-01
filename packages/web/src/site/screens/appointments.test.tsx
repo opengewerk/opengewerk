@@ -38,7 +38,7 @@ function appointment(id: string, jobId: string, startsAt: string, endsAt: string
     endsAt,
     note: null,
     rrule: null,
-    exdates: [],
+    exdates: '[]',
     revision,
     version: 1,
     deletedAt: null,

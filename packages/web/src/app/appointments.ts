@@ -41,9 +41,25 @@ export interface PersonRow {
   readonly confirmedAt: string | null
 }
 
-export function appointmentOf(record: RecordState): AppointmentRow {
-  const exdates = record['exdates']
+/**
+ * The days a series takes out. A list travels as its JSON text (ADR 0005,
+ * Nachtrag vom 04.10.2026), and what is not a list of days is none.
+ */
+function daysOf(value: unknown): IsoDate[] {
+  let listed: unknown = value
 
+  if (typeof value === 'string') {
+    try {
+      listed = JSON.parse(value)
+    } catch {
+      return []
+    }
+  }
+
+  return Array.isArray(listed) ? listed.filter((on): on is string => typeof on === 'string') : []
+}
+
+export function appointmentOf(record: RecordState): AppointmentRow {
   return {
     id: text(record, 'id'),
     jobId: text(record, 'jobId'),
@@ -51,9 +67,7 @@ export function appointmentOf(record: RecordState): AppointmentRow {
     endsAt: text(record, 'endsAt'),
     note: maybeText(record, 'note'),
     rrule: maybeText(record, 'rrule'),
-    exdates: Array.isArray(exdates)
-      ? exdates.filter((on): on is string => typeof on === 'string')
-      : [],
+    exdates: daysOf(record['exdates']),
     revision: Math.max(1, count(record, 'revision')),
     version: count(record, 'version'),
   }

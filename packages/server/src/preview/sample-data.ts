@@ -871,13 +871,14 @@ async function plantPeople(base: string, today: IsoDate): Promise<void> {
 }
 
 /**
- * The planning board of this week (#290), as the canvas draws it: three days
- * at the meter cabinet for two people, the wallbox on Thursday, an afternoon
- * at the stairwell on Friday not yet confirmed, an appointment of Max Becker
- * on a day he is sick, a measuring at the stairwell for the owner on
- * Wednesday, and a series every Monday morning with a day taken out. A job
- * at the estate has no appointment and waits at the edge. The preview's own
- * person confirms theirs; the colleagues cannot sign in, and theirs wait.
+ * The planning board of this week, or of the next on a weekend (#290), as
+ * the canvas draws it: three days at the meter cabinet for two people, the
+ * wallbox on Thursday, an afternoon at the stairwell on Friday not yet
+ * confirmed, an appointment of Max Becker on a day he is sick, a measuring at
+ * the stairwell for the owner on Wednesday, and a series every Monday morning
+ * with a day taken out. A job at the estate has no appointment and waits at
+ * the edge. The preview's own person confirms theirs; the colleagues cannot
+ * sign in, and theirs wait.
  */
 async function plantAppointments(
   base: string,
@@ -892,7 +893,8 @@ async function plantAppointments(
 ): Promise<void> {
   const post = (path: string, body: unknown) => send(base, 'POST', path, body)
   const weekday = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7
-  const monday = addDays(today, -weekday)
+  // On a weekend the week to come, so that its appointments still lie ahead.
+  const monday = weekday >= 5 ? addDays(today, 7 - weekday) : addDays(today, -weekday)
   const at = (day: number, hour: number, minute = 0) =>
     berlinInstant(addDays(monday, day), hour * 60 + minute).toISOString()
   const [jonas, lena, max, moritz] = [

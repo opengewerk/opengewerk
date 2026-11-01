@@ -1196,7 +1196,7 @@ function AppointmentDialog({
               }}
             />
           </div>
-          <div className="w-[96px]">
+          <div className="w-[112px]">
             <Field
               label="um"
               type="time"
@@ -1218,7 +1218,7 @@ function AppointmentDialog({
               }}
             />
           </div>
-          <div className="w-[96px]">
+          <div className="w-[112px]">
             <Field
               label="um"
               type="time"
