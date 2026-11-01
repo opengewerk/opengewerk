@@ -8,7 +8,10 @@ import {
   inCalendarFeed,
 } from './calendar-feed.js'
 
-const encoder = new TextEncoder()
+/** The octets of a text in UTF-8, counted the way a URL spells them out. */
+function octets(text: string): number {
+  return encodeURIComponent(text).replace(/%[0-9A-F]{2}/g, '.').length
+}
 
 function entry(overrides: Partial<CalendarEntry> = {}): CalendarEntry {
   return {
@@ -123,7 +126,7 @@ describe('a calendar of appointments', () => {
     expect(calendar.replace(/\r\n/g, '')).not.toMatch(/[\r\n]/)
 
     for (const line of calendar.split('\r\n')) {
-      expect(encoder.encode(line).length).toBeLessThanOrEqual(75)
+      expect(octets(line)).toBeLessThanOrEqual(75)
     }
   })
 })
@@ -139,7 +142,7 @@ describe('a text in a calendar', () => {
 
     expect(parts.length).toBeGreaterThan(1)
     expect(parts.slice(1).every((part) => part.startsWith(' '))).toBe(true)
-    expect(parts.every((part) => encoder.encode(part).length <= 75)).toBe(true)
+    expect(parts.every((part) => octets(part) <= 75)).toBe(true)
     expect(folded(line).replace(/\r\n /g, '')).toBe(line)
   })
 })
