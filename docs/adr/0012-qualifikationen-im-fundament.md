@@ -1,5 +1,6 @@
 ---
 status: angenommen
+amended-by: 0016
 date: 2026-10-17
 decision-makers: Projektleitung OpenGewerk
 consulted: Planungskonzept "OpenGewerk Haustechnik" v0.40 (Abschnitte 2.1, 4.3 und 5), Entscheidungen vom 15.10.2026 an opengewerk-haustechnik#337, ADR 0010, ADR 0011
