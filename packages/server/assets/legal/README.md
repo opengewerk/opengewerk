@@ -56,6 +56,11 @@ die Schriftgrößen angeben (Abschnitt 3.2).
 
 Die farbige Fassung, weil die Kommission sie bevorzugt und die schwarzweiße nur im Ladengeschäft zulässt.
 
+Gedruckt wird die Kennzeichnung nicht aus dieser Datei. Sie geht im Text der Seite an den Renderer und steht
+deshalb Byte für Byte als Text in `src/documents/durability-label.ts`; ein Test hält diesen Text gegen die
+Datei und die Datei gegen ihre Prüfsumme. Eine neue Fassung der Kommission ersetzt Datei, Prüfsumme und
+Text in einer Änderung.
+
 **Quelle:** dieselbe Seite der Kommission wie oben, Archiv "EU GARAN product label in colour (for physical
 shops and e-commerce), in black and white (only for physical shops) and in nested display (only for
 e-commerce)" (Datei "GARAN label for website.zip", Eintrag "GARAN Label_colour.svg"), veröffentlicht am

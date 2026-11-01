@@ -174,6 +174,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Kennzeichnung einer Haltbarkeitsgarantie (#433) steht als Text im Code (`documents/durability-label.ts`)
+  und wird zum Drucken nicht mehr aus `assets/legal` gelesen; ein Test hält den Text Byte für Byte gegen die Datei
+  der Kommission und die Datei gegen ihre Prüfsumme. Warum: CodeQL meldete mit Alert 25 (`js/file-access-to-http`),
+  dass der Druck Dateiinhalt an den Renderer schickt. Eine fehlende Datei hält seitdem auch keinen Beleg mehr auf.
 - Die README nennt OpenGewerk im Kopf und im ersten Satz eine Open-Source-Handwerkersoftware, self-hosted, mit CRM
   und ERP, zählt unter "Stand" auf, was gebaut ist, und verweist auf den Vergleich auf opengewerk.de. Warum: mit
   diesen Wörtern sucht, wer eine Handwerkersoftware für den eigenen Server will, und "Open Source" stand bisher nur
