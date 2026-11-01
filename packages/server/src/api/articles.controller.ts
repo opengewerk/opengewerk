@@ -75,6 +75,10 @@ const writableFields = [
   'unit',
   'groupOfGoods',
   'frequent',
+  // The guarantee of durability of the producer (#433), all three or none.
+  'durabilityHalfYears',
+  'durabilityProducer',
+  'durabilityModel',
 ] as const
 
 /**
@@ -112,7 +116,12 @@ function tidied<Field extends string>(
     }
 
     const trimmed = value.trim()
-    const optional = field === 'description' || field === 'ean' || field === 'groupOfGoods'
+    const optional =
+      field === 'description' ||
+      field === 'ean' ||
+      field === 'groupOfGoods' ||
+      field === 'durabilityProducer' ||
+      field === 'durabilityModel'
     tidy[field] = optional && trimmed === '' ? null : trimmed
   }
 

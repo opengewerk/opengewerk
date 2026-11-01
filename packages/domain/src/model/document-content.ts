@@ -38,7 +38,7 @@ import type { InstructionTemplate, WithdrawalVariant } from './instruction.js'
  * how many units the price of a line is for, version 14 the order confirmation
  * a delivery note delivers.
  */
-export const documentContentVersion = 14
+export const documentContentVersion = 15
 
 export interface LogoContent {
   readonly fileId: FileId
@@ -104,7 +104,24 @@ export interface LineContent {
   readonly priceBase: PriceBase
   readonly vatRate: VatRate
   readonly netCents: number
+  /**
+   * The guarantee of durability of the article the line came from (#433), as
+   * it stood when the document was issued, on a document that carries the
+   * notice on the legal guarantee; otherwise null. Its label is printed after
+   * the document, one per good.
+   */
+  readonly durability: DurabilityContent | null
 }
+
+/** A guarantee of durability as its label prints it (#433). */
+export interface DurabilityContent {
+  readonly halfYears: number
+  readonly producer: string
+  readonly model: string
+}
+
+/** A line as every version before 15 wrote it, without a guarantee of durability. */
+export type LineContentV14 = Omit<LineContent, 'durability'>
 
 /**
  * The signature on a document, as far as it is printed: who, when, and the
@@ -318,15 +335,21 @@ export interface ReportFieldContent {
   readonly text: string
 }
 
+/** The fourteenth shape, from #299: a delivery note names its confirmation, and no line a guarantee of durability yet. */
+export interface DocumentContentV14 extends Omit<DocumentContent, 'version' | 'lines'> {
+  readonly version: 14
+  readonly lines: readonly LineContentV14[]
+}
+
 /** The thirteenth shape, from #456: the price unit, and no delivery note naming its confirmation yet. */
-export interface DocumentContentV13 extends Omit<DocumentContent, 'version' | 'delivers'> {
+export interface DocumentContentV13 extends Omit<DocumentContentV14, 'version' | 'delivers'> {
   readonly version: 13
 }
 
 /** The twelfth shape, from #431: the graphic of an instruction, and every price for one unit. */
 export interface DocumentContentV12 extends Omit<DocumentContentV13, 'version' | 'lines'> {
   readonly version: 12
-  readonly lines: readonly Omit<LineContent, 'priceBase'>[]
+  readonly lines: readonly Omit<LineContentV14, 'priceBase'>[]
 }
 
 /** The eleventh shape, from #78: the report fields, and instructions printed as text only. */
@@ -395,12 +418,13 @@ export interface DocumentContentV1 extends Omit<
   'version' | 'introText' | 'closingText' | 'lines'
 > {
   readonly version: 1
-  readonly lines: readonly Omit<LineContent, 'kind' | 'priceBase'>[]
+  readonly lines: readonly Omit<LineContentV14, 'kind' | 'priceBase'>[]
 }
 
 /** Any shape a snapshot may have been written in. */
 export type StoredDocumentContent =
   | DocumentContent
+  | DocumentContentV14
   | DocumentContentV13
   | DocumentContentV12
   | DocumentContentV11

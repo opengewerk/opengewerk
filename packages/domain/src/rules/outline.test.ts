@@ -5,6 +5,7 @@ import type {
   DocumentContentV11,
   DocumentContentV12,
   DocumentContentV13,
+  DocumentContentV14,
   LineContent,
 } from '../model/document-content.js'
 import { continuesChain, deducts, documentKinds, successorsOf } from '../model/document.js'
@@ -30,6 +31,7 @@ function item(designation: string, netCents: number): LineContent {
     priceBase: 1,
     vatRate: 'standard',
     netCents,
+    durability: null,
   }
 }
 
@@ -235,11 +237,11 @@ describe('a snapshot written in the first shape', () => {
     const read = currentContent(first)
 
     // Lifted all the way to today, one version at a time.
-    expect(read.version).toBe(14)
+    expect(read.version).toBe(15)
     expect(read.introText).toBeNull()
     expect(read.closingText).toBeNull()
     expect(read.signature).toBeNull()
-    expect(read.lines).toEqual([{ ...plain, kind: 'item', priceBase: 1 }])
+    expect(read.lines).toEqual([{ ...plain, kind: 'item', priceBase: 1, durability: null }])
     // The figures are carried over, not worked out again.
     expect(read.totals).toBe(first.totals)
     // Nothing was deducted before version 4, so it billed what it totalled,
@@ -295,7 +297,9 @@ describe('a snapshot written in the first shape', () => {
       lines: [{ ...plain, kind: 'item' as const }],
     } satisfies DocumentContentV12
 
-    expect(currentContent(twelfth).lines).toEqual([{ ...plain, kind: 'item', priceBase: 1 }])
+    expect(currentContent(twelfth).lines).toEqual([
+      { ...plain, kind: 'item', priceBase: 1, durability: null },
+    ])
 
     // Before version 14 a delivery note named no order confirmation (#299).
     const thirteenth = {
@@ -304,7 +308,19 @@ describe('a snapshot written in the first shape', () => {
       kind: 'delivery_note' as const,
     } satisfies DocumentContentV13
 
-    expect(currentContent(thirteenth)).toMatchObject({ version: 14, delivers: null })
+    expect(currentContent(thirteenth)).toMatchObject({ version: 15, delivers: null })
+
+    // Before version 15 no line carried a guarantee of durability (#433).
+    const fourteenth = {
+      ...read,
+      version: 14 as const,
+      lines: [{ ...plain, kind: 'item' as const, priceBase: 1 as const }],
+    } satisfies DocumentContentV14
+
+    expect(currentContent(fourteenth)).toMatchObject({
+      version: 15,
+      lines: [{ ...plain, durability: null }],
+    })
   })
 })
 

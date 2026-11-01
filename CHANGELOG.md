@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Kennzeichnung einer Haltbarkeitsgarantie des Herstellers (#433), nach der Feature-Gliederung v2.43 und den Tafeln
+  aus Version 91 des Canvas: Am Artikel stehen Dauer, Hersteller und Modellkennung, alle drei oder keine (Migration
+  `0108_article_durability`), die Dauer in ganzen oder halben Jahren über zwei. Ein Angebot, dem die Mitteilung zur
+  gesetzlichen Gewährleistung beiliegt, trägt dann je Ware eine Seite „Anlage 1“ und folgende mit der Kennzeichnung nach
+  Anhang II der Durchführungsverordnung (EU) 2025/1960, vor der Mitteilung, und an der Position einen Verweis darauf.
+  Gedruckt wird die Datei der Kommission in Farbe, unverändert bis auf ihre drei Felder, in 95 × 100 mm und in Inter
+  (`@fontsource/inter`). Der Beleg hält die Angaben fest, die der Artikel beim Ausstellen trägt (Inhalt in Fassung 15).
+  Warum: seit dem 27.09.2026 verlangen Art. 246 Abs. 1 Nr. 5a und Art. 246a § 1 Abs. 1 Satz 1 Nr. 11a EGBGB die
+  Kennzeichnung, sobald der Hersteller dem Betrieb eine solche Garantie mitteilt.
+
 - Material scannen auf der Baustelle (#263), nach der Feature-Gliederung v2.42 und den Tafeln aus Version 90 des
   Canvas: Neben „Material eintragen“ im Regiebericht öffnet „Material scannen“ die Kamera, die die EAN auf der Packung
   oder am Regal liest. Der Artikel mit dieser EAN kommt mit Bezeichnung und Einheit in „Material eintragen“, und nur die

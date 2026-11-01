@@ -61,6 +61,7 @@ function line(
     priceBase: 1,
     vatRate,
     netCents,
+    durability: null,
   }
 }
 

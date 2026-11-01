@@ -156,6 +156,9 @@ const cable: ArticleView = {
   unit: 'metre',
   groupOfGoods: 'Kabel und Leitungen',
   frequent: true,
+  durabilityHalfYears: null,
+  durabilityProducer: null,
+  durabilityModel: null,
   prices: [
     { id: 'p-3', validFrom: '2026-10-01', unitPriceCents: 98, priceBase: 1 },
     { id: 'p-2', validFrom: '2026-03-01', unitPriceCents: 92, priceBase: 1 },
@@ -732,6 +735,75 @@ describe('an article', () => {
 
     expect(
       await screen.findByText(/^Eine Pauschale hat keine Preiseinheit, und der Artikel hat Preise/),
+    ).toBeTruthy()
+    expect(calls.some((call) => call.method === 'PATCH')).toBe(false)
+  })
+})
+
+describe('a guarantee of durability of the producer (#433)', () => {
+  const wallbox: ArticleView = {
+    ...cable,
+    designation: 'Wallbox 11 kW, lastmanagementfähig',
+    unit: 'piece',
+    durabilityHalfYears: 10,
+    durabilityProducer: 'Voltaro',
+    durabilityModel: 'WB-11 Pro',
+  }
+
+  it('stands beside the facts of an article that has one, and nowhere at one without', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/articles\/a-1$/, wallbox)
+    await mount('/artikel/a-1')
+
+    const panel = await screen.findByRole('region', {
+      name: 'Haltbarkeitsgarantie des Herstellers',
+    })
+
+    expect(within(panel).getByText('5 Jahre')).toBeTruthy()
+    expect(within(panel).getByText('Voltaro')).toBeTruthy()
+    expect(within(panel).getByText('WB-11 Pro')).toBeTruthy()
+  })
+
+  it('is sent from the form as half years with its producer and model, and taken out as nothing', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/articles\/a-1$/, cable)
+    serverSays('PATCH', /^\/articles\/a-1$/, { id: 'a-1' })
+    await mount('/artikel/a-1/bearbeiten')
+
+    await userEvent.type(await screen.findByLabelText('Dauer in Jahren'), '2,5')
+    await userEvent.type(screen.getByLabelText('Hersteller'), 'Voltaro')
+    await userEvent.type(screen.getByLabelText('Modellkennung'), 'WB-11 Pro')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PATCH')?.body).toMatchObject({
+        durabilityHalfYears: 5,
+        durabilityProducer: 'Voltaro',
+        durabilityModel: 'WB-11 Pro',
+      })
+    })
+  })
+
+  it('is refused before anything is sent: half a field, or years that are no half years', async () => {
+    signedInAs('office')
+    serverSays('GET', /^\/articles\/a-1$/, cable)
+    await mount('/artikel/a-1/bearbeiten')
+
+    await userEvent.type(await screen.findByLabelText('Dauer in Jahren'), '5')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    expect(
+      await screen.findByText('Der Hersteller, wie er auf der Kennzeichnung steht.'),
+    ).toBeTruthy()
+
+    await userEvent.clear(screen.getByLabelText('Dauer in Jahren'))
+    await userEvent.type(screen.getByLabelText('Dauer in Jahren'), '2,4')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    expect(
+      await screen.findByText(
+        'Mehr als zwei Jahre, ganz oder halb, etwa 3 oder 2,5, und höchstens 50.',
+      ),
     ).toBeTruthy()
     expect(calls.some((call) => call.method === 'PATCH')).toBe(false)
   })

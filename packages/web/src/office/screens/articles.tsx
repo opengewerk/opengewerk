@@ -2,7 +2,9 @@ import {
   articleProblems,
   articleUnitProblem,
   basisPointsFrom,
+  durabilityYears,
   gramsFrom,
+  halfYearsOf,
   type IsoDate,
   kilogramsLabel,
   type LineUnit,
@@ -542,7 +544,12 @@ export function ArticleScreen() {
             </>
           )
         }
-        side={<ArticleFacts article={article} />}
+        side={
+          <>
+            <ArticleFacts article={article} />
+            <DurabilityFacts article={article} />
+          </>
+        }
       />
     </Screen>
   )
@@ -565,6 +572,34 @@ function ArticleFacts({ article }: { readonly article: ArticleView }) {
           { label: 'Beschreibung', value: article.description ?? '' },
         ]}
       />
+    </Panel>
+  )
+}
+
+/**
+ * The guarantee of durability of the producer (#433), the board "Artikel mit
+ * Haltbarkeitsgarantie des Herstellers": what the label after a quote to a
+ * consumer will say. Nothing for an article without one.
+ */
+function DurabilityFacts({ article }: { readonly article: ArticleView }) {
+  if (article.durabilityHalfYears === null) {
+    return null
+  }
+
+  return (
+    <Panel title="Haltbarkeitsgarantie des Herstellers">
+      <FactList
+        keyWidth={110}
+        facts={[
+          { label: 'Dauer', value: `${durabilityYears(article.durabilityHalfYears)} Jahre` },
+          { label: 'Hersteller', value: article.durabilityProducer ?? '' },
+          { label: 'Modellkennung', value: article.durabilityModel ?? '' },
+        ]}
+      />
+      <p className="mt-2 text-[13px] leading-[1.45] text-ink-faint">
+        Jedes Angebot an einen Verbraucher mit diesem Artikel trägt dazu die Kennzeichnung der EU,
+        als Anlage nach dem Angebot.
+      </p>
     </Panel>
   )
 }
@@ -1867,9 +1902,15 @@ interface ArticleDraft {
   readonly unit: LineUnit
   readonly groupOfGoods: string
   readonly frequent: boolean
+  /** The years as typed, "5" or "2,5" (#433). */
+  readonly durabilityYears: string
+  readonly durabilityProducer: string
+  readonly durabilityModel: string
 }
 
 function draftOf(article: ArticleView | null): ArticleDraft {
+  const halfYears = article?.durabilityHalfYears ?? null
+
   return {
     number: article?.number ?? '',
     designation: article?.designation ?? '',
@@ -1878,8 +1919,14 @@ function draftOf(article: ArticleView | null): ArticleDraft {
     unit: article?.unit ?? 'piece',
     groupOfGoods: article?.groupOfGoods ?? '',
     frequent: article?.frequent ?? false,
+    durabilityYears: halfYears === null ? '' : durabilityYears(halfYears),
+    durabilityProducer: article?.durabilityProducer ?? '',
+    durabilityModel: article?.durabilityModel ?? '',
   }
 }
+
+/** The years of a guarantee are not a number until they are read: "2,4" is no half year. */
+const unreadYears = 'Mehr als zwei Jahre, ganz oder halb, etwa 3 oder 2,5, und höchstens 50.'
 
 /**
  * An article to create or to change, `neuer_artikel()` of the canvas: what it
@@ -1933,9 +1980,15 @@ function ArticleFormScreen({ article }: { readonly article: ArticleView | null }
   async function submit(event: FormEvent) {
     event.preventDefault()
 
-    const fields: ArticleFields = { ...draft }
+    const { durabilityYears: years, ...rest } = draft
+    const halfYears = years.trim() === '' ? null : halfYearsOf(years)
+    const fields: ArticleFields = { ...rest, durabilityHalfYears: halfYears }
     const values: Readonly<Record<string, unknown>> = { ...fields }
     const found: Record<string, string> = { ...articleProblems(values) }
+
+    if (years.trim() !== '' && halfYears === null) {
+      found['durabilityHalfYears'] = unreadYears
+    }
     const cents = amount.trim() === '' ? null : parseEuros(amount)
     const unitProblem = article ? articleUnitProblem(fields.unit, widestBase(article)) : null
 
@@ -2092,6 +2145,44 @@ function ArticleFormScreen({ article }: { readonly article: ArticleView | null }
                   </span>
                 </span>
               </label>
+            </div>
+          </Panel>
+          <Panel title="Haltbarkeitsgarantie des Herstellers" roomy>
+            <p className="-mt-[3px] mb-2.5 text-[13px] text-ink-faint">
+              Nur eintragen, wenn der Hersteller sie dem Betrieb mitgeteilt hat: ohne zusätzliche
+              Kosten, für die ganze Ware und länger als zwei Jahre. Dann trägt jedes Angebot an
+              einen Verbraucher mit diesem Artikel die Kennzeichnung der EU. Leer lassen, wenn es
+              keine gibt.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field
+                label="Dauer in Jahren"
+                inputMode="decimal"
+                value={draft.durabilityYears}
+                problem={problems['durabilityHalfYears']}
+                hint="Mehr als zwei, ganz oder halb, etwa 3 oder 2,5."
+                onChange={(event) => {
+                  set('durabilityYears')(event.target.value)
+                }}
+              />
+              <Field
+                label="Hersteller"
+                value={draft.durabilityProducer}
+                problem={problems['durabilityProducer']}
+                hint="Wie auf der Kennzeichnung, bis 20 Zeichen."
+                onChange={(event) => {
+                  set('durabilityProducer')(event.target.value)
+                }}
+              />
+              <Field
+                label="Modellkennung"
+                value={draft.durabilityModel}
+                problem={problems['durabilityModel']}
+                hint="Das Modell, für das die Garantie gilt, bis 20 Zeichen."
+                onChange={(event) => {
+                  set('durabilityModel')(event.target.value)
+                }}
+              />
             </div>
           </Panel>
           {article ? (

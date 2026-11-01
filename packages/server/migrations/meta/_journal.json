@@ -757,6 +757,13 @@
       "when": 1793489373439,
       "tag": "0107_silver_and_brass",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1793540007931,
+      "tag": "0108_article_durability",
+      "breakpoints": true
     }
   ]
 }

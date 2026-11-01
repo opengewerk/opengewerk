@@ -5,6 +5,8 @@ import { shippedWordings } from '@opengewerk/domain'
 import { describe, expect, it } from 'vitest'
 
 import {
+  durabilityLabelSource,
+  filledDurabilityLabel,
   isLegalGraphic,
   LegalGraphicError,
   legalGraphicImage,
@@ -80,5 +82,76 @@ describe('the pages the law prescribes whole', () => {
     await expect(legalPage('guarantee-notice-xx')).rejects.toThrow(LegalGraphicError)
     await expect(legalGraphicImage('guarantee-notice-xx')).rejects.toThrow(LegalGraphicError)
     await expect(withLegalPages(await renderedWith(1), [notice])).rejects.toThrow(LegalGraphicError)
+  })
+})
+
+describe('the label of a guarantee of durability (#433)', () => {
+  const guarantee = { halfYears: 5, producer: 'Kraft & Söhne', model: 'K<2>' }
+
+  it('carries the digest its README names', async () => {
+    const readme = await readFile(new URL('../../assets/legal/README.md', import.meta.url), 'utf-8')
+
+    expect(readme).toContain('3414c8366823db39702d2557e614f882b530487ce589e903afdc98b7225e1ab1')
+    expect(await durabilityLabelSource()).toContain('viewBox="0 0 269.29 283.46"')
+  })
+
+  it('fills its three fields, the model at the right edge, and escapes what it fills in', async () => {
+    const label = filledDurabilityLabel(await durabilityLabelSource(), guarantee, 'one')
+
+    expect(label).toContain('<tspan x="0" y="0">2,5</tspan>')
+    expect(label).toContain('<tspan x="0" y="0">Kraft &amp; Söhne</tspan>')
+    expect(label).toContain(
+      'text-anchor="end" transform="translate(262.9 74.52)"><tspan x="0" y="0">K&lt;2&gt;</tspan>',
+    )
+    expect(label).not.toContain('Brand/')
+    expect(label).not.toContain('Model identifier')
+    expect(label).not.toContain('>XX<')
+  })
+
+  it('changes nothing else of the file but the names of its ids and classes', async () => {
+    const source = await durabilityLabelSource()
+    const label = filledDurabilityLabel(source, guarantee, 'one')
+    // Back to the file: the names without their prefix, and the three fields
+    // as the Commission wrote them.
+    const back = label
+      .replaceAll('id="one-', 'id="')
+      .replaceAll('url(#one-', 'url(#')
+      .replaceAll('.one-cls-', '.cls-')
+      .replaceAll(
+        /class="([^"]+)"/g,
+        (_, names: string) => `class="${names.replaceAll('one-cls-', 'cls-')}"`,
+      )
+      .replace(
+        '<text class="cls-5" transform="translate(6.32 74.52)"><tspan x="0" y="0">Kraft &amp; Söhne</tspan></text>',
+        '<text class="cls-5" transform="translate(6.32 74.52)"><tspan x="0" y="0">Brand/</tspan>' +
+          '<tspan class="cls-19" x="28.34" y="0">T</tspan><tspan class="cls-22" x="33.61" y="0">rademark</tspan></text>',
+      )
+      .replace(
+        '<text class="cls-5" text-anchor="end" transform="translate(262.9 74.52)"><tspan x="0" y="0">K&lt;2&gt;</tspan></text>',
+        '<text class="cls-5" transform="translate(196.75 74.52)"><tspan x="0" y="0">Model identifier</tspan></text>',
+      )
+      .replace(
+        '<text class="cls-3" transform="translate(5.07 150.57)"><tspan x="0" y="0">2,5</tspan></text>',
+        '<text class="cls-3" transform="translate(5.07 150.57)"><tspan x="0" y="0">XX</tspan></text>',
+      )
+
+    expect(back).toBe(source.slice(source.indexOf('<svg')))
+    expect(label.match(/id="(?!one-)/g)).toBeNull()
+  })
+
+  it('gives two labels on one page ids of their own', async () => {
+    const source = await durabilityLabelSource()
+    const ids = (label: string) => [...label.matchAll(/id="([^"]+)"/g)].map((match) => match[1])
+    const first = ids(filledDurabilityLabel(source, guarantee, 'one'))
+    const second = ids(filledDurabilityLabel(source, guarantee, 'two'))
+
+    expect(first.length).toBeGreaterThan(0)
+    expect(first.filter((id) => second.includes(id))).toEqual([])
+  })
+
+  it('refuses a file whose fields do not stand where they should', async () => {
+    const source = (await durabilityLabelSource()).replace('Model identifier', 'Model')
+
+    expect(() => filledDurabilityLabel(source, guarantee, 'one')).toThrow(LegalGraphicError)
   })
 })

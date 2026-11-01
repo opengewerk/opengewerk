@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   articleProblems,
   articleUnitProblem,
+  durabilityYears,
   eanFromScan,
+  halfYearsOf,
   isCalendarDay,
   priceOn,
   priceProblems,
@@ -68,6 +70,68 @@ describe('the fields of an article', () => {
     expect(articleProblems({ ean: '2001042000019' })).toEqual({
       ean: 'Die Prüfziffer der EAN stimmt nicht.',
     })
+  })
+})
+
+describe('a guarantee of durability of the producer (#433)', () => {
+  const guarantee = {
+    durabilityHalfYears: 10,
+    durabilityProducer: 'Voltaro',
+    durabilityModel: 'WB-11 Pro',
+  }
+
+  it('is all three fields or none', () => {
+    expect(articleProblems(guarantee)).toEqual({})
+    expect(
+      articleProblems({ durabilityHalfYears: null, durabilityProducer: '', durabilityModel: ' ' }),
+    ).toEqual({})
+    expect(articleProblems({ ...guarantee, durabilityModel: '' })).toEqual({
+      durabilityModel: 'Das Modell, für das die Garantie gilt.',
+    })
+    expect(articleProblems({ ...guarantee, durabilityHalfYears: null })).toHaveProperty(
+      'durabilityHalfYears',
+    )
+  })
+
+  it('comes as three fields together, so that a change cannot leave one behind', () => {
+    expect(articleProblems({ durabilityHalfYears: 6 })).toEqual({
+      durabilityHalfYears: 'Dauer, Hersteller und Modellkennung kommen zusammen.',
+    })
+  })
+
+  it('is longer than two years, in whole or half years, and fifty at most', () => {
+    for (const halfYears of [4, 3, 5.5, 101, '6']) {
+      expect(articleProblems({ ...guarantee, durabilityHalfYears: halfYears })).toHaveProperty(
+        'durabilityHalfYears',
+      )
+    }
+
+    for (const halfYears of [5, 6, 100]) {
+      expect(articleProblems({ ...guarantee, durabilityHalfYears: halfYears })).toEqual({})
+    }
+  })
+
+  it('has a producer and a model short enough for their fields of the label', () => {
+    expect(articleProblems({ ...guarantee, durabilityProducer: 'P'.repeat(20) })).toEqual({})
+    expect(articleProblems({ ...guarantee, durabilityProducer: 'P'.repeat(21) })).toHaveProperty(
+      'durabilityProducer',
+    )
+    expect(articleProblems({ ...guarantee, durabilityModel: 'M'.repeat(21) })).toHaveProperty(
+      'durabilityModel',
+    )
+  })
+
+  it('writes and reads its years as the label and the office do', () => {
+    expect(durabilityYears(10)).toBe('5')
+    expect(durabilityYears(5)).toBe('2,5')
+    expect(durabilityYears(25)).toBe('12,5')
+    expect(halfYearsOf('5')).toBe(10)
+    expect(halfYearsOf(' 2,5 ')).toBe(5)
+    expect(halfYearsOf('2.5')).toBe(5)
+    expect(halfYearsOf('3,0')).toBe(6)
+    expect(halfYearsOf('2,4')).toBeNull()
+    expect(halfYearsOf('')).toBeNull()
+    expect(halfYearsOf('fünf')).toBeNull()
   })
 })
 

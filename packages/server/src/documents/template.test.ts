@@ -54,12 +54,13 @@ function line(position: number, netCents: number, over: Partial<LineContent> = {
     priceBase: 1,
     vatRate: 'standard',
     netCents,
+    durability: null,
     ...over,
   }
 }
 
 function page(...args: Parameters<typeof invoice>) {
-  return printJob(invoice(...args), { logo: null })
+  return printJob(invoice(...args), { logo: null, durabilityLabel: null })
 }
 
 /** The content of an invoice, or with `document` of another kind, as it is frozen. */
@@ -408,7 +409,7 @@ describe('the footer', () => {
       instructions: [],
     })
 
-    const { footerHtml } = printJob(content, { logo: null })
+    const { footerHtml } = printJob(content, { logo: null, durabilityLabel: null })
 
     expect(footerHtml).not.toContain('Telefon')
     expect(footerHtml.match(/class="column"/g)).toHaveLength(3)
@@ -711,13 +712,15 @@ describe('an invoice that deducts progress invoices', () => {
     )
     const plain = cancellationOf(invoice(), facts)
 
-    expect(printJob(closing, { logo: null }).html).toContain(
+    expect(printJob(closing, { logo: null, durabilityLabel: null }).html).toContain(
       'Hiermit stornieren wir die Schlussrechnung RE-2026-0042 vom 21.09.2026 in voller Höhe.',
     )
-    expect(printJob(plain, { logo: null }).html).toContain(
+    expect(printJob(plain, { logo: null, durabilityLabel: null }).html).toContain(
       'Hiermit stornieren wir die Rechnung RE-2026-0042 vom 21.09.2026 in voller Höhe.',
     )
-    expect(printJob(closing, { logo: null }).html).toContain('<h1>Stornorechnung RE-2026-0050</h1>')
+    expect(printJob(closing, { logo: null, durabilityLabel: null }).html).toContain(
+      '<h1>Stornorechnung RE-2026-0050</h1>',
+    )
   })
 })
 
@@ -778,7 +781,7 @@ describe('the instructions of a document', () => {
       { kind: 'quote', number: 'AN-2026-0007' },
       { instructions: [notice, withdrawal, sheet] },
     )
-    const { html } = printJob(content, { logo: null })
+    const { html } = printJob(content, { logo: null, durabilityLabel: null })
 
     // Its words are not written out; the page of the Commission takes the
     // place of the empty one at the very end, after every other instruction.
@@ -830,12 +833,12 @@ describe('the instructions of a document', () => {
       paymentTermDays: 14,
       instructions: [withdrawal, sheet],
     })
-    const { html } = instructionSheet(content, 1, { logo: null })
+    const { html } = instructionSheet(content, 1, { logo: null, durabilityLabel: null })
 
     expect(html).toContain('<h1>Beginn &lt;vorzeitig&gt;</h1>')
     expect(html).toContain('Ich verlange &lt;b&gt;ausdrücklich&lt;/b&gt; den Beginn.')
     expect(html).toContain('<p class="annex">Zu Angebot vom 21.09.2026</p>')
     expect(html).toContain('ENTWURF')
-    expect(() => instructionSheet(content, 2, { logo: null })).toThrow()
+    expect(() => instructionSheet(content, 2, { logo: null, durabilityLabel: null })).toThrow()
   })
 })

@@ -86,6 +86,10 @@ export interface ArticleView {
   readonly unit: LineUnit
   readonly groupOfGoods: string | null
   readonly frequent: boolean
+  /** The guarantee of durability of the producer (#433), in half years; all three or none. */
+  readonly durabilityHalfYears: number | null
+  readonly durabilityProducer: string | null
+  readonly durabilityModel: string | null
   readonly prices: readonly PriceView[]
   readonly suppliers: readonly SupplierLinkView[]
   /** How the selling price comes about (#463), for whoever may read purchase prices. */
@@ -121,6 +125,10 @@ export interface ArticleFields {
   readonly unit: LineUnit
   readonly groupOfGoods: string
   readonly frequent: boolean
+  /** All three or none (#433); empty texts are none, as for the description. */
+  readonly durabilityHalfYears: number | null
+  readonly durabilityProducer: string
+  readonly durabilityModel: string
 }
 
 export interface PriceFields {
