@@ -174,6 +174,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die README nennt OpenGewerk im Kopf und im ersten Satz eine Open-Source-Handwerkersoftware, self-hosted, mit CRM
+  und ERP, zählt unter "Stand" auf, was gebaut ist, und verweist auf den Vergleich auf opengewerk.de. Warum: mit
+  diesen Wörtern sucht, wer eine Handwerkersoftware für den eigenen Server will, und "Open Source" stand bisher nur
+  in der Lizenz.
 - Der Baustein der Qualifikationen im Fundament hängt eine Qualifikation an eine Person aus der neuen Fabrik
   `peopleSchema` statt an ein Konto (`person_id` statt `user_id`, ADR 0016, ergänzt ADR 0012). Warum: eine Person ohne
   Zugang hält sonst keine Qualifikation. OpenGewerk Haustechnik braucht dafür beim nächsten Anheben des Submoduls eine

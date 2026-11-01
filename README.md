@@ -5,7 +5,7 @@
   </picture>
 </p>
 
-<p align="center"><strong>Self-hosted CRM &amp; ERP für Handwerksbetriebe</strong></p>
+<p align="center"><strong>Open-Source-Handwerkersoftware: self-hosted CRM &amp; ERP für Handwerksbetriebe</strong></p>
 
 <p align="center">
   <a href="https://github.com/opengewerk/opengewerk/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/opengewerk/opengewerk/actions/workflows/ci.yml/badge.svg"></a>
@@ -15,13 +15,13 @@
 
 ## Was ist OpenGewerk?
 
-OpenGewerk führt CRM und ERP in einem einzigen Datenmodell zusammen: Kunde, Objekt, Anlage, Auftrag, Beleg, Buchung. Es gibt keine Schnittstellen zwischen Modulen, weil es keine getrennten Module gibt. Kernmodul ist Elektro und PV, weitere Gewerke entstehen auf derselben Formular- und Fristen-Engine. Die Baustellen-App arbeitet ohne Netz, denn im Keller und am Zählerschrank gibt es oft keins. GoBD ist Bauprinzip: Belege werden festgeschrieben und nie gelöscht, sondern storniert. Alles läuft auf einem eigenen Server, die Daten bleiben beim Betrieb.
+OpenGewerk ist eine Open-Source-Handwerkersoftware, die CRM und ERP in einem einzigen Datenmodell zusammenführt: Kunde, Objekt, Anlage, Auftrag, Beleg, Buchung. Sie ist self-hosted, läuft also auf dem eigenen Server des Betriebs, und die Daten bleiben dort. Lizenzkosten und Tarifstufen gibt es nicht. Weil es keine getrennten Module gibt, braucht es auch keine Schnittstellen zwischen ihnen. Kernmodul ist Elektro und PV; weitere Gewerke entstehen auf derselben Formular- und Fristen-Engine. Die Baustellen-App arbeitet ohne Netz, denn im Keller und am Zählerschrank gibt es oft keins. Belege werden nach GoBD festgeschrieben und nie gelöscht, ein Fehler wird storniert.
 
-Wie es sich von anderer Handwerkersoftware unterscheidet und was es einmal können soll, steht in [Funktionsumfang und Stand](docs/funktionsumfang.md). Bilder der Oberfläche zeigt [opengewerk.de](https://opengewerk.de).
+Wie es sich von anderer Handwerkersoftware unterscheidet und was es einmal können soll, steht in [Funktionsumfang und Stand](docs/funktionsumfang.md). Bilder der Oberfläche zeigt [opengewerk.de](https://opengewerk.de/funktionen/), den Vergleich mit openHandwerk, plancraft, HERO, Odoo, Dolibarr und ERPNext die Seite [Vergleich](https://opengewerk.de/alternativen/).
 
 ## Stand
 
-Das Fundament (Phase 0) und das MVP für den Pilotbetrieb (Phase 1) sind gebaut, die neueste Fassung steht unter [Releases](https://github.com/opengewerk/opengewerk/releases). An Phase 2, dem Kern für Elektro und PV, wird gearbeitet, im [Meilenstein Phase 2](https://github.com/opengewerk/opengewerk/milestone/3).
+Das Fundament (Phase 0) und das MVP für den Pilotbetrieb (Phase 1) sind gebaut, die neueste Fassung steht unter [Releases](https://github.com/opengewerk/opengewerk/releases). Ein Betrieb schreibt damit Angebote, Auftragsbestätigungen und Rechnungen, an Unternehmen auch als E-Rechnung im Format XRechnung oder ZUGFeRD. Auf der Baustelle entstehen Regiebericht und Zeiterfassung, der Kunde unterschreibt auf dem Gerät; für Elektro gibt es das Stromkreisverzeichnis und das Prüfprotokoll der Erstprüfung nach DIN VDE 0100-600. An Phase 2, dem Kern für Elektro und PV, wird gearbeitet, im [Meilenstein Phase 2](https://github.com/opengewerk/opengewerk/milestone/3). Die Buchhaltung kommt mit Phase 3.
 
 > **Noch nicht für den produktiven Einsatz.** Vorher stehen die fachliche Abnahme der Regelpakete und Grenzwerte ([#31](https://github.com/opengewerk/opengewerk/issues/31)) und ein Praxistest der E-Rechnung bei einem echten Empfänger ([#133](https://github.com/opengewerk/opengewerk/issues/133)) aus.
 
@@ -55,7 +55,7 @@ Alles Weitere, vom ersten Zugang über E-Mail, Sicherung und Rückspielen bis zu
 ## Projektfamilie
 
 - [`opengewerk`](https://github.com/opengewerk/opengewerk): diese Handwerkersoftware, dazu das Fundament, auf dem jede Anwendung der Familie steht.
-- [`opengewerk-haustechnik`](https://github.com/opengewerk/opengewerk-haustechnik): Software für Betreiber von Gebäuden und ihre Haustechnik, auf demselben Fundament.
+- [`opengewerk-haustechnik`](https://github.com/opengewerk/opengewerk-haustechnik): Open-Source-CAFM für Betreiber von Gebäuden und ihre Haustechnik, auf demselben Fundament.
 - [`opengewerk-kanzlei`](https://github.com/opengewerk/opengewerk-kanzlei): der Kanzlei-Hub, mit dem ein Steuerberater seine Mandanten bearbeitet, ohne dass die Daten den Betrieb verlassen.
 - [`opengewerk-api-spec`](https://github.com/opengewerk/opengewerk-api-spec): der API-Vertrag zwischen Handwerkersoftware und Kanzlei-Hub.
 - [opengewerk.de](https://opengewerk.de): die Website des Projekts.
