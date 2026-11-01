@@ -52,6 +52,8 @@ import { NewPersonFileScreen, PeopleList, PersonFileScreen } from './screens/peo
 import { BoardScreen, CircuitScreen } from './screens/structure.js'
 import { InverterScreen, PvStringScreen } from './screens/pv-structure.js'
 import { TaskListScreen } from './screens/tasks.js'
+import { AbsencePersonScreen, AbsencesScreen } from './screens/absences.js'
+import { HolidaysScreen } from './screens/holidays.js'
 import { MailSettingsScreen } from './screens/mail-settings.js'
 import { TaxScreen } from './screens/taxes.js'
 import { TextSnippetScreen } from './screens/text-snippets.js'
@@ -193,6 +195,13 @@ const routes = [
     path: '/mitarbeiter/$personId',
     component: PersonFileScreen,
   }),
+  // Leave and sickness (#288), for whoever keeps absences.
+  createRoute({ getParentRoute: () => office, path: '/abwesenheiten', component: AbsencesScreen }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/abwesenheiten/$personId',
+    component: AbsencePersonScreen,
+  }),
   createRoute({
     getParentRoute: () => office,
     path: '/lieferanten/neu',
@@ -267,6 +276,11 @@ const routes = [
     getParentRoute: () => office,
     path: '/einstellungen/fristen',
     component: DeadlineSettingsScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/einstellungen/feiertage',
+    component: HolidaysScreen,
   }),
   createRoute({
     getParentRoute: () => office,

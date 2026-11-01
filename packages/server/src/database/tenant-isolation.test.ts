@@ -996,6 +996,18 @@ const crossings: readonly {
       sql`insert into qualifications (tenant_id, person_id, kind_key, certificate_sha256)
             values (${own.tenant}, ${own.person}, 'core.driving_licence', ${other.fileHash})`,
   },
+  // Leave and sickness (#288): an absence and the days of a year of a person here.
+  {
+    key: 'absences_of_somebody_here',
+    write: (own, other) =>
+      sql`insert into absences (tenant_id, person_id, kind, state, first_day, last_day)
+            values (${own.tenant}, ${other.person}, 'vacation', 'approved', '2026-11-02', '2026-11-02')`,
+  },
+  {
+    key: 'leave_entitlements_of_somebody_here',
+    write: (own, other) =>
+      sql`insert into leave_entitlements (tenant_id, person_id, year) values (${own.tenant}, ${other.person}, 2026)`,
+  },
   {
     key: 'stock_movements_by_somebody_here',
     write: (own, other) =>

@@ -7,6 +7,7 @@ export * from '@opengewerk/platform-server/schema'
 
 export * from './article-imports.js'
 export * from './article-search.js'
+export * from './absences.js'
 export * from './articles.js'
 export * from './attachments.js'
 export * from './contacts.js'

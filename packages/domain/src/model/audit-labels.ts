@@ -327,6 +327,38 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       left_on: 'Austritt',
     },
   },
+  absences: {
+    label: 'Abwesenheit',
+    fields: {
+      person_id: 'Person',
+      kind: 'Art',
+      state: 'Stand',
+      first_day: 'Erster Tag',
+      last_day: 'Letzter Tag',
+      starts_at_noon: 'Ab Mittag',
+      ends_at_noon: 'Bis Mittag',
+      note: 'Notiz',
+      answer: 'Antwort',
+      decided_by: 'Entschieden von',
+      decided_at: 'Entschieden am',
+    },
+  },
+  leave_entitlements: {
+    label: 'Urlaub eines Jahres',
+    fields: {
+      person_id: 'Person',
+      year: 'Jahr',
+      entitled_half_days: 'Anspruch in halben Tagen',
+      carried_half_days: 'Übertrag in halben Tagen',
+    },
+  },
+  holiday_settings: {
+    label: 'Feiertage',
+    fields: {
+      state: 'Bundesland',
+      local_holidays: 'Örtliche Feiertage',
+    },
+  },
   qualification_kinds: {
     label: 'Eigene Art einer Qualifikation',
     fields: {

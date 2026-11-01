@@ -833,6 +833,8 @@ async function plantPeople(base: string, today: IsoDate): Promise<void> {
     await post(`/people/${own.id}/qualifications`, qualification)
   }
 
+  const ids = new Map<string, string>([['Anna Weber', own.id]])
+
   for (const [name, joinedOn, hours] of [
     ['Britta Kohm', '2022-07-01', [4, 4, 4, 4, 4]],
     ['Jonas Brandt', '2024-08-15', full],
@@ -851,7 +853,89 @@ async function plantPeople(base: string, today: IsoDate): Promise<void> {
       kindKey: name === 'Tim Schäfer' ? 'core.work_at_height' : 'elektro.skilled_person',
       validUntil: name === 'Tim Schäfer' ? addDays(today, 335) : null,
     })
+    ids.set(name, person.id)
   }
+
+  await plantAbsences(base, today, ids)
+}
+
+/**
+ * Leave and sickness (#288), as the boards "Abwesenheiten" and "Urlaub" draw
+ * them, in the year of the preview: the business in Baden-Württemberg, the
+ * days of leave of everybody, the leave of Anna Weber over Easter and in
+ * summer with two days sick in it, a request turned down with an answer and
+ * one still open, which another is away during, and Max Becker sick today.
+ * Only the preview's own account asks for leave; the others have no access.
+ */
+async function plantAbsences(
+  base: string,
+  today: IsoDate,
+  ids: ReadonlyMap<string, string>,
+): Promise<void> {
+  const post = (path: string, body: unknown) => send(base, 'POST', path, body)
+  const put = (path: string, body: unknown) => send(base, 'PUT', path, body)
+  const year = today.slice(0, 4)
+  const on = (monthDay: string) => `${year}-${monthDay}`
+  const id = (name: string) => ids.get(name) ?? ''
+  const enter = (name: string, kind: 'vacation' | 'sickness', firstDay: string, lastDay: string) =>
+    post('/absences', {
+      personId: id(name),
+      kind,
+      firstDay,
+      lastDay,
+      startsAtNoon: false,
+      endsAtNoon: false,
+    })
+
+  await put('/holidays', { state: 'DE-BW', local: [] })
+
+  for (const [name, entitled, carried] of [
+    ['Anna Weber', 60, 6],
+    ['Britta Kohm', 60, 0],
+    ['Jonas Brandt', 60, 3],
+    ['Lena Hoffmann', 55, 0],
+    ['Max Becker', 60, 0],
+    ['Moritz Kohm', 60, 10],
+    ['Tim Schäfer', 15, 0],
+  ] as const) {
+    await put(`/absences/people/${id(name)}/entitlements/${year}`, {
+      entitledHalfDays: entitled,
+      carriedHalfDays: carried,
+    })
+  }
+
+  await enter('Anna Weber', 'vacation', on('02-24'), on('02-27'))
+  await enter('Anna Weber', 'vacation', on('03-30'), on('04-10'))
+  await enter('Anna Weber', 'sickness', on('05-18'), on('05-20'))
+  await enter('Anna Weber', 'vacation', on('08-10'), on('08-21'))
+  await enter('Anna Weber', 'sickness', on('08-13'), on('08-14'))
+  await enter('Britta Kohm', 'vacation', on('07-06'), on('07-24'))
+  await enter('Jonas Brandt', 'vacation', on('06-08'), on('06-19'))
+  await enter('Jonas Brandt', 'vacation', on('12-03'), on('12-03'))
+  await enter('Jonas Brandt', 'sickness', on('03-09'), on('03-10'))
+  await enter('Lena Hoffmann', 'vacation', on('09-07'), on('09-18'))
+  await enter('Max Becker', 'vacation', on('07-27'), on('08-21'))
+  await enter('Max Becker', 'sickness', addDays(today, -3), addDays(today, 5))
+  await enter('Moritz Kohm', 'vacation', on('08-24'), on('09-04'))
+
+  const turnedDown = (await post('/absences/mine', {
+    firstDay: on('07-13'),
+    lastDay: on('07-17'),
+    startsAtNoon: false,
+    endsAtNoon: false,
+    note: null,
+  })) as { id: string }
+
+  await post(`/absences/${turnedDown.id}/reject`, {
+    answer: 'In der Woche ist die PV-Anlage in Ladenburg dran.',
+  })
+  await post('/absences/mine', {
+    firstDay: on('12-02'),
+    lastDay: on('12-04'),
+    startsAtNoon: false,
+    endsAtNoon: false,
+    note: null,
+  })
 }
 
 /**

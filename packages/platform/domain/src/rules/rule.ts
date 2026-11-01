@@ -32,6 +32,12 @@ import type { IsoDate } from '../model/identifier.js'
  *
  * Plain kilograms came with refrigerants whose thresholds count by mass and
  * not by CO2 equivalent: a leak check from a charge of 1 kilogram.
+ *
+ * The last Wednesday before a day came with the day of repentance and prayer
+ * in Saxony (opengewerk#288), the one public holiday that moves neither with
+ * the calendar nor with Easter: the Wednesday before the last Sunday of the
+ * church year, which is the last Wednesday before the 23rd of November. The
+ * value is that day as in `month_day`, 1123.
  */
 export const ruleUnits = [
   'basis_points',
@@ -53,6 +59,7 @@ export const ruleUnits = [
   'month_day',
   'days_from_easter',
   'kilograms',
+  'wednesday_before',
 ] as const
 
 export type RuleUnit = (typeof ruleUnits)[number]
@@ -288,7 +295,10 @@ export function ruleSet(records: readonly RuleRecord[]): RuleSet {
 
     // A day that comes back every year has to be in every year: the 29th of
     // February is not.
-    if (record.unit === 'month_day' && !isMonthDay(record.value)) {
+    if (
+      (record.unit === 'month_day' || record.unit === 'wednesday_before') &&
+      !isMonthDay(record.value)
+    ) {
       throw new RuleError(
         `Die Regel ${record.key} ab ${record.validFrom} nennt keinen Tag, den jedes Jahr hat: ${String(record.value)}.`,
       )
@@ -347,19 +357,28 @@ function isMonthDay(value: number): boolean {
 
 /**
  * The day a rule of a day names in a year: the day itself for `month_day`,
- * counted from Easter Sunday for `days_from_easter`, and none for a rule in
- * any other unit.
+ * counted from Easter Sunday for `days_from_easter`, the last Wednesday
+ * before the day for `wednesday_before`, and none for a rule in any other
+ * unit.
  */
 export function ruleDayIn(rule: Pick<RuleRecord, 'unit' | 'value'>, year: number): IsoDate | null {
   if (rule.unit === 'days_from_easter') {
     return addDays(easterSunday(year), rule.value)
   }
 
-  if (rule.unit === 'month_day' && isMonthDay(rule.value)) {
+  if ((rule.unit === 'month_day' || rule.unit === 'wednesday_before') && isMonthDay(rule.value)) {
     const month = String(Math.floor(rule.value / 100)).padStart(2, '0')
     const day = String(rule.value % 100).padStart(2, '0')
+    const named = `${String(year)}-${month}-${day}` as IsoDate
 
-    return `${String(year)}-${month}-${day}` as IsoDate
+    if (rule.unit === 'month_day') {
+      return named
+    }
+
+    // Wednesday is 3 counted from Sunday; one to seven days back, never the day itself.
+    const weekday = new Date(`${named}T00:00:00Z`).getUTCDay()
+
+    return addDays(named, -((weekday - 3 + 7) % 7 || 7))
   }
 
   return null

@@ -41,6 +41,15 @@ export function useWayBack(): WayBack | null {
     matchRoute({ to: '/zeiten/$day/nachtragen' }) ||
     matchRoute({ to: '/zeiten/$day/korrigieren/$entryId' })
 
+  // Asking for leave goes back to one's leave, and that to the time (#288).
+  if (matchRoute({ to: '/urlaub/beantragen' })) {
+    return { to: '/urlaub', label: 'Zurück zum Urlaub' }
+  }
+
+  if (matchRoute({ to: '/urlaub' })) {
+    return { to: '/zeiten', label: 'Zurück zu den Zeiten' }
+  }
+
   // A late entry or a correction goes back to its day.
   if (onEntry) {
     return { to: `/zeiten/${onEntry.day}`, label: 'Zurück zu den Zeiten' }

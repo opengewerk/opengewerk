@@ -410,7 +410,10 @@ describe('a set of rules, whatever its periods and scopes', () => {
 })
 
 describe('a rule of a day', () => {
-  const holiday = (unit: 'month_day' | 'days_from_easter', value: number): RuleRecord => ({
+  const holiday = (
+    unit: 'month_day' | 'days_from_easter' | 'wednesday_before',
+    value: number,
+  ): RuleRecord => ({
     key: 'day_off',
     scope: 'DE-BW',
     validFrom: '1995-05-08' as IsoDate,
@@ -444,7 +447,33 @@ describe('a rule of a day', () => {
     )
   })
 
+  it('names the last Wednesday before a day, never the day itself (opengewerk#288)', () => {
+    // The day of repentance and prayer in Saxony, from the calendars of these years.
+    expect(ruleDayIn(holiday('wednesday_before', 1123), 2025)).toBe('2025-11-19')
+    expect(ruleDayIn(holiday('wednesday_before', 1123), 2026)).toBe('2026-11-18')
+    expect(ruleDayIn(holiday('wednesday_before', 1123), 2027)).toBe('2027-11-17')
+    expect(ruleDayIn(holiday('wednesday_before', 1123), 2028)).toBe('2028-11-22')
+    // In 2033 the 23rd of November is a Wednesday, and the day is a week earlier.
+    expect(ruleDayIn(holiday('wednesday_before', 1123), 2033)).toBe('2033-11-16')
+  })
+
+  it('falls on a Wednesday one to seven days before its day, in every year', () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1583, max: 9999 }), (year) => {
+        const day = ruleDayIn(holiday('wednesday_before', 1123), year)
+        const at = new Date(`${String(day)}T00:00:00Z`)
+        const before =
+          (new Date(`${String(year)}-11-23T00:00:00Z`).getTime() - at.getTime()) / 86_400_000
+
+        expect(at.getUTCDay()).toBe(3)
+        expect(before).toBeGreaterThanOrEqual(1)
+        expect(before).toBeLessThanOrEqual(7)
+      }),
+    )
+  })
+
   it('is refused for a day that not every year has', () => {
+    expect(() => ruleSet([holiday('wednesday_before', 229)])).toThrow(RuleError)
     expect(() => ruleSet([holiday('month_day', 229)])).toThrow(RuleError)
     expect(() => ruleSet([holiday('month_day', 1301)])).toThrow(/keinen Tag, den jedes Jahr hat/)
     expect(() => ruleSet([holiday('month_day', 431)])).toThrow(RuleError)

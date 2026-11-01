@@ -54,10 +54,13 @@ const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
     { table: 'article_markups', column: 'article_id' },
     { table: 'supplier_articles', column: 'article_id' },
   ],
-  // The file of a person with their working times and qualifications (#287).
+  // The file of a person with their working times and qualifications (#287),
+  // their absences and the days of leave of each year (#288).
   people: [
     { table: 'working_times', column: 'person_id' },
     { table: 'qualifications', column: 'person_id' },
+    { table: 'absences', column: 'person_id' },
+    { table: 'leave_entitlements', column: 'person_id' },
   ],
   // A store with what it keeps and its bookings (#298).
   stores: [
@@ -192,6 +195,10 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   working_times: ['valid_from'],
   qualifications: ['kind_key', 'own_kind_id'],
   qualification_kinds: ['label'],
+  // An absence by its first day, the leave of a year by the year, the holidays by the state (#288).
+  absences: ['first_day'],
+  leave_entitlements: ['year'],
+  holiday_settings: ['state'],
   // A store by its name, what it keeps by the article, a booking by its kind (#298).
   stores: ['name'],
   store_articles: ['article_id'],

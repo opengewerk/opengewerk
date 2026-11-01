@@ -15,6 +15,7 @@ export {
   PERMISSION_METADATA,
   PUBLIC_METADATA,
   PublicRoute,
+  RequiresMembership,
   RequiresOperator,
   RequiresSession,
   SESSION_METADATA,

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Calendar,
   CalendarClock,
+  CalendarMinus,
   Clock,
   File,
   House,
@@ -18,6 +19,8 @@ import {
   Zap,
 } from 'lucide-react'
 import { useMemo } from 'react'
+
+import { absenceOverview, absencesKey } from '../session/absences.js'
 
 import { documentStatusOf, taskStatusOf } from '../app/labels.js'
 import { useMay } from '../app/queries.js'
@@ -42,6 +45,8 @@ export function useNavigation(): readonly NavigationGroup[] {
   const readsArticles = useMay('article.read')
   const readsSuppliers = useMay('supplier.read')
   const readsPeople = useMay('person.read')
+  const keepsAbsences = useMay('absence.write')
+  const requests = useOpenRequests(keepsAbsences)
   const mine = useOpenTasksOfMine()
   const drafts = useRecords('documents').filter(
     (document) => documentStatusOf(document) === 'draft',
@@ -121,11 +126,33 @@ export function useNavigation(): readonly NavigationGroup[] {
         ...(readsArticles ? [{ to: '/lager', label: 'Lager', icon: Warehouse }] : []),
       ],
     },
-    // The files of the people (#287), the module "Personal" of the concept;
-    // leave, the time account and the planning board join it with their issues.
+    // The files of the people (#287), the module "Personal" of the concept,
+    // with leave and sickness (#288); the time account and the planning board
+    // join it with their issues.
     {
       title: 'Personal',
-      entries: readsPeople ? [{ to: '/mitarbeiter', label: 'Mitarbeiter', icon: IdCard }] : [],
+      entries: [
+        ...(readsPeople ? [{ to: '/mitarbeiter', label: 'Mitarbeiter', icon: IdCard }] : []),
+        ...(keepsAbsences
+          ? [
+              {
+                to: '/abwesenheiten',
+                label: 'Abwesenheiten',
+                icon: CalendarMinus,
+                // The open requests, what waits for a decision, in the colour of what waits.
+                ...(requests > 0
+                  ? {
+                      badge: {
+                        value: requests,
+                        tone: 'waiting' as const,
+                        spoken: requests === 1 ? 'ein Antrag' : `${String(requests)} Anträge`,
+                      },
+                    }
+                  : {}),
+              },
+            ]
+          : []),
+      ],
     },
   ]
 }
@@ -149,4 +176,21 @@ function useOpenTasksOfMine(): number {
         : 0,
     [tasks, me],
   )
+}
+
+/**
+ * The requests for leave nobody has decided yet, for whoever keeps absences.
+ * Read from the server, where the requests are; the screen "Abwesenheiten"
+ * reads the same answer, so the figure moves as soon as one is decided.
+ */
+function useOpenRequests(keeps: boolean): number {
+  const year = new Date().getFullYear()
+  const overview = useQuery({
+    queryKey: [...absencesKey, 'overview', year],
+    queryFn: () => absenceOverview(year),
+    enabled: keeps,
+    staleTime: 60_000,
+  })
+
+  return overview.data?.requests.length ?? 0
 }

@@ -9,6 +9,7 @@
 // (ADR 0010) and is handed on from here, so that server and interface keep
 // asking one package.
 export * from '@opengewerk/platform-domain'
+export * from './model/absence.js'
 export * from './model/address.js'
 export * from './model/attachment.js'
 export * from './model/audit-log.js'
@@ -26,6 +27,7 @@ export * from './model/document-content.js'
 export * from './model/document-line.js'
 export * from './model/document-signature.js'
 export * from './model/file.js'
+export * from './model/holiday.js'
 export * from './model/identifier.js'
 export * from './model/installation.js'
 export * from './model/instruction.js'

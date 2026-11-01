@@ -1,0 +1,1806 @@
+{
+  "package": "holidays",
+  "note": "Die gesetzlichen Feiertage der 16 Länder, nach denen Urlaub und Zeitkonto zählen (#288, Feature-Gliederung 4.4). Ein Feiertag ist eine Regel mit dem Land als scope: ein Tag, der jedes Jahr wiederkommt, in month_day (Monat mal hundert plus Tag), einer, der mit Ostern wandert, in days_from_easter (ab Ostersonntag), der Buß- und Bettag in wednesday_before (der letzte Mittwoch vor dem 23. November). Die Notiz beginnt mit dem Namen des Feiertags, eine Erklärung folgt nach einem Doppelpunkt. Der Tag der Deutschen Einheit steht bei jedem Land mit Art. 2 Abs. 2 Einigungsvertrag, wie im Paket der Haustechnik. Feiertage, die nur in einzelnen Gemeinden gelten, haben den Schlüssel local_holiday und zählen erst, wenn der Betrieb sie unter Einstellungen zuschaltet. Gültig ist eine Regel ab dem Tag der Fassung des Gesetzes, ein später hinzugekommener Feiertag ab dem Tag, an dem er zum ersten Mal galt. Am 01.11.2026 geprüft: Bayern, Bremen, Hamburg, Hessen, Mecklenburg-Vorpommern, Niedersachsen, Nordrhein-Westfalen, Rheinland-Pfalz, Saarland, Sachsen-Anhalt, Schleswig-Holstein, Thüringen und Berlin am Text bei umwelt-online.de, Sachsen bei REVOSax, Brandenburg bei BRAVORS, Baden-Württemberg nach dem Paket der Haustechnik. In Hessen sind alle Sonntage gesetzliche Feiertage (§ 1 Abs. 1 HFeiertagsG); das sagt die Regel holiday.every_sunday mit dem Wert 1 in der Einheit flag. Einmalige Feiertage vor 2026 (Reformationstag 2017, in Berlin der 8. Mai 2020 und 2025) fehlen. Die fachliche Abnahme steht wie bei den übrigen Paketen in #31 aus.",
+  "records": [
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-BW",
+      "validFrom": "1995-05-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 1 FTG (Feiertagsgesetz Baden-Württemberg in der Fassung vom 8. Mai 1995, GBl. S. 450)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.epiphany",
+      "scope": "DE-BW",
+      "validFrom": "1995-05-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 106,
+      "source": "§ 1 FTG (Feiertagsgesetz Baden-Württemberg in der Fassung vom 8. Mai 1995, GBl. S. 450)",
+      "note": "Heilige Drei Könige"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-BW",
+      "validFrom": "1995-05-08",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 1 FTG (Feiertagsgesetz Baden-Württemberg in der Fassung vom 8. Mai 1995, GBl. S. 450)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-BW",
+      "validFrom": "1995-05-08",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 1 FTG (Feiertagsgesetz Baden-Württemberg in der Fassung vom 8. Mai 1995, GBl. S. 450)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-BW",
+      "validFrom": "1995-05-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 1 FTG (Feiertagsgesetz Baden-Württemberg in der Fassung vom 8. Mai 1995, GBl. S. 450)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-BW",
+      "validFrom": "1995-05-08",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 1 FTG (Feiertagsgesetz Baden-Württemberg in der Fassung vom 8. Mai 1995, GBl. S. 450)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-BW",
+      "validFrom": "1995-05-08",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 1 FTG (Feiertagsgesetz Baden-Württemberg in der Fassung vom 8. Mai 1995, GBl. S. 450)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.corpus_christi",
+      "scope": "DE-BW",
+      "validFrom": "1995-05-08",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 60,
+      "source": "§ 1 FTG (Feiertagsgesetz Baden-Württemberg in der Fassung vom 8. Mai 1995, GBl. S. 450)",
+      "note": "Fronleichnam"
+    },
+    {
+      "key": "holiday.all_saints_day",
+      "scope": "DE-BW",
+      "validFrom": "1995-05-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1101,
+      "source": "§ 1 FTG (Feiertagsgesetz Baden-Württemberg in der Fassung vom 8. Mai 1995, GBl. S. 450)",
+      "note": "Allerheiligen"
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-BW",
+      "validFrom": "1995-05-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 1 FTG (Feiertagsgesetz Baden-Württemberg in der Fassung vom 8. Mai 1995, GBl. S. 450)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-BW",
+      "validFrom": "1995-05-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 1 FTG (Feiertagsgesetz Baden-Württemberg in der Fassung vom 8. Mai 1995, GBl. S. 450)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-BW",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "Art. 1 Abs. 1 Satz 1 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.epiphany",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 106,
+      "source": "Art. 1 Abs. 1 Satz 1 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "Heilige Drei Könige"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "Art. 1 Abs. 1 Satz 1 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "Art. 1 Abs. 1 Satz 1 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "Art. 1 Abs. 1 Satz 1 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "Art. 1 Abs. 1 Satz 1 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "Art. 1 Abs. 1 Satz 1 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.corpus_christi",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 60,
+      "source": "Art. 1 Abs. 1 Satz 1 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "Fronleichnam"
+    },
+    {
+      "key": "holiday.all_saints_day",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1101,
+      "source": "Art. 1 Abs. 1 Satz 1 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "Allerheiligen"
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "Art. 1 Abs. 1 Satz 1 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "Art. 1 Abs. 1 Satz 1 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-BY",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "local_holiday.assumption_day",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 815,
+      "source": "Art. 1 Abs. 1 Satz 2 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "Mariä Himmelfahrt: nur in Gemeinden mit überwiegend katholischer Bevölkerung (Art. 1 Abs. 3 FTG)."
+    },
+    {
+      "key": "local_holiday.peace_festival",
+      "scope": "DE-BY",
+      "validFrom": "1980-05-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 808,
+      "source": "Art. 1 Abs. 2 FTG (Feiertagsgesetz Bayern vom 21. Mai 1980, BayRS 1131-3-I)",
+      "note": "Augsburger Friedensfest: nur in der Stadt Augsburg."
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-BE",
+      "validFrom": "1954-10-28",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 1 Abs. 1 Gesetz über die Sonn- und Feiertage (Berlin) vom 28. Oktober 1954, GVBl. S. 615",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.womens_day",
+      "scope": "DE-BE",
+      "validFrom": "2019-03-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 308,
+      "source": "§ 1 Abs. 1 Gesetz über die Sonn- und Feiertage (Berlin) vom 28. Oktober 1954, GVBl. S. 615",
+      "note": "Internationaler Frauentag: seit 2019, mit der Änderung vom 30.01.2019 (GVBl. S. 22)."
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-BE",
+      "validFrom": "1954-10-28",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 1 Abs. 1 Gesetz über die Sonn- und Feiertage (Berlin) vom 28. Oktober 1954, GVBl. S. 615",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-BE",
+      "validFrom": "1954-10-28",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 1 Abs. 1 Gesetz über die Sonn- und Feiertage (Berlin) vom 28. Oktober 1954, GVBl. S. 615",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-BE",
+      "validFrom": "1954-10-28",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 1 Abs. 1 Gesetz über die Sonn- und Feiertage (Berlin) vom 28. Oktober 1954, GVBl. S. 615",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-BE",
+      "validFrom": "1954-10-28",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 1 Abs. 1 Gesetz über die Sonn- und Feiertage (Berlin) vom 28. Oktober 1954, GVBl. S. 615",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-BE",
+      "validFrom": "1954-10-28",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 1 Abs. 1 Gesetz über die Sonn- und Feiertage (Berlin) vom 28. Oktober 1954, GVBl. S. 615",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-BE",
+      "validFrom": "1954-10-28",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 1 Abs. 1 Gesetz über die Sonn- und Feiertage (Berlin) vom 28. Oktober 1954, GVBl. S. 615",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-BE",
+      "validFrom": "1954-10-28",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 1 Abs. 1 Gesetz über die Sonn- und Feiertage (Berlin) vom 28. Oktober 1954, GVBl. S. 615",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-BE",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-BB",
+      "validFrom": "1991-03-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 2 Abs. 1 FTG (Feiertagsgesetz Brandenburg vom 21. März 1991, GVBl. I S. 44)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-BB",
+      "validFrom": "1991-03-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 2 Abs. 1 FTG (Feiertagsgesetz Brandenburg vom 21. März 1991, GVBl. I S. 44)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_sunday",
+      "scope": "DE-BB",
+      "validFrom": "1991-03-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 0,
+      "source": "§ 2 Abs. 1 FTG (Feiertagsgesetz Brandenburg vom 21. März 1991, GVBl. I S. 44)",
+      "note": "Ostersonntag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-BB",
+      "validFrom": "1991-03-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 2 Abs. 1 FTG (Feiertagsgesetz Brandenburg vom 21. März 1991, GVBl. I S. 44)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-BB",
+      "validFrom": "1991-03-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 2 Abs. 1 FTG (Feiertagsgesetz Brandenburg vom 21. März 1991, GVBl. I S. 44)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-BB",
+      "validFrom": "1991-03-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 2 Abs. 1 FTG (Feiertagsgesetz Brandenburg vom 21. März 1991, GVBl. I S. 44)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_sunday",
+      "scope": "DE-BB",
+      "validFrom": "1991-03-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 49,
+      "source": "§ 2 Abs. 1 FTG (Feiertagsgesetz Brandenburg vom 21. März 1991, GVBl. I S. 44)",
+      "note": "Pfingstsonntag"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-BB",
+      "validFrom": "1991-03-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 2 Abs. 1 FTG (Feiertagsgesetz Brandenburg vom 21. März 1991, GVBl. I S. 44)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.reformation_day",
+      "scope": "DE-BB",
+      "validFrom": "1991-03-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1031,
+      "source": "§ 2 Abs. 1 FTG (Feiertagsgesetz Brandenburg vom 21. März 1991, GVBl. I S. 44)",
+      "note": "Reformationstag"
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-BB",
+      "validFrom": "1991-03-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 2 Abs. 1 FTG (Feiertagsgesetz Brandenburg vom 21. März 1991, GVBl. I S. 44)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-BB",
+      "validFrom": "1991-03-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 2 Abs. 1 FTG (Feiertagsgesetz Brandenburg vom 21. März 1991, GVBl. I S. 44)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-BB",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-HB",
+      "validFrom": "1954-11-12",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 2 Abs. 1 Gesetz über die Sonn- und Feiertage (Bremen) vom 12. November 1954",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-HB",
+      "validFrom": "1954-11-12",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 2 Abs. 1 Gesetz über die Sonn- und Feiertage (Bremen) vom 12. November 1954",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-HB",
+      "validFrom": "1954-11-12",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 2 Abs. 1 Gesetz über die Sonn- und Feiertage (Bremen) vom 12. November 1954",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-HB",
+      "validFrom": "1954-11-12",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 2 Abs. 1 Gesetz über die Sonn- und Feiertage (Bremen) vom 12. November 1954",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-HB",
+      "validFrom": "1954-11-12",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 2 Abs. 1 Gesetz über die Sonn- und Feiertage (Bremen) vom 12. November 1954",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-HB",
+      "validFrom": "1954-11-12",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 2 Abs. 1 Gesetz über die Sonn- und Feiertage (Bremen) vom 12. November 1954",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.reformation_day",
+      "scope": "DE-HB",
+      "validFrom": "2018-10-31",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1031,
+      "source": "§ 2 Abs. 1 Gesetz über die Sonn- und Feiertage (Bremen) vom 12. November 1954",
+      "note": "Reformationstag: seit 2018."
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-HB",
+      "validFrom": "1954-11-12",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 2 Abs. 1 Gesetz über die Sonn- und Feiertage (Bremen) vom 12. November 1954",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-HB",
+      "validFrom": "1954-11-12",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 2 Abs. 1 Gesetz über die Sonn- und Feiertage (Bremen) vom 12. November 1954",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-HB",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-HH",
+      "validFrom": "1953-10-16",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 1 Feiertagsgesetz (Hamburg) vom 16. Oktober 1953",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-HH",
+      "validFrom": "1953-10-16",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 1 Feiertagsgesetz (Hamburg) vom 16. Oktober 1953",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-HH",
+      "validFrom": "1953-10-16",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 1 Feiertagsgesetz (Hamburg) vom 16. Oktober 1953",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-HH",
+      "validFrom": "1953-10-16",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 1 Feiertagsgesetz (Hamburg) vom 16. Oktober 1953",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-HH",
+      "validFrom": "1953-10-16",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 1 Feiertagsgesetz (Hamburg) vom 16. Oktober 1953",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-HH",
+      "validFrom": "1953-10-16",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 1 Feiertagsgesetz (Hamburg) vom 16. Oktober 1953",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.reformation_day",
+      "scope": "DE-HH",
+      "validFrom": "2018-10-31",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1031,
+      "source": "§ 1 Feiertagsgesetz (Hamburg) vom 16. Oktober 1953",
+      "note": "Reformationstag: seit 2018, mit der Änderung vom 12.03.2018 (HmbGVBl. S. 63)."
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-HH",
+      "validFrom": "1953-10-16",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 1 Feiertagsgesetz (Hamburg) vom 16. Oktober 1953",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-HH",
+      "validFrom": "1953-10-16",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 1 Feiertagsgesetz (Hamburg) vom 16. Oktober 1953",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-HH",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-HE",
+      "validFrom": "1971-12-29",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 1 Abs. 1 HFeiertagsG (Hessisches Feiertagsgesetz vom 29. Dezember 1971)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-HE",
+      "validFrom": "1971-12-29",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 1 Abs. 1 HFeiertagsG (Hessisches Feiertagsgesetz vom 29. Dezember 1971)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-HE",
+      "validFrom": "1971-12-29",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 1 Abs. 1 HFeiertagsG (Hessisches Feiertagsgesetz vom 29. Dezember 1971)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-HE",
+      "validFrom": "1971-12-29",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 1 Abs. 1 HFeiertagsG (Hessisches Feiertagsgesetz vom 29. Dezember 1971)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-HE",
+      "validFrom": "1971-12-29",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 1 Abs. 1 HFeiertagsG (Hessisches Feiertagsgesetz vom 29. Dezember 1971)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-HE",
+      "validFrom": "1971-12-29",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 1 Abs. 1 HFeiertagsG (Hessisches Feiertagsgesetz vom 29. Dezember 1971)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.corpus_christi",
+      "scope": "DE-HE",
+      "validFrom": "1971-12-29",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 60,
+      "source": "§ 1 Abs. 1 HFeiertagsG (Hessisches Feiertagsgesetz vom 29. Dezember 1971)",
+      "note": "Fronleichnam"
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-HE",
+      "validFrom": "1971-12-29",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 1 Abs. 1 HFeiertagsG (Hessisches Feiertagsgesetz vom 29. Dezember 1971)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-HE",
+      "validFrom": "1971-12-29",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 1 Abs. 1 HFeiertagsG (Hessisches Feiertagsgesetz vom 29. Dezember 1971)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-HE",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-MV",
+      "validFrom": "2002-03-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 2 Abs. 1 FTG M-V (Feiertagsgesetz Mecklenburg-Vorpommern vom 8. März 2002)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.womens_day",
+      "scope": "DE-MV",
+      "validFrom": "2023-03-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 308,
+      "source": "§ 2 Abs. 1 FTG M-V (Feiertagsgesetz Mecklenburg-Vorpommern vom 8. März 2002)",
+      "note": "Internationaler Frauentag: seit 2023, mit der Änderung vom 07.07.2022 (GVOBl. S. 427)."
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-MV",
+      "validFrom": "2002-03-08",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 2 Abs. 1 FTG M-V (Feiertagsgesetz Mecklenburg-Vorpommern vom 8. März 2002)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-MV",
+      "validFrom": "2002-03-08",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 2 Abs. 1 FTG M-V (Feiertagsgesetz Mecklenburg-Vorpommern vom 8. März 2002)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-MV",
+      "validFrom": "2002-03-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 2 Abs. 1 FTG M-V (Feiertagsgesetz Mecklenburg-Vorpommern vom 8. März 2002)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-MV",
+      "validFrom": "2002-03-08",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 2 Abs. 1 FTG M-V (Feiertagsgesetz Mecklenburg-Vorpommern vom 8. März 2002)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-MV",
+      "validFrom": "2002-03-08",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 2 Abs. 1 FTG M-V (Feiertagsgesetz Mecklenburg-Vorpommern vom 8. März 2002)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.reformation_day",
+      "scope": "DE-MV",
+      "validFrom": "2002-03-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1031,
+      "source": "§ 2 Abs. 1 FTG M-V (Feiertagsgesetz Mecklenburg-Vorpommern vom 8. März 2002)",
+      "note": "Reformationstag"
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-MV",
+      "validFrom": "2002-03-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 2 Abs. 1 FTG M-V (Feiertagsgesetz Mecklenburg-Vorpommern vom 8. März 2002)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-MV",
+      "validFrom": "2002-03-08",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 2 Abs. 1 FTG M-V (Feiertagsgesetz Mecklenburg-Vorpommern vom 8. März 2002)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-MV",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-NI",
+      "validFrom": "1995-03-07",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 2 Abs. 1 NFeiertagsG (Niedersächsisches Gesetz über die Feiertage vom 7. März 1995, Nds. GVBl. S. 50)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-NI",
+      "validFrom": "1995-03-07",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 2 Abs. 1 NFeiertagsG (Niedersächsisches Gesetz über die Feiertage vom 7. März 1995, Nds. GVBl. S. 50)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-NI",
+      "validFrom": "1995-03-07",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 2 Abs. 1 NFeiertagsG (Niedersächsisches Gesetz über die Feiertage vom 7. März 1995, Nds. GVBl. S. 50)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-NI",
+      "validFrom": "1995-03-07",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 2 Abs. 1 NFeiertagsG (Niedersächsisches Gesetz über die Feiertage vom 7. März 1995, Nds. GVBl. S. 50)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-NI",
+      "validFrom": "1995-03-07",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 2 Abs. 1 NFeiertagsG (Niedersächsisches Gesetz über die Feiertage vom 7. März 1995, Nds. GVBl. S. 50)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-NI",
+      "validFrom": "1995-03-07",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 2 Abs. 1 NFeiertagsG (Niedersächsisches Gesetz über die Feiertage vom 7. März 1995, Nds. GVBl. S. 50)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.reformation_day",
+      "scope": "DE-NI",
+      "validFrom": "2018-10-31",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1031,
+      "source": "§ 2 Abs. 1 NFeiertagsG (Niedersächsisches Gesetz über die Feiertage vom 7. März 1995, Nds. GVBl. S. 50)",
+      "note": "Reformationstag: seit 2018, mit der Änderung vom 22.06.2018 (Nds. GVBl. S. 122)."
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-NI",
+      "validFrom": "1995-03-07",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 2 Abs. 1 NFeiertagsG (Niedersächsisches Gesetz über die Feiertage vom 7. März 1995, Nds. GVBl. S. 50)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-NI",
+      "validFrom": "1995-03-07",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 2 Abs. 1 NFeiertagsG (Niedersächsisches Gesetz über die Feiertage vom 7. März 1995, Nds. GVBl. S. 50)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-NI",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-NW",
+      "validFrom": "1989-04-23",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 2 Abs. 1 Feiertagsgesetz NW (Gesetz über die Sonn- und Feiertage vom 23. April 1989, GV. NW. S. 222)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-NW",
+      "validFrom": "1989-04-23",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 2 Abs. 1 Feiertagsgesetz NW (Gesetz über die Sonn- und Feiertage vom 23. April 1989, GV. NW. S. 222)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-NW",
+      "validFrom": "1989-04-23",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 2 Abs. 1 Feiertagsgesetz NW (Gesetz über die Sonn- und Feiertage vom 23. April 1989, GV. NW. S. 222)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-NW",
+      "validFrom": "1989-04-23",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 2 Abs. 1 Feiertagsgesetz NW (Gesetz über die Sonn- und Feiertage vom 23. April 1989, GV. NW. S. 222)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-NW",
+      "validFrom": "1989-04-23",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 2 Abs. 1 Feiertagsgesetz NW (Gesetz über die Sonn- und Feiertage vom 23. April 1989, GV. NW. S. 222)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-NW",
+      "validFrom": "1989-04-23",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 2 Abs. 1 Feiertagsgesetz NW (Gesetz über die Sonn- und Feiertage vom 23. April 1989, GV. NW. S. 222)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.corpus_christi",
+      "scope": "DE-NW",
+      "validFrom": "1989-04-23",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 60,
+      "source": "§ 2 Abs. 1 Feiertagsgesetz NW (Gesetz über die Sonn- und Feiertage vom 23. April 1989, GV. NW. S. 222)",
+      "note": "Fronleichnam"
+    },
+    {
+      "key": "holiday.all_saints_day",
+      "scope": "DE-NW",
+      "validFrom": "1989-04-23",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1101,
+      "source": "§ 2 Abs. 1 Feiertagsgesetz NW (Gesetz über die Sonn- und Feiertage vom 23. April 1989, GV. NW. S. 222)",
+      "note": "Allerheiligen"
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-NW",
+      "validFrom": "1989-04-23",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 2 Abs. 1 Feiertagsgesetz NW (Gesetz über die Sonn- und Feiertage vom 23. April 1989, GV. NW. S. 222)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-NW",
+      "validFrom": "1989-04-23",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 2 Abs. 1 Feiertagsgesetz NW (Gesetz über die Sonn- und Feiertage vom 23. April 1989, GV. NW. S. 222)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-NW",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-RP",
+      "validFrom": "1970-07-15",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 2 Abs. 1 LFtG (Feiertagsgesetz Rheinland-Pfalz vom 15. Juli 1970)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-RP",
+      "validFrom": "1970-07-15",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 2 Abs. 1 LFtG (Feiertagsgesetz Rheinland-Pfalz vom 15. Juli 1970)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-RP",
+      "validFrom": "1970-07-15",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 2 Abs. 1 LFtG (Feiertagsgesetz Rheinland-Pfalz vom 15. Juli 1970)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-RP",
+      "validFrom": "1970-07-15",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 2 Abs. 1 LFtG (Feiertagsgesetz Rheinland-Pfalz vom 15. Juli 1970)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-RP",
+      "validFrom": "1970-07-15",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 2 Abs. 1 LFtG (Feiertagsgesetz Rheinland-Pfalz vom 15. Juli 1970)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-RP",
+      "validFrom": "1970-07-15",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 2 Abs. 1 LFtG (Feiertagsgesetz Rheinland-Pfalz vom 15. Juli 1970)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.corpus_christi",
+      "scope": "DE-RP",
+      "validFrom": "1970-07-15",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 60,
+      "source": "§ 2 Abs. 1 LFtG (Feiertagsgesetz Rheinland-Pfalz vom 15. Juli 1970)",
+      "note": "Fronleichnam"
+    },
+    {
+      "key": "holiday.all_saints_day",
+      "scope": "DE-RP",
+      "validFrom": "1970-07-15",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1101,
+      "source": "§ 2 Abs. 1 LFtG (Feiertagsgesetz Rheinland-Pfalz vom 15. Juli 1970)",
+      "note": "Allerheiligen"
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-RP",
+      "validFrom": "1970-07-15",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 2 Abs. 1 LFtG (Feiertagsgesetz Rheinland-Pfalz vom 15. Juli 1970)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-RP",
+      "validFrom": "1970-07-15",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 2 Abs. 1 LFtG (Feiertagsgesetz Rheinland-Pfalz vom 15. Juli 1970)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-RP",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-SL",
+      "validFrom": "1976-02-18",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 2 Abs. 1 SFG (Feiertagsgesetz Saarland, Gesetz Nr. 1040 vom 18. Februar 1976, Amtsbl. S. 211)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-SL",
+      "validFrom": "1976-02-18",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 2 Abs. 1 SFG (Feiertagsgesetz Saarland, Gesetz Nr. 1040 vom 18. Februar 1976, Amtsbl. S. 211)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-SL",
+      "validFrom": "1976-02-18",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 2 Abs. 1 SFG (Feiertagsgesetz Saarland, Gesetz Nr. 1040 vom 18. Februar 1976, Amtsbl. S. 211)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-SL",
+      "validFrom": "1976-02-18",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 2 Abs. 1 SFG (Feiertagsgesetz Saarland, Gesetz Nr. 1040 vom 18. Februar 1976, Amtsbl. S. 211)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-SL",
+      "validFrom": "1976-02-18",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 2 Abs. 1 SFG (Feiertagsgesetz Saarland, Gesetz Nr. 1040 vom 18. Februar 1976, Amtsbl. S. 211)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-SL",
+      "validFrom": "1976-02-18",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 2 Abs. 1 SFG (Feiertagsgesetz Saarland, Gesetz Nr. 1040 vom 18. Februar 1976, Amtsbl. S. 211)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.corpus_christi",
+      "scope": "DE-SL",
+      "validFrom": "1976-02-18",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 60,
+      "source": "§ 2 Abs. 1 SFG (Feiertagsgesetz Saarland, Gesetz Nr. 1040 vom 18. Februar 1976, Amtsbl. S. 211)",
+      "note": "Fronleichnam"
+    },
+    {
+      "key": "holiday.assumption_day",
+      "scope": "DE-SL",
+      "validFrom": "1976-02-18",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 815,
+      "source": "§ 2 Abs. 1 SFG (Feiertagsgesetz Saarland, Gesetz Nr. 1040 vom 18. Februar 1976, Amtsbl. S. 211)",
+      "note": "Mariä Himmelfahrt"
+    },
+    {
+      "key": "holiday.all_saints_day",
+      "scope": "DE-SL",
+      "validFrom": "1976-02-18",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1101,
+      "source": "§ 2 Abs. 1 SFG (Feiertagsgesetz Saarland, Gesetz Nr. 1040 vom 18. Februar 1976, Amtsbl. S. 211)",
+      "note": "Allerheiligen"
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-SL",
+      "validFrom": "1976-02-18",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 2 Abs. 1 SFG (Feiertagsgesetz Saarland, Gesetz Nr. 1040 vom 18. Februar 1976, Amtsbl. S. 211)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-SL",
+      "validFrom": "1976-02-18",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 2 Abs. 1 SFG (Feiertagsgesetz Saarland, Gesetz Nr. 1040 vom 18. Februar 1976, Amtsbl. S. 211)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-SL",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-SN",
+      "validFrom": "1992-11-10",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 1 Abs. 1 SächsSFG (Gesetz über Sonn- und Feiertage im Freistaat Sachsen vom 10. November 1992, SächsGVBl. S. 536)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-SN",
+      "validFrom": "1992-11-10",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 1 Abs. 1 SächsSFG (Gesetz über Sonn- und Feiertage im Freistaat Sachsen vom 10. November 1992, SächsGVBl. S. 536)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-SN",
+      "validFrom": "1992-11-10",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 1 Abs. 1 SächsSFG (Gesetz über Sonn- und Feiertage im Freistaat Sachsen vom 10. November 1992, SächsGVBl. S. 536)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-SN",
+      "validFrom": "1992-11-10",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 1 Abs. 1 SächsSFG (Gesetz über Sonn- und Feiertage im Freistaat Sachsen vom 10. November 1992, SächsGVBl. S. 536)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-SN",
+      "validFrom": "1992-11-10",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 1 Abs. 1 SächsSFG (Gesetz über Sonn- und Feiertage im Freistaat Sachsen vom 10. November 1992, SächsGVBl. S. 536)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-SN",
+      "validFrom": "1992-11-10",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 1 Abs. 1 SächsSFG (Gesetz über Sonn- und Feiertage im Freistaat Sachsen vom 10. November 1992, SächsGVBl. S. 536)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.reformation_day",
+      "scope": "DE-SN",
+      "validFrom": "1992-11-10",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1031,
+      "source": "§ 1 Abs. 1 SächsSFG (Gesetz über Sonn- und Feiertage im Freistaat Sachsen vom 10. November 1992, SächsGVBl. S. 536)",
+      "note": "Reformationstag"
+    },
+    {
+      "key": "holiday.repentance_day",
+      "scope": "DE-SN",
+      "validFrom": "1992-11-10",
+      "validUntil": null,
+      "unit": "wednesday_before",
+      "value": 1123,
+      "source": "§ 1 Abs. 1 SächsSFG (Gesetz über Sonn- und Feiertage im Freistaat Sachsen vom 10. November 1992, SächsGVBl. S. 536)",
+      "note": "Buß- und Bettag"
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-SN",
+      "validFrom": "1992-11-10",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 1 Abs. 1 SächsSFG (Gesetz über Sonn- und Feiertage im Freistaat Sachsen vom 10. November 1992, SächsGVBl. S. 536)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-SN",
+      "validFrom": "1992-11-10",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 1 Abs. 1 SächsSFG (Gesetz über Sonn- und Feiertage im Freistaat Sachsen vom 10. November 1992, SächsGVBl. S. 536)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-SN",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "local_holiday.corpus_christi",
+      "scope": "DE-SN",
+      "validFrom": "1992-11-10",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 60,
+      "source": "§ 1 Abs. 1 SächsSFG (Gesetz über Sonn- und Feiertage im Freistaat Sachsen vom 10. November 1992, SächsGVBl. S. 536)",
+      "note": "Fronleichnam: nur in den Gemeinden, die das Staatsministerium des Innern durch Rechtsverordnung bestimmt."
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-ST",
+      "validFrom": "2004-08-25",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 2 FeiertG LSA (Gesetz über die Sonn- und Feiertage Sachsen-Anhalt vom 25. August 2004, GVBl. S. 538)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.epiphany",
+      "scope": "DE-ST",
+      "validFrom": "2004-08-25",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 106,
+      "source": "§ 2 FeiertG LSA (Gesetz über die Sonn- und Feiertage Sachsen-Anhalt vom 25. August 2004, GVBl. S. 538)",
+      "note": "Heilige Drei Könige"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-ST",
+      "validFrom": "2004-08-25",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 2 FeiertG LSA (Gesetz über die Sonn- und Feiertage Sachsen-Anhalt vom 25. August 2004, GVBl. S. 538)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-ST",
+      "validFrom": "2004-08-25",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 2 FeiertG LSA (Gesetz über die Sonn- und Feiertage Sachsen-Anhalt vom 25. August 2004, GVBl. S. 538)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-ST",
+      "validFrom": "2004-08-25",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 2 FeiertG LSA (Gesetz über die Sonn- und Feiertage Sachsen-Anhalt vom 25. August 2004, GVBl. S. 538)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-ST",
+      "validFrom": "2004-08-25",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 2 FeiertG LSA (Gesetz über die Sonn- und Feiertage Sachsen-Anhalt vom 25. August 2004, GVBl. S. 538)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-ST",
+      "validFrom": "2004-08-25",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 2 FeiertG LSA (Gesetz über die Sonn- und Feiertage Sachsen-Anhalt vom 25. August 2004, GVBl. S. 538)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.reformation_day",
+      "scope": "DE-ST",
+      "validFrom": "2004-08-25",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1031,
+      "source": "§ 2 FeiertG LSA (Gesetz über die Sonn- und Feiertage Sachsen-Anhalt vom 25. August 2004, GVBl. S. 538)",
+      "note": "Reformationstag"
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-ST",
+      "validFrom": "2004-08-25",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 2 FeiertG LSA (Gesetz über die Sonn- und Feiertage Sachsen-Anhalt vom 25. August 2004, GVBl. S. 538)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-ST",
+      "validFrom": "2004-08-25",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 2 FeiertG LSA (Gesetz über die Sonn- und Feiertage Sachsen-Anhalt vom 25. August 2004, GVBl. S. 538)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-ST",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-SH",
+      "validFrom": "2004-06-28",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 2 Abs. 1 SFTG (Gesetz über Sonn- und Feiertage Schleswig-Holstein vom 28. Juni 2004, GVOBl. S. 213)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-SH",
+      "validFrom": "2004-06-28",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 2 Abs. 1 SFTG (Gesetz über Sonn- und Feiertage Schleswig-Holstein vom 28. Juni 2004, GVOBl. S. 213)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-SH",
+      "validFrom": "2004-06-28",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 2 Abs. 1 SFTG (Gesetz über Sonn- und Feiertage Schleswig-Holstein vom 28. Juni 2004, GVOBl. S. 213)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-SH",
+      "validFrom": "2004-06-28",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 2 Abs. 1 SFTG (Gesetz über Sonn- und Feiertage Schleswig-Holstein vom 28. Juni 2004, GVOBl. S. 213)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-SH",
+      "validFrom": "2004-06-28",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 2 Abs. 1 SFTG (Gesetz über Sonn- und Feiertage Schleswig-Holstein vom 28. Juni 2004, GVOBl. S. 213)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-SH",
+      "validFrom": "2004-06-28",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 2 Abs. 1 SFTG (Gesetz über Sonn- und Feiertage Schleswig-Holstein vom 28. Juni 2004, GVOBl. S. 213)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.reformation_day",
+      "scope": "DE-SH",
+      "validFrom": "2018-10-31",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1031,
+      "source": "§ 2 Abs. 1 SFTG (Gesetz über Sonn- und Feiertage Schleswig-Holstein vom 28. Juni 2004, GVOBl. S. 213)",
+      "note": "Reformationstag: seit 2018, mit der Änderung vom 21.03.2018 (GVOBl. S. 69)."
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-SH",
+      "validFrom": "2004-06-28",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 2 Abs. 1 SFTG (Gesetz über Sonn- und Feiertage Schleswig-Holstein vom 28. Juni 2004, GVOBl. S. 213)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-SH",
+      "validFrom": "2004-06-28",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 2 Abs. 1 SFTG (Gesetz über Sonn- und Feiertage Schleswig-Holstein vom 28. Juni 2004, GVOBl. S. 213)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-SH",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "holiday.new_year",
+      "scope": "DE-TH",
+      "validFrom": "1994-12-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 101,
+      "source": "§ 2 Abs. 1 ThürFGtG (Thüringer Feier- und Gedenktagsgesetz vom 21. Dezember 1994)",
+      "note": "Neujahr"
+    },
+    {
+      "key": "holiday.good_friday",
+      "scope": "DE-TH",
+      "validFrom": "1994-12-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": -2,
+      "source": "§ 2 Abs. 1 ThürFGtG (Thüringer Feier- und Gedenktagsgesetz vom 21. Dezember 1994)",
+      "note": "Karfreitag"
+    },
+    {
+      "key": "holiday.easter_monday",
+      "scope": "DE-TH",
+      "validFrom": "1994-12-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 1,
+      "source": "§ 2 Abs. 1 ThürFGtG (Thüringer Feier- und Gedenktagsgesetz vom 21. Dezember 1994)",
+      "note": "Ostermontag"
+    },
+    {
+      "key": "holiday.labour_day",
+      "scope": "DE-TH",
+      "validFrom": "1994-12-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 501,
+      "source": "§ 2 Abs. 1 ThürFGtG (Thüringer Feier- und Gedenktagsgesetz vom 21. Dezember 1994)",
+      "note": "1. Mai"
+    },
+    {
+      "key": "holiday.ascension_day",
+      "scope": "DE-TH",
+      "validFrom": "1994-12-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 39,
+      "source": "§ 2 Abs. 1 ThürFGtG (Thüringer Feier- und Gedenktagsgesetz vom 21. Dezember 1994)",
+      "note": "Christi Himmelfahrt"
+    },
+    {
+      "key": "holiday.whit_monday",
+      "scope": "DE-TH",
+      "validFrom": "1994-12-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 50,
+      "source": "§ 2 Abs. 1 ThürFGtG (Thüringer Feier- und Gedenktagsgesetz vom 21. Dezember 1994)",
+      "note": "Pfingstmontag"
+    },
+    {
+      "key": "holiday.childrens_day",
+      "scope": "DE-TH",
+      "validFrom": "2019-09-20",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 920,
+      "source": "§ 2 Abs. 1 ThürFGtG (Thüringer Feier- und Gedenktagsgesetz vom 21. Dezember 1994)",
+      "note": "Weltkindertag: seit 2019, mit der Änderung vom 26.03.2019 (GVBl. S. 22)."
+    },
+    {
+      "key": "holiday.reformation_day",
+      "scope": "DE-TH",
+      "validFrom": "1994-12-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1031,
+      "source": "§ 2 Abs. 1 ThürFGtG (Thüringer Feier- und Gedenktagsgesetz vom 21. Dezember 1994)",
+      "note": "Reformationstag"
+    },
+    {
+      "key": "holiday.christmas_day",
+      "scope": "DE-TH",
+      "validFrom": "1994-12-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1225,
+      "source": "§ 2 Abs. 1 ThürFGtG (Thüringer Feier- und Gedenktagsgesetz vom 21. Dezember 1994)",
+      "note": "1. Weihnachtstag"
+    },
+    {
+      "key": "holiday.second_christmas_day",
+      "scope": "DE-TH",
+      "validFrom": "1994-12-21",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1226,
+      "source": "§ 2 Abs. 1 ThürFGtG (Thüringer Feier- und Gedenktagsgesetz vom 21. Dezember 1994)",
+      "note": "2. Weihnachtstag"
+    },
+    {
+      "key": "holiday.unity_day",
+      "scope": "DE-TH",
+      "validFrom": "1990-10-03",
+      "validUntil": null,
+      "unit": "month_day",
+      "value": 1003,
+      "source": "Art. 2 Abs. 2 Einigungsvertrag",
+      "note": "Tag der Deutschen Einheit"
+    },
+    {
+      "key": "local_holiday.corpus_christi",
+      "scope": "DE-TH",
+      "validFrom": "1994-12-21",
+      "validUntil": null,
+      "unit": "days_from_easter",
+      "value": 60,
+      "source": "§ 2 Abs. 2 ThürFGtG (Thüringer Feier- und Gedenktagsgesetz vom 21. Dezember 1994)",
+      "note": "Fronleichnam: nur in den Gemeinden mit überwiegend katholischer Wohnbevölkerung, die eine Rechtsverordnung bestimmt."
+    },
+    {
+      "key": "holiday.every_sunday",
+      "scope": "DE-HE",
+      "validFrom": "1971-12-29",
+      "validUntil": null,
+      "unit": "flag",
+      "value": 1,
+      "source": "§ 1 Abs. 1 HFeiertagsG (Hessisches Feiertagsgesetz vom 29. Dezember 1971)",
+      "note": "Alle Sonntage."
+    },
+    {
+      "key": "holiday.uprising_anniversary",
+      "scope": "DE-BE",
+      "validFrom": "2028-06-17",
+      "validUntil": "2028-06-17",
+      "unit": "month_day",
+      "value": 617,
+      "source": "§ 1 Abs. 1 Gesetz über die Sonn- und Feiertage (Berlin) vom 28. Oktober 1954, GVBl. S. 615, geändert am 10.07.2024 (GVBl. S. 460)",
+      "note": "75. Jahrestag des Aufstands vom 17. Juni 1953: einmalig."
+    }
+  ]
+}
