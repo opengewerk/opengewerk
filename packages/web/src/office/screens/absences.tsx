@@ -231,7 +231,7 @@ function RequestsPanel({
               <Link
                 to="/abwesenheiten/$personId"
                 params={{ personId: request.personId }}
-                className={cardLink}
+                className="text-ink no-underline hover:underline"
               >
                 {request.name}
               </Link>
