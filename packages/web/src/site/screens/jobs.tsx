@@ -41,6 +41,7 @@ import {
 import { useMay } from '../../app/queries.js'
 import { clockOf, useStopwatch } from '../../app/time.js'
 import { InstallationPanel } from './installation.js'
+import { AppointmentsCard } from './appointments.js'
 import { JobContacts } from './contacts.js'
 import { JobFiles } from './files.js'
 import { JobNotes } from './notes.js'
@@ -180,6 +181,8 @@ export function SiteJobList() {
         title="Offene Aufträge"
         right={<TitleCount count={open.length} label="offen" />}
       />
+
+      <AppointmentsCard />
 
       {open.length === 0 ? (
         <Panel title="Nichts offen">

@@ -8,7 +8,7 @@
  * portal in phase 5. Each person switches off under "Konto" what they do not
  * want as push, and every occasion is on until they do.
  */
-export const pushOccasions = ['task_due', 'deadline_due'] as const
+export const pushOccasions = ['task_due', 'deadline_due', 'appointment'] as const
 
 export type PushOccasion = (typeof pushOccasions)[number]
 
@@ -27,6 +27,10 @@ export const pushOccasionWords: Readonly<
   deadline_due: {
     label: 'Fristen',
     about: 'Wenn eine Frist, für die du verantwortlich bist, erinnert.',
+  },
+  appointment: {
+    label: 'Termine',
+    about: 'Wenn du einen neuen Termin bekommst oder einer sich ändert oder entfällt.',
   },
 }
 

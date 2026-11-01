@@ -207,6 +207,46 @@ describe('the device of a technician', () => {
     expect(idsOf(await pull('britta'), 'job_notes')).toEqual(expect.arrayContaining([mine, theirs]))
   })
 
+  it('holds the jobs its person has an appointment at, with the appointments and who goes (#290)', async () => {
+    const lindner = await household('Lindner')
+    const sommer = await household('Sommer')
+    const appoint = async (jobId: string, userIds: readonly string[]) => {
+      const answer = await http()
+        .post('/appointments')
+        .set('x-test-identity', as('britta'))
+        .send({
+          jobId,
+          startsAt: '2031-11-07T06:00:00Z',
+          endsAt: '2031-11-07T14:00:00Z',
+          userIds,
+        })
+        .expect(201)
+
+      return (answer.body as { appointment: { id: string } }).appointment.id
+    }
+
+    // Nobody put Max on the job by hand: the appointment does.
+    const his = await appoint(lindner.job, ['max', 'toni'])
+    const theirs = await appoint(sommer.job, ['toni'])
+    const pulled = await pull('max')
+
+    expect(idsOf(pulled, 'jobs')).toContain(lindner.job)
+    expect(idsOf(pulled, 'jobs')).not.toContain(sommer.job)
+    expect(idsOf(pulled, 'appointments')).toEqual([his])
+    expect(
+      (pulled.changes.find((change) => change.entity === 'appointment_people')?.rows ?? [])
+        .map((row) => [row['appointmentId'], row['userId']])
+        .sort(),
+    ).toEqual([
+      [his, 'max'],
+      [his, 'toni'],
+    ])
+    expect(pulled.narrowed['appointments']).toBe(pulled.narrowed['jobs'])
+    expect(idsOf(await pull('britta'), 'appointments')).toEqual(
+      expect.arrayContaining([his, theirs]),
+    )
+  })
+
   it('holds a task handed to its person, wherever the task hangs', async () => {
     const kramer = await household('Kramer')
     // Tasks are written through the outbox, on site as in the office.

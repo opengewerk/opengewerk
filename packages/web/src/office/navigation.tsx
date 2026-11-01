@@ -6,6 +6,7 @@ import {
   Calendar,
   CalendarClock,
   CalendarMinus,
+  CalendarRange,
   Clock,
   File,
   House,
@@ -46,6 +47,7 @@ export function useNavigation(): readonly NavigationGroup[] {
   const readsSuppliers = useMay('supplier.read')
   const readsPeople = useMay('person.read')
   const keepsAbsences = useMay('absence.write')
+  const plans = useMay('job.write')
   const requests = useOpenRequests(keepsAbsences)
   const mine = useOpenTasksOfMine()
   const drafts = useRecords('documents').filter(
@@ -73,6 +75,8 @@ export function useNavigation(): readonly NavigationGroup[] {
       title: 'Arbeit',
       entries: [
         { to: '/auftraege', label: 'Aufträge', icon: Calendar },
+        // Who goes where when (#290), for whoever plans the jobs.
+        ...(plans ? [{ to: '/plantafel', label: 'Plantafel', icon: CalendarRange }] : []),
         ...(readsDocuments
           ? [
               {
@@ -127,8 +131,7 @@ export function useNavigation(): readonly NavigationGroup[] {
       ],
     },
     // The files of the people (#287), the module "Personal" of the concept,
-    // with leave and sickness (#288); the time account and the planning board
-    // join it with their issues.
+    // with leave and sickness (#288).
     {
       title: 'Personal',
       entries: [

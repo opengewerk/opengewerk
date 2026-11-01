@@ -134,6 +134,10 @@ export function permissionFor(
     document_sources: 'document.write',
     // The same for who is on a job (#140), which the office sets at a route.
     job_assignments: 'job.write',
+    // And for the appointments of the planning board and who goes to them
+    // (#290), made at the routes of the office.
+    appointments: 'job.write',
+    appointment_people: 'job.write',
     // The ways into a site (#286), kept at the routes of the site, which ask
     // for `site.access`; the policy refuses every write from a device, and
     // this names the right to change the site they belong to. A showing is

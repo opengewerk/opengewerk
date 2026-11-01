@@ -160,6 +160,12 @@ describe('"Konto"', () => {
           about: 'Wenn eine Frist, für die du verantwortlich bist, erinnert.',
           on: true,
         },
+        {
+          key: 'appointment',
+          label: 'Termine',
+          about: 'Wenn du einen neuen Termin bekommst oder einer sich ändert oder entfällt.',
+          on: true,
+        },
       ],
       devices: [],
     })
@@ -255,6 +261,7 @@ describe('an occasion', () => {
     expect(off.body).toEqual([
       expect.objectContaining({ key: 'task_due', on: false }),
       expect.objectContaining({ key: 'deadline_due', on: true }),
+      expect.objectContaining({ key: 'appointment', on: true }),
     ])
     expect((await overview('max')).occasions.every((occasion) => occasion.on)).toBe(true)
 

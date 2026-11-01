@@ -9,6 +9,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Plantafel (#290), nach der Feature-Gliederung v2.47 und den Tafeln aus Version 98 des Canvas: Unter „Arbeit“,
+  „Plantafel“ steht für jede Person mit Zugang eine Zeile, eine Woche oder vier Wochen nebeneinander, dazu die
+  freigegebenen Abwesenheiten und die Feiertage des Betriebs; am Rand warten die offenen Aufträge, die ab heute keinen
+  Termin haben. Ein Termin hängt an einem Auftrag und hat Beginn, Ende, eine kurze Notiz und die Personen, die
+  hingehen; Serien werden als Regel nach RFC 5545 gespeichert (RRULE und EXDATE), und ein einzelner Tag lässt sich
+  ausnehmen. Verschoben, verlängert und umgehängt wird mit Maus oder Finger und ebenso im Formular; ein Termin in einer
+  Abwesenheit bekommt eine Warnung. Wer einen Termin bekommt, wird dem Auftrag zugeordnet und hat ihn damit auf dem
+  Gerät; über einen neuen, geänderten oder entfallenen Termin sagt eine Push-Nachricht Bescheid (Anlass „Termine“),
+  und auf der Baustelle bestätigt der Monteur unter „Meine Termine“ die Fassung, die er gesehen hat. Termine reisen
+  auf die Geräte, geschrieben werden sie an den Routen unter `/appointments` und nur in der Fassung, die die Tafel
+  gelesen hat (Migration `0111_appointments`, Nachtrag in ADR 0005). Warum: Ein Betrieb mit mehreren Monteuren plant
+  bisher an der Wand oder in einer Tabelle, und der Monteur erfährt den Termin am Telefon; jetzt steht er auf dem
+  Gerät, mit dem Auftrag, den er dafür braucht.
 - Das Zeitkonto (#289), nach der Feature-Gliederung v2.46 und den Tafeln aus Version 97 des Canvas: Unter
   „Zeiterfassung“ steht in der Woche das Soll jedes Tages mit dem Saldo bis gestern, darunter die Karte „Zeitkonto“
   mit dem Übertrag aus dem Vorjahr, Soll, Ist und Saldo je Monat und dem Stand; auf der Baustelle zeigt die Karte

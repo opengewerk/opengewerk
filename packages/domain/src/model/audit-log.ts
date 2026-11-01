@@ -158,7 +158,12 @@ const auditPersonFields: readonly string[] = [
  * a consent. A membership, a stretch of work in the business and an occasion
  * switched off for push the foundation names the same way.
  */
-const auditPersonTables: readonly string[] = ['job_assignments', 'location_consents']
+const auditPersonTables: readonly string[] = [
+  'job_assignments',
+  'location_consents',
+  // Who goes to an appointment (#290), by the person.
+  'appointment_people',
+]
 
 /**
  * Where a record's name is, field by field until one has a value. A document
@@ -203,6 +208,8 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   stores: ['name'],
   store_articles: ['article_id'],
   stock_movements: ['kind'],
+  // An appointment by when it begins, as the board shows it (#290).
+  appointments: ['starts_at'],
   // Hours are told apart by when they began; whose they are the list says anyway.
   time_entries: ['started_at'],
   letterheads: ['company_name'],
