@@ -233,6 +233,14 @@ describe('the calendar of a person', () => {
       version: takenOff.appointment.version,
     })
 
+    // Removed with whoever was on it still listed: the route takes both off,
+    // and the calendar does not lean on that.
+    const marked = await make(['jonas'])
+
+    await admin.query('update appointments set deleted_at = now() where id = $1', [
+      marked.appointment.id,
+    ])
+
     const { path } = await newAddress(jonas)
     const calendar = await fetched(path)
 
@@ -289,6 +297,9 @@ describe('the calendar of a person', () => {
 
   it('is not there under an address nobody made, nor under one of another shape', async () => {
     const unknown = 'A'.repeat(43)
+
+    // With an address of somebody else there to be found by mistake.
+    await newAddress(anna)
 
     for (const path of [`/calendar/${unknown}.ics`, '/calendar/abc.ics', `/calendar/${unknown}`]) {
       expect([path, (await http().get(path)).status]).toEqual([path, 404])
