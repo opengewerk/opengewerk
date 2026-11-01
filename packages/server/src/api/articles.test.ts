@@ -614,6 +614,31 @@ describe('the list of articles', () => {
     await get('/articles?limit=500', office, 400)
     await get('/articles?offset=-1', office, 400)
   })
+
+  it('finds exactly the articles of an EAN, for a scan on site (#263)', async () => {
+    // Its number holds the EAN of the cable: a search finds both, the EAN only the cable.
+    const lookalike = await post('/articles', {
+      number: '2001042000018-R',
+      designation: 'Mantelleitung NYM-J 3 × 1,5 mm², Ring',
+      unit: 'piece',
+    })
+
+    try {
+      expect((await list('?search=2001042000018')).rows.map((row) => row.number)).toEqual([
+        '1042',
+        '2001042000018-R',
+      ])
+      expect(await list('?ean=2001042000018', technician)).toMatchObject({
+        total: 1,
+        rows: [{ id: cable, number: '1042', priceCents: 92 }],
+      })
+      expect((await list('?ean=2009999000013')).rows).toEqual([])
+      await get('/articles?ean=200104200001', office, 400)
+      await get('/articles?ean=JA2404118780', office, 400)
+    } finally {
+      await http().delete(`/articles/${lookalike.id}`).set('x-test-identity', office).expect(200)
+    }
+  })
 })
 
 describe('what a device holds', () => {

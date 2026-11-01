@@ -11,7 +11,7 @@ import { maybeText, text, useRecords, useSyncStatus } from '@opengewerk/platform
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
-import { articlePage } from '../session/articles.js'
+import { type ArticleRow, articlePage } from '../session/articles.js'
 
 /** An article a search found, as a line takes it over (#296). */
 export interface FoundArticle {
@@ -95,6 +95,27 @@ function held(
     )
 }
 
+/** An article of the catalogue on the server as a line takes it over. */
+function foundOf(row: ArticleRow): FoundArticle {
+  return {
+    id: row.id,
+    number: row.number,
+    designation: row.designation,
+    description: row.description,
+    unit: row.unit,
+    priceCents: row.priceCents,
+    priceBase: row.priceBase ?? 1,
+    frequent: row.frequent,
+  }
+}
+
+/** Whether the device counts itself without a connection; see `ArticleSearch.offline`. */
+function useOffline(): boolean {
+  const status = useSyncStatus()
+
+  return !status.online || status.trouble !== null
+}
+
 /** Whether an article on the device answers a search: its number, its name or its EAN. */
 function matches(article: FoundArticle, ean: string | null, wanted: string): boolean {
   const needle = wanted.toLocaleLowerCase('de')
@@ -112,8 +133,7 @@ function matches(article: FoundArticle, ean: string | null, wanted: string): boo
  * choice offers before anybody types.
  */
 export function useArticleSearch(search: string, day: IsoDate, limit: number): ArticleSearch {
-  const status = useSyncStatus()
-  const offline = !status.online || status.trouble !== null
+  const offline = useOffline()
   const articles = useRecords('articles')
   const prices = useRecords('article_prices')
   const wanted = search.trim()
@@ -145,16 +165,7 @@ export function useArticleSearch(search: string, day: IsoDate, limit: number): A
 
   if (wanted !== '' && !offline && !remote.isError) {
     return {
-      found: (remote.data?.rows ?? []).map((row) => ({
-        id: row.id,
-        number: row.number,
-        designation: row.designation,
-        description: row.description,
-        unit: row.unit,
-        priceCents: row.priceCents,
-        priceBase: row.priceBase ?? 1,
-        frequent: row.frequent,
-      })),
+      found: (remote.data?.rows ?? []).map(foundOf),
       total: remote.data?.total ?? 0,
       where: 'catalogue',
       pending: remote.isPending,
@@ -169,4 +180,71 @@ export function useArticleSearch(search: string, day: IsoDate, limit: number): A
     pending: false,
     offline,
   }
+}
+
+/** What a scanned EAN finds (#263). */
+export type EanLookup =
+  | { readonly state: 'searching' }
+  | { readonly state: 'found'; readonly articles: readonly FoundArticle[] }
+  /**
+   * No article has the EAN: none on the device, and without a connection
+   * that is as far as the device can look, or none in the whole catalogue.
+   */
+  | { readonly state: 'unknown'; readonly where: 'device' | 'catalogue' }
+
+/** How many articles with one EAN stand as a choice; more than one is rare already. */
+const sameEanShown = 8
+
+/**
+ * The articles with exactly this EAN, for a scan on site (#263): those on the
+ * device first, which is at once and also without a connection, then with a
+ * connection those of the whole catalogue. A server that does not answer
+ * leaves what the device knows, as the search does.
+ */
+export function useEanLookup(ean: string, day: IsoDate): EanLookup {
+  const offline = useOffline()
+  const articles = useRecords('articles')
+  const prices = useRecords('article_prices')
+  const local = useMemo(
+    () =>
+      held(
+        articles.filter((article) => maybeText(article, 'ean') === ean),
+        prices,
+        day,
+      ),
+    [articles, prices, day, ean],
+  )
+  const remote = useQuery({
+    queryKey: ['articles', 'ean', ean, day],
+    queryFn: () =>
+      articlePage({
+        search: '',
+        frequent: false,
+        group: '',
+        sort: 'number',
+        offset: 0,
+        limit: sameEanShown,
+        on: day,
+        ean,
+      }),
+    enabled: !offline && local.length === 0,
+    staleTime: 30_000,
+    retry: false,
+  })
+
+  if (local.length > 0) {
+    return { state: 'found', articles: local.slice(0, sameEanShown) }
+  }
+
+  if (offline || remote.isError) {
+    return { state: 'unknown', where: 'device' }
+  }
+
+  if (remote.isPending) {
+    return { state: 'searching' }
+  }
+
+  return remote.data.rows.length === 0
+    ? { state: 'unknown', where: 'catalogue' }
+    : { state: 'found', articles: remote.data.rows.map(foundOf) }
 }

@@ -2,6 +2,8 @@ import 'fake-indexeddb/auto'
 
 import type { Operation, OperationReceipt, RecordState } from '@opengewerk/domain'
 import { signaturePathIsValid, signedContentFingerprint } from '@opengewerk/domain'
+import { ScanningContext } from '@opengewerk/platform-web/site'
+import type { CodeReader, Scanning } from '@opengewerk/platform-web/site'
 import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
 import type { DirectWriter, PullResult, SyncTransport } from '@opengewerk/platform-web/sync'
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -152,6 +154,29 @@ class Server implements SyncTransport, DirectWriter {
 let server: Server
 let counter = 0
 
+/** What the camera sees now (#263); a test holds a package in front of it by setting this. */
+let seen: string | null = null
+let released = 0
+
+const reader: CodeReader = { read: () => Promise.resolve(seen) }
+
+const scanning: Scanning = {
+  openReader: () => Promise.resolve(reader),
+  openCamera: () => {
+    const stream = new MediaStream()
+    const track = {
+      stop: () => {
+        released += 1
+      },
+    } as unknown as MediaStreamTrack
+
+    stream.getTracks = () => [track]
+
+    return Promise.resolve(stream)
+  },
+  interval: 10,
+}
+
 const customer = { id: 'c-1', kind: 'private', name: 'Familie Berg', version: 1, deletedAt: null }
 
 const job = {
@@ -229,7 +254,9 @@ async function mount(path: string, rows: Readonly<Record<string, Row[]>> = {}) {
   render(
     <QueryClientProvider client={queries}>
       <SyncProvider client={client}>
-        <RouterProvider router={router} />
+        <ScanningContext value={scanning}>
+          <RouterProvider router={router} />
+        </ScanningContext>
       </SyncProvider>
     </QueryClientProvider>,
   )
@@ -270,6 +297,8 @@ function signOn(pad: Element): string {
 
 beforeEach(() => {
   server = new Server()
+  seen = null
+  released = 0
 })
 
 afterEach(() => {
@@ -972,5 +1001,206 @@ describe('a report in draft', () => {
 
     await screen.findByRole('button', { name: 'Material eintragen' })
     expect(screen.queryByRole('button', { name: 'Entwurf löschen' })).toBeNull()
+  })
+})
+
+describe('material scanned on site (#263)', () => {
+  const cable = { ...heldArticles[1], ean: '2001044000016' }
+  const breaker = { ...heldArticles[0], ean: '2002101000017' }
+
+  /** Stands in for the catalogue on the server; returns what it was asked. */
+  function catalogue(rows: readonly Record<string, unknown>[]): string[] {
+    const asked: string[] = []
+
+    vi.stubGlobal('fetch', (url: RequestInfo | URL) => {
+      const path = url instanceof Request ? url.url : String(url)
+
+      asked.push(path)
+
+      return path.includes('/articles?')
+        ? Promise.resolve(
+            new Response(JSON.stringify({ total: rows.length, rows }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+          )
+        : Promise.reject(new TypeError('Failed to fetch'))
+    })
+
+    return asked
+  }
+
+  function offline() {
+    server.offline = true
+    act(() => {
+      window.dispatchEvent(new Event('offline'))
+    })
+  }
+
+  it('takes the article of a scanned EAN from the device, also without a network', async () => {
+    const user = userEvent.setup()
+
+    await mount('/auftraege/j-1/berichte/d-1', {
+      documents: [draftReport],
+      articles: [breaker, cable],
+    })
+    offline()
+
+    await user.click(await screen.findByRole('button', { name: 'Material scannen' }))
+
+    expect(
+      screen.getByText('Die EAN auf der Packung oder am Regal in den Rahmen halten.'),
+    ).toBeTruthy()
+
+    seen = ' 2001044000016 '
+
+    expect(await screen.findByText('Gescannt: EAN 2001044000016')).toBeTruthy()
+    expect(released).toBe(1)
+    expect((screen.getByLabelText('Material') as HTMLInputElement).value).toBe(
+      'Mantelleitung NYM-J 5 × 6 mm²',
+    )
+    expect((screen.getByLabelText('Einheit') as HTMLSelectElement).value).toBe('metre')
+    expect(screen.queryByLabelText('Artikel suchen')).toBeNull()
+
+    await user.clear(screen.getByLabelText('Menge'))
+    await user.type(screen.getByLabelText('Menge'), '7')
+    await user.click(screen.getByRole('button', { name: 'Material sichern' }))
+
+    expect(await screen.findByText('7 m')).toBeTruthy()
+
+    server.offline = false
+    act(() => {
+      window.dispatchEvent(new Event('online'))
+    })
+
+    await waitFor(() => {
+      expect(server.operations().some((operation) => operation.entity === 'document_lines')).toBe(
+        true,
+      )
+    })
+
+    const line = server.operations().find((operation) => operation.entity === 'document_lines')
+
+    expect(
+      Object.fromEntries(line?.patches.map((patch) => [patch.field, patch.to]) ?? []),
+    ).toMatchObject({
+      articleId: 'a-1044',
+      designation: 'Mantelleitung NYM-J 5 × 6 mm²',
+      unit: 'metre',
+      quantityMilli: 7_000,
+    })
+  })
+
+  it('asks the whole catalogue for exactly the EAN the device does not hold', async () => {
+    const user = userEvent.setup()
+    const asked = catalogue([
+      {
+        id: 'a-7030',
+        number: '7030',
+        designation: 'Wallbox 11 kW, lastmanagementfähig',
+        description: null,
+        unit: 'piece',
+        groupOfGoods: null,
+        frequent: false,
+        priceCents: 118_000,
+        priceBase: 1,
+        supplierName: null,
+        suppliers: 0,
+      },
+    ])
+
+    await mount('/auftraege/j-1/berichte/d-1', {
+      documents: [draftReport],
+      articles: [breaker, cable],
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Material scannen' }))
+    seen = '2007030000015'
+
+    expect(await screen.findByText('Gescannt: EAN 2007030000015')).toBeTruthy()
+    expect((screen.getByLabelText('Material') as HTMLInputElement).value).toBe(
+      'Wallbox 11 kW, lastmanagementfähig',
+    )
+
+    const query = new URL(asked.find((path) => path.includes('/articles?')) ?? '', 'http://x')
+
+    expect(query.searchParams.get('ean')).toBe('2007030000015')
+    expect(query.searchParams.get('search')).toBeNull()
+    expect(query.searchParams.get('on')).toBe('2026-09-21')
+  })
+
+  it('offers a choice where several articles have the EAN', async () => {
+    const user = userEvent.setup()
+
+    await mount('/auftraege/j-1/berichte/d-1', {
+      documents: [draftReport],
+      articles: [{ ...breaker, ean: '2001044000016' }, cable],
+    })
+    offline()
+
+    await user.click(await screen.findByRole('button', { name: 'Material scannen' }))
+    seen = '2001044000016'
+
+    expect(await screen.findByText('Zur EAN 2001044000016 gibt es zwei Artikel.')).toBeTruthy()
+
+    await user.click(
+      screen.getByRole('button', { name: 'Leitungsschutzschalter B16, 1-polig übernehmen' }),
+    )
+
+    expect((screen.getByLabelText('Material') as HTMLInputElement).value).toBe(
+      'Leitungsschutzschalter B16, 1-polig',
+    )
+    expect(screen.getByText('Gescannt: EAN 2001044000016')).toBeTruthy()
+  })
+
+  it('says so for an EAN no article on the device has, and scans again', async () => {
+    const user = userEvent.setup()
+
+    await mount('/auftraege/j-1/berichte/d-1', {
+      documents: [draftReport],
+      articles: [breaker, cable],
+    })
+    offline()
+
+    await user.click(await screen.findByRole('button', { name: 'Material scannen' }))
+    seen = '2009999000013'
+
+    expect(await screen.findByText('Kein Artikel mit dieser EAN')).toBeTruthy()
+    expect(screen.getByText(/Die EAN 2009999000013 kennt dieses Gerät nicht/)).toBeTruthy()
+
+    seen = '2002101000017'
+    await user.click(screen.getByRole('button', { name: 'Nochmal scannen' }))
+
+    expect(await screen.findByText('Gescannt: EAN 2002101000017')).toBeTruthy()
+  })
+
+  it('says so for an EAN the whole catalogue does not have', async () => {
+    const user = userEvent.setup()
+
+    catalogue([])
+    await mount('/auftraege/j-1/berichte/d-1', { documents: [draftReport], articles: [cable] })
+
+    await user.click(await screen.findByRole('button', { name: 'Material scannen' }))
+    seen = '2009999000013'
+
+    expect(await screen.findByText(/Auch im ganzen Katalog hat kein Artikel die EAN/)).toBeTruthy()
+  })
+
+  it('says so for a code that is no EAN, and leads to typing the material', async () => {
+    const user = userEvent.setup()
+
+    await mount('/auftraege/j-1/berichte/d-1', { documents: [draftReport], articles: [cable] })
+    offline()
+
+    await user.click(await screen.findByRole('button', { name: 'Material scannen' }))
+    // The check digit is off by one: a misread, not an EAN.
+    seen = '2001044000017'
+
+    expect(await screen.findByText('Das ist keine EAN')).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: 'Von Hand eintragen' }))
+
+    expect(screen.getByLabelText('Artikel suchen')).toBeTruthy()
+    expect((screen.getByLabelText('Material') as HTMLInputElement).value).toBe('')
   })
 })

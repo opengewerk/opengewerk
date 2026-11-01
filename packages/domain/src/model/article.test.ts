@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   articleProblems,
   articleUnitProblem,
+  eanFromScan,
   isCalendarDay,
   priceOn,
   priceProblems,
@@ -67,6 +68,25 @@ describe('the fields of an article', () => {
     expect(articleProblems({ ean: '2001042000019' })).toEqual({
       ean: 'Die Prüfziffer der EAN stimmt nicht.',
     })
+  })
+})
+
+describe('the EAN in a scanned code (#263)', () => {
+  it('is an EAN-13 or an EAN-8 whose check digit adds up', () => {
+    expect(eanFromScan('2001042000018')).toBe('2001042000018')
+    expect(eanFromScan(' 96385074 ')).toBe('96385074')
+  })
+
+  it('is the EAN-13 with a leading zero when a reader gives a UPC-A', () => {
+    expect(eanFromScan('036000291452')).toBe('0036000291452')
+  })
+
+  it('is none for a wrong check digit, another length or a text', () => {
+    expect(eanFromScan('2001042000017')).toBeNull()
+    expect(eanFromScan('036000291453')).toBeNull()
+    expect(eanFromScan('20010420000180')).toBeNull()
+    expect(eanFromScan('JA2404118780')).toBeNull()
+    expect(eanFromScan('https://msk.example/a/K7Q2M9')).toBeNull()
   })
 })
 

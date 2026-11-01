@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Material scannen auf der Baustelle (#263), nach der Feature-Gliederung v2.42 und den Tafeln aus Version 90 des
+  Canvas: Neben „Material eintragen“ im Regiebericht öffnet „Material scannen“ die Kamera, die die EAN auf der Packung
+  oder am Regal liest. Der Artikel mit dieser EAN kommt mit Bezeichnung und Einheit in „Material eintragen“, und nur die
+  Menge bleibt einzutragen. Gesucht wird zuerst unter den Artikeln auf dem Gerät, auch ohne Netz, mit Netz dann im
+  ganzen Katalog über den neuen Filter `ean` der Artikelliste, der genau diese EAN findet und keine Artikelnummer, in
+  der sie steckt. Haben mehrere Artikel die EAN, stehen sie zur Wahl; ein Code, der keine EAN ist, und eine EAN, die
+  kein Artikel hat, sagen das, mit „Nochmal scannen“ und „Von Hand eintragen“. Die Kamera ist die der Seriennummern und
+  Etiketten, mit ZXing in Browsern ohne eigene Erkennung. Warum: Abschnitt 4.5 nennt die Materialentnahme per Barcode
+  in der App, und seit DATANORM tragen die Artikel ihre EAN.
+
 - Metall aus den Z-Sätzen von DATANORM (#782), nach der Feature-Gliederung v2.41 und den Tafeln aus Version 89 des
   Canvas: Ein Import liest die Z-Sätze, die Basis und Gewicht eines Metalls nennen, wie das Kupfer des zweiten Satzes
   und vor ihm, und kennt dafür Silber und Messing neben Kupfer und Aluminium (Migration `0107_silver_and_brass`). Ein
