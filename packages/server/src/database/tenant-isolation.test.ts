@@ -996,6 +996,25 @@ const crossings: readonly {
       sql`insert into qualifications (tenant_id, person_id, kind_key, certificate_sha256)
             values (${own.tenant}, ${own.person}, 'core.driving_licence', ${other.fileHash})`,
   },
+  // An appointment at a job here, and who goes to it (#290): somebody who works
+  // here, at an appointment here. Inserts, because the application may only
+  // mark who goes deleted and never move them.
+  {
+    key: 'appointments_job_in_tenant',
+    write: (own, other) => repoint('appointments', 'job_id', own.appointment, other.job),
+  },
+  {
+    key: 'appointment_people_of_an_appointment',
+    write: (own, other) =>
+      sql`insert into appointment_people (tenant_id, appointment_id, user_id)
+            values (${own.tenant}, ${other.appointment}, ${own.user})`,
+  },
+  {
+    key: 'appointment_people_work_here',
+    write: (own, other) =>
+      sql`insert into appointment_people (tenant_id, appointment_id, user_id)
+            values (${own.tenant}, ${own.appointment}, ${other.user})`,
+  },
   // Leave and sickness (#288): an absence and the days of a year of a person here.
   {
     key: 'absences_of_somebody_here',
@@ -1327,6 +1346,8 @@ interface Planted {
   /** A person in the files, with the owner's account, and a kind of qualification of the business (#287). */
   readonly person: string
   readonly qualificationKind: string
+  /** An appointment at the job above (#290). */
+  readonly appointment: string
 }
 
 /**
@@ -1542,6 +1563,10 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     qualificationKind: await one(
       "insert into qualification_kinds (tenant_id, label, level) values ($1, 'Ersthelfer', 'instructed_person')",
       [tenant],
+    ),
+    appointment: await one(
+      "insert into appointments (tenant_id, job_id, starts_at, ends_at) values ($1, $2, '2026-11-06T07:00:00Z', '2026-11-06T15:00:00Z')",
+      [tenant, job],
     ),
   }
 }

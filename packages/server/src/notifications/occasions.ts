@@ -14,7 +14,7 @@ import {
   signedDocuments,
   taskDue,
 } from './notify.js'
-import { pushDeadlineDue, type PushNotifyContext, pushTaskDue } from './push.js'
+import { pushAppointment, pushDeadlineDue, type PushNotifyContext, pushTaskDue } from './push.js'
 
 /** What the writers of this application need beside the moment: the kinds of deadline, for a test. */
 export interface NotificationExtra {
@@ -66,6 +66,10 @@ export const occasions = occasionsOf<Notification, NotificationExtra>({
     },
     mail: deadlineDue,
     push: pushDeadlineDue,
+  },
+  appointment: {
+    causeOf,
+    push: pushAppointment,
   },
 })
 

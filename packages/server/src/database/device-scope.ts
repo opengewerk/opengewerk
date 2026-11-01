@@ -149,6 +149,8 @@ export const scopedEntities: readonly string[] = [
   'jobs',
   'job_assignments',
   'job_notes',
+  'appointments',
+  'appointment_people',
   'customers',
   'customer_tags',
   'contacts',
@@ -223,6 +225,11 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
   const own: Readonly<Record<string, SQL>> = {
     jobs: sql`${column('id')} in ${jobs}`,
     job_assignments: sql`${column('job_id')} in ${jobs}`,
+    // The appointments of the jobs the device holds and who goes to them
+    // (#290): "Meine Termine" without a network, and the colleagues of an
+    // appointment beside them.
+    appointments: sql`${column('job_id')} in ${jobs}`,
+    appointment_people: sql`${column('appointment_id')} in (select id from appointments where job_id = any(${ids}))`,
     job_notes: sql`${column('job_id')} in ${jobs}`,
     customers: sql`${column('id')} in ${customers}`,
     // The tags of every customer and site the device holds, those its person

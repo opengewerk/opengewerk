@@ -47,6 +47,11 @@ export function useWayBack(): WayBack | null {
     return { to: '/urlaub', label: 'Zurück zum Urlaub' }
   }
 
+  // One's appointments go back to the open jobs they stand above (#290).
+  if (matchRoute({ to: '/termine' })) {
+    return { to: '/', label: 'Zurück zu den Aufträgen' }
+  }
+
   if (matchRoute({ to: '/urlaub' }) || matchRoute({ to: '/zeitkonto' })) {
     return { to: '/zeiten', label: 'Zurück zu den Zeiten' }
   }

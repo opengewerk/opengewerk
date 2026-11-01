@@ -41,4 +41,6 @@ export const serverPaths = [
   'holidays',
   // The time account, from the file, the absences and the time recorded (#289).
   'time-account',
+  // The appointments of the planning board (#290).
+  'appointments',
 ] as const

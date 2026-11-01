@@ -1,4 +1,5 @@
 import {
+  berlinClock,
   closesProgressInvoices,
   type DocumentContent,
   type DocumentKind,
@@ -151,6 +152,32 @@ export function deadlineDuePush(facts: {
   readonly dueOn: string
 }): PushText {
   return { title: `Frist am ${germanDate(facts.dueOn)}`, body: facts.kind }
+}
+
+const weekdayShort = ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.']
+
+/**
+ * An appointment that is news to a person (#290): new, changed or cancelled,
+ * with the day and the clock time of its next time in Germany and nothing of
+ * the customer, because the message stands on a locked screen.
+ */
+export function appointmentPush(facts: {
+  readonly change: 'new' | 'changed' | 'cancelled'
+  readonly startsAt: Date
+}): PushText {
+  const clock = berlinClock(facts.startsAt)
+  const weekday = weekdayShort[new Date(`${clock.day}T12:00:00Z`).getUTCDay()] ?? ''
+  const time = `${String(Math.floor(clock.minute / 60)).padStart(2, '0')}:${String(clock.minute % 60).padStart(2, '0')}`
+  const when = `${weekday}, ${germanDate(clock.day)}, ${time} Uhr`
+
+  switch (facts.change) {
+    case 'new':
+      return { title: 'Neuer Termin', body: when }
+    case 'changed':
+      return { title: 'Termin geändert', body: `Jetzt ${when}` }
+    case 'cancelled':
+      return { title: 'Termin entfällt', body: when }
+  }
 }
 
 /** The message a person sends themselves from "Konto", to see that push works. */

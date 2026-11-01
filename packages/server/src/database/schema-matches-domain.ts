@@ -27,6 +27,8 @@ import type {
   Instruction,
   Job,
   JobAssignment,
+  Appointment,
+  AppointmentPerson,
   JobNote,
   Letterhead,
   Membership,
@@ -91,6 +93,8 @@ import type {
   formRecords,
   customerTags,
   jobAssignments,
+  appointments,
+  appointmentPeople,
   jobNotes,
   jobs,
   letterheads,
@@ -206,6 +210,10 @@ export type FormDefinitionMatches = Assert<
   Exact<typeof formDefinitions.$inferSelect, FormDefinitionRecord>
 >
 export type JobAssignmentMatches = Assert<Exact<typeof jobAssignments.$inferSelect, JobAssignment>>
+export type AppointmentMatches = Assert<Exact<typeof appointments.$inferSelect, Appointment>>
+export type AppointmentPersonMatches = Assert<
+  Exact<typeof appointmentPeople.$inferSelect, AppointmentPerson>
+>
 export type TagMatches = Assert<Exact<typeof tags.$inferSelect, Tag>>
 export type CustomerTagMatches = Assert<Exact<typeof customerTags.$inferSelect, CustomerTag>>
 export type SiteTagMatches = Assert<Exact<typeof siteTags.$inferSelect, SiteTag>>

@@ -1,6 +1,7 @@
 import type { IsoDate } from '@opengewerk/domain'
 import {
   addDays,
+  berlinInstant,
   lineUnits,
   signedContentFingerprint,
   weekdayMinutes,
@@ -8,7 +9,7 @@ import {
 } from '@opengewerk/domain'
 import { newId } from '@opengewerk/platform-server'
 
-import { previewUser } from './preview-database.js'
+import { previewColleagues, previewUser } from './preview-database.js'
 
 type Answer = Record<string, unknown>
 
@@ -637,6 +638,7 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   // store is chosen on the device, as the site does it.
   const { van } = await plantStock(base, catalogue)
   await plantPeople(base, today)
+  await plantAppointments(base, today, { renewal, wallbox, stairwell, nordblick, estate })
   const fromTheVan = 'Unterverteilung im Keller erweitert, zwei Stromkreise neu gelegt.'
   const vanReport = await document(
     {
@@ -847,10 +849,14 @@ async function plantPeople(base: string, today: IsoDate): Promise<void> {
     ['Moritz Kohm', '2022-05-01', full],
     ['Tim Schäfer', addDays(today, -31), [5, 5, 5, 5, 5]],
   ] as const) {
+    // Linked to the colleague's access, where there is one (#290): the
+    // planning board shows who is away by the access an appointment goes to.
+    const access = previewColleagues.find((colleague) => colleague.name === name)
     const person = (await post('/people', {
       name,
       joinedOn,
       workingTime: { validFrom: joinedOn, ...week(hours) },
+      ...(access ? { userId: access.id } : {}),
     })) as { id: string }
 
     await post(`/people/${person.id}/qualifications`, {
@@ -862,6 +868,104 @@ async function plantPeople(base: string, today: IsoDate): Promise<void> {
 
   await plantAbsences(base, today, ids)
   await plantTime(base, today)
+}
+
+/**
+ * The planning board of this week (#290), as the canvas draws it: three days
+ * at the meter cabinet for two people, the wallbox on Thursday, an afternoon
+ * at the stairwell on Friday not yet confirmed, an appointment of Max Becker
+ * on a day he is sick, a measuring at the stairwell for the owner on
+ * Wednesday, and a series every Monday morning with a day taken out. A job
+ * at the estate has no appointment and waits at the edge. The preview's own
+ * person confirms theirs; the colleagues cannot sign in, and theirs wait.
+ */
+async function plantAppointments(
+  base: string,
+  today: IsoDate,
+  jobs: {
+    readonly renewal: string
+    readonly wallbox: string
+    readonly stairwell: string
+    readonly nordblick: string
+    readonly estate: string
+  },
+): Promise<void> {
+  const post = (path: string, body: unknown) => send(base, 'POST', path, body)
+  const weekday = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7
+  const monday = addDays(today, -weekday)
+  const at = (day: number, hour: number, minute = 0) =>
+    berlinInstant(addDays(monday, day), hour * 60 + minute).toISOString()
+  const [jonas, lena, max, moritz] = [
+    'preview-jonas',
+    'preview-lena',
+    'preview-max',
+    'preview-moritz',
+  ]
+  const appoint = async (body: Record<string, unknown>, confirm = false) => {
+    const made = (await post('/appointments', body)) as {
+      appointment?: { id?: string; revision?: number }
+    }
+
+    if (confirm && made.appointment?.id !== undefined) {
+      await post(`/appointments/${made.appointment.id}/confirm`, {
+        revision: made.appointment.revision,
+      })
+    }
+  }
+
+  const lights = idOf(
+    await post('/jobs', {
+      customerId: jobs.nordblick,
+      siteId: jobs.estate,
+      kind: 'service',
+      status: 'active',
+      designation: 'Notbeleuchtung prüfen',
+    }),
+  )
+
+  await post('/jobs', {
+    customerId: jobs.nordblick,
+    siteId: jobs.estate,
+    kind: 'service',
+    status: 'active',
+    designation: 'Rauchwarnmelder tauschen',
+  })
+
+  await appoint(
+    {
+      jobId: jobs.renewal,
+      startsAt: at(0, 7, 30),
+      endsAt: at(2, 16),
+      note: 'Zähler vorher beim Netzbetreiber abmelden.',
+      userIds: [previewUser.id, jonas],
+    },
+    true,
+  )
+  await appoint(
+    { jobId: jobs.wallbox, startsAt: at(3, 7, 20), endsAt: at(3, 12), userIds: [previewUser.id] },
+    true,
+  )
+  await appoint({
+    jobId: jobs.stairwell,
+    startsAt: at(4, 7),
+    endsAt: at(4, 12),
+    userIds: [previewUser.id],
+  })
+  await appoint({ jobId: jobs.renewal, startsAt: at(4, 7, 30), endsAt: at(4, 12), userIds: [max] })
+  await appoint({
+    jobId: jobs.stairwell,
+    startsAt: at(2, 10),
+    endsAt: at(2, 11, 30),
+    userIds: [moritz],
+  })
+  await appoint({
+    jobId: lights,
+    startsAt: at(-14, 7),
+    endsAt: at(-14, 8),
+    rrule: 'FREQ=WEEKLY',
+    exdates: [addDays(monday, 14)],
+    userIds: [lena],
+  })
 }
 
 /**

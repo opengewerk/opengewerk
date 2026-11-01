@@ -13,7 +13,7 @@ import { StopwatchBar } from './screens/time.js'
  * the frame adds itself.
  */
 const tabs: readonly SiteTab[] = [
-  { to: '/', label: 'Aufträge', icon: Calendar, also: ['/auftraege'] },
+  { to: '/', label: 'Aufträge', icon: Calendar, also: ['/auftraege', '/termine'] },
   { to: '/scannen', label: 'Scannen', icon: ScanLine, also: ['/anlagen'] },
   { to: '/zeiten', label: 'Zeiten', icon: Clock, also: ['/urlaub', '/zeitkonto'] },
 ]

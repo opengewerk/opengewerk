@@ -1,4 +1,5 @@
 import {
+  type AppointmentPersonId,
   berlinClock,
   type DeadlineId,
   type DeadlineRegistry,
@@ -121,6 +122,19 @@ export type Notification =
       readonly deadlineId: DeadlineId
       readonly dueOn: IsoDate
     }
+  | {
+      /**
+       * An appointment of the planning board that is news to a person on it
+       * (#290), by push only: new to them, changed in when it is, or no
+       * longer theirs. Raised by the route that made the change; a person on
+       * an appointment is a row of `appointment_people`, and a message goes
+       * once per row, version and change.
+       */
+      readonly kind: 'appointment'
+      readonly personId: AppointmentPersonId
+      readonly revision: number
+      readonly change: 'new' | 'changed' | 'cancelled'
+    }
 
 /** What every message needs besides its cause: where the instance is reached. */
 export interface NotifyContext {
@@ -171,6 +185,8 @@ export function causeOf(notification: Notification): string {
       return `invitation:${notification.invitationId}`
     case 'deadline_due':
       return `deadline_due:${notification.deadlineId}:${notification.dueOn}`
+    case 'appointment':
+      return `appointment:${notification.personId}:${String(notification.revision)}:${notification.change}`
   }
 }
 

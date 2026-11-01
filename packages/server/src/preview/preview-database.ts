@@ -127,6 +127,21 @@ export const previewUser = {
   email: 'vorschau@opengewerk.invalid',
 } as const
 
+/**
+ * The colleagues of the preview's person (#290), so that the planning board
+ * has more than one row and an appointment can have two people on it. Like
+ * the person, they carry no credential of any kind, and nobody can sign in
+ * as one of them; they exist because an appointment and a job are given to
+ * somebody with an access.
+ */
+export const previewColleagues = [
+  { id: 'preview-britta', name: 'Britta Kohm', role: 'office' },
+  { id: 'preview-jonas', name: 'Jonas Brandt', role: 'technician' },
+  { id: 'preview-lena', name: 'Lena Hoffmann', role: 'technician' },
+  { id: 'preview-max', name: 'Max Becker', role: 'technician' },
+  { id: 'preview-moritz', name: 'Moritz Kohm', role: 'owner' },
+] as const
+
 /** Owner, so that every screen is reachable, the ones only an owner sees included. */
 export const previewRoles: readonly RoleKey[] = ['owner']
 
@@ -182,6 +197,19 @@ export async function admitPreviewUser(
       previewRoles,
     ])
     await client.query('insert into instance_operators (user_id) values ($1)', [previewUser.id])
+
+    for (const colleague of previewColleagues) {
+      await client.query(
+        `insert into auth_users (id, name, email, email_verified, two_factor_enabled)
+         values ($1, $2, $3, true, false)`,
+        [colleague.id, colleague.name, `${colleague.id}@opengewerk.invalid`],
+      )
+      await client.query(
+        'insert into memberships (tenant_id, user_id, roles) values ($1, $2, $3)',
+        [tenant.id, colleague.id, [colleague.role]],
+      )
+    }
+
     await client.query('commit')
   } catch (error) {
     await client.query('rollback')

@@ -85,6 +85,7 @@ import { TasksController } from './tasks.controller.js'
 import { AbsencesController, HolidaysController } from './absences.controller.js'
 import { TenantsController } from './tenants.controller.js'
 import { TextSnippetsController } from './text-snippets.controller.js'
+import { AppointmentsController } from './appointments.controller.js'
 import { TimeAccountController } from './time-account.controller.js'
 import { TimeController } from './time.controller.js'
 
@@ -303,6 +304,7 @@ export class ApiModule {
         AbsencesController,
         HolidaysController,
         TimeAccountController,
+        AppointmentsController,
         ...deadlining.controllers,
         ...pushing.controllers,
         ...auditing.controllers,

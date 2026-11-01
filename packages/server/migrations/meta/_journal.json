@@ -778,6 +778,13 @@
       "when": 1793557783155,
       "tag": "0110_absences",
       "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1793566404222,
+      "tag": "0111_appointments",
+      "breakpoints": true
     }
   ]
 }

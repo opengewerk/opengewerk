@@ -35,6 +35,7 @@ import { LetterheadScreen } from './screens/letterhead.js'
 import { NumberRangesScreen } from './screens/number-ranges.js'
 import { MarkupSettingScreen } from './screens/markup-setting.js'
 import { PaymentTermScreen } from './screens/payment-term.js'
+import { PlanningScreen } from './screens/planning.js'
 import { TagsScreen } from './screens/tags.js'
 import { ProtocolScreen } from './screens/protocols.js'
 import { ReportFieldsScreen } from './screens/report-fields.js'
@@ -156,6 +157,7 @@ const routes = [
     component: ProtocolScreen,
   }),
   createRoute({ getParentRoute: () => office, path: '/auftraege', component: JobList }),
+  createRoute({ getParentRoute: () => office, path: '/plantafel', component: PlanningScreen }),
   createRoute({ getParentRoute: () => office, path: '/auftraege/$jobId', component: JobScreen }),
   createRoute({ getParentRoute: () => office, path: '/aufgaben', component: TaskListScreen }),
   createRoute({ getParentRoute: () => office, path: '/fristen', component: DeadlineListScreen }),

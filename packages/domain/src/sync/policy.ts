@@ -195,6 +195,17 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    */
   job_assignments: { create: false, change: 'never' },
   /**
+   * The appointments of the planning board and who goes to them (#290).
+   * Written in the office at the route, with a network, which puts whoever
+   * gets one on its job, counts the version of a moved one up and tells the
+   * people by push; a device reads them and writes none. The route takes a
+   * change only for the version the board saw, so that two people moving the
+   * same appointment do not overwrite each other unseen (ADR 0005, Nachtrag
+   * vom 01.11.2026). Confirming is a route of its own for the person who goes.
+   */
+  appointments: { create: false, change: 'never' },
+  appointment_people: { create: false, change: 'never' },
+  /**
    * A filled form (#78), a test protocol first: written on site without a
    * network while it is a draft, field work like a report. Signing is a change
    * of the device's own, the sealing signature and `status` in one operation,

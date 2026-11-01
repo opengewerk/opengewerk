@@ -43,6 +43,25 @@ export const auditCommonFields: Readonly<Record<string, string>> = {
 export const auditTables: Readonly<Record<string, AuditTableWords>> = {
   // The electrical and the PV structure, in the foundation's words (ADR 0014).
   ...structureAuditTables,
+  appointment_people: {
+    label: 'Person an einem Termin',
+    fields: {
+      appointment_id: 'Termin',
+      confirmed_revision: 'Bestätigte Fassung',
+      confirmed_at: 'Bestätigt am',
+    },
+  },
+  appointments: {
+    label: 'Termin',
+    fields: {
+      starts_at: 'Beginn',
+      ends_at: 'Ende',
+      note: 'Notiz',
+      rrule: 'Wiederholung',
+      exdates: 'Ausgenommene Tage',
+      revision: 'Fassung',
+    },
+  },
   article_imports: {
     label: 'Import aus DATANORM',
     fields: {

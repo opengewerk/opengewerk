@@ -1,4 +1,4 @@
-import type { DeadlineRegistry, TenantId } from '@opengewerk/domain'
+import type { DeadlineRegistry, PushOccasion, TenantId } from '@opengewerk/domain'
 import {
   type Database,
   type PushJob as FoundationPushJob,
@@ -36,7 +36,7 @@ const sentences = {
  * application: a task due this morning and a deadline that reminds, raised and
  * decided the same way as for mail.
  */
-function bound(job: PushJob): FoundationPushJob<'office' | 'site', 'task_due' | 'deadline_due'> {
+function bound(job: PushJob): FoundationPushJob<'office' | 'site', PushOccasion> {
   return {
     database: job.database,
     vapid: job.vapid,

@@ -9,10 +9,11 @@ import {
 } from '@opengewerk/domain'
 import type { Database, PushDraft, PushRules } from '@opengewerk/platform-server'
 
+import { stillNews } from '../appointments/appointments.js'
 import { deadlineKinds } from '../deadlines/registry.js'
 import { pushes } from '../push/outbox.js'
 import { causeOf, deadlineStillDue, type Notification, taskStillDue } from './notify.js'
-import { deadlineDuePush, taskDuePush, testPush } from './templates.js'
+import { appointmentPush, deadlineDuePush, taskDuePush, testPush } from './templates.js'
 
 /**
  * The second channel of the notifications (#284): push messages to the
@@ -30,6 +31,7 @@ import { deadlineDuePush, taskDuePush, testPush } from './templates.js'
 const links: Readonly<Record<PushOccasion | 'test', Readonly<Record<PushEntry, string>>>> = {
   task_due: { office: '/aufgaben', site: '/m/' },
   deadline_due: { office: '/fristen', site: '/m/' },
+  appointment: { office: '/plantafel', site: '/m/termine' },
   test: { office: '/konto', site: '/m/' },
 }
 
@@ -135,6 +137,42 @@ export async function pushDeadlineDue(
       text: deadlineDuePush({ kind: due.kind.title, dueOn: due.deadline.dueOn }),
       urls: links.deadline_due,
       // A reminder comes its lead before the day; a day late it still helps.
+      expiresAt: hoursAfter(context.now, 24),
+    },
+    context.now,
+  )
+}
+
+/**
+ * The push messages of an appointment that is news to a person on it (#290),
+ * or none: written only if it is still news when the route raises it, and
+ * naming the next time of the appointment.
+ */
+export async function pushAppointment(
+  database: Database,
+  tenantId: TenantId,
+  notification: Of<'appointment'>,
+  context: PushNotifyContext,
+): Promise<readonly string[]> {
+  const actor = { tenantId, reason: 'notification' }
+  const news = await database.forTenant(actor, (tx) =>
+    stillNews(tx, tenantId, notification, context.now),
+  )
+
+  if (!news) {
+    return []
+  }
+
+  return writePush(
+    database,
+    tenantId,
+    {
+      kind: 'appointment',
+      cause: causeOf(notification),
+      userId: news.userId,
+      text: appointmentPush({ change: notification.change, startsAt: news.startsAt }),
+      urls: links.appointment,
+      // A day late it still tells somebody where to go, or not to go.
       expiresAt: hoursAfter(context.now, 24),
     },
     context.now,
