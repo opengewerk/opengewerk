@@ -821,7 +821,7 @@ function AbsenceDialog({
           </div>
         </div>
         {typeof count.data?.workingHalfDays === 'number' ? (
-          <p className="m-0 rounded-sm bg-surface-sunken px-3 py-2 text-[14px]">
+          <p className="m-0 rounded-[4px] bg-surface-sunken px-3 py-[9px] text-[14px]">
             <b>{`${dayCount(count.data.workingHalfDays)} Arbeitstage`}</b>
             <span className="text-ink-muted">
               {` nach der Arbeitszeit von ${name}.`}

@@ -85,6 +85,7 @@ describe('the settings', () => {
       '/einstellungen/aufschlag',
       '/einstellungen/tags',
       '/einstellungen/fristen',
+      '/einstellungen/feiertage',
       '/einstellungen/belehrungen',
       '/einstellungen/regiebericht',
       '/einstellungen/e-mail',
@@ -108,7 +109,7 @@ describe('the settings', () => {
 
     expect(screen.queryByRole('link', { name: /Zugänge/ })).toBeNull()
     expect(screen.queryByRole('link', { name: /Änderungsprotokoll/ })).toBeNull()
-    expect(screen.getAllByRole('link')).toHaveLength(11)
+    expect(screen.getAllByRole('link')).toHaveLength(12)
   })
 
   it('offer a technician none of them', async () => {
