@@ -1,11 +1,12 @@
+import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 
 import { PDFDocument } from '@cantoo/pdf-lib'
 import { shippedWordings } from '@opengewerk/domain'
 import { describe, expect, it } from 'vitest'
 
+import { durabilityLabelSvg } from './durability-label.js'
 import {
-  durabilityLabelSource,
   filledDurabilityLabel,
   isLegalGraphic,
   LegalGraphicError,
@@ -88,15 +89,20 @@ describe('the pages the law prescribes whole', () => {
 describe('the label of a guarantee of durability (#433)', () => {
   const guarantee = { halfYears: 5, producer: 'Kraft & Söhne', model: 'K<2>' }
 
-  it('carries the digest its README names', async () => {
+  it('is the file of the Commission byte for byte, with the digest its README names', async () => {
+    const digest = '3414c8366823db39702d2557e614f882b530487ce589e903afdc98b7225e1ab1'
+    const file = await readFile(
+      new URL('../../assets/legal/durability-label-2026-03-19.svg', import.meta.url),
+    )
     const readme = await readFile(new URL('../../assets/legal/README.md', import.meta.url), 'utf-8')
 
-    expect(readme).toContain('3414c8366823db39702d2557e614f882b530487ce589e903afdc98b7225e1ab1')
-    expect(await durabilityLabelSource()).toContain('viewBox="0 0 269.29 283.46"')
+    expect(readme).toContain(digest)
+    expect(createHash('sha256').update(file).digest('hex')).toBe(digest)
+    expect(createHash('sha256').update(durabilityLabelSvg, 'utf8').digest('hex')).toBe(digest)
   })
 
-  it('fills its three fields, the model at the right edge, and escapes what it fills in', async () => {
-    const label = filledDurabilityLabel(await durabilityLabelSource(), guarantee, 'one')
+  it('fills its three fields, the model at the right edge, and escapes what it fills in', () => {
+    const label = filledDurabilityLabel(durabilityLabelSvg, guarantee, 'one')
 
     expect(label).toContain('<tspan x="0" y="0">2,5</tspan>')
     expect(label).toContain('<tspan x="0" y="0">Kraft &amp; Söhne</tspan>')
@@ -108,8 +114,8 @@ describe('the label of a guarantee of durability (#433)', () => {
     expect(label).not.toContain('>XX<')
   })
 
-  it('changes nothing else of the file but the names of its ids and classes', async () => {
-    const source = await durabilityLabelSource()
+  it('changes nothing else of the file but the names of its ids and classes', () => {
+    const source = durabilityLabelSvg
     const label = filledDurabilityLabel(source, guarantee, 'one')
     // Back to the file: the names without their prefix, and the three fields
     // as the Commission wrote them.
@@ -139,8 +145,8 @@ describe('the label of a guarantee of durability (#433)', () => {
     expect(label.match(/id="(?!one-)/g)).toBeNull()
   })
 
-  it('gives two labels on one page ids of their own', async () => {
-    const source = await durabilityLabelSource()
+  it('gives two labels on one page ids of their own', () => {
+    const source = durabilityLabelSvg
     const ids = (label: string) => [...label.matchAll(/id="([^"]+)"/g)].map((match) => match[1])
     const first = ids(filledDurabilityLabel(source, guarantee, 'one'))
     const second = ids(filledDurabilityLabel(source, guarantee, 'two'))
@@ -149,9 +155,9 @@ describe('the label of a guarantee of durability (#433)', () => {
     expect(first.filter((id) => second.includes(id))).toEqual([])
   })
 
-  it('takes a dollar sign in a field as a dollar sign, never as a part of the file', async () => {
+  it('takes a dollar sign in a field as a dollar sign, never as a part of the file', () => {
     const label = filledDurabilityLabel(
-      await durabilityLabelSource(),
+      durabilityLabelSvg,
       { halfYears: 6, producer: "A$'B$`C", model: '$&$$' },
       'one',
     )
@@ -161,8 +167,8 @@ describe('the label of a guarantee of durability (#433)', () => {
     expect(label.split('<svg').length).toBe(2)
   })
 
-  it('refuses a file whose fields do not stand where they should', async () => {
-    const source = (await durabilityLabelSource()).replace('Model identifier', 'Model')
+  it('refuses a file whose fields do not stand where they should', () => {
+    const source = durabilityLabelSvg.replace('Model identifier', 'Model')
 
     expect(() => filledDurabilityLabel(source, guarantee, 'one')).toThrow(LegalGraphicError)
   })

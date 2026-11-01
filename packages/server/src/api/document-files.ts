@@ -41,12 +41,8 @@ import { documentFiles, documents, files } from '../database/schema/index.js'
 import { ciiInvoice } from '../documents/cii.js'
 import { contentOf, frozenContent } from '../documents/content.js'
 import { checkedCii, CiiTooLargeError, SchemaCheckError } from '../documents/cii-schema.js'
-import {
-  durabilityLabelSource,
-  LegalGraphicError,
-  legalPage,
-  withLegalPages,
-} from '../documents/legal-graphics.js'
+import { durabilityLabelSvg } from '../documents/durability-label.js'
+import { LegalGraphicError, legalPage, withLegalPages } from '../documents/legal-graphics.js'
 import {
   documentTitle,
   headingOf,
@@ -365,10 +361,10 @@ export class DocumentFiles {
         }
       : null
 
-    // The label of a guarantee of durability (#433), read and checked only for
-    // a document that prints one.
+    // The label of a guarantee of durability (#433), only for a document that
+    // prints one.
     const durabilityLabel = content.lines.some((line) => line.durability !== null)
-      ? await this.legal(durabilityLabelSource)
+      ? durabilityLabelSvg
       : null
 
     try {

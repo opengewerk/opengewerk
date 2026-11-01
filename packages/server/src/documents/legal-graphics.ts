@@ -22,6 +22,10 @@ import { type DurabilityContent, durabilityYears } from '@opengewerk/domain'
  * Every file is held against its digest each time it is read. A file that
  * changed is not the page the law prescribes any more, and printing it would
  * be worse than refusing: the installation is broken, and it says so.
+ *
+ * The label of a guarantee of durability is the one graphic not read here:
+ * it goes to the renderer inside the page, so it lives in the code
+ * (`durability-label.ts`), and a test holds it against its file.
  */
 
 /** Where the files lie, next to `dist` as next to `src`. */
@@ -97,22 +101,7 @@ async function checked(entry: LegalFile): Promise<Uint8Array> {
 }
 
 /**
- * The label of a guarantee of durability, annex II to Implementing
- * Regulation (EU) 2025/1960 (#433), in colour: the file of the Commission,
- * of which only three fields are filled.
- */
-const durabilityLabelFile: LegalFile = {
-  file: 'durability-label-2026-03-19.svg',
-  sha256: '3414c8366823db39702d2557e614f882b530487ce589e903afdc98b7225e1ab1',
-}
-
-/** The label as the Commission publishes it, checked against its digest. */
-export async function durabilityLabelSource(): Promise<string> {
-  return new TextDecoder().decode(await checked(durabilityLabelFile))
-}
-
-/**
- * The three editable fields of the label, as the file writes them, and where
+ * The three editable fields of the label (`durabilityLabelSvg`), as the file writes them, and where
  * each one starts. The producer stands at the left edge as "Brand/Trademark"
  * did; the model ends at the right edge where "Model identifier" ended, at
  * 262.9 of the 269.29 points the label is wide.
@@ -167,7 +156,7 @@ export function filledDurabilityLabel(
   for (const [field, filled] of fields) {
     if (svg.split(field).length !== 2) {
       throw new LegalGraphicError(
-        `In ${durabilityLabelFile.file} steht ein Feld der Kennzeichnung nicht so, wie es soll.`,
+        'In der Vorlage der Kennzeichnung steht ein Feld nicht so, wie es soll.',
       )
     }
 
