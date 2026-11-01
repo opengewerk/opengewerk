@@ -13,6 +13,7 @@ import { SiteProtocolScreen } from './screens/protocol.js'
 import { SiteReportScreen } from './screens/report.js'
 import { SiteLeaveRequestScreen, SiteLeaveScreen } from './screens/leave.js'
 import { SiteTimeEntryScreen, SiteTimeScreen } from './screens/time.js'
+import { SiteTimeAccountScreen } from './screens/time-account.js'
 import { SiteShell } from './shell.js'
 
 /**
@@ -125,6 +126,8 @@ const routes = [
     path: '/urlaub/beantragen',
     component: SiteLeaveRequestScreen,
   }),
+  // One's own time account, under "Zeiten" (#289).
+  createRoute({ getParentRoute: () => root, path: '/zeitkonto', component: SiteTimeAccountScreen }),
   createRoute({ getParentRoute: () => root, path: '/zeiten/$day', component: SiteTimeScreen }),
   createRoute({
     getParentRoute: () => root,

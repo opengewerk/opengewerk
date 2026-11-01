@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Das Zeitkonto (#289), nach der Feature-Gliederung v2.46 und den Tafeln aus Version 97 des Canvas: Unter
+  „Zeiterfassung“ steht in der Woche das Soll jedes Tages mit dem Saldo bis gestern, darunter die Karte „Zeitkonto“
+  mit dem Übertrag aus dem Vorjahr, Soll, Ist und Saldo je Monat und dem Stand; auf der Baustelle zeigt die Karte
+  „Zeitkonto“ unter „Zeiten“ den eigenen Stand, `/m/zeitkonto` die Woche und die Monate. Das Soll ist die vereinbarte
+  Arbeitszeit des Tages, Feiertage, freigegebener Urlaub und Krankheit nehmen es, ein halber Tag die Hälfte; es zählen
+  Arbeit und Fahrt aus den gültigen Einträgen, eine Korrektur an ihrem eigenen Tag, gezählt wird bis gestern, und der
+  Saldo läuft über den Jahreswechsel weiter. Das Konto rechnet der Server (`GET /time-account`, `/time-account/mine`),
+  weil Akte und Abwesenheiten auf keinem Gerät liegen. Damit muss niemand mehr Überstunden aus Stundenzetteln
+  zusammenzählen; Auszahlen und Übertragen gehören zum Lohnexport.
 - Urlaub und Krankheit (#288), nach der Feature-Gliederung v2.45 und den Tafeln aus Version 95 des Canvas: Unter
   „Personal“, „Abwesenheiten“ trägt das Büro Urlaub und Krankheit ein, ganze und halbe Tage, gibt Anträge frei oder
   lehnt sie mit einer Antwort ab und hält je Person und Jahr Anspruch und Übertrag; den Übertrag schlägt die Anwendung

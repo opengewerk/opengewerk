@@ -19,6 +19,7 @@ import { ChevronLeft } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { useMay } from '../../app/queries.js'
+import { targetsOf, weekBalanceText } from '../../app/time-account.js'
 import {
   clockOf,
   minutesOf,
@@ -31,6 +32,7 @@ import {
   useTimeEntries,
 } from '../../app/time.js'
 import { timePeople } from '../../session/time.js'
+import { AccountPanel, useWeekAccount } from './time-account.js'
 import type { Assignee } from '../../session/tasks.js'
 
 /** The people of the business by name, for whoever reads the time of the others. */
@@ -100,6 +102,8 @@ export function TimeScreen() {
     [entries, person],
   )
   const counting = useMemo(() => effectiveEntries(theirs), [theirs])
+  const weekAccount = useWeekAccount(readsTime ? person : '', monday)
+  const targets = targetsOf(weekAccount.data)
   const days = useMemo(
     () =>
       weekdays.map((name, index) => {
@@ -135,6 +139,12 @@ export function TimeScreen() {
   }
 
   const total = days.reduce((sum, day) => sum + day.work + day.travel, 0)
+  const balance = weekBalanceText(weekAccount.data)
+  const targetOf = (on: string) => {
+    const minutes = targets.get(on) ?? 0
+
+    return minutes > 0 ? hoursText(minutes) : ''
+  }
   // A day nobody worked on stays empty, as on the board: "0:00 Std." three
   // times over under a Sunday says nothing anybody asked.
   const cards: TableCard[] = days.map((day) => ({
@@ -147,9 +157,11 @@ export function TimeScreen() {
     ),
     ...(day.recorded
       ? {
-          sub: `Arbeit ${hoursText(day.work)} · Fahrt ${hoursText(day.travel)} · Pause ${hoursText(day.pause)}`,
+          sub: `${targetOf(day.on) === '' ? '' : `Soll ${targetOf(day.on)} · `}Arbeit ${hoursText(day.work)} · Fahrt ${hoursText(day.travel)} · Pause ${hoursText(day.pause)}`,
         }
-      : {}),
+      : targetOf(day.on) === ''
+        ? {}
+        : { sub: `Soll ${targetOf(day.on)}` }),
   }))
 
   return (
@@ -200,19 +212,30 @@ export function TimeScreen() {
         caption="Arbeitszeit der Woche nach Tagen"
         cards={cards}
         note={
-          <strong className="font-semibold text-ink">{`Arbeit und Fahrt in dieser Woche: ${hoursText(total)}`}</strong>
+          <>
+            <strong className="font-semibold text-ink">{`Arbeit und Fahrt in dieser Woche: ${hoursText(total)}`}</strong>
+            {balance === null ? null : (
+              <>
+                <br />
+                {balance}
+              </>
+            )}
+          </>
         }
       >
         <thead>
           <tr>
             <Column className="w-[200px]">Tag</Column>
-            <Column numeric className="w-[100px]">
+            <Column numeric className="w-[96px]">
+              Soll
+            </Column>
+            <Column numeric className="w-[96px]">
               Arbeit
             </Column>
-            <Column numeric className="w-[100px]">
+            <Column numeric className="w-[96px]">
               Fahrt
             </Column>
-            <Column numeric className="w-[100px]">
+            <Column numeric className="w-[96px]">
               Pause
             </Column>
             <Column>Nach dem Arbeitszeitgesetz</Column>
@@ -222,6 +245,9 @@ export function TimeScreen() {
           {days.map((day) => (
             <tr key={day.on}>
               <Cell className="whitespace-nowrap">{`${day.name}, ${date(day.on)}`}</Cell>
+              <Cell numeric className="whitespace-nowrap">
+                {targetOf(day.on)}
+              </Cell>
               <Cell numeric className="whitespace-nowrap">
                 {day.recorded ? hoursText(day.work) : ''}
               </Cell>
@@ -242,6 +268,8 @@ export function TimeScreen() {
           ))}
         </tbody>
       </TablePanel>
+
+      <AccountPanel userId={person} />
 
       <EntryTable entries={week} all={theirs} />
     </Screen>
