@@ -172,12 +172,15 @@ describe('the navigation of the office', () => {
       'Fristen',
       'Zeiterfassung',
       ...material,
+      // The files of the people, the owner's alone (#287).
+      'Personal',
+      'Mitarbeiter',
       ...foot,
       'Einstellungen',
     ])
   })
 
-  it('lists the same for the office', async () => {
+  it('lists the same for the office, without the files of the people', async () => {
     signedInAs('office')
     await mount()
 

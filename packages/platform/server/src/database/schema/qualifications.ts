@@ -13,12 +13,14 @@ import {
 
 import { primaryId, reference, syncColumns, timestamps } from './columns.js'
 import { files } from './files.js'
-import { memberships } from './memberships.js'
+import type { PeopleTables } from './people.js'
 import { tenantIsolation } from './rls.js'
 import { tenantColumn } from './tenants.js'
 
 // The qualifications as a building block (ADR 0012): the kinds a tenant adds
-// to those of a catalogue, and what each person holds. Tables an application
+// to those of a catalogue, and what each person holds. A qualification hangs
+// on a person of `peopleSchema` and not on an account (ADR 0016), so that
+// somebody without one holds it as well. Tables an application
 // makes with this function, like the stock, so that it decides whether it
 // keeps them. Both carry the columns of the sync and are marked, never
 // removed: a qualification taken out of the records stays in the change log
@@ -47,7 +49,7 @@ function qualificationParts() {
   return {
     id: primaryId<'qualification'>(),
     ...tenantColumn,
-    userId: text('user_id').notNull(),
+    personId: reference<'person'>('person_id').notNull(),
     kindKey: text('kind_key'),
     ownKindId: reference<'qualification-kind'>('own_kind_id'),
     validUntil: date('valid_until', { mode: 'string' }),
@@ -58,8 +60,8 @@ function qualificationParts() {
   }
 }
 
-/** The tables of the qualifications, as an application binds them. */
-export function qualificationSchema() {
+/** The tables of the qualifications, as an application binds them beside its people. */
+export function qualificationSchema({ people }: Pick<PeopleTables, 'people'>) {
   const qualificationKinds = pgTable('qualification_kinds', kindParts(), (table) => [
     tenantIsolation(table.tenantId),
     unique('qualification_kinds_tenant_id_key').on(table.tenantId, table.id),
@@ -74,10 +76,10 @@ export function qualificationSchema() {
   const qualifications = pgTable('qualifications', qualificationParts(), (table) => [
     tenantIsolation(table.tenantId),
     unique('qualifications_tenant_id_key').on(table.tenantId, table.id),
-    index('qualifications_of_a_person').on(table.tenantId, table.userId),
+    index('qualifications_of_a_person').on(table.tenantId, table.personId),
     foreignKey({
-      columns: [table.tenantId, table.userId],
-      foreignColumns: [memberships.tenantId, memberships.userId],
+      columns: [table.tenantId, table.personId],
+      foreignColumns: [people.tenantId, people.id],
       name: 'qualifications_of_somebody_here',
     }),
     foreignKey({

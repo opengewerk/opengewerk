@@ -1,6 +1,7 @@
 import {
   berlinClock,
   type CustomerId,
+  qualificationCatalogue,
   type DeadlineSource,
   type DocumentId,
   type InstallationId,
@@ -150,9 +151,55 @@ export const storesBelowMinimum: SourceQuery<DeadlineValues> = async (tx) => {
   })
 }
 
+/**
+ * The qualifications in the files that run out (#287): one source for each
+ * qualification with a last day, of a person who has not left before today,
+ * named by its kind and the person, as "Höhenarbeit von Anna Weber". Due on
+ * its last day; the lead of the kind makes the task in time. The person it
+ * names is the one whose qualification it is, where they have an account.
+ *
+ * The office reads the deadline and its task like any other, which says
+ * whose qualification runs out and of which kind and nothing else of the
+ * file (decided on 01.11.2026).
+ */
+export const qualificationsRunningOut: SourceQuery<DeadlineValues> = async (tx) => {
+  const today = berlinClock(new Date()).day
+  const { rows } = await tx.execute<{
+    id: string
+    kind_key: string | null
+    own_label: string | null
+    valid_until: string
+    name: string
+    user_id: string | null
+  }>(sql`
+    select q.id, q.kind_key, k.label as own_label, q.valid_until::text as valid_until, p.name, p.user_id
+      from qualifications q
+      join people p on p.id = q.person_id and p.deleted_at is null
+      left join qualification_kinds k on k.id = q.own_kind_id
+     where q.deleted_at is null and q.valid_until is not null
+       and (p.left_on is null or p.left_on >= ${today})`)
+  const catalogue = new Map(qualificationCatalogue.map((kind) => [kind.key, kind.label]))
+
+  return rows.map((row) => ({
+    sourceId: row.id,
+    sourceLabel: `${(row.kind_key === null ? null : catalogue.get(row.kind_key)) ?? row.own_label ?? row.kind_key ?? 'Qualifikation'} von ${row.name}`,
+    anchorOn: row.valid_until,
+    namedDueOn: row.valid_until,
+    naturalUserId: row.user_id,
+    values: {
+      documentId: null,
+      installationId: null,
+      customerId: null,
+      siteId: null,
+      jobId: null,
+    },
+  }))
+}
+
 /** Every source there is, by the name a kind gives it. */
 export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
   {
     quote: openQuotes,
     store_minimum: storesBelowMinimum,
+    qualification: qualificationsRunningOut,
   }

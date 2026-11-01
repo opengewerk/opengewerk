@@ -143,6 +143,16 @@ export const permissions = [
   'attachment.read',
   'attachment.write',
   /**
+   * The files of the people who work for the business (#287, ADR 0016):
+   * reading everybody's, and keeping them with working time and
+   * qualifications. Only the owner, decided on 27.09.2026: a file holds what
+   * the business agreed with somebody, and section 7 of the concept keeps
+   * what is known about the staff to the roles that need it. Everybody reads
+   * their own file under "Konto" without either right.
+   */
+  'person.read',
+  'person.write',
+  /**
    * Working time (#76). Everybody records their own, which is `time.write`
    * and which nobody may do for somebody else. `time.read` is reading the time
    * of everybody in the business, the office's job under § 17 MiLoG: without
@@ -266,6 +276,8 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'deadline.write': 'Fristen bearbeiten',
   'attachment.read': 'Dateien ansehen',
   'attachment.write': 'Dateien ablegen',
+  'person.read': 'Akten der Mitarbeiter ansehen',
+  'person.write': 'Akten der Mitarbeiter pflegen',
   'time.read': 'Die Arbeitszeiten anderer ansehen',
   'time.write': 'Arbeitszeiten erfassen',
   'sync.read': 'Daten abgleichen',

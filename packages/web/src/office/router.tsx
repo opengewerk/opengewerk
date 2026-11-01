@@ -48,6 +48,7 @@ import {
 } from './screens/suppliers.js'
 import { ImportScreen, NewImportScreen } from './screens/imports.js'
 import { StockList, StockStoreScreen } from './screens/stock.js'
+import { NewPersonFileScreen, PeopleList, PersonFileScreen } from './screens/people.js'
 import { BoardScreen, CircuitScreen } from './screens/structure.js'
 import { InverterScreen, PvStringScreen } from './screens/pv-structure.js'
 import { TaskListScreen } from './screens/tasks.js'
@@ -178,6 +179,19 @@ const routes = [
     getParentRoute: () => office,
     path: '/lager/$storeId',
     component: StockStoreScreen,
+  }),
+  // The files of the people (#287), on the screens of the foundation. The new
+  // one before the one with an id, as with the suppliers.
+  createRoute({ getParentRoute: () => office, path: '/mitarbeiter', component: PeopleList }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/mitarbeiter/neu',
+    component: NewPersonFileScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/mitarbeiter/$personId',
+    component: PersonFileScreen,
   }),
   createRoute({
     getParentRoute: () => office,

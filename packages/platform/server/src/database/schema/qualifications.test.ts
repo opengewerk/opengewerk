@@ -1,6 +1,7 @@
 import { getTableConfig } from 'drizzle-orm/pg-core'
 import { describe, expect, it } from 'vitest'
 
+import { peopleSchema } from './people.js'
 import { qualificationSchema } from './qualifications.js'
 
 // The tables of the qualifications as an application makes them (ADR 0012),
@@ -14,7 +15,7 @@ describe('the tables of the qualifications', () => {
   it('travel: both carry the columns of the sync, and keep the tenants apart', () => {
     const travelling = ['version', 'updated_by', 'device_id', 'deleted_at', 'change_sequence']
 
-    for (const table of Object.values(qualificationSchema())) {
+    for (const table of Object.values(qualificationSchema(peopleSchema()))) {
       expect(columnsOf(table)).toEqual(expect.arrayContaining(travelling))
       expect(getTableConfig(table).policies.map((policy) => policy.name)).toContain(
         'tenant_isolation',
@@ -23,7 +24,7 @@ describe('the tables of the qualifications', () => {
   })
 
   it('hold in the database that a qualification is of somebody here, of exactly one kind, with a stored certificate', () => {
-    const { qualifications, qualificationKinds } = qualificationSchema()
+    const { qualifications, qualificationKinds } = qualificationSchema(peopleSchema())
 
     expect(getTableConfig(qualifications).foreignKeys.map((key) => key.getName())).toEqual(
       expect.arrayContaining([
@@ -40,7 +41,7 @@ describe('the tables of the qualifications', () => {
     )
     expect(columnsOf(qualifications)).toEqual(
       expect.arrayContaining([
-        'user_id',
+        'person_id',
         'kind_key',
         'own_kind_id',
         'valid_until',

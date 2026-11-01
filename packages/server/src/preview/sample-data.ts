@@ -1,5 +1,11 @@
 import type { IsoDate } from '@opengewerk/domain'
-import { addDays, lineUnits, signedContentFingerprint } from '@opengewerk/domain'
+import {
+  addDays,
+  lineUnits,
+  signedContentFingerprint,
+  weekdayMinutes,
+  weekdays,
+} from '@opengewerk/domain'
 import { newId } from '@opengewerk/platform-server'
 
 import { previewUser } from './preview-database.js'
@@ -630,6 +636,7 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   // transporter falls below zero, as the board "Lagerort" shows it. The
   // store is chosen on the device, as the site does it.
   const { van } = await plantStock(base, catalogue)
+  await plantPeople(base, today)
   const fromTheVan = 'Unterverteilung im Keller erweitert, zwei Stromkreise neu gelegt.'
   const vanReport = await document(
     {
@@ -779,6 +786,71 @@ async function changeOnDevice(
     throw new Error(
       `The sample change of ${entity} was not taken: ${String(receipt?.outcome)} ${String(receipt?.reason)}`,
     )
+  }
+}
+
+/**
+ * The files of the people (#287), as the boards "Mitarbeiter" and "Akte"
+ * draw them: the preview's own account with the working time agreed since it
+ * joined, a later one still to come and five qualifications, one running out
+ * and one run out, and six files without an account, a helper among them.
+ */
+async function plantPeople(base: string, today: IsoDate): Promise<void> {
+  const post = (path: string, body: unknown) => send(base, 'POST', path, body)
+  const week = (hours: readonly number[]) =>
+    Object.fromEntries(
+      weekdays.map((day, at) => [weekdayMinutes[day], Math.round((hours[at] ?? 0) * 60)]),
+    )
+  const full = [8, 8, 8, 8, 8]
+  const own = (await post('/people', {
+    name: 'Anna Weber',
+    userId: previewUser.id,
+    joinedOn: '2023-03-01',
+    workingTime: { validFrom: '2023-03-01', ...week(full) },
+  })) as { id: string }
+
+  await post(`/people/${own.id}/working-times`, {
+    validFrom: addDays(today, 61),
+    ...week([7.5, 7.5, 7.5, 7.5]),
+  })
+
+  const firstAid = (await post('/qualification-kinds', {
+    label: 'Ersthelfer',
+    level: 'instructed_person',
+  })) as { id: string }
+
+  for (const qualification of [
+    { kindKey: 'elektro.skilled_person' },
+    { kindKey: 'elektro.pv_certificate', validUntil: '2028-03-31' },
+    { kindKey: 'core.driving_licence', validUntil: '2031-05-12', note: 'Klasse BE' },
+    {
+      kindKey: 'core.work_at_height',
+      validUntil: addDays(today, 29),
+      note: 'Unterweisung PSA gegen Absturz, jährlich',
+    },
+    { ownKindId: firstAid.id, validUntil: addDays(today, -17) },
+  ]) {
+    await post(`/people/${own.id}/qualifications`, qualification)
+  }
+
+  for (const [name, joinedOn, hours] of [
+    ['Britta Kohm', '2022-07-01', [4, 4, 4, 4, 4]],
+    ['Jonas Brandt', '2024-08-15', full],
+    ['Lena Hoffmann', '2026-02-01', full],
+    ['Max Becker', '2025-09-01', full],
+    ['Moritz Kohm', '2022-05-01', full],
+    ['Tim Schäfer', addDays(today, -31), [5, 5, 5, 5, 5]],
+  ] as const) {
+    const person = (await post('/people', {
+      name,
+      joinedOn,
+      workingTime: { validFrom: joinedOn, ...week(hours) },
+    })) as { id: string }
+
+    await post(`/people/${person.id}/qualifications`, {
+      kindKey: name === 'Tim Schäfer' ? 'core.work_at_height' : 'elektro.skilled_person',
+      validUntil: name === 'Tim Schäfer' ? addDays(today, 335) : null,
+    })
   }
 }
 

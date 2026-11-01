@@ -54,6 +54,11 @@ const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
     { table: 'article_markups', column: 'article_id' },
     { table: 'supplier_articles', column: 'article_id' },
   ],
+  // The file of a person with their working times and qualifications (#287).
+  people: [
+    { table: 'working_times', column: 'person_id' },
+    { table: 'qualifications', column: 'person_id' },
+  ],
   // A store with what it keeps and its bookings (#298).
   stores: [
     { table: 'store_articles', column: 'store_id' },
@@ -133,6 +138,8 @@ const auditReferences: Readonly<Record<string, string>> = {
   tag_id: 'tags',
   site_access_id: 'site_accesses',
   import_id: 'article_imports',
+  person_id: 'people',
+  own_kind_id: 'qualification_kinds',
 }
 
 /** Fields that hold the id of a person, beside those of the foundation. */
@@ -179,6 +186,12 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   supplier_article_metals: ['metal'],
   supplier_metal_prices: ['metal', 'valid_from'],
   article_imports: ['supplier_id'],
+  // A person by their name, a working time by the day it begins, a
+  // qualification by its kind and an own kind by its label (#287).
+  people: ['name'],
+  working_times: ['valid_from'],
+  qualifications: ['kind_key', 'own_kind_id'],
+  qualification_kinds: ['label'],
   // A store by its name, what it keeps by the article, a booking by its kind (#298).
   stores: ['name'],
   store_articles: ['article_id'],
