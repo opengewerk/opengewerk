@@ -11,6 +11,7 @@ import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './screens/jobs.js'
 import { SiteNoteScreen } from './screens/notes.js'
 import { SiteProtocolScreen } from './screens/protocol.js'
 import { SiteReportScreen } from './screens/report.js'
+import { SiteLeaveRequestScreen, SiteLeaveScreen } from './screens/leave.js'
 import { SiteTimeEntryScreen, SiteTimeScreen } from './screens/time.js'
 import { SiteShell } from './shell.js'
 
@@ -117,6 +118,13 @@ const routes = [
     component: SiteNoteScreen,
   }),
   createRoute({ getParentRoute: () => root, path: '/zeiten', component: SiteTimeScreen }),
+  // One's own leave, under "Zeiten" (#288).
+  createRoute({ getParentRoute: () => root, path: '/urlaub', component: SiteLeaveScreen }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/urlaub/beantragen',
+    component: SiteLeaveRequestScreen,
+  }),
   createRoute({ getParentRoute: () => root, path: '/zeiten/$day', component: SiteTimeScreen }),
   createRoute({
     getParentRoute: () => root,

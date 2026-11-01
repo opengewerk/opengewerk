@@ -9,6 +9,23 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Urlaub und Krankheit (#288), nach der Feature-Gliederung v2.45 und den Tafeln aus Version 95 des Canvas: Unter
+  „Personal“, „Abwesenheiten“ trägt das Büro Urlaub und Krankheit ein, ganze und halbe Tage, gibt Anträge frei oder
+  lehnt sie mit einer Antwort ab und hält je Person und Jahr Anspruch und Übertrag; den Übertrag schlägt die Anwendung
+  aus dem Rest des Vorjahrs vor, verfallen lässt sie ihn nicht von selbst (Migration `0110_absences`). Ein Monteur
+  beantragt Urlaub auf der Baustelle unter „Zeiten“, „Urlaub“ und sieht dort seine Abwesenheiten mit Art und Antwort;
+  ohne Netz sagt die Seite das. Ein Urlaubstag ist ein Arbeitstag nach der vereinbarten Arbeitszeit, der kein
+  Feiertag ist, und ein Tag, an dem jemand krank ist, zählt nicht als Urlaub (§ 9 BUrlG). Von einer Krankheit hält die
+  Anwendung nur Dauer, kein Notizfeld. Pflegen darf Abwesenheiten das neue Recht „Abwesenheiten pflegen“, von Haus aus
+  Inhaber und Büro; wer nur plant, bekommt über `GET /absences/planning` „absent“ statt der Art, als Datenquelle für die
+  Plantafel (#290). Warum: Moritz hat am 27.09. und 01.11.2026 entschieden, dass zur Urlaubsverwaltung Anspruch, Rest
+  und Antrag gehören und wer die Art einer Krankheit sieht, einem Gesundheitsdatum.
+- Die gesetzlichen Feiertage aller 16 Länder als Regelpaket `holidays` (#288), mit Fundstelle und dem Tag, ab dem ein
+  Feiertag galt; das Bundesland und die örtlichen Feiertage (Mariä Himmelfahrt und Augsburger Friedensfest in Bayern,
+  Fronleichnam in Teilen Sachsens und Thüringens) stellt der Inhaber unter Einstellungen, „Feiertage“ ein. Für den Buß-
+  und Bettag kennt das Fundament die Einheit `wednesday_before`, für die Sonntage in Hessen gilt die Regel
+  `holiday.every_sunday`. Warum: ohne Feiertage zählte jeder Urlaub über Ostern zwei Tage zu viel, und das Zeitkonto
+  (#289) braucht dieselben Tage.
 - Die Mitarbeiterakte (#287), nach ADR 0016, der Feature-Gliederung v2.44 und den Tafeln aus Version 93 des Canvas:
   Unter „Personal“, „Mitarbeiter“ liegt je Person eine Akte, mit Zugang oder ohne, mit Name, Eintritt und Austritt
   (Migration `0109_people`). Die vereinbarte Arbeitszeit steht als Stunden je Wochentag ab einem Tag und gilt bis zum

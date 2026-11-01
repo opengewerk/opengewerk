@@ -351,6 +351,7 @@ describe('what each entry hands to the foundation', () => {
       'aufschlag',
       'tags',
       'fristen',
+      'feiertage',
       'belehrungen',
       'regiebericht',
       'e-mail',

@@ -1,6 +1,7 @@
 import baseRate from './data/base-rate.json' with { type: 'json' }
 import cashAccounting from './data/cash-accounting.json' with { type: 'json' }
 import eInvoice from './data/e-invoice.json' with { type: 'json' }
+import holidays from './data/holidays.json' with { type: 'json' }
 import invoice from './data/invoice.json' with { type: 'json' }
 import payment from './data/payment.json' with { type: 'json' }
 import { type RuleRecord, ruleSet, type RuleSet } from '@opengewerk/platform-domain'
@@ -48,6 +49,7 @@ export const rulePackages: readonly RulePackage[] = [
   payment as RulePackage,
   baseRate as RulePackage,
   workingTime as RulePackage,
+  holidays as RulePackage,
 ]
 
 /**

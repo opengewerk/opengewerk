@@ -82,6 +82,7 @@ import { SuppliersController } from './suppliers.controller.js'
 import { syncRoutes } from './sync-routes.js'
 import { TagsController } from './tags.controller.js'
 import { TasksController } from './tasks.controller.js'
+import { AbsencesController, HolidaysController } from './absences.controller.js'
 import { TenantsController } from './tenants.controller.js'
 import { TextSnippetsController } from './text-snippets.controller.js'
 import { TimeController } from './time.controller.js'
@@ -298,6 +299,8 @@ export class ApiModule {
         JobsController,
         CollectiveInvoicesController,
         TasksController,
+        AbsencesController,
+        HolidaysController,
         ...deadlining.controllers,
         ...pushing.controllers,
         ...auditing.controllers,

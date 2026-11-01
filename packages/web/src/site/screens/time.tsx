@@ -72,6 +72,7 @@ import {
 } from '../../app/time.js'
 import { answerLocationConsent } from '../../session/time.js'
 import { SiteHeader } from '../header.js'
+import { LeaveCard } from './leave.js'
 
 /** What a form or a button says back: nothing, or the sentence that went wrong. */
 function outcomeText(result: EditResult | string | null): string | null {
@@ -923,6 +924,7 @@ export function SiteTimeScreen() {
         </div>
       </Panel>
 
+      <LeaveCard />
       <ConsentCard />
     </SiteScreen>
   )

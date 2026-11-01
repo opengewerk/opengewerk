@@ -10,6 +10,7 @@ import type {
 import { auditLogPath } from '@opengewerk/platform-web/office'
 import {
   CalendarClock,
+  CalendarMinus,
   Clock,
   Euro,
   File,
@@ -89,6 +90,14 @@ const settings = [
     title: 'Fristen',
     about: 'Wann an Fristen erinnert wird und wer sie bekommt, je Art.',
     icon: CalendarClock,
+    right: 'settings.read',
+  },
+  {
+    key: 'feiertage',
+    to: '/einstellungen/feiertage',
+    title: 'Feiertage',
+    about: 'Das Bundesland und die örtlichen Feiertage, nach denen Urlaub und Zeitkonto zählen.',
+    icon: CalendarMinus,
     right: 'settings.read',
   },
   {

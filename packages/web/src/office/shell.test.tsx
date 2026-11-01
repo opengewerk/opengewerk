@@ -172,15 +172,16 @@ describe('the navigation of the office', () => {
       'Fristen',
       'Zeiterfassung',
       ...material,
-      // The files of the people, the owner's alone (#287).
+      // The files of the people, the owner's alone (#287), and the absences (#288).
       'Personal',
       'Mitarbeiter',
+      'Abwesenheiten',
       ...foot,
       'Einstellungen',
     ])
   })
 
-  it('lists the same for the office, without the files of the people', async () => {
+  it('lists the same for the office, without the files of the people but with the absences', async () => {
     signedInAs('office')
     await mount()
 
@@ -196,6 +197,9 @@ describe('the navigation of the office', () => {
       'Fristen',
       'Zeiterfassung',
       ...material,
+      // The office keeps leave and sickness (#288), decided on 01.11.2026.
+      'Personal',
+      'Abwesenheiten',
       ...foot,
       'Einstellungen',
     ])

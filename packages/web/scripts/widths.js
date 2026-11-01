@@ -39,6 +39,16 @@ await checkWidths({
    * of an article (#296). The preview plants a quote and a report in draft as
    * its newest documents, so that the walk meets them among the first of
    * their kind: the quote with a price per 100 (#456), the report on site.
+   * Leave and sickness (#288) are entered and kept in dialogs, and a request
+   * for leave on site has its own address behind a button.
    */
-  openers: ['Bearbeiten', 'Position hinzufügen', 'Material eintragen', 'Dateien einlesen'],
+  openers: [
+    'Bearbeiten',
+    'Position hinzufügen',
+    'Material eintragen',
+    'Dateien einlesen',
+    'Abwesenheit eintragen',
+    'Anspruch und Übertrag',
+    'Urlaub beantragen',
+  ],
 })

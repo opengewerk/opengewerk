@@ -153,6 +153,14 @@ export const permissions = [
   'person.read',
   'person.write',
   /**
+   * Leave and sickness (#288): entering both, approving or turning down what
+   * somebody asked for, the days of leave of a year, and seeing which kind an
+   * absence is. The owner and the office, decided on 01.11.2026; a sickness
+   * is a health datum (Art. 9 GDPR), and whoever only plans reads "abwesend".
+   * Everybody asks for their own leave and sees their own absences without it.
+   */
+  'absence.write',
+  /**
    * Working time (#76). Everybody records their own, which is `time.write`
    * and which nobody may do for somebody else. `time.read` is reading the time
    * of everybody in the business, the office's job under § 17 MiLoG: without
@@ -278,6 +286,7 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'attachment.write': 'Dateien ablegen',
   'person.read': 'Akten der Mitarbeiter ansehen',
   'person.write': 'Akten der Mitarbeiter pflegen',
+  'absence.write': 'Abwesenheiten pflegen',
   'time.read': 'Die Arbeitszeiten anderer ansehen',
   'time.write': 'Arbeitszeiten erfassen',
   'sync.read': 'Daten abgleichen',
@@ -372,6 +381,7 @@ const officePermissions: readonly Permission[] = [
   'deadline.write',
   'attachment.read',
   'attachment.write',
+  'absence.write',
   'time.read',
   'time.write',
   'sync.read',
