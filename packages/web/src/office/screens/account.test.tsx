@@ -17,7 +17,7 @@ import { AccountScreen } from './account.js'
  *
  * The screen is the foundation's and has its tests there: the second factor,
  * the recovery codes, the passkeys, the password and the devices. Here is what
- * only this application can get wrong: its two cards and where they stand, the
+ * only this application can get wrong: its cards and where they stand, the
  * sentences it hands in, and the names of its two entries.
  */
 
@@ -94,6 +94,7 @@ beforeEach(() => {
   answer('GET', '/auth/devices', [])
   answer('GET', '/auth/passkeys', [])
   answer('GET', '/push', { available: false, publicKey: null, occasions: [], devices: [] })
+  answer('GET', '/calendar/feed', { since: null })
 
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     const key = `${init?.method ?? 'GET'} ${path}`
@@ -112,7 +113,7 @@ afterEach(() => {
 })
 
 describe('"Konto" in the office', () => {
-  it('sets the businesses and the notifications between the passkeys and the devices', async () => {
+  it('sets the businesses, the notifications and the calendar between the passkeys and the devices', async () => {
     await mount()
     await screen.findByText('Elektro Kohm GmbH')
 
@@ -124,6 +125,7 @@ describe('"Konto" in the office', () => {
       'Passkeys',
       'Betriebe',
       'Benachrichtigungen',
+      'Kalender-Abo',
       'Angemeldete Geräte',
     ])
   })

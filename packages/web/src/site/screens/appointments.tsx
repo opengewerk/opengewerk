@@ -32,6 +32,7 @@ import { addressLine } from '../../app/format.js'
 import { jobKindLabel, jobKindOf } from '../../app/labels.js'
 import { confirmAppointment } from '../../session/appointments.js'
 import { SiteHeader } from '../header.js'
+import { SiteCalendarPanel } from './calendar-feed.js'
 
 /**
  * One's own appointments on site (#290): from today for four weeks, day by
@@ -160,6 +161,7 @@ export function SiteAppointmentsScreen() {
       <SiteText muted size={15}>
         {`Bis ${longDays[weekdayIndex(last)]}, ${date(last)}, vier Wochen ab heute.`}
       </SiteText>
+      <SiteCalendarPanel />
     </SiteScreen>
   )
 }

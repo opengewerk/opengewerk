@@ -163,6 +163,8 @@ describe('the tables', () => {
         'an article writes its row of the search, which the application has no right on (#461)',
       'article_search_of_supplier_articles()':
         "a supplier's number writes its row of the search, which the application has no right on (#461)",
+      'calendar_feed_for(hash text)':
+        'a calendar asks without a session, and only the token in its address names the tenant (#291)',
     })
 
     expect(reading).toEqual({ unexplained: [], stale: [], openToEveryRole: [] })
@@ -1014,6 +1016,13 @@ const crossings: readonly {
     write: (own, other) =>
       sql`insert into appointment_people (tenant_id, appointment_id, user_id)
             values (${own.tenant}, ${own.appointment}, ${other.user})`,
+  },
+  // The calendar of a person (#291) is only for somebody who works here.
+  {
+    key: 'calendar_feeds_work_here',
+    write: (own, other) =>
+      sql`insert into calendar_feeds (tenant_id, user_id, token_hash)
+            values (${own.tenant}, ${other.user}, repeat('a', 64))`,
   },
   // Leave and sickness (#288): an absence and the days of a year of a person here.
   {

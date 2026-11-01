@@ -43,4 +43,6 @@ export const serverPaths = [
   'time-account',
   // The appointments of the planning board (#290).
   'appointments',
+  // The own appointments in the own calendar, and the address of it (#291).
+  'calendar',
 ] as const

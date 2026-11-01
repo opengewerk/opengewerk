@@ -335,7 +335,10 @@ describe('the tables', () => {
       // Leave and sickness and the holidays they count with (#288), online like the files.
       name === 'absences' ||
       name === 'leave_entitlements' ||
-      name === 'holiday_settings'
+      name === 'holiday_settings' ||
+      // The address of a calendar (#291): a hash a device has no use for, and
+      // the address itself comes from the route that makes it.
+      name === 'calendar_feeds'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

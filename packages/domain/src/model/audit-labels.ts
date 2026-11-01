@@ -120,6 +120,13 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       durability_model: 'Modell der Haltbarkeitsgarantie',
     },
   },
+  calendar_feeds: {
+    label: 'Kalender-Abo',
+    fields: {
+      token_hash: 'Prüfsumme der Adresse',
+      ended_at: 'Beendet am',
+    },
+  },
   customer_tags: { label: 'Tag an einem Kunden', fields: { tag_id: 'Tag' } },
   customers: {
     label: 'Kunde',

@@ -6,6 +6,7 @@ import {
 } from '@opengewerk/platform-web/office'
 
 import { BusinessesPanel } from './account-businesses.js'
+import { CalendarPanel } from './account-calendar.js'
 
 /** What this application says on the card "Benachrichtigungen" of the foundation. */
 const pushWords: PushPanelWords = {
@@ -25,7 +26,7 @@ const pushWords: PushPanelWords = {
  * the password, as the board "Konto" draws them: the businesses somebody
  * works in, with a further one for an owner (#142, #242), which is its own,
  * and push on this device (#284), which is the foundation's and says here
- * what only this application knows. Above them all the own file (#287),
+ * what only this application knows; after push the own calendar (#291). Above them all the own file (#287),
  * read only, as the board "Konto mit der eigenen Akte" draws it.
  */
 export function AccountScreen() {
@@ -33,6 +34,7 @@ export function AccountScreen() {
     <Account first={<OwnFilePanel />}>
       <BusinessesPanel />
       <PushPanel entry="office" words={pushWords} />
+      <CalendarPanel />
     </Account>
   )
 }
