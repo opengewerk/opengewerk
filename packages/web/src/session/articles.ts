@@ -41,6 +41,8 @@ export interface ArticleQuery {
   readonly limit: number
   /** The day of the selling price, today when left out: a position's document date. */
   readonly on?: IsoDate
+  /** Only the articles with exactly this EAN, what a scan on site looks for (#263). */
+  readonly ean?: string
 }
 
 /** A price from a day on, selling or purchase. */
@@ -166,6 +168,10 @@ export function articlePage(query: ArticleQuery): Promise<ArticlePage> {
 
   if (query.on !== undefined) {
     parameters.set('on', query.on)
+  }
+
+  if (query.ean !== undefined) {
+    parameters.set('ean', query.ean)
   }
 
   return request<ArticlePage>(`/articles?${parameters.toString()}`)

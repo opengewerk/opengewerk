@@ -231,6 +231,19 @@ export function articleProblems(
   return problems
 }
 
+/**
+ * The EAN in a code the camera read on site (#263), or null when the code is
+ * no EAN: a serial number, the address on a QR label, a code of a wholesaler.
+ * A UPC-A of twelve digits is the EAN-13 with a leading zero, and some
+ * readers give it that way.
+ */
+export function eanFromScan(code: string): string | null {
+  const digits = code.trim()
+  const ean = /^\d{12}$/.test(digits) ? `0${digits}` : digits
+
+  return eanProblem(ean) === null ? ean : null
+}
+
 /** What is wrong with the supplier's number for an article, or null. */
 export function supplierNumberProblem(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > articleLimits.supplierNumber

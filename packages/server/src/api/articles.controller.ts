@@ -270,6 +270,9 @@ export class ArticlesController {
    * `on` asks for the selling price of another day: a position takes the one
    * of its document's date (#296), and that is what the choice of an article
    * in a line shows before anybody takes it.
+   *
+   * `ean` asks for the articles with exactly that EAN, the ones a scan on site
+   * finds (#263); a search would find an EAN within a supplier's number too.
    */
   @Get()
   @RequiresPermission('article.read')
@@ -282,12 +285,17 @@ export class ArticlesController {
     @Query('offset') offset?: string,
     @Query('limit') limit?: string,
     @Query('on') on?: string,
+    @Query('ean') ean?: string,
   ) {
     const from = Number(offset ?? 0)
     const size = Number(limit ?? 50)
 
     if (on !== undefined && !isCalendarDay(on)) {
       throw new BadRequestException('Ein Tag ist ein Datum im Kalender, zum Beispiel 2026-09-28.')
+    }
+
+    if (ean !== undefined && !/^(?:\d{8}|\d{13})$/.test(ean)) {
+      throw new BadRequestException('Eine EAN hat 8 oder 13 Ziffern.')
     }
 
     if (
@@ -307,6 +315,10 @@ export class ArticlesController {
 
     if (frequent === 'true') {
       conditions.push(eq(articles.frequent, true))
+    }
+
+    if (ean !== undefined) {
+      conditions.push(eq(articles.ean, ean))
     }
 
     if (group !== undefined && group.trim() !== '') {

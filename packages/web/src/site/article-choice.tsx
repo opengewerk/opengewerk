@@ -50,7 +50,8 @@ function Hit({
   )
 }
 
-function Hits({
+/** Articles to take over, one tap each: hits of a search, or the articles of one EAN (#263). */
+export function ArticleHits({
   articles,
   onPick,
   stock,
@@ -141,20 +142,20 @@ export function ArticleChoice({
               : 'Kein Artikel passt zur Suche.'}
           </SiteText>
         ) : (
-          <Hits articles={found.found} onPick={pick} {...(stock ? { stock } : {})} />
+          <ArticleHits articles={found.found} onPick={pick} {...(stock ? { stock } : {})} />
         )
       ) : (
         <>
           {frequent.length > 0 ? (
             <div className="flex flex-col gap-2">
               <SiteLabel>Häufig</SiteLabel>
-              <Hits articles={frequent} onPick={pick} {...(stock ? { stock } : {})} />
+              <ArticleHits articles={frequent} onPick={pick} {...(stock ? { stock } : {})} />
             </div>
           ) : null}
           {recent.length > 0 ? (
             <div className="flex flex-col gap-2">
               <SiteLabel>Zuletzt benutzt</SiteLabel>
-              <Hits articles={recent} onPick={pick} {...(stock ? { stock } : {})} />
+              <ArticleHits articles={recent} onPick={pick} {...(stock ? { stock } : {})} />
             </div>
           ) : null}
         </>

@@ -43,7 +43,7 @@ import {
 } from '@opengewerk/platform-web/sync'
 import type { EditResult } from '@opengewerk/platform-web/sync'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { Camera, Check, Pencil, Plus, Signature, X } from 'lucide-react'
+import { Camera, Check, Pencil, Plus, ScanLine, Signature, X } from 'lucide-react'
 import { useId, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
@@ -62,6 +62,7 @@ import {
 } from '../../app/labels.js'
 import { ArticleChoice, type StockOf } from '../article-choice.js'
 import { SiteHeader } from '../header.js'
+import { MaterialScan, type ScannedArticle } from '../material-scan.js'
 import { signedContentOf } from '../signing.js'
 
 /** The lines in the order they stand. The id breaks a tie, as on the server. */
@@ -401,7 +402,7 @@ function HoursStepper({
   )
 }
 
-type Editor = 'text' | 'hours' | 'material'
+type Editor = 'text' | 'hours' | 'material' | 'scan'
 
 /**
  * Writing the report, the board "Regiebericht schreiben, ohne Netz": the text,
@@ -465,6 +466,8 @@ function WritingStep({
   const client = useSync()
   const reportId = String(report['id'])
   const [editor, setEditor] = useState<Editor | null>(null)
+  // The article a scan found (#263), which "Material eintragen" opens with.
+  const [scanned, setScanned] = useState<ScannedArticle | null>(null)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [working, setWorking] = useState(false)
   const hasContent = maybeText(report, 'introText') !== null || lines.length > 0
@@ -537,20 +540,40 @@ function WritingStep({
   }
 
   // Entering hours or material is a screen of its own on the board: the form
-  // over the list, nothing else, and no bar at the foot.
-  if (editor === 'hours' || editor === 'material') {
+  // over the list, nothing else, and no bar at the foot. Scanning material
+  // (#263) is one as well, the camera over the list.
+  if (editor === 'hours' || editor === 'material' || editor === 'scan') {
     return (
       <>
-        <LineForm
-          key={editor}
-          editor={editor}
-          day={text(report, 'documentDate')}
-          storeId={maybeText(report, 'storeId')}
-          onSave={addLine}
-          onCancel={() => {
-            setEditor(null)
-          }}
-        />
+        {editor === 'scan' ? (
+          <ScanPanel
+            day={text(report, 'documentDate')}
+            storeId={maybeText(report, 'storeId')}
+            onFound={(found) => {
+              setScanned(found)
+              setEditor('material')
+            }}
+            onByHand={() => {
+              setScanned(null)
+              setEditor('material')
+            }}
+            onCancel={() => {
+              setEditor(null)
+            }}
+          />
+        ) : (
+          <LineForm
+            key={editor}
+            editor={editor}
+            day={text(report, 'documentDate')}
+            storeId={maybeText(report, 'storeId')}
+            scanned={editor === 'material' ? scanned : null}
+            onSave={addLine}
+            onCancel={() => {
+              setEditor(null)
+            }}
+          />
+        )}
         <Panel
           title="Arbeitszeit und Material"
           action={<span className="text-[14px] text-ink-faint">{postsOf(lines)}</span>}
@@ -624,11 +647,24 @@ function WritingStep({
               icon={Plus}
               disabled={editor !== null}
               onClick={() => {
+                setScanned(null)
                 setEditor('material')
               }}
             >
               Material eintragen
             </Button>
+            <button
+              type="button"
+              aria-label="Material scannen"
+              title="Material scannen"
+              disabled={editor !== null}
+              onClick={() => {
+                setEditor('scan')
+              }}
+              className="flex size-13 shrink-0 cursor-pointer items-center justify-center rounded-control border border-control bg-ground text-ink disabled:cursor-not-allowed disabled:border-line disabled:text-disabled"
+            >
+              <ScanLine size={22} strokeWidth={2.1} aria-hidden="true" />
+            </button>
             <ReportPhoto report={report} />
           </div>
           <Button
@@ -921,12 +957,15 @@ function useStockOf(storeId: string | null): StockOf | undefined {
  * "Material eintragen", and hours have a unit nobody should have to pick.
  *
  * Material starts with the choice of an article (#296): one tap fills
- * material and unit, and the line keeps which article it came from.
+ * material and unit, and the line keeps which article it came from. After a
+ * scan (#263) the article is chosen already, the board "Material eintragen
+ * nach dem Scan", and what is left is the quantity.
  */
 function LineForm({
   editor,
   day,
   storeId,
+  scanned,
   onSave,
   onCancel,
 }: {
@@ -935,6 +974,8 @@ function LineForm({
   readonly day: string
   /** Where its material comes from (#298), for the stock beside each article. */
   readonly storeId: string | null
+  /** The article a scan found, which the form opens with. */
+  readonly scanned: ScannedArticle | null
   readonly onSave: (values: {
     readonly designation: string
     readonly quantityMilli: number
@@ -945,10 +986,13 @@ function LineForm({
 }) {
   const stock = useStockOf(storeId)
   const hours = editor === 'hours'
-  const [designation, setDesignation] = useState(hours ? 'Arbeitszeit' : '')
+  const found = hours ? null : (scanned?.article ?? null)
+  const [designation, setDesignation] = useState(hours ? 'Arbeitszeit' : (found?.designation ?? ''))
   const [quantity, setQuantity] = useState(hours ? '' : '1')
-  const [unit, setUnit] = useState<string>('piece')
-  const [articleId, setArticleId] = useState<string | null>(null)
+  const [unit, setUnit] = useState<string>(
+    found && materialUnits.some((known) => known.value === found.unit) ? found.unit : 'piece',
+  )
+  const [articleId, setArticleId] = useState<string | null>(found?.id ?? null)
   const [problems, setProblems] = useState<Readonly<Record<string, string>>>({})
   const [trouble, setTrouble] = useState<string | null>(null)
   const [working, setWorking] = useState(false)
@@ -1003,7 +1047,9 @@ function LineForm({
           void save(event)
         }}
       >
-        {hours ? null : (
+        {hours ? null : scanned ? (
+          <ScannedCard scanned={scanned} {...(stock ? { stock } : {})} />
+        ) : (
           <ArticleChoice
             day={day}
             stock={stock}
@@ -1055,6 +1101,11 @@ function LineForm({
             </div>
           )}
         </div>
+        {scanned && stock && !hours ? (
+          <SiteText muted size={15}>
+            Der Bestand ist der beim letzten Abgleich. Gebucht wird beim Unterschreiben.
+          </SiteText>
+        ) : null}
         {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
         <Button type="submit" tone="primary" wide height={52} icon={Check} disabled={working}>
           {hours ? 'Arbeitszeit sichern' : 'Material sichern'}
@@ -1063,6 +1114,66 @@ function LineForm({
           Abbrechen
         </Button>
       </form>
+    </Panel>
+  )
+}
+
+/** The article a scan found, over the fields it fills, as the board "Material eintragen nach dem Scan" draws it. */
+function ScannedCard({
+  scanned,
+  stock,
+}: {
+  readonly scanned: ScannedArticle
+  readonly stock?: StockOf
+}) {
+  const { article, ean } = scanned
+
+  return (
+    <div className="flex gap-2.5 rounded-[6px] border border-l-4 border-line border-l-done bg-ground px-3 py-2.5">
+      <Check size={20} strokeWidth={2.6} aria-hidden="true" className="mt-0.5 shrink-0 text-done" />
+      <span className="min-w-0">
+        <span className="block text-[17px] leading-[1.3] font-semibold [overflow-wrap:anywhere]">
+          {article.designation}
+        </span>
+        <span className="mt-0.5 block text-[15px] text-ink-muted">
+          {[article.number, lineUnitLabel[article.unit], stock?.(article.id, article.unit) ?? null]
+            .filter(Boolean)
+            .join(' · ')}
+        </span>
+        <span className="mt-0.5 block text-[15px] text-ink-muted">Gescannt: EAN {ean}</span>
+      </span>
+    </div>
+  )
+}
+
+/**
+ * "Material scannen" (#263) as a card over the list, as "Material eintragen"
+ * is one, with the stock of the report's store beside a choice of articles.
+ */
+function ScanPanel({
+  day,
+  storeId,
+  onFound,
+  onByHand,
+  onCancel,
+}: {
+  readonly day: string
+  readonly storeId: string | null
+  readonly onFound: (scanned: ScannedArticle) => void
+  readonly onByHand: () => void
+  readonly onCancel: () => void
+}) {
+  const stock = useStockOf(storeId)
+
+  return (
+    <Panel title="Material scannen">
+      <MaterialScan
+        day={day}
+        onFound={onFound}
+        onByHand={onByHand}
+        onCancel={onCancel}
+        {...(stock ? { stock } : {})}
+      />
     </Panel>
   )
 }
