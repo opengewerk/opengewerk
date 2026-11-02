@@ -2,6 +2,8 @@ import 'fake-indexeddb/auto'
 
 import {
   type GroupBlock,
+  inspectionDueAfter,
+  type IsoDate,
   type MeasurementField,
   readFormValues,
   type RecordState,
@@ -407,6 +409,59 @@ describe('a test protocol on site (#79)', () => {
         values: {},
       },
     ])
+  })
+
+  it('measures a recurring inspection by the minimum of each way and says the day of the next one (#301)', async () => {
+    const user = userEvent.setup()
+
+    await mount('/auftraege/j-1')
+    server.offline = true
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Prüfprotokoll Wiederholungsprüfung nach DIN VDE 0105-100 anlegen',
+      }),
+    )
+    await screen.findByRole('list', { name: 'Abschnitte' })
+    expect(
+      screen.getByText('Wiederholungsprüfung nach DIN VDE 0105-100, Zählerschrank'),
+    ).toBeTruthy()
+
+    await user.click(row('Messen'))
+    // 1000 Ω and 300 Ω per volt of 230 V, without and with loads connected.
+    expect(await screen.findByText('≥ 0,230 MΩ')).toBeTruthy()
+    expect(screen.getByText('≥ 0,069 MΩ')).toBeTruthy()
+
+    await user.type(
+      screen.getByLabelText('Isolationswiderstand Riso ohne Verbraucher in MΩ'),
+      '0,2',
+    )
+    expect(
+      screen.getByText(
+        /^Außerhalb des Grenzwerts, mindestens 0,230 MΩ\. Quelle: DGUV Information 203-072:2021-04, Tabelle 11/,
+      ),
+    ).toBeTruthy()
+    await user.type(
+      screen.getByLabelText('Isolationswiderstand Riso mit Verbrauchern in MΩ'),
+      '0,2',
+    )
+    expect(screen.getByText(/^Innerhalb des Grenzwerts, mindestens 0,069 MΩ\./)).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: 'Weiter zu F2' }))
+    await user.click(await screen.findByRole('button', { name: 'Zur Übersicht' }))
+
+    const performedOn = (screen.getByLabelText('Tag der Prüfung') as HTMLInputElement).value
+    const due = inspectionDueAfter(performedOn as IsoDate, 48_000) ?? ''
+
+    expect(screen.queryByText(/^Nächste Prüfung bis zum/)).toBeNull()
+    await user.type(
+      await screen.findByLabelText('Prüffrist bis zur nächsten Prüfung in Mon.'),
+      '48',
+    )
+    expect(
+      screen.getByText(
+        `Nächste Prüfung bis zum ${due.slice(8, 10)}.${due.slice(5, 7)}.${due.slice(0, 4)}.`,
+      ),
+    ).toBeTruthy()
   })
 
   it('opens the measuring at the first circuit without a value', async () => {

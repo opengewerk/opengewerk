@@ -9,6 +9,7 @@ import request from 'supertest'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
+import { runDeadlinesOf } from '../deadlines/engine.js'
 import {
   admitPreviewUser,
   defaultPreviewDatabaseUrl,
@@ -290,16 +291,45 @@ describe('the sample data', () => {
     )
   })
 
-  it('has the protocols of the cabinet, one signed and a draft with a value outside its limit', async () => {
-    const { rows } = await admin.query<{ status: string; performed_on: string; values: string }>(
-      'select status, performed_on::text, values from form_records order by performed_on',
+  it('has the protocols of the cabinet, two signed and a draft with a value outside its limit', async () => {
+    const { rows } = await admin.query<{
+      definition_key: string
+      status: string
+      performed_on: string
+      values: string
+    }>(
+      'select definition_key, status, performed_on::text, values from form_records order by performed_on',
     )
 
-    expect(rows.map((row) => row.status)).toEqual(['signed', 'draft'])
-    expect(rows[1]?.performed_on).toBe('2026-09-21')
+    expect(rows.map((row) => [row.definition_key, row.status])).toEqual([
+      ['vde-0100-600', 'signed'],
+      ['vde-0105-100', 'signed'],
+      ['vde-0100-600', 'draft'],
+    ])
+    expect(rows[2]?.performed_on).toBe('2026-09-21')
     // F3 in the kitchen, 3,41 Ω behind a B 16 A: the one value the board
     // "Prüfprotokoll im Büro" shows in red (#219).
-    expect(rows[1]?.values).toContain('"loop_impedance":3410')
+    expect(rows[2]?.values).toContain('"loop_impedance":3410')
+    // The recurring inspection names its next one in four years (#301).
+    expect(rows[1]?.values).toContain('"next_inspection_months":48000')
+  })
+
+  it('makes a deadline of the next inspection the recurring one names (#301)', async () => {
+    // As the preview does when it starts, after the sample data.
+    await runDeadlinesOf({ database }, tenant.id, new Date('2026-09-21T08:00:00Z'))
+
+    const { rows } = await admin.query<{ kind: string; due_on: string; source_label: string }>(
+      'select kind, due_on::text, source_label from deadlines where kind = $1',
+      ['elektro.recurring_inspection'],
+    )
+
+    expect(rows).toEqual([
+      {
+        kind: 'elektro.recurring_inspection',
+        due_on: '2030-08-17',
+        source_label: 'Zählerschrank Keller am Objekt Einfamilienhaus Berg',
+      },
+    ])
   })
 
   it('makes the preview person the operator of the instance, for its area (#188)', async () => {

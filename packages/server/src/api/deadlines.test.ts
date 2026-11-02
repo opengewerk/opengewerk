@@ -452,6 +452,16 @@ describe('the settings of each kind', () => {
         responsible: 'lead',
         actions: ['task'],
       }),
+      // The recurring inspection of the package Elektro (#301), for whoever signed the last protocol.
+      expect.objectContaining({
+        key: 'elektro.recurring_inspection',
+        title: 'Wiederholungsprüfung der Anlage',
+        trade: 'elektro',
+        intervalDays: null,
+        leadDays: 60,
+        responsible: 'source',
+        actions: ['task', 'reminder'],
+      }),
     ])
   })
 

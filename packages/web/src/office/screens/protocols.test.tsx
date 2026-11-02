@@ -219,9 +219,12 @@ describe('a test protocol in the office (#79)', () => {
     const user = userEvent.setup()
     const { client, router } = await mount('/anlagen/i-1')
 
-    await user.click(
-      await screen.findByRole('button', { name: 'Mit dem Protokoll vom 24.09.2026 als Vorlage' }),
-    )
+    // One way for each form, the first inspection first.
+    const [first] = await screen.findAllByRole('button', {
+      name: 'Mit dem Protokoll vom 24.09.2026 als Vorlage',
+    })
+
+    await user.click(first as HTMLElement)
     await waitFor(() => {
       expect(router.state.location.pathname).not.toBe('/anlagen/i-1')
     })
@@ -258,6 +261,122 @@ describe('a test protocol in the office (#79)', () => {
     expect(await screen.findByRole('button', { name: 'Speichern' })).toBeTruthy()
     expect(screen.getByLabelText('Prüfer')).toHaveProperty('value', 'Paul Prüfer')
     expect(client.list('form_records')).toHaveLength(2)
+  })
+
+  it('starts a recurring inspection from the first, keeping what both forms take over (#301)', async () => {
+    const user = userEvent.setup()
+
+    // A draft after it is a test nobody has vouched for yet, and no template.
+    server.put('form_records', {
+      id: 'p-5',
+      definitionKey: 'vde-0105-100',
+      definitionVersion: 1,
+      installationId: 'i-1',
+      jobId: null,
+      performedOn: '2026-10-20',
+      status: 'draft',
+      values: '{}',
+    })
+
+    const { router } = await mount('/anlagen/i-1')
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Prüfprotokoll Wiederholungsprüfung nach DIN VDE 0105-100 anlegen',
+      }),
+    )
+    await waitFor(() => {
+      expect(router.state.location.pathname).not.toBe('/anlagen/i-1')
+    })
+
+    const blank = server.operations().find((operation) => operation.kind === 'create')
+    const blankFields = Object.fromEntries(
+      (blank?.patches ?? []).map((patch) => [patch.field, patch.to]),
+    )
+
+    expect(blankFields['definitionKey']).toBe('vde-0105-100')
+    expect(Object.keys(readFormValues(blankFields['values']) ?? {})).toEqual(['circuits'])
+
+    router.history.push('/anlagen/i-1')
+
+    const templates = await screen.findAllByRole('button', {
+      name: 'Mit dem Protokoll vom 24.09.2026 als Vorlage',
+    })
+
+    await user.click(templates[1] as HTMLElement)
+    await waitFor(() => {
+      expect(server.operations().filter((operation) => operation.kind === 'create')).toHaveLength(2)
+    })
+
+    const made = server.operations().filter((operation) => operation.kind === 'create')[1]
+    const fields = Object.fromEntries((made?.patches ?? []).map((patch) => [patch.field, patch.to]))
+
+    expect(fields['definitionKey']).toBe('vde-0105-100')
+    expect(fields['definitionVersion']).toBe(1)
+    // What describes the installation and the test, and nothing the first
+    // inspection alone knows, such as its occasion.
+    expect(readFormValues(fields['values'])).toEqual({
+      tester: 'Paul Prüfer',
+      instrument: 'Benning IT 130',
+      earthing_system: 'tn_s',
+      nominal_voltage: 230_000,
+      circuits: [
+        { circuitId: 'k-1', circuit: kitchen, values: {} },
+        {
+          circuitId: 'k-3',
+          circuit: {
+            designation: 'F3',
+            consumer: 'Wallbox',
+            tripCharacteristic: 'c',
+            ratedCurrentMilli: 32_000,
+            ratedResidualCurrentMilli: 30,
+          },
+          values: {},
+        },
+      ],
+    })
+  })
+
+  it('says under the interval of a recurring inspection the day of the next one (#301)', async () => {
+    server.put('form_records', {
+      id: 'p-9',
+      definitionKey: 'vde-0105-100',
+      definitionVersion: 1,
+      installationId: 'i-1',
+      jobId: null,
+      performedOn: '2026-10-05',
+      status: 'signed',
+      values: JSON.stringify({
+        tester: 'Paul Prüfer',
+        verdict: 'passed',
+        next_inspection_months: 48_000,
+        circuits: [
+          { circuitId: 'k-1', circuit: kitchen, values: { insulation_without_loads: 180 } },
+        ],
+      }),
+    })
+    await mount('/pruefprotokolle/p-9')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: 'Prüfprotokoll Wiederholungsprüfung nach DIN VDE 0105-100',
+    })
+    expect(screen.getByText('48 Mon.')).toBeTruthy()
+    expect(screen.getByText('Nächste Prüfung bis zum 05.10.2030.')).toBeTruthy()
+    // The two ways of measuring the insulation keep apart in the heads of the table.
+    expect(
+      screen.getByRole('columnheader', { name: 'Isolationswiderstand Riso ohne Verbraucher' })
+        .textContent,
+    ).toMatch(/^Riso ohne Verbraucher MΩ/)
+    expect(
+      screen.getByRole('columnheader', { name: 'Isolationswiderstand Riso mit Verbrauchern' })
+        .textContent,
+    ).toMatch(/^Riso mit Verbrauchern MΩ/)
+    expect(
+      screen.getByText(
+        'F1, Isolationswiderstand Riso ohne Verbraucher 0,180 MΩ: Außerhalb des Grenzwerts, mindestens 0,230 MΩ.',
+      ),
+    ).toBeTruthy()
   })
 
   it('takes the answers of a draft as buttons and saves them from its head, as the board draws it', async () => {

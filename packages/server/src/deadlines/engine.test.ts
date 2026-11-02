@@ -176,13 +176,13 @@ afterAll(async () => {
 })
 
 describe('the kinds of this instance', () => {
-  it('are the core kinds, none of a trade', () => {
+  it('are the core kinds and the recurring inspection of the package Elektro', () => {
     // The first kind of a trade comes with the recurring inspection of
     // Elektro (#301), from its package; the core names none (ADR 0008).
-    expect(deadlineKinds.kinds.map((kind) => kind.key)).toEqual(
-      coreDeadlineKinds.map((kind) => kind.key),
-    )
-    expect(deadlineKinds.kinds.every((kind) => kind.trade === null)).toBe(true)
+    expect(deadlineKinds.kinds.map((kind) => [kind.key, kind.trade])).toEqual([
+      ...coreDeadlineKinds.map((kind) => [kind.key, null]),
+      ['elektro.recurring_inspection', 'elektro'],
+    ])
   })
 })
 

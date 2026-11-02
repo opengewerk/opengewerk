@@ -1,4 +1,5 @@
 import { type FormDefinition, ruleSet } from '@opengewerk/domain'
+import { elektroRegistry, elektroRules } from '@opengewerk/gewerk-elektro'
 import { describe, expect, it } from 'vitest'
 
 import { protocolPrintJob, type PrintedProtocol } from './protocol-print.js'
@@ -78,5 +79,38 @@ describe('the limits under a table of a printed protocol', () => {
     )
     // The same 50 V reach the first limit and stay within, and are outside the second.
     expect(html.match(/<td class="figure outside">50 !<\/td>/g)).toHaveLength(1)
+  })
+})
+
+describe('the next inspection on a printed protocol (#301)', () => {
+  const recurring = elektroRegistry.definitionFor('vde-0105-100', 1)
+
+  it('stands beside its interval, counted from the day of the test', () => {
+    expect(recurring).not.toBeNull()
+
+    const { html } = protocolPrintJob({
+      ...protocol,
+      definition: recurring as FormDefinition,
+      values: { next_inspection_months: 48_000 },
+      performedOn: '2026-09-18',
+      rules: elektroRules,
+    })
+
+    expect(html).toContain(
+      '<tr><th>Prüffrist bis zur nächsten Prüfung</th><td>48 Mon., nächste Prüfung bis zum 18.09.2030</td></tr>',
+    )
+  })
+
+  it('is left out where the interval is not filled in', () => {
+    const { html } = protocolPrintJob({
+      ...protocol,
+      definition: recurring as FormDefinition,
+      values: {},
+      performedOn: '2026-09-18',
+      rules: elektroRules,
+    })
+
+    expect(html).toContain('<tr><th>Prüffrist bis zur nächsten Prüfung</th><td></td></tr>')
+    expect(html).not.toContain('nächste Prüfung bis')
   })
 })
