@@ -1,4 +1,5 @@
 import {
+  installationDueOn,
   type InstallationKind,
   installationKindLabel,
   type IsoDate,
@@ -64,6 +65,50 @@ function lastTests(
   }
 
   return lastOf
+}
+
+/**
+ * The day the next inspection of each installation is due, as its deadline
+ * says it (#822): out of all its signed protocols, so a test of a part after
+ * the last test of the whole draws it forward where the part is due sooner.
+ */
+function installationsDue(
+  records: readonly (typeof formRecords.$inferSelect)[],
+): Map<string, { readonly on: IsoDate; readonly sooner: LastTest | null }> {
+  const testsOf = new Map<string, LastTest[]>()
+
+  for (const record of records) {
+    const definition = tradeForms.definitionFor(record.definitionKey, record.definitionVersion)
+
+    if (record.installationId !== null && definition?.attachesTo === 'installation') {
+      testsOf.set(record.installationId, [
+        ...(testsOf.get(record.installationId) ?? []),
+        {
+          definition,
+          values: readFormValues(record.values) ?? {},
+          performedOn: record.performedOn as IsoDate,
+        },
+      ])
+    }
+  }
+
+  return new Map(
+    [...testsOf].flatMap(([id, tests]) => {
+      const due = installationDueOn(tests)
+
+      return due === null
+        ? []
+        : [
+            [
+              id,
+              {
+                on: due.on,
+                sooner: testsPart(due.test.definition, due.test.values) ? due.test : null,
+              },
+            ] as const,
+          ]
+    }),
+  )
 }
 
 async function signedOf(tx: TenantTransaction, subject: Subject, ids: readonly string[]) {
@@ -158,7 +203,8 @@ export async function reportedAppliances(
 
 /**
  * The installations of a site with the last signed test of the whole of each
- * (#302), by their designation. A heating comes in only where somebody
+ * (#302) and the day of its next inspection, the day of its deadline (#822),
+ * by their designation. A heating comes in only where somebody
  * tested it with a protocol of an installation: the report is of the
  * electrical installation, and a heating nobody tested that way is no gap in
  * it.
@@ -171,14 +217,13 @@ export async function reportedInstallations(
     .select()
     .from(installations)
     .where(and(eq(installations.siteId, siteId as SiteId), isNull(installations.deletedAt)))
-  const lastOf = lastTests(
-    await signedOf(
-      tx,
-      'installation',
-      rows.map((entry) => entry.id),
-    ),
+  const records = await signedOf(
+    tx,
     'installation',
+    rows.map((entry) => entry.id),
   )
+  const lastOf = lastTests(records, 'installation')
+  const dueOf = installationsDue(records)
 
   return rows
     .map((installation) => ({
@@ -186,8 +231,10 @@ export async function reportedInstallations(
       kind: installationKindLabel[installation.kind as InstallationKind],
       heating: installation.kind === 'heating',
       last: lastOf.get(installation.id) ?? null,
+      next: dueOf.get(installation.id)?.on ?? null,
+      sooner: dueOf.get(installation.id)?.sooner ?? null,
     }))
     .filter((entry) => !entry.heating || entry.last !== null)
     .sort((left, right) => byNumber.compare(left.designation, right.designation))
-    .map(({ designation, kind, last }) => ({ designation, kind, last }))
+    .map(({ designation, kind, last, next, sooner }) => ({ designation, kind, last, next, sooner }))
 }

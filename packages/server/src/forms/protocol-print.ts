@@ -16,6 +16,7 @@ import {
   measurementUnitSign,
   nextInspectionKey,
   nextInspectionOn,
+  partialDueCondition,
   partialTestSentence,
   type RuleSet,
   signatureBox,
@@ -135,17 +136,21 @@ function fieldRow(
         })
       : null
 
-  // The interval to the next inspection with the day it comes to (#301); a
-  // test of a part of the installation names none, whatever was typed (#814).
+  // The interval to the next inspection with the day it comes to (#301). A
+  // test of a part of the installation without one leaves the deadline of the
+  // whole (#814), and its day counts only where it is the sooner (#822).
   const interval = field.key === nextInspectionKey
   const part = interval && testsPart(protocol.definition, protocol.values)
-  const next =
-    interval && !part
-      ? nextInspectionOn(protocol.definition, protocol.values, protocol.performedOn)
-      : null
+  const next = interval
+    ? nextInspectionOn(protocol.definition, protocol.values, protocol.performedOn)
+    : null
 
-  return `<tr><th>${text(field.label)}</th><td>${part ? text(partialTestSentence) : printed}${
-    next === null ? '' : `, nächste Prüfung bis zum ${day(next)}`
+  return `<tr><th>${text(field.label)}</th><td>${
+    part && next === null ? text(partialTestSentence) : printed
+  }${
+    next === null
+      ? ''
+      : `, nächste Prüfung bis zum ${day(next)}${part ? `, ${text(partialDueCondition)}` : ''}`
   }${
     verdict && verdict.within === false
       ? ' <span class="outside">außerhalb des Grenzwerts</span>'

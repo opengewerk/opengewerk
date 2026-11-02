@@ -115,21 +115,27 @@ describe('the next inspection on a printed protocol (#301)', () => {
     expect(html).not.toContain('nächste Prüfung bis')
   })
 
-  it('stands on the first inspection of a new installation, and gives way after an extension (#814)', () => {
+  it('stands on the first inspection of a new installation, and only where it is sooner after an extension (#814, #822)', () => {
     const first = elektroRegistry.definitionFor('vde-0100-600', 3) as FormDefinition
-    const printed = (occasion: string) =>
+    const printed = (occasion: string, months?: number) =>
       protocolPrintJob({
         ...protocol,
         definition: first,
-        values: { occasion, next_inspection_months: 48_000 },
+        values: {
+          occasion,
+          ...(months === undefined ? {} : { next_inspection_months: months * 1000 }),
+        },
         performedOn: '2026-11-02',
         rules: elektroRules,
       }).html
 
-    expect(printed('new')).toContain(
+    expect(printed('new', 48)).toContain(
       '<tr><th>Prüffrist bis zur ersten Wiederholungsprüfung</th><td>48 Mon., nächste Prüfung bis zum 02.11.2030</td></tr>',
     )
-    expect(printed('extension')).toContain(
+    expect(printed('extension', 12)).toContain(
+      '<tr><th>Prüffrist bis zur ersten Wiederholungsprüfung</th><td>12 Mon., nächste Prüfung bis zum 02.11.2027, wenn die Frist der letzten Prüfung der Anlage nicht früher endet</td></tr>',
+    )
+    expect(printed('change')).toContain(
       '<tr><th>Prüffrist bis zur ersten Wiederholungsprüfung</th><td>Nach einer Erweiterung oder Änderung bleibt die Frist der letzten Prüfung der Anlage stehen.</td></tr>',
     )
     expect(printed('change')).not.toContain('nächste Prüfung bis')

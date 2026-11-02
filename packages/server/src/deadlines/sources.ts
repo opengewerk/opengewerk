@@ -6,14 +6,15 @@ import {
   type DeadlineSource,
   type DocumentId,
   type FormDefinition,
+  installationDueOn,
   type InstallationId,
   type IsoDate,
   type JobId,
   nextInspectionField,
   nextInspectionOn,
   readFormValues,
+  type SignedTest,
   type SiteId,
-  testsPart,
 } from '@opengewerk/domain'
 import { type SourceQuery, stockLevels } from '@opengewerk/platform-server'
 import { and, eq, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
@@ -245,8 +246,10 @@ function namingNextInspection(subject: FormDefinition['attachesTo']): SQL | null
  * leaves the installation without a deadline rather than falling back on an
  * older one: the last test is the one that counts. A test of only a part of
  * the installation, the first inspection after an extension or a change,
- * does not count (#814), and the last test of the whole stands. An
- * installation, site or customer deleted lets the deadline drop.
+ * leaves the last test of the whole standing (#814) and draws its day forward
+ * where the part is to be tested sooner (#822, `installationDueOn`); the
+ * deadline then hangs on that protocol. An installation, site or customer
+ * deleted lets the deadline drop.
  */
 export const inspectionsDue: SourceQuery<DeadlineValues> = async (tx) => {
   const forms = namingNextInspection('installation')
@@ -277,40 +280,50 @@ export const inspectionsDue: SourceQuery<DeadlineValues> = async (tx) => {
      where r.deleted_at is null and r.status = 'signed' and ${forms}
      order by r.installation_id, r.performed_on desc, r.updated_at desc, r.id desc`)
 
-  // The newest protocol of each installation that tests the whole of it.
-  const counted = new Set<string>()
+  // The protocols of each installation together, the newest first.
+  const testsOf = new Map<string, (SignedTest & { readonly row: (typeof rows)[number] })[]>()
 
-  return rows.flatMap((row) => {
+  for (const row of rows) {
     const definition = tradeForms.definitionFor(row.definition_key, Number(row.definition_version))
-    const values = readFormValues(row.values) ?? {}
 
-    if (counted.has(row.installation_id) || (definition && testsPart(definition, values))) {
+    if (definition !== null) {
+      testsOf.set(row.installation_id, [
+        ...(testsOf.get(row.installation_id) ?? []),
+        {
+          definition,
+          values: readFormValues(row.values) ?? {},
+          performedOn: row.performed_on as IsoDate,
+          row,
+        },
+      ])
+    }
+  }
+
+  return [...testsOf.values()].flatMap((tests) => {
+    const due = installationDueOn(tests)
+
+    if (due === null) {
       return []
     }
 
-    counted.add(row.installation_id)
+    const { row } = due.test
 
-    const performedOn = row.performed_on as IsoDate
-    const due = definition === null ? null : nextInspectionOn(definition, values, performedOn)
-
-    return due === null
-      ? []
-      : [
-          {
-            sourceId: row.installation_id,
-            sourceLabel: `${row.designation} am Objekt ${row.site}`,
-            anchorOn: performedOn,
-            namedDueOn: due,
-            naturalUserId: row.updated_by,
-            values: {
-              documentId: null,
-              installationId: row.installation_id as InstallationId,
-              customerId: row.customer_id as CustomerId,
-              siteId: row.site_id as SiteId,
-              jobId: null,
-            },
-          },
-        ]
+    return [
+      {
+        sourceId: row.installation_id,
+        sourceLabel: `${row.designation} am Objekt ${row.site}`,
+        anchorOn: due.test.performedOn,
+        namedDueOn: due.on,
+        naturalUserId: row.updated_by,
+        values: {
+          documentId: null,
+          installationId: row.installation_id as InstallationId,
+          customerId: row.customer_id as CustomerId,
+          siteId: row.site_id as SiteId,
+          jobId: null,
+        },
+      },
+    ]
   })
 }
 

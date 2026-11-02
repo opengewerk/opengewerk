@@ -5,7 +5,7 @@
       "key": "elektro.recurring_inspection",
       "trade": "elektro",
       "title": "Wiederholungsprüfung der Anlage",
-      "about": "Kommt aus dem letzten unterschriebenen Prüfprotokoll an einer Anlage, das die Prüffrist bis zur nächsten Prüfung nennt: der Wiederholungsprüfung nach DIN VDE 0105-100 oder der Erstprüfung nach DIN VDE 0100-600 einer Neuanlage. Eine Erstprüfung nach einer Erweiterung oder Änderung lässt die Frist stehen. Die Frist legt der Betreiber nach seiner Gefährdungsbeurteilung fest, das Protokoll nennt dazu die Prüffristen der DGUV Vorschrift 3. Ein neues Protokoll verschiebt die Frist, mit der Anlage entfällt sie.",
+      "about": "Kommt aus dem letzten unterschriebenen Prüfprotokoll an einer Anlage, das die Prüffrist bis zur nächsten Prüfung nennt: der Wiederholungsprüfung nach DIN VDE 0105-100 oder der Erstprüfung nach DIN VDE 0100-600 einer Neuanlage. Eine Erstprüfung nach einer Erweiterung oder Änderung lässt die Frist stehen; nennt sie eine Prüffrist, die früher endet, zieht sie die Frist nach vorn. Die Frist legt der Betreiber nach seiner Gefährdungsbeurteilung fest, das Protokoll nennt dazu die Prüffristen der DGUV Vorschrift 3. Ein neues Protokoll verschiebt die Frist, mit der Anlage entfällt sie.",
       "source": "inspection",
       "intervalDays": null,
       "intervalMonths": null,

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { FormDefinition } from './definition.js'
 import {
   inspectionDueAfter,
+  installationDueOn,
   isNextInspection,
   nextInspectionField,
   nextInspectionMissing,
@@ -100,15 +101,16 @@ describe('the next inspection of a protocol', () => {
     ).toBeNull()
   })
 
-  it('is none for a test of only a part of the installation, whatever its field says (#814)', () => {
+  it('is the day of the part for a test of only a part of the installation (#814, #822)', () => {
     const first = protocol(months, occasion)
 
     for (const part of ['extension', 'change']) {
       expect(testsPart(first, { occasion: part }), part).toBe(true)
       expect(
-        nextInspectionOn(first, { occasion: part, next_inspection_months: 48_000 }, '2026-11-02'),
+        nextInspectionOn(first, { occasion: part, next_inspection_months: 12_000 }, '2026-11-02'),
         part,
-      ).toBeNull()
+      ).toBe('2027-11-02')
+      expect(nextInspectionOn(first, { occasion: part }, '2026-11-02'), part).toBeNull()
     }
 
     expect(testsPart(first, { occasion: 'new' })).toBe(false)
@@ -120,6 +122,89 @@ describe('the next inspection of a protocol', () => {
     expect(testsPart(protocol(months, { ...occasion, kind: 'text' }), { occasion: 'change' })).toBe(
       false,
     )
+  })
+})
+
+describe('the next inspection of an installation (#822)', () => {
+  const first = protocol(months, occasion)
+  const recurring = protocol(months)
+
+  /** A signed protocol of the installation: a recurring inspection, or a first one for an occasion. */
+  function test(performedOn: string, interval: number | null, why?: string) {
+    return {
+      definition: why === undefined ? recurring : first,
+      values: {
+        ...(why === undefined ? {} : { occasion: why }),
+        ...(interval === null ? {} : { next_inspection_months: interval * 1000 }),
+      },
+      performedOn: performedOn as never,
+    }
+  }
+
+  it('is the day the last test of the whole names', () => {
+    const whole = test('2026-09-18', 48)
+
+    expect(installationDueOn([whole, test('2022-05-04', 12)])).toEqual({
+      on: '2030-09-18',
+      test: whole,
+    })
+    expect(installationDueOn([test('2026-11-02', 24, 'new')])?.on).toBe('2028-11-02')
+  })
+
+  it('is drawn forward by a test of a part after it that ends sooner', () => {
+    const extension = test('2027-03-01', 12, 'extension')
+
+    expect(installationDueOn([extension, test('2026-09-18', 48)])).toEqual({
+      on: '2028-03-01',
+      test: extension,
+    })
+    // The soonest of several parts holds, whichever came last.
+    expect(
+      installationDueOn([test('2027-06-01', 36, 'change'), extension, test('2026-09-18', 48)])?.on,
+    ).toBe('2028-03-01')
+    expect(
+      installationDueOn([
+        test('2028-01-10', 12, 'change'),
+        test('2027-03-01', 36, 'extension'),
+        test('2026-09-18', 48),
+      ])?.on,
+    ).toBe('2029-01-10')
+  })
+
+  it('is never moved back by a test of a part, nor by one that names no interval', () => {
+    const whole = test('2026-09-18', 48)
+
+    expect(installationDueOn([test('2029-06-01', 48, 'extension'), whole])).toEqual({
+      on: '2030-09-18',
+      test: whole,
+    })
+    expect(installationDueOn([test('2027-03-01', null, 'change'), whole])?.on).toBe('2030-09-18')
+    // A day that comes to the same holds as the test of the whole says it.
+    expect(installationDueOn([test('2029-09-18', 12, 'change'), whole])?.test).toBe(whole)
+  })
+
+  it('counts no test of a part from before the last test of the whole', () => {
+    expect(
+      installationDueOn([test('2026-09-18', 48), test('2025-01-10', 12, 'extension')])?.on,
+    ).toBe('2030-09-18')
+  })
+
+  it('is none where the last test of the whole names none, or there is none (#814)', () => {
+    expect(installationDueOn([test('2027-03-01', 12, 'extension')])).toBeNull()
+    expect(
+      installationDueOn([
+        test('2027-03-01', 12, 'extension'),
+        test('2026-09-18', 0),
+        test('2022-05-04', 48),
+      ]),
+    ).toBeNull()
+    expect(installationDueOn([])).toBeNull()
+  })
+
+  it('passes over a protocol whose form names no next inspection', () => {
+    const older = { ...test('2027-03-01', 12, 'new'), definition: protocol(null, occasion) }
+
+    expect(installationDueOn([older, test('2026-09-18', 48)])?.on).toBe('2030-09-18')
   })
 })
 

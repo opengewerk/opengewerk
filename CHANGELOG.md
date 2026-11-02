@@ -273,6 +273,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Eine Erstprüfung nach einer Erweiterung oder Änderung kann die Frist der Anlage verkürzen (#822, Feature-Gliederung
+  v2.55): Nennt sie eine Prüffrist und endet die früher als die Frist der letzten Prüfung der ganzen Anlage, gilt ihr
+  Tag, für die Erinnerung wie im Prüfbericht je Objekt, der unter der Prüfung nennt, welche Erweiterung oder Änderung
+  ihn vorgezogen hat.
+  Ohne Prüffrist oder mit einer längeren bleibt die Frist stehen, und eine Teilprüfung vor der letzten Prüfung der
+  ganzen Anlage zählt nicht mehr. Feld, Zeile darunter und PDF sagen, dass der Tag nur gilt, wenn die Frist der
+  letzten Prüfung nicht früher endet. Warum: Ein erweiterter oder geänderter Teil kann früher geprüft werden müssen
+  als der Rest der Anlage, etwa in einem Raum besonderer Art, und diese Frist ging bisher verloren.
 - Konzept, Funktionsumfang und der Bericht der Prüfung der Elektroinstallation nennen die Normen, nach denen geprüft
   wird, statt der Marke des ZVEH (Feature-Gliederung v2.54). Warum: Die Marke ist den Innungsbetrieben vorbehalten,
   und OpenGewerk soll sie auch nicht als Zweck eines Berichts nennen.
