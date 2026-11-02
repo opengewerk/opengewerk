@@ -43,12 +43,17 @@ describe('the package Elektro und PV', () => {
       'formulare/vde-0100-600.v1.json',
       'formulare/vde-0100-600.v2.json',
       'formulare/vde-0105-100.v1.json',
+      'formulare/dguv-v3.v1.json',
     ])
-    expect(elektroManifest.rules).toEqual(['regeln/vde-0100-600.json', 'regeln/vde-0105-100.json'])
-    expect(elektroManifest.deadlines).toEqual(['fristen/vde-0105-100.json'])
+    expect(elektroManifest.rules).toEqual([
+      'regeln/vde-0100-600.json',
+      'regeln/vde-0105-100.json',
+      'regeln/dguv-v3.json',
+    ])
+    expect(elektroManifest.deadlines).toEqual(['fristen/vde-0105-100.json', 'fristen/dguv-v3.json'])
     expect(elektroForms).toHaveLength(elektroManifest.forms.length)
     expect(elektroRulePackages).toHaveLength(elektroManifest.rules.length)
-    expect(elektroDeadlineKinds).toHaveLength(1)
+    expect(elektroDeadlineKinds).toHaveLength(2)
   })
 
   it('has definitions that hold together', () => {
@@ -104,6 +109,7 @@ describe('the package Elektro und PV', () => {
     ).toEqual([
       ['vde-0100-600', 2],
       ['vde-0105-100', 1],
+      ['dguv-v3', 1],
     ])
     expect(remark(first)).toEqual({ kind: 'text', key: 'remark', label: 'Bemerkung' })
     expect(remark(second)).toEqual({
@@ -209,6 +215,86 @@ describe('the package Elektro und PV', () => {
     ).toBeNull()
   })
 
+  it('judges the test of an appliance after DGUV Vorschrift 3 by its protection class and lead (#303)', () => {
+    const protocol = elektroRegistry.definitionFor('dguv-v3', 1)
+    const field = (key: string) =>
+      (protocol ? fieldsOf(protocol) : []).find(
+        (entry): entry is MeasurementField => entry.key === key && entry.kind === 'measurement',
+      )
+    const judged = (
+      key: string,
+      milli: number,
+      appliance: { protectionClass: 'I' | 'II' | 'III'; cordLengthMilli: number | null },
+      on = '2026-11-02',
+    ) => {
+      const entry = field(key)
+
+      return (
+        entry && limitVerdict(entry, milli, { rules: elektroRules, on, circuit: null, appliance })
+      )
+    }
+    const classOne = (cordLengthMilli: number | null) => ({
+      protectionClass: 'I' as const,
+      cordLengthMilli,
+    })
+
+    expect(protocol?.attachesTo).toBe('appliance')
+
+    // The insulation by protection class: 1, 2 and 0,25 MΩ, in thousandths of a megaohm.
+    expect(judged('insulation', 999, classOne(null))).toMatchObject({
+      within: false,
+      limitMilli: 1000,
+    })
+    expect(judged('insulation', 1000, classOne(null))?.within).toBe(true)
+    expect(
+      judged('insulation', 1999, { protectionClass: 'II', cordLengthMilli: null }),
+    ).toMatchObject({ within: false, limitMilli: 2000 })
+    expect(
+      judged('insulation', 250, { protectionClass: 'III', cordLengthMilli: null })?.within,
+    ).toBe(true)
+
+    // 0,3 Ω up to 5 m, 0,1 Ω more for every 7,5 m begun beyond, at most 1 Ω.
+    const resistanceLimit = (length: number | null) =>
+      judged('protective_conductor', 0, classOne(length))?.limitMilli
+    expect(resistanceLimit(null)).toBe(300)
+    expect(resistanceLimit(5000)).toBe(300)
+    expect(resistanceLimit(5001)).toBe(400)
+    expect(resistanceLimit(12_500)).toBe(400)
+    expect(resistanceLimit(12_501)).toBe(500)
+    expect(resistanceLimit(25_000)).toBe(600)
+    expect(resistanceLimit(100_000)).toBe(1000)
+    expect(judged('protective_conductor', 301, classOne(null))?.within).toBe(false)
+    // An appliance of class II has no protective conductor to judge.
+    expect(
+      judged('protective_conductor', 50, { protectionClass: 'II', cordLengthMilli: null })?.within,
+    ).toBeNull()
+
+    // The currents, in thousandths of a milliampere: 3,5 mA and 0,5 mA.
+    expect(judged('protective_conductor_current', 3501, classOne(null))).toMatchObject({
+      within: false,
+      limitMilli: 3500,
+    })
+    expect(judged('touch_current', 500, classOne(null))?.within).toBe(true)
+    expect(judged('touch_current', 501, classOne(null))?.source).toContain(
+      'DGUV Information 203-070',
+    )
+    // Before DIN EN 50699 (VDE 0702):2021-06 no limit rather than an invented one.
+    expect(judged('insulation', 999, classOne(null), '2021-05-31')?.within).toBeNull()
+  })
+
+  it('takes over from the last test of an appliance what describes the test and its interval', () => {
+    const protocol = elektroRegistry.definitionFor('dguv-v3', 1)
+    const field = protocol ? nextInspectionField(protocol) : null
+
+    expect(
+      (protocol ? fieldsOf(protocol) : [])
+        .filter((entry) => entry.carry === true)
+        .map((entry) => entry.key),
+    ).toEqual(['tester', 'instrument', 'test_kind', 'current_method', 'next_inspection_months'])
+    expect(field).toMatchObject({ required: true, carry: true, unit: 'month', decimals: 0 })
+    expect(field?.hint).toContain('Tabelle 1B der Durchführungsanweisungen zu § 5')
+  })
+
   it('brings the recurring inspection as a kind of deadline the registry takes', () => {
     expect(() => deadlineRegistry([...coreDeadlineKinds, ...elektroDeadlineKinds])).not.toThrow()
     expect(elektroDeadlineKinds).toEqual([
@@ -222,6 +308,18 @@ describe('the package Elektro und PV', () => {
         responsible: 'source',
         actions: ['task', 'reminder'],
         taskTitle: 'Wiederholungsprüfung: {quelle}',
+      }),
+      // The test of an appliance (#303): one task for the appliances of a site due the same day.
+      expect.objectContaining({
+        key: 'elektro.appliance_inspection',
+        trade: 'elektro',
+        source: 'appliance_inspection',
+        intervalDays: null,
+        intervalMonths: null,
+        leadDays: 30,
+        responsible: 'source',
+        actions: ['task'],
+        taskTitle: 'Geräte nach DGUV Vorschrift 3 prüfen am Objekt {objekt}',
       }),
     ])
   })

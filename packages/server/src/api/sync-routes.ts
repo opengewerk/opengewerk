@@ -109,6 +109,8 @@ export function permissionFor(
     stock_movements: 'stock.write',
     sites: 'site.write',
     installations: 'installation.write',
+    // The register of appliances is part of the record of a site's installations (#303).
+    appliances: 'installation.write',
     distribution_boards: 'installation.write',
     board_sections: 'installation.write',
     circuits: 'installation.write',

@@ -9,6 +9,22 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Das Geräteverzeichnis und die Prüfung nach DGUV Vorschrift 3 (#303), nach der Feature-Gliederung v2.51 und den
+  Tafeln aus Version 106 des Canvas: Jedes Objekt hat ein Verzeichnis seiner Geräte, die an keinem Stromkreis hängen,
+  mit Inventarnummer, Bezeichnung, Hersteller, Typ, Seriennummer, Schutzklasse, ortsveränderlich oder ortsfest,
+  Standort und der Länge der Anschlussleitung. Im Büro steht es als Karte am Objekt und als eigene Seite mit Suche,
+  Filtern und dem Prüfbericht als PDF; ein Gerät hat seine Prüfprotokolle wie eine Anlage. Auf der Baustelle führt
+  die Karte „Geräte“ am Auftrag zu den Geräten des Objekts: ein Tippen öffnet den Entwurf von heute oder beginnt eine
+  Prüfung mit dem letzten Protokoll des Geräts als Vorlage, ein fehlendes Gerät wird dort angelegt und gleich
+  geprüft, alles ohne Netz, und nach der Unterschrift geht es zum nächsten Gerät. Das Protokoll prüft nach DIN EN
+  50699 (VDE 0702) oder nach Instandsetzung nach DIN EN 50678 (VDE 0701) Schutzleiterwiderstand,
+  Isolationswiderstand, Schutzleiter- und Berührungsstrom; die Grenzwerte nach DGUV Information 203-070, Tabelle 1,
+  richten sich nach der Schutzklasse und beim Schutzleiterwiderstand nach der Länge der Leitung. Die Prüffrist in
+  Monaten nennt die Richtwerte aus Tabelle 1B der DGUV Vorschrift 3, und aus dem letzten unterschriebenen Protokoll
+  wird je Gerät eine Frist; die Fristen eines Objekts, die am selben Tag für dieselbe Person anstehen, teilen sich
+  eine Aufgabe. Dafür kennt die Regel-Engine Milliohm, Mikroampere und Millimeter. Grenzwerte und Prüffristen gehen
+  zur fachkundigen Abnahme in #31. Warum: Die Prüfung ortsveränderlicher Geräte ist für viele Elektrobetriebe Arbeit
+  an jedem Tag, bei einem Kunden schnell ein paar hundert Geräte, und bis jetzt kannte OpenGewerk nur Anlagen.
 - Das Prüfprotokoll der Wiederholungsprüfung nach DIN VDE 0105-100 (#301), nach der Feature-Gliederung v2.50 und den
   Tafeln aus Version 104 des Canvas: An jeder Anlage steht es neben der Erstprüfung, mit Besichtigen, Erproben und
   Messen je Stromkreis aus dem Stromkreisverzeichnis. Den Isolationswiderstand misst es ohne oder mit angeschlossenen

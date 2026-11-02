@@ -42,6 +42,12 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
   suppliers: masterData,
   sites: masterData,
   installations: fieldWork,
+  /**
+   * An appliance of the register (#303), made in the office or on site where it
+   * turns up, and tested there without a network; field work like the
+   * installation.
+   */
+  appliances: fieldWork,
   distribution_boards: fieldWork,
   board_sections: fieldWork,
   circuits: fieldWork,

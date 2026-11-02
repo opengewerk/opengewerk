@@ -9,7 +9,12 @@ import {
   ServiceUnavailableException,
   StreamableFile,
 } from '@nestjs/common'
-import { type FormRecordStatus, type IsoDate, readFormValues } from '@opengewerk/domain'
+import {
+  applianceSubject,
+  type FormRecordStatus,
+  type IsoDate,
+  readFormValues,
+} from '@opengewerk/domain'
 import {
   addressLines,
   Database,
@@ -23,6 +28,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import type { Response } from 'express'
 
 import {
+  appliances,
   formRecords,
   installations,
   letterheads,
@@ -37,7 +43,8 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
 /**
  * The PDF of a filled form (#78), the test protocol of #79 first.
  *
- * Under the right of the installation it hangs on, like its circuit chart.
+ * Under the right of the installation it hangs on, like its circuit chart;
+ * the test of an appliance of the register under the same (#303).
  * Printed on every request out of the record and kept nowhere: a signed
  * protocol does not change, and everything it depends on is in it.
  */
@@ -74,13 +81,14 @@ export class FormRecordsController {
           throw new NotFoundException()
         }
 
-        const [installation] = await tx
-          .select()
-          .from(installations)
-          .where(eq(installations.id, record.installationId))
-        const [site] = installation
-          ? await tx.select().from(sites).where(eq(sites.id, installation.siteId))
+        const [installation] = record.installationId
+          ? await tx.select().from(installations).where(eq(installations.id, record.installationId))
           : []
+        const [appliance] = record.applianceId
+          ? await tx.select().from(appliances).where(eq(appliances.id, record.applianceId))
+          : []
+        const siteId = installation?.siteId ?? appliance?.siteId
+        const [site] = siteId ? await tx.select().from(sites).where(eq(sites.id, siteId)) : []
         const [letterhead] = await tx
           .select({ companyName: letterheads.companyName, phone: letterheads.phone })
           .from(letterheads)
@@ -97,7 +105,13 @@ export class FormRecordsController {
             name: present(companyName) ? companyName : (tenant?.name ?? ''),
             phone: letterhead?.phone ?? null,
           },
-          installation: installation?.designation ?? '',
+          installation: installation?.designation ?? (appliance ? applianceSubject(appliance) : ''),
+          appliance: appliance
+            ? {
+                protectionClass: appliance.protectionClass,
+                cordLengthMilli: appliance.cordLengthMilli,
+              }
+            : null,
           site: site
             ? [site.designation, ...addressLines(site, 'DE')].filter(present).join(', ')
             : '',

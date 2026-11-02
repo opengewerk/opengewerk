@@ -10,6 +10,7 @@ import type { Id } from '@opengewerk/platform-domain'
 export type CustomerId = Id<'customer'>
 export type SiteId = Id<'site'>
 export type InstallationId = Id<'installation'>
+export type ApplianceId = Id<'appliance'>
 export type JobId = Id<'job'>
 export type DocumentId = Id<'document'>
 export type DocumentLineId = Id<'document-line'>

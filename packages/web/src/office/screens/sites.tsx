@@ -35,6 +35,7 @@ import { installationKindLabel, installationKindOf, jobStatusOf } from '../../ap
 import { useMay } from '../../app/queries.js'
 import { setTags } from '../../session/tags.js'
 import { type ChosenTags, TagPicker, TagPill, useTagsBy } from '../tags.js'
+import { AppliancesPanel } from './appliances.js'
 import { FilesPanel } from './attachments.js'
 import { ContactsSection } from './contacts.js'
 import { placeOf, tagsChanged } from './customers.js'
@@ -430,6 +431,8 @@ export function SiteScreen() {
                 </tbody>
               </TablePanel>
             )}
+
+            <AppliancesPanel siteId={siteId} />
 
             <JobsPanel
               caption="Aufträge am Objekt"

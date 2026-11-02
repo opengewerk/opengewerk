@@ -1,14 +1,14 @@
 import type { FormRecordStatus, Id, IsoDate, Synced } from '@opengewerk/platform-domain'
 
-import type { InstallationId, JobId } from '../model/identifier.js'
-import type { FormRegistry } from './definition.js'
+import type { ApplianceId, InstallationId, JobId } from '../model/identifier.js'
+import type { FormDefinition, FormRegistry } from './definition.js'
 import { tradeForms } from './engine.js'
 
 export { formRecordStatuses, type FormRecordStatus } from '@opengewerk/platform-domain'
 
 /**
- * A filled form (#78): a test protocol at an installation, in the version of
- * its definition it was filled in.
+ * A filled form (#78): a test protocol at an installation, or at an appliance of
+ * the register (#303), in the version of its definition it was filled in.
  *
  * Filled on site without a network and sent through the outbox like a
  * report, the values as one field of JSON text (`formValuesText`), whole
@@ -23,7 +23,10 @@ export interface FormRecord extends Synced {
   readonly id: Id<'form-record'>
   readonly definitionKey: string
   readonly definitionVersion: number
-  readonly installationId: InstallationId
+  /** The installation it was tested at, or null for the test of an appliance. */
+  readonly installationId: InstallationId | null
+  /** The appliance it was tested at (#303); a protocol hangs on the one or the other. */
+  readonly applianceId: ApplianceId | null
   /** The job the test was done for, when there was one. */
   readonly jobId: JobId | null
   /** The day of the test, and the day the limits are taken from. */
@@ -51,4 +54,26 @@ export function formRecordProblem(
   },
 ): string | null {
   return tradeForms.formRecordProblem(registry, record)
+}
+
+/**
+ * Whether a filled form hangs on what its definition names (#303): a test
+ * protocol of an installation at an installation, the test of an appliance at a
+ * appliance. The database holds that it hangs on exactly one of them; which one
+ * fits is the definition's to say. Null for a definition this version does
+ * not know, which `formRecordProblem` refuses on its own.
+ */
+export function formSubjectProblem(
+  definition: FormDefinition | null,
+  subject: { readonly installationId: unknown; readonly applianceId: unknown },
+): string | null {
+  if (definition?.attachesTo === 'appliance' && typeof subject.applianceId !== 'string') {
+    return 'Dieses Formular gehört an ein Gerät.'
+  }
+
+  if (definition?.attachesTo === 'installation' && typeof subject.installationId !== 'string') {
+    return 'Dieses Formular gehört an eine Anlage.'
+  }
+
+  return null
 }

@@ -10,6 +10,7 @@ import { SiteFilesScreen } from './screens/files.js'
 import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './screens/jobs.js'
 import { SiteNoteScreen } from './screens/notes.js'
 import { SiteProtocolScreen } from './screens/protocol.js'
+import { SiteAppliancesScreen, SiteNewApplianceScreen } from './screens/appliances.js'
 import { SiteReportScreen } from './screens/report.js'
 import { SiteLeaveRequestScreen, SiteLeaveScreen } from './screens/leave.js'
 import { SiteTimeEntryScreen, SiteTimeScreen } from './screens/time.js'
@@ -108,6 +109,17 @@ const routes = [
     getParentRoute: () => root,
     path: '/auftraege/$jobId/pruefprotokolle/$recordId',
     component: SiteProtocolScreen,
+  }),
+  // The appliances of the site of a job, tested one after another (#303).
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/geraete',
+    component: SiteAppliancesScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/geraete/neu',
+    component: SiteNewApplianceScreen,
   }),
   createRoute({
     getParentRoute: () => root,

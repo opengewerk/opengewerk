@@ -209,8 +209,20 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
     fields: {
       definition_key: 'Formular',
       definition_version: 'Fassung des Formulars',
+      appliance_id: 'Gerät',
       performed_on: 'Geprüft am',
       values: 'Werte',
+    },
+  },
+  // The register of appliances of a site (#303).
+  appliances: {
+    label: 'Gerät',
+    fields: {
+      inventory_number: 'Inventarnummer',
+      protection_class: 'Schutzklasse',
+      mobility: 'Art',
+      location: 'Standort',
+      cord_length_milli: 'Länge der Anschlussleitung',
     },
   },
   installations: {

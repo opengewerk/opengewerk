@@ -1,4 +1,5 @@
 import {
+  applianceProblems,
   countryProblem,
   correctionProblem,
   locationProblem,
@@ -104,6 +105,19 @@ const rules: RecordRules = {
     {
       fields: ['shortCode'],
       problem: (at) => supplierProblems({ shortCode: at('shortCode') })['shortCode'] ?? null,
+    },
+  ],
+  // An appliance of the register (#303): a designation, and a lead of a length
+  // that is one, as `applianceProblems` and the checks hold them.
+  appliances: [
+    {
+      fields: ['designation'],
+      problem: (at) => applianceProblems({ designation: at('designation') })['designation'] ?? null,
+    },
+    {
+      fields: ['cordLengthMilli'],
+      problem: (at) =>
+        applianceProblems({ cordLengthMilli: at('cordLengthMilli') })['cordLengthMilli'] ?? null,
     },
   ],
   installations: [

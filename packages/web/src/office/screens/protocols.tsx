@@ -101,9 +101,17 @@ export function ProtocolScreen() {
   const record = useRecord('form_records', recordId)
   const installation = useRecord(
     'installations',
-    record ? text(record, 'installationId') : undefined,
+    record ? text(record, 'installationId') || undefined : undefined,
   )
-  const site = useRecord('sites', installation ? text(installation, 'siteId') : undefined)
+  // Or the appliance of the register a test after DGUV Vorschrift 3 hangs on (#303).
+  const appliance = useRecord(
+    'appliances',
+    record ? text(record, 'applianceId') || undefined : undefined,
+  )
+  const site = useRecord(
+    'sites',
+    installation ? text(installation, 'siteId') : appliance ? text(appliance, 'siteId') : undefined,
+  )
   const customer = useRecord('customers', site ? text(site, 'customerId') : undefined)
 
   if (!record || !recordId) {
@@ -127,6 +135,12 @@ export function ProtocolScreen() {
             to: `/anlagen/${String(installation['id'])}`,
             label: text(installation, 'designation'),
           },
+        ]
+      : []),
+    ...(appliance && site
+      ? [
+          { to: `/objekte/${String(site['id'])}/geraete`, label: 'Geräte' },
+          { to: `/geraete/${String(appliance['id'])}`, label: text(appliance, 'designation') },
         ]
       : []),
   ]
@@ -402,6 +416,7 @@ function OneField({
       field={field}
       value={value}
       circuit={null}
+      appliance={protocol.appliance}
       performedOn={protocol.performedOn}
       photos={protocol.photos}
       onChange={(changed) => {
@@ -413,6 +428,7 @@ function OneField({
       field={field}
       value={value}
       circuit={null}
+      appliance={protocol.appliance}
       performedOn={protocol.performedOn}
       photos={protocol.photos}
     />

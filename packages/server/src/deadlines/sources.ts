@@ -1,4 +1,5 @@
 import {
+  applianceLabel,
   berlinClock,
   type CustomerId,
   qualificationCatalogue,
@@ -218,7 +219,10 @@ export const qualificationsRunningOut: SourceQuery<DeadlineValues> = async (tx) 
 export const inspectionsDue: SourceQuery<DeadlineValues> = async (tx) => {
   const keys = tradeForms
     .current()
-    .filter((definition) => nextInspectionField(definition) !== null)
+    .filter(
+      (definition) =>
+        definition.attachesTo === 'installation' && nextInspectionField(definition) !== null,
+    )
     .map((definition) => definition.key)
 
   if (keys.length === 0) {
@@ -281,6 +285,84 @@ export const inspectionsDue: SourceQuery<DeadlineValues> = async (tx) => {
   })
 }
 
+/**
+ * The appliances of the register whose last signed test names the next one
+ * (#303): the same question as `inspectionsDue`, asked of the protocols that
+ * hang on an appliance. One deadline per appliance, labelled with its number
+ * and designation at its site; an appliance, site or customer deleted lets it
+ * drop. The task it makes names the site, and the kind shares it among the
+ * appliances of a site due the same day (`sharesTasksBySite`).
+ */
+export const appliancesDue: SourceQuery<DeadlineValues> = async (tx) => {
+  const keys = tradeForms
+    .current()
+    .filter(
+      (definition) =>
+        definition.attachesTo === 'appliance' && nextInspectionField(definition) !== null,
+    )
+    .map((definition) => definition.key)
+
+  if (keys.length === 0) {
+    return []
+  }
+
+  const { rows } = await tx.execute<{
+    definition_key: string
+    definition_version: number
+    performed_on: string
+    values: string
+    updated_by: string | null
+    appliance_id: string
+    inventory_number: string | null
+    designation: string
+    site_id: string
+    site: string
+    customer_id: string
+  }>(sql`
+    select distinct on (r.appliance_id)
+           r.definition_key, r.definition_version, r.performed_on::text as performed_on, r.values,
+           r.updated_by, a.id as appliance_id, a.inventory_number, a.designation,
+           s.id as site_id, s.designation as site, s.customer_id
+      from form_records r
+      join appliances a on a.id = r.appliance_id and a.deleted_at is null
+      join sites s on s.id = a.site_id and s.deleted_at is null
+      join customers c on c.id = s.customer_id and c.deleted_at is null
+     where r.deleted_at is null and r.status = 'signed'
+       and r.definition_key in (${sql.join(
+         keys.map((key) => sql`${key}`),
+         sql`, `,
+       )})
+     order by r.appliance_id, r.performed_on desc, r.updated_at desc, r.id desc`)
+
+  return rows.flatMap((row) => {
+    const definition = tradeForms.definitionFor(row.definition_key, Number(row.definition_version))
+    const performedOn = row.performed_on as IsoDate
+    const due =
+      definition === null
+        ? null
+        : nextInspectionOn(definition, readFormValues(row.values) ?? {}, performedOn)
+
+    return due === null
+      ? []
+      : [
+          {
+            sourceId: row.appliance_id,
+            sourceLabel: `${applianceLabel({ inventoryNumber: row.inventory_number, designation: row.designation })} am Objekt ${row.site}`,
+            anchorOn: performedOn,
+            namedDueOn: due,
+            naturalUserId: row.updated_by,
+            values: {
+              documentId: null,
+              installationId: null,
+              customerId: row.customer_id as CustomerId,
+              siteId: row.site_id as SiteId,
+              jobId: null,
+            },
+          },
+        ]
+  })
+}
+
 /** Every source there is, by the name a kind gives it. */
 export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
   {
@@ -288,4 +370,5 @@ export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<
     store_minimum: storesBelowMinimum,
     qualification: qualificationsRunningOut,
     inspection: inspectionsDue,
+    appliance_inspection: appliancesDue,
   }

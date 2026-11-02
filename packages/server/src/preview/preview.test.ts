@@ -298,7 +298,7 @@ describe('the sample data', () => {
       performed_on: string
       values: string
     }>(
-      'select definition_key, status, performed_on::text, values from form_records order by performed_on',
+      'select definition_key, status, performed_on::text, values from form_records where installation_id is not null order by performed_on',
     )
 
     expect(rows.map((row) => [row.definition_key, row.status])).toEqual([

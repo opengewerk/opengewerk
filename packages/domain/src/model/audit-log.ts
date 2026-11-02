@@ -76,6 +76,8 @@ const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
   ],
   sites: [
     { table: 'contacts', column: 'site_id' },
+    // The appliances of the register (#303).
+    { table: 'appliances', column: 'site_id' },
     { table: 'site_tags', column: 'site_id' },
     { table: 'site_accesses', column: 'site_id' },
   ],
@@ -123,6 +125,7 @@ const auditReferences: Readonly<Record<string, string>> = {
   customer_id: 'customers',
   site_id: 'sites',
   installation_id: 'installations',
+  appliance_id: 'appliances',
   job_id: 'jobs',
   parent_job_id: 'jobs',
   predecessor_job_id: 'jobs',
@@ -218,6 +221,7 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   instructions: ['title', 'template'],
   form_definitions: ['key'],
   form_records: ['definition_key'],
+  appliances: ['designation'],
   document_signatures: ['signer_name'],
   job_notes: ['text'],
   payments: ['received_on'],

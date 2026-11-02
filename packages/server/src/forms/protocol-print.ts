@@ -1,4 +1,5 @@
 import {
+  type ApplianceFacts,
   type BlockField,
   type FieldValue,
   type FormDefinition,
@@ -49,7 +50,13 @@ export interface PrintedProtocol {
   readonly status: FormRecordStatus
   /** Who keeps the protocol: the business, with a way to reach it. */
   readonly keeper: { readonly name: string; readonly phone: string | null }
+  /** What was tested: the installation, or the appliance with its class and lead (#303). */
   readonly installation: string
+  /**
+   * The appliance a test after DGUV Vorschrift 3 was done at, what its
+   * limits are worked out from (#303); null for a protocol of an installation.
+   */
+  readonly appliance: ApplianceFacts | null
   /** The building, as a line. */
   readonly site: string
   /** The limits of the trade packages, asked on the day of the test. */
@@ -122,6 +129,7 @@ function fieldRow(
           rules: protocol.rules,
           on: protocol.performedOn,
           circuit: null,
+          appliance: protocol.appliance,
         })
       : null
 
@@ -217,8 +225,21 @@ function limitLegend(fields: readonly BlockField[], protocol: PrintedProtocol): 
         limit !== undefined && isRuleLimit(limit)
           ? protocol.rules.at(limit.rule, protocol.performedOn)
           : null
-      const said =
-        limit?.kind === 'loop_impedance'
+      // The limit of an appliance as it was worked out for it (#303), or why there is none.
+      const worked =
+        limit?.kind === 'appliance_insulation' || limit?.kind === 'appliance_protective_conductor'
+          ? limitVerdict(field, null, {
+              rules: protocol.rules,
+              on: protocol.performedOn,
+              circuit: null,
+              appliance: protocol.appliance,
+            })
+          : null
+      const said = worked
+        ? worked.limitMilli === null
+          ? text(worked.text)
+          : `${text(worked.text.replace(/^Grenzwert: (.*)\.$/, '$1'))}; ${text(worked.source ?? '')}`
+        : limit?.kind === 'loop_impedance'
           ? `höchstens U0 / Ia aus der Schutzeinrichtung des Stromkreises; ${text(
               ['nominal_voltage', 'factor_b', 'factor_c', 'factor_d']
                 .map(
@@ -262,7 +283,13 @@ function section(protocol: PrintedProtocol, section: FormDefinition['sections'][
     plain.length > 0
       ? `<table class="fields"><tbody>${plain
           .map((field) => fieldRow(field, protocol.values[field.key], protocol))
-          .join('')}</tbody></table>`
+          .join('')}</tbody></table>${
+          // The limits of values measured outside a group, as for the test of an appliance (#303).
+          limitLegend(
+            plain.filter((field): field is BlockField => field.kind !== 'signature'),
+            protocol,
+          )
+        }`
       : ''
   }
   ${groups.map((group) => groupTable(group, protocol.values[group.key], protocol)).join('')}
