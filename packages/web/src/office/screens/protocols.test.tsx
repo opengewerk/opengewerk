@@ -134,6 +134,9 @@ async function mount(path: string) {
       'board_sections',
       'circuits',
       'equipment',
+      'inverters',
+      'pv_strings',
+      'pv_modules',
       'form_records',
       'attachments',
     ],
@@ -626,5 +629,125 @@ describe('a test protocol in the office (#79)', () => {
       'k-7',
       'k-8',
     ])
+  })
+})
+
+describe('the commissioning protocol after VDE-AR-N 4105 in the office (#304)', () => {
+  it('is offered at a PV system without the last test as its template, and started from the structure', async () => {
+    const user = userEvent.setup()
+
+    // A PV system with an inverter, tested once.
+    server.put('installations', {
+      id: 'i-2',
+      siteId: 's-1',
+      kind: 'pv_system',
+      designation: 'PV-Anlage Dach',
+    })
+    server.put('inverters', {
+      id: 'w-1',
+      installationId: 'i-2',
+      designation: 'WR 1',
+      manufacturer: 'SMA',
+      model: 'Sunny Tripower 8.0',
+      serialNumber: '3001234567',
+      ratedPowerW: 8000,
+      position: 0,
+    })
+    server.put('form_records', {
+      id: 'p-2',
+      definitionKey: 'vde-0100-600',
+      definitionVersion: 1,
+      installationId: 'i-2',
+      jobId: null,
+      performedOn: '2026-09-24',
+      status: 'signed',
+      values: JSON.stringify(signed),
+    })
+    await mount('/anlagen/i-2')
+
+    const section = await screen.findByRole('region', { name: 'Prüfprotokolle' })
+
+    // The two tests take over from the last one; a commissioning has nothing to take.
+    expect(
+      within(section).getAllByRole('button', {
+        name: 'Mit dem Protokoll vom 24.09.2026 als Vorlage',
+      }),
+    ).toHaveLength(2)
+    await user.click(
+      within(section).getByRole('button', {
+        name: 'Inbetriebsetzungsprotokoll nach VDE-AR-N 4105 anlegen',
+      }),
+    )
+    await screen.findByRole('heading', {
+      level: 1,
+      name: 'Inbetriebsetzungsprotokoll nach VDE-AR-N 4105',
+    })
+
+    expect(
+      screen.getByText(
+        'Unterschrieben wird auf der Baustelle, vom Anlagenbetreiber und vom Elektrofachbetrieb. Danach ändert sich an diesem Protokoll nichts mehr.',
+      ),
+    ).toBeTruthy()
+    expect(screen.getByLabelText('Tag der Inbetriebsetzung')).toBeTruthy()
+    expect(screen.getByLabelText('Anlagenbetreiber')).toHaveProperty('value', 'Familie Berg')
+    expect(screen.getByLabelText('Maximale Scheinleistung SAmax in kVA')).toHaveProperty(
+      'value',
+      '8',
+    )
+    expect(screen.getByLabelText('Erster Netzparallelbetrieb')).toHaveProperty('type', 'date')
+  })
+
+  it('started at a battery, takes the structure of the PV system it belongs to', async () => {
+    const user = userEvent.setup()
+
+    server.put('installations', {
+      id: 'i-2',
+      siteId: 's-1',
+      kind: 'pv_system',
+      designation: 'PV-Anlage Dach',
+    })
+    server.put('installations', {
+      id: 'i-3',
+      siteId: 's-1',
+      kind: 'battery',
+      designation: 'Speicher Keller',
+      manufacturer: 'BYD',
+      model: 'HVS 7.7',
+      serialNumber: 'B-77-1',
+      pvSystemId: 'i-2',
+    })
+    server.put('inverters', {
+      id: 'w-1',
+      installationId: 'i-2',
+      designation: 'WR 1',
+      manufacturer: 'SMA',
+      model: 'Sunny Tripower 8.0',
+      serialNumber: '3001234567',
+      ratedPowerW: 8000,
+      position: 0,
+    })
+    await mount('/anlagen/i-3')
+
+    const section = await screen.findByRole('region', { name: 'Prüfprotokolle' })
+
+    await user.click(
+      within(section).getByRole('button', {
+        name: 'Inbetriebsetzungsprotokoll nach VDE-AR-N 4105 anlegen',
+      }),
+    )
+    await screen.findByRole('heading', {
+      level: 1,
+      name: 'Inbetriebsetzungsprotokoll nach VDE-AR-N 4105',
+    })
+
+    expect(screen.getByLabelText('Wechselrichter')).toHaveProperty(
+      'value',
+      'WR 1, SMA Sunny Tripower 8.0, Seriennummer 3001234567, 8 kW',
+    )
+    expect(screen.getByLabelText('Speicher')).toHaveProperty(
+      'value',
+      'Speicher Keller, BYD HVS 7.7, Seriennummer B-77-1',
+    )
+    expect(screen.getByLabelText('Maximale Wirkleistung PAmax in kW')).toHaveProperty('value', '8')
   })
 })

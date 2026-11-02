@@ -1,0 +1,329 @@
+{
+  "key": "vde-ar-n-4105",
+  "version": 1,
+  "title": "Inbetriebsetzungsprotokoll nach VDE-AR-N 4105",
+  "attachesTo": "installation",
+  "installationKinds": ["pv_system", "battery"],
+  "purpose": "commissioning",
+  "fromStructure": {
+    "operator": "operator",
+    "inverters": "inverters",
+    "batteries": "batteries",
+    "meter": "meters",
+    "apparent_power": "inverter_power",
+    "active_power": "inverter_power",
+    "module_power": "module_power"
+  },
+  "sections": [
+    {
+      "key": "plant",
+      "title": "Anlage",
+      "hint": "VDE-AR-N 4105:2026-03, Formular F.9.",
+      "fields": [
+        {
+          "kind": "text",
+          "key": "operator",
+          "label": "Anlagenbetreiber",
+          "hint": "Name und Anschrift, vorbelegt aus dem Kunden des Objekts.",
+          "multiline": true,
+          "required": true
+        },
+        {
+          "kind": "text",
+          "key": "installer_registration",
+          "label": "Eintragung im Installateurverzeichnis",
+          "hint": "Nummer der Eintragung und der Netzbetreiber, der sie führt.",
+          "required": true
+        },
+        {
+          "kind": "text",
+          "key": "inverters",
+          "label": "Wechselrichter",
+          "hint": "Je Wechselrichter eine Zeile mit Seriennummer und Nennleistung.",
+          "multiline": true
+        },
+        {
+          "kind": "text",
+          "key": "batteries",
+          "label": "Speicher",
+          "hint": "Je Speicher eine Zeile; leer, wenn die Anlage keinen hat.",
+          "multiline": true
+        },
+        { "kind": "text", "key": "meter", "label": "Zählernummer" },
+        {
+          "kind": "number",
+          "key": "apparent_power",
+          "label": "Maximale Scheinleistung SAmax",
+          "hint": "Aller Wechselrichter zusammen. Vorbelegt mit ihrer Nennleistung; nennt das Datenblatt eine andere Scheinleistung, gilt die.",
+          "unit": "kilovoltampere",
+          "decimals": 2,
+          "required": true
+        },
+        {
+          "kind": "number",
+          "key": "active_power",
+          "label": "Maximale Wirkleistung PAmax",
+          "unit": "kilowatt",
+          "decimals": 2,
+          "required": true
+        },
+        {
+          "kind": "number",
+          "key": "module_power",
+          "label": "Modulleistung",
+          "hint": "Bei einer PV-Anlage die Leistung aller Module, nach ihr richtet sich die Einspeisevergütung.",
+          "unit": "kilowatt_peak",
+          "decimals": 2
+        },
+        {
+          "kind": "yes_no",
+          "key": "as_registered",
+          "label": "Aufbau wie angemeldet",
+          "hint": "Stimmen Antragstellung (F.1) und Datenblatt (F.2) mit dem Aufbau überein? Sonst die berichtigten Formulare beilegen.",
+          "required": true
+        }
+      ]
+    },
+    {
+      "key": "protection",
+      "title": "Messung und Schutz",
+      "fields": [
+        {
+          "kind": "yes_no",
+          "key": "metering_tested",
+          "label": "Abrechnungsmessung geprüft",
+          "hint": "Prüfung vor der Inbetriebsetzung und Prüfung bei der Inbetriebsetzung.",
+          "required": true
+        },
+        {
+          "kind": "number",
+          "key": "integrated_overvoltage",
+          "label": "Integrierter NA-Schutz, Einstellung U>",
+          "hint": "Eingestellter Wert des Spannungssteigerungsschutzes.",
+          "unit": "volt",
+          "decimals": 0
+        },
+        {
+          "kind": "number",
+          "key": "central_overvoltage",
+          "label": "Zentraler NA-Schutz, Einstellung U>",
+          "unit": "volt",
+          "decimals": 0
+        },
+        {
+          "kind": "choice",
+          "key": "central_trip_test",
+          "label": "Auslösetest zentraler NA-Schutz mit Kuppelschalter",
+          "options": [
+            { "value": "passed", "label": "Erfolgreich" },
+            { "value": "failed", "label": "Nicht bestanden" },
+            { "value": "none", "label": "Kein zentraler NA-Schutz" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "central_closed_circuit",
+          "label": "Auslösekreis nach dem Ruhestromprinzip",
+          "options": [
+            { "value": "done", "label": "Ausgeführt und geprüft" },
+            { "value": "not_done", "label": "Nicht so ausgeführt" },
+            { "value": "none", "label": "Kein zentraler NA-Schutz" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "remote_measurement",
+          "label": "Abgesetzte Spannungsmessung am Zählerplatz",
+          "hint": "Bei integriertem NA-Schutz mit abgesetzter Messung ist eine der beiden Varianten geprüft.",
+          "options": [
+            { "value": "shutdown", "label": "Unterbrechung schaltet in höchstens einer Minute ab" },
+            { "value": "overvoltage", "label": "Unterbrechung löst U> bei 1,10 Un aus" },
+            { "value": "none", "label": "Keine abgesetzte Spannungsmessung" }
+          ]
+        },
+        {
+          "kind": "number",
+          "key": "agreed_power",
+          "label": "Eingestellte Wirkleistung PAV,E",
+          "hint": "Nur mit Überwachung der vereinbarten Anschlusswirkleistung.",
+          "unit": "kilowatt",
+          "decimals": 2
+        },
+        {
+          "kind": "choice",
+          "key": "agreed_power_test",
+          "label": "Funktionstest der Überwachung PAV,E",
+          "options": [
+            { "value": "passed", "label": "Erfolgreich" },
+            { "value": "failed", "label": "Nicht bestanden" },
+            { "value": "none", "label": "Keine Überwachung" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "remote_control",
+          "label": "Einrichtung zur ferngesteuerten Leistungsreduzierung",
+          "hint": "Nach Vorgabe des Netzbetreibers, wo EnWG oder EEG sie verlangen.",
+          "options": [
+            { "value": "installed", "label": "Vom Betrieb installiert" },
+            { "value": "not_installed", "label": "Nicht installiert" },
+            { "value": "not_required", "label": "Nicht verlangt" }
+          ]
+        },
+        {
+          "kind": "measurement",
+          "key": "feed_in_limit",
+          "label": "Begrenzung der Einspeisung",
+          "hint": "In Prozent der installierten Leistung, solange kein intelligentes Messsystem die Anlage steuert. Leer, wenn es sie schon steuert oder die Anlage direkt vermarktet wird.",
+          "unit": "percent",
+          "decimals": 0,
+          "limit": { "kind": "at_most", "rule": "elektro.pv.feed_in_limit_without_smart_meter" }
+        },
+        {
+          "kind": "choice",
+          "key": "energy_flow",
+          "label": "Sperre der unzulässigen Energieflussrichtung",
+          "hint": "Bei einem Speicher, wo Grau- und Grünstrom getrennt abgerechnet werden: Leistungsmessung am Netzanschlusspunkt.",
+          "options": [
+            { "value": "passed", "label": "Funktionstest bestanden" },
+            { "value": "failed", "label": "Funktionstest nicht bestanden" },
+            { "value": "none", "label": "Nicht verlangt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "parameter_set",
+          "label": "Parametersatz der Erzeugungseinheiten",
+          "options": [
+            { "value": "none", "label": "Kein Anschluss an das Mittelspannungsnetz" },
+            { "value": "up_to_270", "label": "Für ∑PAmax bis 270 kW eingestellt" },
+            {
+              "value": "over_270",
+              "label": "Für ∑PAmax über 270 kW eingestellt, Schutzprüfprotokoll beigefügt"
+            }
+          ],
+          "required": true,
+          "hint": "Am Mittelspannungsnetz des Netzbetreibers, ab ∑PAmax 135 kW bis 500 kW."
+        }
+      ]
+    },
+    {
+      "key": "symmetry",
+      "title": "Symmetrie",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "symmetry",
+          "label": "Eingehalten durch",
+          "options": [
+            { "value": "three_phase", "label": "Drehstromgenerator oder dreiphasigen Umrichter" },
+            {
+              "value": "single_phase",
+              "label": "Aufteilung einphasiger Einheiten auf die Außenleiter"
+            }
+          ],
+          "required": true,
+          "hint": "Bei einphasig angeschlossenen Einheiten darunter die Summe SEmax je Außenleiter."
+        },
+        {
+          "kind": "number",
+          "key": "existing_l1",
+          "label": "Vorhanden, L1",
+          "unit": "kilovoltampere",
+          "decimals": 2
+        },
+        {
+          "kind": "number",
+          "key": "existing_l2",
+          "label": "Vorhanden, L2",
+          "unit": "kilovoltampere",
+          "decimals": 2
+        },
+        {
+          "kind": "number",
+          "key": "existing_l3",
+          "label": "Vorhanden, L3",
+          "unit": "kilovoltampere",
+          "decimals": 2
+        },
+        {
+          "kind": "number",
+          "key": "added_l1",
+          "label": "Neu hinzu, L1",
+          "unit": "kilovoltampere",
+          "decimals": 2
+        },
+        {
+          "kind": "number",
+          "key": "added_l2",
+          "label": "Neu hinzu, L2",
+          "unit": "kilovoltampere",
+          "decimals": 2
+        },
+        {
+          "kind": "number",
+          "key": "added_l3",
+          "label": "Neu hinzu, L3",
+          "unit": "kilovoltampere",
+          "decimals": 2
+        }
+      ]
+    },
+    {
+      "key": "reactive_power",
+      "title": "Blindleistung",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "reactive_power",
+          "label": "Eingestellt",
+          "options": [
+            { "value": "q_u", "label": "Q(U), Standardkennlinie belassen" },
+            { "value": "cos_phi_p", "label": "Kennlinie cos φ (P)" },
+            { "value": "fixed", "label": "Fester Verschiebungsfaktor" }
+          ],
+          "required": true,
+          "hint": "Verfahren nach Vorgabe des Netzbetreibers."
+        },
+        {
+          "kind": "text",
+          "key": "displacement_factor",
+          "label": "Fester Verschiebungsfaktor cos φ",
+          "hint": "Wert und Richtung, etwa 0,95 untererregt."
+        }
+      ]
+    },
+    {
+      "key": "commissioning",
+      "title": "Inbetriebsetzung",
+      "fields": [
+        {
+          "kind": "date",
+          "key": "grid_parallel_on",
+          "label": "Erster Netzparallelbetrieb",
+          "hint": "Der Tag, an dem die Anlage zum ersten Mal parallel zum Netz lief. Der Tag der Inbetriebsetzung ist der Tag dieses Protokolls."
+        },
+        {
+          "kind": "yes_no",
+          "key": "handed_over",
+          "label": "Errichtet, eingewiesen und übergeben",
+          "hint": "Errichtet nach VDE-AR-N 4105, VDE-AR-N 4100 und den TAB des Netzbetreibers; der Betreiber ist eingewiesen und hat die Dokumentation mit Schaltplan.",
+          "required": true
+        },
+        { "kind": "text", "key": "remarks", "label": "Bemerkungen", "multiline": true },
+        {
+          "kind": "signature",
+          "key": "operator_signature",
+          "label": "Unterschrift des Anlagenbetreibers",
+          "required": true
+        },
+        {
+          "kind": "signature",
+          "key": "installer_signature",
+          "label": "Unterschrift des Elektrofachbetriebs",
+          "seals": true
+        }
+      ]
+    }
+  ]
+}

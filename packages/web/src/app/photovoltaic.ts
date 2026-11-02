@@ -1,8 +1,15 @@
-import { belongsToPvSystemKind, type RecordState } from '@opengewerk/domain'
+import {
+  belongsToPvSystemKind,
+  type InstallationStructure,
+  type RecordState,
+  type StructurePart,
+} from '@opengewerk/domain'
 import { inverterChoice, ordered, useInvertersOf } from '@opengewerk/platform-web/electrical'
-import { text, useRecords, useRelated } from '@opengewerk/platform-web/sync'
+import { maybeText, text, useRecord, useRecords, useRelated } from '@opengewerk/platform-web/sync'
 import type { Draft, FormField } from '@opengewerk/platform-web/sync'
 import { useMemo } from 'react'
+
+import { addressLine } from './format.js'
 
 /**
  * The PV structure below a PV system, as this application binds it (#300).
@@ -92,4 +99,63 @@ export function asCompanion(values: Readonly<Record<string, string>>): Draft {
     pvSystemId: pvSystemId === '' ? null : pvSystemId,
     inverterId: pvSystemId === '' || inverterId === '' ? null : inverterId,
   }
+}
+
+function partOf(record: RecordState): StructurePart {
+  const power = record['ratedPowerW']
+
+  return {
+    designation: maybeText(record, 'designation'),
+    manufacturer: maybeText(record, 'manufacturer'),
+    model: maybeText(record, 'model'),
+    serialNumber: maybeText(record, 'serialNumber'),
+    ratedPowerW: typeof power === 'number' ? power : null,
+  }
+}
+
+/**
+ * The structure a protocol at an installation starts from (#304): the
+ * customer of its site, and for a PV system, or a battery that belongs to
+ * one, the inverters, modules, batteries and meters of that system. A battery
+ * of no system is the only battery there is.
+ */
+export function useInstallationStructure(
+  installationId: string | undefined,
+): InstallationStructure | null {
+  const installation = useRecord('installations', installationId)
+  const site = useRecord('sites', installation ? text(installation, 'siteId') : undefined)
+  const customer = useRecord('customers', site ? text(site, 'customerId') : undefined)
+  const kind = installation ? text(installation, 'kind') : ''
+  const systemId =
+    kind === 'pv_system'
+      ? installationId
+      : installation
+        ? (maybeText(installation, 'pvSystemId') ?? undefined)
+        : undefined
+  const inverters = useInverters(systemId)
+  const modules = useSystemModules(systemId)
+  const companions = useCompanions(systemId)
+
+  return useMemo(() => {
+    if (!installation) {
+      return null
+    }
+
+    const ofKind = (wanted: string) =>
+      companions.filter((companion) => text(companion, 'kind') === wanted).map(partOf)
+    const power = (record: RecordState) => record['ratedPowerW']
+
+    return {
+      operator: customer ? { name: text(customer, 'name'), address: addressLine(customer) } : null,
+      inverters: inverters.map(partOf),
+      modules: modules.map((module) => {
+        const watts = power(module)
+
+        return { ratedPowerW: typeof watts === 'number' ? watts : null }
+      }),
+      batteries:
+        systemId === undefined && kind === 'battery' ? [partOf(installation)] : ofKind('battery'),
+      meters: ofKind('meter'),
+    }
+  }, [installation, customer, kind, systemId, inverters, modules, companions])
 }

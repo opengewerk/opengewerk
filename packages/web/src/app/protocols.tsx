@@ -3,6 +3,7 @@ import {
   type BlockCircuit,
   type BlockField,
   circuitBlocks,
+  dayLabel,
   type FieldValue,
   fieldsOf,
   type FormDefinition,
@@ -12,9 +13,12 @@ import {
   type FormValue,
   type FormValues,
   formatMeasured,
+  formsForInstallation,
   type GroupBlock,
   type GroupField,
   inspectionDueAfter,
+  type InstallationKind,
+  type InstallationStructure,
   isApplianceFacts,
   isNextInspection,
   type IsoDate,
@@ -28,6 +32,7 @@ import {
   type RecordState,
   sealProblems,
   type SignatureValue,
+  structureValues,
   templateValues,
   testsPart,
   tripCharacteristicLabel,
@@ -64,6 +69,7 @@ import type { FormEvent, ReactNode } from 'react'
 
 import type { SyncClient } from '../sync/client.js'
 import { useBlockCircuits } from './electrical.js'
+import { useInstallationStructure } from './photovoltaic.js'
 
 /**
  * The test protocol of #79 on both entries, over the form engine of #78.
@@ -203,13 +209,15 @@ export function takenOver(
 
 /**
  * The values a new protocol starts with: those of the last one where it is
- * taken as the template (#79), without what was measured and signed, and
- * every group per circuit laid over the chart as it is now.
+ * taken as the template (#79), without what was measured and signed, every
+ * group per circuit laid over the chart as it is now, and what the definition
+ * takes from the structure of the installation as it is now (#304).
  */
 export function startingValues(
   definition: FormDefinition,
   circuits: readonly (BlockCircuit & { readonly id: string })[],
   template: RecordState | null,
+  structure: InstallationStructure | null = null,
 ): FormValues {
   const templateDefinition = template ? definitionOf(template) : null
   const carried =
@@ -220,7 +228,10 @@ export function startingValues(
           templateValues(templateDefinition, valuesOf(template)),
         )
       : {}
-  const values: Record<string, FormValue> = { ...carried }
+  const values: Record<string, FormValue> = {
+    ...carried,
+    ...(structure ? structureValues(definition, structure) : {}),
+  }
 
   for (const field of fieldsOf(definition)) {
     if (field.kind === 'group' && field.repeat === 'circuits') {
@@ -248,6 +259,8 @@ export async function startProtocol(
     readonly jobId: string | null
     readonly circuits: readonly (BlockCircuit & { readonly id: string })[]
     readonly template: RecordState | null
+    /** What the structure of the installation says, where the form starts from it (#304). */
+    readonly structure?: InstallationStructure | null
   },
 ): Promise<EditResult> {
   return client.create('form_records', {
@@ -257,8 +270,19 @@ export async function startProtocol(
     jobId: input.jobId,
     performedOn: today(),
     status: 'draft',
-    values: formValuesText(startingValues(input.definition, input.circuits, input.template)),
+    values: formValuesText(
+      startingValues(input.definition, input.circuits, input.template, input.structure ?? null),
+    ),
   })
+}
+
+/** Whether a form takes anything over from a template; a commissioning protocol does not (#304). */
+function takesOver(definition: FormDefinition): boolean {
+  return fieldsOf(definition).some(
+    (field) =>
+      field.carry === true ||
+      (field.kind === 'group' && field.fields.some((nested) => nested.carry === true)),
+  )
 }
 
 /**
@@ -294,12 +318,18 @@ export function ProtocolsList({
   const template =
     protocols.find((protocol) => isSigned(protocol) && definitionOf(protocol) !== null) ?? null
   const circuits = useBlockCircuits(installationId)
+  const installation = useRecord('installations', installationId)
+  const structure = useInstallationStructure(installationId)
   // The forms of what the list belongs to: the protocols of an installation,
-  // or the test of an appliance.
+  // those for its kind among them (#304), or the test of an appliance.
   const subject = applianceId === undefined ? 'installation' : 'appliance'
-  const definitions = protocolRegistry
-    .current()
-    .filter((definition) => definition.attachesTo === subject)
+  const definitions =
+    subject === 'installation'
+      ? formsForInstallation(
+          protocolRegistry.current(),
+          installation ? (text(installation, 'kind') as InstallationKind) : null,
+        )
+      : protocolRegistry.current().filter((definition) => definition.attachesTo === subject)
   const nothingYet =
     subject === 'appliance'
       ? 'An diesem Gerät gibt es noch kein Prüfprotokoll.'
@@ -319,6 +349,7 @@ export function ProtocolsList({
         jobId,
         circuits,
         template,
+        structure,
       })
 
       if (made.outcome === 'refused') {
@@ -394,7 +425,7 @@ export function ProtocolsList({
               >
                 {`${definition.title} anlegen`}
               </Button>
-              {template ? (
+              {template && takesOver(definition) ? (
                 <button
                   type="button"
                   disabled={working}
@@ -475,7 +506,7 @@ export function ProtocolsList({
             >
               {`${definition.title} anlegen`}
             </Button>
-            {template ? (
+            {template && takesOver(definition) ? (
               <Button
                 tone="quiet"
                 wide
@@ -693,6 +724,18 @@ export function FieldInput({
           }}
         />
       )
+    case 'date':
+      return (
+        <Field
+          label={field.label}
+          hint={field.hint}
+          type="date"
+          value={typeof value === 'string' ? value : ''}
+          onChange={(event) => {
+            onChange(event.target.value === '' ? undefined : event.target.value)
+          }}
+        />
+      )
   }
 }
 
@@ -718,6 +761,8 @@ export function shownValue(
       return value === true ? 'ja' : 'nein'
     case 'photo':
       return photos.find((photo) => photo.value === value)?.label ?? 'ein Foto der Anlage'
+    case 'date':
+      return typeof value === 'string' ? date(value) : ''
   }
 }
 
@@ -1244,7 +1289,7 @@ export function ProtocolSheet({
     >
       {editable ? (
         <Field
-          label="Tag der Prüfung"
+          label={dayLabel(definition)}
           type="date"
           hint="Nach diesem Tag richten sich die Grenzwerte."
           value={performedOn}
@@ -1357,7 +1402,23 @@ export function UnknownVersion() {
 export function missingBeforeSigning(record: RecordState): readonly string[] {
   const definition = definitionOf(record)
 
-  return definition ? sealProblems(definition, valuesOf(record), { seal: false }) : []
+  if (!definition) {
+    return []
+  }
+
+  // Every signature is given in the step of signing, the operator's with the
+  // business's (#304), so none of them is missing before it.
+  const beforeSigning: FormDefinition = {
+    ...definition,
+    sections: definition.sections.map((section) => ({
+      ...section,
+      fields: section.fields.map((field) =>
+        field.kind === 'signature' ? { ...field, required: false } : field,
+      ),
+    })),
+  }
+
+  return sealProblems(beforeSigning, valuesOf(record), { seal: false })
 }
 
 /** The address of a protocol on paper. */

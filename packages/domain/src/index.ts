@@ -65,6 +65,7 @@ export * from './forms/limits.js'
 export * from './forms/next-inspection.js'
 export * from './forms/record.js'
 export * from './forms/report-fields.js'
+export * from './forms/structure-values.js'
 export * from './forms/values.js'
 // The general shapes of the foundation go by the same names; these are the
 // ones written with the units, circuits and limits of this application, and

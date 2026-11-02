@@ -92,6 +92,8 @@ function shown(field: BlockField, value: FieldValue | undefined): string {
       return value === true ? 'ja' : value === false ? 'nein' : ''
     case 'photo':
       return 'bei den Dateien der Anlage'
+    case 'date':
+      return typeof value === 'string' ? day(value) : ''
   }
 }
 
@@ -387,7 +389,10 @@ ${pageStyle}
   <div>
     <h1>${text(protocol.definition.title)}</h1>
     <p class="where">${text(protocol.installation)}${present(protocol.site) ? `, ${text(protocol.site)}` : ''}</p>
-    <p class="where">Geprüft am ${day(protocol.performedOn)}</p>
+    <p class="where">${
+      // The day of a commissioning protocol is the day of the commissioning (#304).
+      protocol.definition.purpose === 'commissioning' ? 'In Betrieb gesetzt am' : 'Geprüft am'
+    } ${day(protocol.performedOn)}</p>
   </div>
   <div class="keeper">
     <div class="keeper-name">${text(protocol.keeper.name)}</div>

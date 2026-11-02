@@ -10,7 +10,13 @@ import type {
   NumberField as GeneralNumberField,
 } from '@opengewerk/platform-domain'
 
+import { type InstallationKind, installationKinds } from '../model/installation.js'
 import { type tradeFieldKinds, tradeForms } from './engine.js'
+import {
+  type StructureFigure,
+  structureFigureFields,
+  structureFigures,
+} from './structure-values.js'
 import type { MeasurementUnit } from './units.js'
 
 /**
@@ -33,6 +39,7 @@ export { measurementUnits, measurementUnitSign, type MeasurementUnit } from './u
 
 export {
   type ChoiceField,
+  type DateField,
   fieldsOf,
   type FormFieldKind,
   formRegistry,
@@ -76,6 +83,43 @@ export interface FormDefinition extends GeneralFormDefinition<TradeFormTerms> {
    * document, for the fields a business gives its report.
    */
   readonly attachesTo: 'installation' | 'appliance' | 'document'
+  /**
+   * The kinds of installation the form is for, where it is not for every one:
+   * the protocol after VDE-AR-N 4105 is for a PV system and a battery (#304).
+   */
+  readonly installationKinds?: readonly InstallationKind[]
+  /**
+   * What the protocol records: a test of the installation, which the report
+   * of a site names as its last test (#302), or its commissioning, which the
+   * report leaves out (#304). A test where the definition says nothing.
+   */
+  readonly purpose?: 'test' | 'commissioning'
+  /**
+   * The fields a new form starts filled from the structure of the
+   * installation, by key, with what fills each (#304, `structureValues`).
+   */
+  readonly fromStructure?: Readonly<Record<string, StructureFigure>>
+}
+
+/** How the screens name the day of a filled form: the day of the test, or of the commissioning (#304). */
+export function dayLabel(definition: FormDefinition): string {
+  return definition.purpose === 'commissioning' ? 'Tag der Inbetriebsetzung' : 'Tag der Prüfung'
+}
+
+/**
+ * The forms a new protocol at an installation of this kind can be: those
+ * for every installation, and those for its kind (#304).
+ */
+export function formsForInstallation(
+  definitions: readonly FormDefinition[],
+  kind: InstallationKind | null,
+): readonly FormDefinition[] {
+  return definitions.filter(
+    (definition) =>
+      definition.attachesTo === 'installation' &&
+      (definition.installationKinds === undefined ||
+        (kind !== null && definition.installationKinds.includes(kind))),
+  )
 }
 
 /** The definitions a version of OpenGewerk knows, by key and version. */
@@ -89,5 +133,54 @@ export type FormRegistry = GeneralFormRegistry<FormDefinition>
  * as a form that cannot be filled in, on a site without a network.
  */
 export function definitionProblems(definition: FormDefinition): readonly string[] {
-  return tradeForms.definitionProblems(definition)
+  return [...tradeForms.definitionProblems(definition), ...ownProblems(definition)]
+}
+
+/** What the engine of the foundation does not know to ask: what this application adds (#304). */
+function ownProblems(definition: FormDefinition): readonly string[] {
+  const problems: string[] = []
+  const kinds = definition.installationKinds
+
+  if (
+    kinds !== undefined &&
+    (definition.attachesTo !== 'installation' ||
+      kinds.length === 0 ||
+      !kinds.every((kind) => (installationKinds as readonly string[]).includes(kind)))
+  ) {
+    problems.push(
+      `${definition.key}: die Arten der Anlage stehen nur an einem Formular einer Anlage, und jede gibt es.`,
+    )
+  }
+
+  if (definition.purpose !== undefined && !['test', 'commissioning'].includes(definition.purpose)) {
+    problems.push(`${definition.key}: der Zweck ${String(definition.purpose)} ist unbekannt.`)
+  }
+
+  const fields = new Map(
+    definition.sections.flatMap((section) => section.fields.map((field) => [field.key, field])),
+  )
+
+  for (const [key, figure] of Object.entries(definition.fromStructure ?? {})) {
+    if (!(structureFigures as readonly string[]).includes(figure)) {
+      problems.push(
+        `${definition.key}: ${key} nimmt ${String(figure)} aus der Struktur, das gibt es nicht.`,
+      )
+      continue
+    }
+
+    const field = fields.get(key)
+    const fits = structureFigureFields[figure]
+
+    if (
+      field === undefined ||
+      field.kind !== fits.kind ||
+      (fits.kind === 'number' && field.kind === 'number' && !fits.units.includes(field.unit))
+    ) {
+      problems.push(
+        `${definition.key}: ${key} ist kein Feld, das ${figure} aus der Struktur aufnehmen kann.`,
+      )
+    }
+  }
+
+  return problems
 }

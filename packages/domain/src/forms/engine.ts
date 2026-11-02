@@ -12,7 +12,8 @@ import { formUnits } from './units.js'
 /**
  * The kinds of field the screens of this application show and its protocols
  * print, beside the signature and the group. Check points and readings, which
- * the foundation knows as well, are not among them. Here and not beside the
+ * the foundation knows as well, are not among them; the date came with the
+ * protocol after VDE-AR-N 4105 (#304). Here and not beside the
  * terms, because the definitions import the engine and a value read while
  * that import is still running would not be there yet.
  */
@@ -23,6 +24,7 @@ export const tradeFieldKinds = [
   'choice',
   'yes_no',
   'photo',
+  'date',
 ] as const
 
 /**

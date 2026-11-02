@@ -45,11 +45,13 @@ describe('the package Elektro und PV', () => {
       'formulare/vde-0100-600.v3.json',
       'formulare/vde-0105-100.v1.json',
       'formulare/dguv-v3.v1.json',
+      'formulare/vde-ar-n-4105.v1.json',
     ])
     expect(elektroManifest.rules).toEqual([
       'regeln/vde-0100-600.json',
       'regeln/vde-0105-100.json',
       'regeln/dguv-v3.json',
+      'regeln/vde-ar-n-4105.json',
     ])
     expect(elektroManifest.deadlines).toEqual(['fristen/vde-0105-100.json', 'fristen/dguv-v3.json'])
     expect(elektroForms).toHaveLength(elektroManifest.forms.length)
@@ -111,6 +113,7 @@ describe('the package Elektro und PV', () => {
       ['vde-0100-600', 3],
       ['vde-0105-100', 1],
       ['dguv-v3', 1],
+      ['vde-ar-n-4105', 1],
     ])
     expect(remark(first)).toEqual({ kind: 'text', key: 'remark', label: 'Bemerkung' })
     expect(remark(second)).toEqual({
@@ -323,6 +326,58 @@ describe('the package Elektro und PV', () => {
     )
     // Before DIN EN 50699 (VDE 0702):2021-06 no limit rather than an invented one.
     expect(judged('insulation', 999, classOne(null), '2021-05-31')?.within).toBeNull()
+  })
+
+  it('brings the commissioning protocol after VDE-AR-N 4105 for a PV system and a battery (#304)', () => {
+    const protocol = elektroRegistry.definitionFor('vde-ar-n-4105', 1)
+    const field = (key: string) =>
+      (protocol ? fieldsOf(protocol) : []).find((entry) => entry.key === key)
+
+    expect(protocol).toMatchObject({
+      attachesTo: 'installation',
+      installationKinds: ['pv_system', 'battery'],
+      purpose: 'commissioning',
+    })
+    // What the structure fills: the operator, the parts, the power of the system.
+    expect(protocol?.fromStructure).toEqual({
+      operator: 'operator',
+      inverters: 'inverters',
+      batteries: 'batteries',
+      meter: 'meters',
+      apparent_power: 'inverter_power',
+      active_power: 'inverter_power',
+      module_power: 'module_power',
+    })
+    // A commissioning protocol is no test: nothing in it starts a deadline.
+    expect(protocol ? nextInspectionField(protocol) : undefined).toBeNull()
+    expect(field('grid_parallel_on')).toMatchObject({ kind: 'date' })
+    // Both sign on the device, the business last, and only then is it fixed.
+    expect(field('operator_signature')).toMatchObject({ kind: 'signature', required: true })
+    expect(field('installer_signature')).toMatchObject({ kind: 'signature', seals: true })
+    expect(
+      (protocol ? fieldsOf(protocol) : [])
+        .filter((entry) => entry.kind === 'signature')
+        .map((entry) => entry.key),
+    ).toEqual(['operator_signature', 'installer_signature'])
+  })
+
+  it('judges the limit of the feed-in by the law of the day of commissioning (#304)', () => {
+    const protocol = elektroRegistry.definitionFor('vde-ar-n-4105', 1)
+    const limit = (protocol ? fieldsOf(protocol) : []).find(
+      (entry): entry is MeasurementField =>
+        entry.key === 'feed_in_limit' && entry.kind === 'measurement',
+    )
+    // Percent in thousandths: 60 % is 60 000.
+    const judged = (milli: number, on: string) =>
+      limit && limitVerdict(limit, milli, { rules: elektroRules, on, circuit: null })
+
+    expect(judged(60_000, '2025-02-25')).toMatchObject({ within: true, limitMilli: 60_000 })
+    expect(judged(61_000, '2026-11-02')).toMatchObject({ within: false, limitMilli: 60_000 })
+    expect(judged(61_000, '2026-11-02')?.source).toContain(
+      '§ 9 Abs. 2 Satz 1 Nr. 2 Buchst. b und Nr. 3 EEG',
+    )
+    // A system commissioned before the Solarspitzengesetz has no such limit.
+    expect(judged(100_000, '2025-02-24')?.within).toBeNull()
   })
 
   it('takes over from the last test of an appliance what describes the test and its interval', () => {

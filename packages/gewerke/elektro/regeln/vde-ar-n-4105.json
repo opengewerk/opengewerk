@@ -1,0 +1,15 @@
+{
+  "package": "elektro.vde-ar-n-4105",
+  "note": "Werte des Inbetriebsetzungsprotokolls nach VDE-AR-N 4105 (#304), die sich mit dem Gesetz ändern. Ändert der Gesetzgeber einen Wert, bekommt der alte Satz sein Ende und ein neuer kommt dazu; ein Protokoll wird mit dem Wert gelesen, der am Tag seiner Inbetriebsetzung galt. Geprüft am 02.11.2026 am Text des EEG auf gesetze-im-internet.de; die fachkundige Abnahme steht aus wie bei den Regelpaketen in #31.",
+  "records": [
+    {
+      "key": "elektro.pv.feed_in_limit_without_smart_meter",
+      "validFrom": "2025-02-25",
+      "validUntil": null,
+      "unit": "basis_points",
+      "value": 6000,
+      "source": "§ 9 Abs. 2 Satz 1 Nr. 2 Buchst. b und Nr. 3 EEG, für Anlagen in Betrieb ab dem 25.02.2025 (§ 100 Abs. 3b EEG)",
+      "note": "Höchstens 60 Prozent der installierten Leistung am Netzanschlusspunkt, bis ein intelligentes Messsystem eingebaut ist. Gilt für Solaranlagen unter 100 kW in der Einspeisevergütung oder mit Mieterstromzuschlag, nicht für Steckersolargeräte bis 2 kW und 800 VA (§ 9 Abs. 2 Satz 2 EEG). Für Anlagen, die vom 01.01.2023 bis zum 24.02.2025 in Betrieb gingen, gilt die Grenze nicht."
+    }
+  ]
+}

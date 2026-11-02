@@ -5,7 +5,9 @@ import type { FormUnit, RuleUnit } from '@opengewerk/platform-domain'
  * thousandths of it. The first five are what a test protocol measures; the
  * others are for the fields a business gives its report (#78), a distance
  * driven or the temperature on site, and the month for the interval a
- * protocol names to the next inspection (#301).
+ * protocol names to the next inspection (#301). The last three are the power
+ * of a PV system on its commissioning protocol (#304): a thousandth of a
+ * kilowatt is a watt, as the PV structure counts it.
  */
 export const measurementUnits = [
   'ohm',
@@ -21,6 +23,9 @@ export const measurementUnits = [
   'piece',
   'percent',
   'month',
+  'kilowatt',
+  'kilovoltampere',
+  'kilowatt_peak',
 ] as const
 
 export type MeasurementUnit = (typeof measurementUnits)[number]
@@ -41,6 +46,9 @@ export const measurementUnitSign: Readonly<Record<MeasurementUnit, string>> = {
   percent: '%',
   // Short, because a field reads "Prüffrist in Mon." and its value "48 Mon.".
   month: 'Mon.',
+  kilowatt: 'kW',
+  kilovoltampere: 'kVA',
+  kilowatt_peak: 'kWp',
 }
 
 /**
@@ -55,6 +63,8 @@ const fromRule: Readonly<Partial<Record<MeasurementUnit, Partial<Record<RuleUnit
   milliampere: { microamperes: 1 },
   millisecond: { milliseconds: 1000 },
   volt: { volts: 1000 },
+  // A basis point is a hundredth of a percent, ten thousandths of it (#304).
+  percent: { basis_points: 10 },
 }
 
 /** The units as the form engine of the foundation takes them. */

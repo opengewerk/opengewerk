@@ -356,6 +356,30 @@ describe('the values of a filled form', () => {
     ).toBe('Der Name dessen, der unterschreibt.')
   })
 
+  it('take a day of the calendar for a date, and refuse one that is not on it', () => {
+    const delivered: FormDefinition<ProbeTerms> = {
+      key: 'shelf-delivery',
+      version: 1,
+      title: 'Regallieferung',
+      sections: [
+        {
+          key: 'general',
+          title: 'Allgemein',
+          fields: [{ kind: 'date', key: 'delivered_on', label: 'Geliefert am' }],
+        },
+      ],
+    }
+
+    expect(engine.definitionProblems(delivered)).toEqual([])
+    expect(engine.valuesProblem(delivered, { delivered_on: '2028-02-29' })).toBeNull()
+
+    for (const wrong of ['2026-02-29', '2026-13-01', '29.02.2028', '2028-2-29', 20280229]) {
+      expect(engine.valuesProblem(delivered, { delivered_on: wrong })).toBe(
+        'Geliefert am: ein Tag des Kalenders.',
+      )
+    }
+  })
+
   it('refuses a value of a kind only a newer build knows, instead of letting it through', () => {
     const newer = {
       ...inspection,

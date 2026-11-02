@@ -76,10 +76,62 @@ function circuit(part: Record<string, unknown>): RecordState {
 }
 
 const rows: Readonly<Record<string, RecordState[]>> = {
-  customers: [{ id: 'c-1', kind: 'private', name: 'Familie Berg' }],
-  sites: [{ id: 's-1', customerId: 'c-1', designation: 'Einfamilienhaus' }],
+  customers: [
+    { id: 'c-1', kind: 'private', name: 'Familie Berg' },
+    {
+      id: 'c-2',
+      kind: 'private',
+      name: 'Familie Sonne',
+      street: 'Sonnenweg',
+      houseNumber: '1',
+      postalCode: '68535',
+      city: 'Edingen-Neckarhausen',
+      country: 'DE',
+    },
+  ],
+  sites: [
+    { id: 's-1', customerId: 'c-1', designation: 'Einfamilienhaus' },
+    { id: 's-2', customerId: 'c-2', designation: 'Wohnhaus Sonne' },
+  ],
   installations: [
     { id: 'i-1', siteId: 's-1', kind: 'meter_cabinet', designation: 'Zählerschrank' },
+    // A PV system with its battery and its meter (#304).
+    { id: 'i-2', siteId: 's-2', kind: 'pv_system', designation: 'PV-Anlage Dach' },
+    {
+      id: 'i-3',
+      siteId: 's-2',
+      kind: 'battery',
+      designation: 'Speicher Keller',
+      manufacturer: 'BYD',
+      model: 'HVS 7.7',
+      serialNumber: 'B-77-1',
+      pvSystemId: 'i-2',
+    },
+    {
+      id: 'i-4',
+      siteId: 's-2',
+      kind: 'meter',
+      designation: 'Zweirichtungszähler',
+      serialNumber: '1EMH0012345678',
+      pvSystemId: 'i-2',
+    },
+  ],
+  inverters: [
+    {
+      id: 'w-1',
+      installationId: 'i-2',
+      designation: 'WR 1',
+      manufacturer: 'SMA',
+      model: 'Sunny Tripower 8.0',
+      serialNumber: '3001234567',
+      ratedPowerW: 8000,
+      position: 0,
+    },
+  ],
+  pv_strings: [{ id: 'st-1', inverterId: 'w-1', designation: 'String 1', position: 0 }],
+  pv_modules: [
+    { id: 'm-1', pvStringId: 'st-1', ratedPowerW: 430, position: 0 },
+    { id: 'm-2', pvStringId: 'st-1', ratedPowerW: 430, position: 1 },
   ],
   jobs: [
     {
@@ -91,6 +143,16 @@ const rows: Readonly<Record<string, RecordState[]>> = {
       status: 'active',
       designation: 'Neubau Elektroinstallation',
       number: 'AU-2026-0007',
+    },
+    {
+      id: 'j-2',
+      customerId: 'c-2',
+      siteId: 's-2',
+      installationId: 'i-2',
+      kind: 'installation',
+      status: 'active',
+      designation: 'PV-Anlage mit Speicher',
+      number: 'AU-2026-0008',
     },
   ],
   distribution_boards: [
@@ -122,6 +184,9 @@ async function mount(path: string) {
       'distribution_boards',
       'board_sections',
       'circuits',
+      'inverters',
+      'pv_strings',
+      'pv_modules',
       'form_records',
       'attachments',
     ],
@@ -508,6 +573,148 @@ describe('a test protocol on site (#79)', () => {
         readonly GroupBlock[] | undefined
 
       expect(blocks?.[0]?.values).toEqual({ insulation_resistance: 550_000 })
+    })
+  })
+})
+
+describe('the commissioning protocol after VDE-AR-N 4105 on site (#304)', () => {
+  const title = 'Inbetriebsetzungsprotokoll nach VDE-AR-N 4105 anlegen'
+
+  it('is offered at a PV system and not at a meter cabinet', async () => {
+    await mount('/auftraege/j-1')
+    await screen.findByRole('button', {
+      name: 'Prüfprotokoll Erstprüfung nach DIN VDE 0100-600 anlegen',
+    })
+
+    expect(screen.queryByRole('button', { name: title })).toBeNull()
+  })
+
+  it('starts from the customer and the PV structure, and is signed by operator and business', async () => {
+    const user = userEvent.setup()
+    const { client } = await mount('/auftraege/j-2')
+
+    server.offline = true
+    await user.click(await screen.findByRole('button', { name: title }))
+    await screen.findByRole('list', { name: 'Abschnitte' })
+    expect(screen.getByRole('heading', { name: 'Inbetriebsetzung', level: 1 })).toBeTruthy()
+    expect(screen.getByText('Protokoll nach VDE-AR-N 4105, PV-Anlage Dach')).toBeTruthy()
+    expect(screen.getByLabelText('Tag der Inbetriebsetzung')).toBeTruthy()
+
+    await user.click(row('Anlage'))
+    expect(await screen.findByLabelText('Anlagenbetreiber')).toHaveProperty(
+      'value',
+      'Familie Sonne\nSonnenweg 1, 68535 Edingen-Neckarhausen',
+    )
+    expect(screen.getByLabelText('Wechselrichter')).toHaveProperty(
+      'value',
+      'WR 1, SMA Sunny Tripower 8.0, Seriennummer 3001234567, 8 kW',
+    )
+    expect(screen.getByLabelText('Speicher')).toHaveProperty(
+      'value',
+      'Speicher Keller, BYD HVS 7.7, Seriennummer B-77-1',
+    )
+    expect(screen.getByLabelText('Zählernummer')).toHaveProperty('value', '1EMH0012345678')
+    expect(screen.getByLabelText('Maximale Scheinleistung SAmax in kVA')).toHaveProperty(
+      'value',
+      '8',
+    )
+    expect(screen.getByLabelText('Modulleistung in kWp')).toHaveProperty('value', '0,86')
+
+    await user.type(
+      screen.getByLabelText('Eintragung im Installateurverzeichnis'),
+      'E-4711, Netze BW',
+    )
+    await user.selectOptions(screen.getByLabelText('Aufbau wie angemeldet'), 'ja')
+    await user.click(screen.getByRole('button', { name: 'Weiter zu Messung und Schutz' }))
+
+    await user.selectOptions(await screen.findByLabelText('Abrechnungsmessung geprüft'), 'ja')
+    await user.type(screen.getByLabelText('Begrenzung der Einspeisung in %'), '70')
+    expect(
+      screen.getByText(/^Außerhalb des Grenzwerts, höchstens 60 %\. Quelle: § 9 Abs\. 2/),
+    ).toBeTruthy()
+    await user.clear(screen.getByLabelText('Begrenzung der Einspeisung in %'))
+    await user.type(screen.getByLabelText('Begrenzung der Einspeisung in %'), '60')
+    await user.selectOptions(
+      screen.getByLabelText('Parametersatz der Erzeugungseinheiten'),
+      'Kein Anschluss an das Mittelspannungsnetz',
+    )
+    await user.click(screen.getByRole('button', { name: 'Weiter zu Symmetrie' }))
+
+    await user.selectOptions(
+      await screen.findByLabelText('Eingehalten durch'),
+      'Drehstromgenerator oder dreiphasigen Umrichter',
+    )
+    await user.click(screen.getByRole('button', { name: 'Weiter zu Blindleistung' }))
+    await user.selectOptions(
+      await screen.findByLabelText('Eingestellt'),
+      'Q(U), Standardkennlinie belassen',
+    )
+    await user.click(screen.getByRole('button', { name: 'Zur Übersicht' }))
+
+    await screen.findByRole('list', { name: 'Abschnitte' })
+    // The signatures come in the step of signing, so neither is missing before it.
+    expect(screen.queryByText('Unterschrift des Anlagenbetreibers fehlt.')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Erster Netzparallelbetrieb'), {
+      target: { value: '2026-11-04' },
+    })
+    await user.selectOptions(screen.getByLabelText('Errichtet, eingewiesen und übergeben'), 'ja')
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+    await screen.findByText(
+      'Das Protokoll ist vollständig. Mit den Unterschriften wird es festgeschrieben.',
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Unterschreiben' }))
+    expect(
+      screen.getByText(/^Mit den Unterschriften bestätigen Sie die Inbetriebsetzung/),
+    ).toBeTruthy()
+
+    // The operator first, named from the protocol, then the business.
+    const [operator, business] = screen.getAllByLabelText('Name')
+
+    expect(operator).toHaveProperty('value', 'Familie Sonne')
+    expect(business).toHaveProperty('value', '')
+    await user.type(business as HTMLElement, 'Paul Prüfer')
+
+    const [operatorPad, businessPad] = screen.getAllByRole('img', { name: 'Unterschriftsfeld' })
+
+    signOn(operatorPad as Element)
+    await user.click(screen.getByRole('button', { name: 'Unterschreiben' }))
+    expect(
+      screen.getByText('Bitte im Feld „Unterschrift des Elektrofachbetriebs“ unterschreiben.'),
+    ).toBeTruthy()
+
+    signOn(businessPad as Element)
+    await user.click(screen.getByRole('button', { name: 'Unterschreiben' }))
+    expect(
+      await screen.findByRole('img', {
+        name: 'Unterschrift des Anlagenbetreibers, Familie Sonne',
+      }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('img', { name: 'Unterschrift des Elektrofachbetriebs, Paul Prüfer' }),
+    ).toBeTruthy()
+
+    await client.synchronise()
+    server.offline = false
+    await client.synchronise()
+
+    const sent = server.operations()
+    const signed = Object.fromEntries(
+      (sent.at(-1)?.patches ?? []).map((patch) => [patch.field, patch.to]),
+    )
+    const values = readFormValues(signed['values'])
+
+    expect(signed['status']).toBe('signed')
+    expect(values).toMatchObject({
+      operator: 'Familie Sonne\nSonnenweg 1, 68535 Edingen-Neckarhausen',
+      meter: '1EMH0012345678',
+      apparent_power: 8000,
+      active_power: 8000,
+      module_power: 860,
+      feed_in_limit: 60_000,
+      grid_parallel_on: '2026-11-04',
+      operator_signature: { name: 'Familie Sonne' },
+      installer_signature: { name: 'Paul Prüfer' },
     })
   })
 })
