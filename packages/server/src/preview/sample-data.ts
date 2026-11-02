@@ -1945,6 +1945,29 @@ function sampleProtocols(
   initial.setUTCDate(initial.getUTCDate() - 196)
 
   const initialOn = initial.toISOString().slice(0, 10)
+  // The recurring inspection of #301 a month ago, signed: it names its next
+  // one in four years, which the deadline engine makes a deadline of.
+  const recurring = new Date(`${today}T12:00:00Z`)
+
+  recurring.setUTCDate(recurring.getUTCDate() - 35)
+
+  const recurringOn = recurring.toISOString().slice(0, 10)
+  const tested = (
+    protectiveConductor: number,
+    withoutLoads: number | null,
+    withLoads: number | null,
+    loop: number,
+    tripCurrent: number,
+    tripTime: number,
+  ) => ({
+    protective_conductor: protectiveConductor,
+    ...(withoutLoads === null ? {} : { insulation_without_loads: withoutLoads }),
+    ...(withLoads === null ? {} : { insulation_with_loads: withLoads }),
+    loop_impedance: loop,
+    rcd_trip_current: tripCurrent,
+    rcd_trip_time: tripTime,
+    phase_sequence: 'not_applicable',
+  })
   // The signed one in the version it was filled in, the draft in the newest,
   // with the remark over lines that version 2 brought (#256).
   const record = (
@@ -1952,8 +1975,9 @@ function sampleProtocols(
     status: 'draft' | 'signed',
     values: object,
     definitionVersion = 1,
+    definitionKey = 'vde-0100-600',
   ) => ({
-    definitionKey: 'vde-0100-600',
+    definitionKey,
     definitionVersion,
     installationId: cabinet,
     jobId: null,
@@ -1985,6 +2009,47 @@ function sampleProtocols(
           signedAt: `${initialOn}T15:40:00.000Z`,
         },
       }),
+    ],
+    [
+      'form_records',
+      newId<'form-record'>(),
+      record(
+        recurringOn,
+        'signed',
+        {
+          ...general,
+          previous_report: 'ok',
+          documentation: 'ok',
+          identification: 'ok',
+          accessibility: 'ok',
+          basic_protection: 'ok',
+          bonding: 'ok',
+          protective_devices: 'ok',
+          condition: 'ok',
+          rcd_test_button: 'ok',
+          switchgear: 'ok',
+          motor_rotation: 'not_applicable',
+          circuits: blocks({
+            [circuits.feed]: { insulation_without_loads: 999_000, phase_sequence: 'clockwise' },
+            [circuits.light]: tested(200, 480_000, null, 530, 20_000, 22_000),
+            [circuits.living]: tested(310, null, 2_400, 710, 19_000, 24_000),
+            [circuits.kitchen]: tested(300, 520_000, null, 690, 21_000, 25_000),
+            [circuits.cooker]: {
+              ...tested(270, 600_000, null, 600, 22_000, 19_000),
+              phase_sequence: 'clockwise',
+            },
+          }),
+          verdict: 'passed',
+          next_inspection_months: 48_000,
+          tester_signature: {
+            name: 'Anna Weber',
+            path: sampleSignature,
+            signedAt: `${recurringOn}T14:10:00.000Z`,
+          },
+        },
+        1,
+        'vde-0105-100',
+      ),
     ],
     [
       'form_records',

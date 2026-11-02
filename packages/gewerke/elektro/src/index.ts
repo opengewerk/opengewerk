@@ -1,4 +1,5 @@
 import {
+  type DeadlineKind,
   type FormDefinition,
   formRegistry,
   type FormRegistry,
@@ -10,7 +11,10 @@ import {
 import manifest from '../manifest.json' with { type: 'json' }
 import vde0100600v1 from '../formulare/vde-0100-600.v1.json' with { type: 'json' }
 import vde0100600v2 from '../formulare/vde-0100-600.v2.json' with { type: 'json' }
+import vde0105100v1 from '../formulare/vde-0105-100.v1.json' with { type: 'json' }
+import vde0105100Deadlines from '../fristen/vde-0105-100.json' with { type: 'json' }
 import vde0100600Limits from '../regeln/vde-0100-600.json' with { type: 'json' }
+import vde0105100Limits from '../regeln/vde-0105-100.json' with { type: 'json' }
 
 /**
  * The trade package Elektro und PV in the format of ADR 0008: a manifest, the
@@ -32,6 +36,7 @@ export interface TradeManifest {
   readonly minimumCore: string
   readonly forms: readonly string[]
   readonly rules: readonly string[]
+  readonly deadlines: readonly string[]
 }
 
 export const elektroManifest: TradeManifest = manifest
@@ -39,14 +44,27 @@ export const elektroManifest: TradeManifest = manifest
 /**
  * Every version of every form the package has shipped, the oldest kept for the
  * forms filled in it. Version 2 of the protocol differs from version 1 in one
- * thing: the remark on a circuit takes more than a line (#256).
+ * thing: the remark on a circuit takes more than a line (#256). The recurring
+ * inspection after DIN VDE 0105-100 is the second form (#301).
  */
 export const elektroForms: readonly FormDefinition[] = [
   vde0100600v1 as FormDefinition,
   vde0100600v2 as FormDefinition,
+  vde0105100v1 as FormDefinition,
 ]
 
-export const elektroRulePackages: readonly RulePackage[] = [vde0100600Limits as RulePackage]
+export const elektroRulePackages: readonly RulePackage[] = [
+  vde0100600Limits as RulePackage,
+  vde0105100Limits as RulePackage,
+]
+
+/**
+ * The kinds of deadline the package brings (`fristen/`, ADR 0008): the
+ * recurring inspection, due when the last protocol after DIN VDE 0105-100 of
+ * an installation says. The server puts them beside the core's.
+ */
+export const elektroDeadlineKinds: readonly DeadlineKind[] =
+  vde0105100Deadlines.kinds as readonly DeadlineKind[]
 
 /** The limits of the package as a rule set, the one `limitVerdict` is asked with. */
 export const elektroRules: RuleSet = ruleSet(elektroRulePackages.flatMap((entry) => entry.records))

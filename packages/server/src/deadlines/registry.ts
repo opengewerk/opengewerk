@@ -1,4 +1,5 @@
 import { coreDeadlineKinds, type DeadlineRegistry, deadlineRegistry } from '@opengewerk/domain'
+import { elektroDeadlineKinds } from '@opengewerk/gewerk-elektro'
 
 /**
  * The kinds of deadline this instance knows: the core's, and those of the
@@ -7,7 +8,9 @@ import { coreDeadlineKinds, type DeadlineRegistry, deadlineRegistry } from '@ope
  * of the wrong thing later.
  *
  * The trade package Elektro brings its first kind with the recurring
- * inspection (#301), whose protocol names the day of the next one; the
- * registry takes it in beside these.
+ * inspection (#301), whose protocol names the day of the next one.
  */
-export const deadlineKinds: DeadlineRegistry = deadlineRegistry(coreDeadlineKinds)
+export const deadlineKinds: DeadlineRegistry = deadlineRegistry([
+  ...coreDeadlineKinds,
+  ...elektroDeadlineKinds,
+])

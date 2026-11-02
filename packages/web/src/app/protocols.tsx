@@ -13,6 +13,9 @@ import {
   formatMeasured,
   type GroupBlock,
   type GroupField,
+  inspectionDueAfter,
+  isNextInspection,
+  type IsoDate,
   limitVerdict,
   type MeasurementField,
   measurementUnitSign,
@@ -124,34 +127,60 @@ export function circuitProtection(circuit: BlockCircuit): string | null {
 }
 
 /**
- * Only what a definition knows, for values carried over from a form of an
- * older version: a key it no longer has would make the new form refused.
+ * Only what the new definition takes over itself, for values carried from a
+ * form of an older version or from another form (1.3): a key it does not
+ * have would make the new form refused, a key of another kind or a choice it
+ * does not offer would be a value it cannot hold, and what it does not mark
+ * to take over starts empty, whatever the template marked.
  */
-function knownTo(definition: FormDefinition, values: FormValues): FormValues {
+export function takenOver(
+  definition: FormDefinition,
+  templateDefinition: FormDefinition,
+  values: FormValues,
+): FormValues {
   const kept: Record<string, FormValue> = {}
+  const before = new Map(fieldsOf(templateDefinition).map((field) => [field.key, field]))
+  const fits = (field: BlockField, earlier: FormField | undefined, value: FormValue) =>
+    field.carry === true &&
+    earlier?.kind === field.kind &&
+    (field.kind !== 'choice' || field.options.some((option) => option.value === value))
 
   for (const field of fieldsOf(definition)) {
     const value = values[field.key]
+    const earlier = before.get(field.key)
 
-    if (value === undefined) {
+    if (value === undefined || earlier?.kind !== field.kind) {
       continue
     }
 
     if (field.kind === 'group') {
+      const nestedBefore = earlier.kind === 'group' ? earlier.fields : []
+
       kept[field.key] = (Array.isArray(value) ? (value as readonly GroupBlock[]) : []).map(
         (block) => ({
           ...block,
           values: Object.fromEntries(
-            Object.entries(block.values).filter(([key]) =>
-              field.fields.some((nested) => nested.key === key),
-            ),
+            Object.entries(block.values).filter(([key, entry]) => {
+              const nested = field.fields.find((candidate) => candidate.key === key)
+
+              return (
+                nested !== undefined &&
+                fits(
+                  nested,
+                  nestedBefore.find((candidate) => candidate.key === key),
+                  entry as FormValue,
+                )
+              )
+            }),
           ),
         }),
       )
       continue
     }
 
-    kept[field.key] = value
+    if (field.kind !== 'signature' && fits(field, earlier, value)) {
+      kept[field.key] = value
+    }
   }
 
   return kept
@@ -170,7 +199,11 @@ export function startingValues(
   const templateDefinition = template ? definitionOf(template) : null
   const carried =
     template && templateDefinition
-      ? knownTo(definition, templateValues(templateDefinition, valuesOf(template)))
+      ? takenOver(
+          definition,
+          templateDefinition,
+          templateValues(templateDefinition, valuesOf(template)),
+        )
       : {}
   const values: Record<string, FormValue> = { ...carried }
 
@@ -230,6 +263,11 @@ export function ProtocolsList({
   const client = useSync()
   const entry = useEntry()
   const protocols = useProtocols(installationId)
+  // The last signed one, of whichever form: a recurring inspection takes over
+  // from the first what both know (1.3). A draft is a test nobody has vouched
+  // for yet, and a form of another version of OpenGewerk cannot be read.
+  const template =
+    protocols.find((protocol) => isSigned(protocol) && definitionOf(protocol) !== null) ?? null
   const circuits = useBlockCircuits(installationId)
   const [trouble, setTrouble] = useState<string | null>(null)
   const [working, setWorking] = useState(false)
@@ -311,10 +349,6 @@ export function ProtocolsList({
         ) : null}
 
         {protocolRegistry.current().map((definition) => {
-          const template = protocols.find(
-            (protocol) => protocol['definitionKey'] === definition.key && isSigned(protocol),
-          )
-
           return (
             <div key={definition.key} className="flex flex-col items-start gap-2.5">
               <Button
@@ -396,11 +430,6 @@ export function ProtocolsList({
       ) : null}
 
       {protocolRegistry.current().map((definition) => {
-        // The last signed one: a draft is a test nobody has vouched for yet.
-        const template = protocols.find(
-          (protocol) => protocol['definitionKey'] === definition.key && isSigned(protocol),
-        )
-
         return (
           <div key={definition.key} className="flex flex-col gap-1">
             <Button
@@ -566,7 +595,14 @@ export function FieldInput({
         />
       )
     case 'number':
-      return <FigureInput field={field} value={value} onChange={onChange} />
+      return isNextInspection(field) ? (
+        <div className="flex flex-col gap-1">
+          <FigureInput field={field} value={value} onChange={onChange} />
+          <NextInspection performedOn={performedOn} value={value} />
+        </div>
+      ) : (
+        <FigureInput field={field} value={value} onChange={onChange} />
+      )
     case 'measurement':
       return (
         <div className="flex flex-col gap-1">
@@ -659,8 +695,29 @@ export function FieldText({
       </p>
       {field.kind === 'measurement' ? (
         <Verdict field={field} value={value} circuit={circuit} performedOn={performedOn} />
+      ) : isNextInspection(field) ? (
+        <NextInspection performedOn={performedOn} value={value} />
       ) : null}
     </div>
+  )
+}
+
+/**
+ * The day the interval to the next inspection comes to, under its field
+ * (#301): the deadline engine reminds of the same day once the protocol is
+ * signed.
+ */
+export function NextInspection({
+  performedOn,
+  value,
+}: {
+  readonly performedOn: string
+  readonly value: FieldValue | undefined
+}) {
+  const due = inspectionDueAfter(performedOn as IsoDate, value)
+
+  return due === null ? null : (
+    <p className="text-table text-ink-muted">{`Nächste Prüfung bis zum ${date(due)}.`}</p>
   )
 }
 

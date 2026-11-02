@@ -77,8 +77,12 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  * - `qualification`: a qualification of a person in the files that runs out
  *   (#287, 4.9). Due on its last day; a later day moves the deadline, and a
  *   qualification taken out, or a person who left, lets it drop.
+ * - `inspection`: the last signed protocol of an installation that names its
+ *   next inspection (#301, `nextInspectionOn`). One deadline per
+ *   installation, due when that protocol says; a newer protocol moves it, an
+ *   installation deleted lets it drop. The person it names is who signed.
  */
-export const deadlineSources = ['quote', 'store_minimum', 'qualification'] as const
+export const deadlineSources = ['quote', 'store_minimum', 'qualification', 'inspection'] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
 
@@ -228,6 +232,15 @@ export const sourceWords: Readonly<
       hint: 'Fällig am letzten Tag, an dem die Qualifikation gilt.',
     },
     anchor: 'dem letzten Tag',
+  },
+  // Due when the last protocol says, without an interval of the kind (#301).
+  inspection: {
+    person: 'Wer die letzte Prüfung unterschrieben hat',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig nach der Prüffrist, die das letzte unterschriebene Protokoll der Anlage nennt.',
+    },
+    anchor: 'der letzten Prüfung',
   },
 }
 

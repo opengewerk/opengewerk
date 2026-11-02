@@ -4,5 +4,5 @@
     "lib": ["ES2023"],
     "types": []
   },
-  "include": ["src", "formulare", "regeln", "manifest.json"]
+  "include": ["src", "formulare", "regeln", "fristen", "manifest.json"]
 }

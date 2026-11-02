@@ -5,13 +5,18 @@ import {
   type DeadlineSource,
   type DocumentId,
   type InstallationId,
+  type IsoDate,
   type JobId,
+  nextInspectionField,
+  nextInspectionOn,
+  readFormValues,
   type SiteId,
 } from '@opengewerk/domain'
 import { type SourceQuery, stockLevels } from '@opengewerk/platform-server'
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 
 import { documents } from '../database/schema/index.js'
+import { tradeForms } from '../forms/registry.js'
 
 /**
  * What a deadline of this application hangs on beside its source, as its
@@ -196,10 +201,91 @@ export const qualificationsRunningOut: SourceQuery<DeadlineValues> = async (tx) 
   }))
 }
 
+/**
+ * The next inspections the protocols name (#301): one source for each
+ * installation, out of its last signed protocol whose form names a next
+ * inspection, the newest day of the test first. Due when that protocol says,
+ * its interval counted from the day of the test (`nextInspectionOn`), and
+ * named by the installation and its site, as "Zählerschrank, Keller am Objekt
+ * Rheinstraße 12". The person it names is who signed it, the last to write a
+ * signed protocol.
+ *
+ * A newer protocol moves the day, and one that names no interval it can use
+ * leaves the installation without a deadline rather than falling back on an
+ * older one: the last test is the one that counts. An installation, site or
+ * customer deleted lets the deadline drop.
+ */
+export const inspectionsDue: SourceQuery<DeadlineValues> = async (tx) => {
+  const keys = tradeForms
+    .current()
+    .filter((definition) => nextInspectionField(definition) !== null)
+    .map((definition) => definition.key)
+
+  if (keys.length === 0) {
+    return []
+  }
+
+  const { rows } = await tx.execute<{
+    definition_key: string
+    definition_version: number
+    performed_on: string
+    values: string
+    updated_by: string | null
+    installation_id: string
+    designation: string
+    site_id: string
+    site: string
+    customer_id: string
+  }>(sql`
+    select distinct on (r.installation_id)
+           r.definition_key, r.definition_version, r.performed_on::text as performed_on, r.values,
+           r.updated_by, i.id as installation_id, i.designation, s.id as site_id,
+           s.designation as site, s.customer_id
+      from form_records r
+      join installations i on i.id = r.installation_id and i.deleted_at is null
+      join sites s on s.id = i.site_id and s.deleted_at is null
+      join customers c on c.id = s.customer_id and c.deleted_at is null
+     where r.deleted_at is null and r.status = 'signed'
+       and r.definition_key in (${sql.join(
+         keys.map((key) => sql`${key}`),
+         sql`, `,
+       )})
+     order by r.installation_id, r.performed_on desc, r.updated_at desc, r.id desc`)
+
+  return rows.flatMap((row) => {
+    const definition = tradeForms.definitionFor(row.definition_key, Number(row.definition_version))
+    const performedOn = row.performed_on as IsoDate
+    const due =
+      definition === null
+        ? null
+        : nextInspectionOn(definition, readFormValues(row.values) ?? {}, performedOn)
+
+    return due === null
+      ? []
+      : [
+          {
+            sourceId: row.installation_id,
+            sourceLabel: `${row.designation} am Objekt ${row.site}`,
+            anchorOn: performedOn,
+            namedDueOn: due,
+            naturalUserId: row.updated_by,
+            values: {
+              documentId: null,
+              installationId: row.installation_id as InstallationId,
+              customerId: row.customer_id as CustomerId,
+              siteId: row.site_id as SiteId,
+              jobId: null,
+            },
+          },
+        ]
+  })
+}
+
 /** Every source there is, by the name a kind gives it. */
 export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
   {
     quote: openQuotes,
     store_minimum: storesBelowMinimum,
     qualification: qualificationsRunningOut,
+    inspection: inspectionsDue,
   }

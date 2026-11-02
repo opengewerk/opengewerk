@@ -529,8 +529,10 @@ function MeasurementsCards({
 
 /**
  * The head of a column: the symbol a measured value is known by, the last
- * word of its name, and its unit, "Zs Ω" for "Schleifenimpedanz Zs". A choice
- * keeps its name.
+ * word of its name, and its unit, "Zs Ω" for "Schleifenimpedanz Zs". A name
+ * that goes on after the symbol with "ohne" or "mit" keeps that part, so that
+ * the two ways of measuring the insulation of #301 stay apart: "Riso ohne
+ * Verbraucher MΩ". A choice keeps its name.
  */
 function columnHead(field: BlockField): string {
   if (field.kind !== 'measurement' && field.kind !== 'number') {
@@ -538,7 +540,13 @@ function columnHead(field: BlockField): string {
   }
 
   const words = field.label.trim().split(/\s+/)
-  const symbol = words.length > 1 ? (words.at(-1) as string) : field.label
+  const how = words.findIndex((word, at) => at > 1 && (word === 'ohne' || word === 'mit'))
+  const symbol =
+    how > 0
+      ? words.slice(how - 1).join(' ')
+      : words.length > 1
+        ? (words.at(-1) as string)
+        : field.label
 
   return `${symbol} ${measurementUnitSign[field.unit]}`
 }

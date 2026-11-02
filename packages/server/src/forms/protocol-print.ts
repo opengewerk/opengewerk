@@ -13,6 +13,8 @@ import {
   limitVerdict,
   type MeasurementField,
   measurementUnitSign,
+  nextInspectionKey,
+  nextInspectionOn,
   type RuleSet,
   signatureBox,
   type SignatureValue,
@@ -123,7 +125,15 @@ function fieldRow(
         })
       : null
 
+  // The interval to the next inspection with the day it comes to (#301).
+  const next =
+    field.key === nextInspectionKey
+      ? nextInspectionOn(protocol.definition, protocol.values, protocol.performedOn)
+      : null
+
   return `<tr><th>${text(field.label)}</th><td>${printed}${
+    next === null ? '' : `, nächste Prüfung bis zum ${day(next)}`
+  }${
     verdict && verdict.within === false
       ? ' <span class="outside">außerhalb des Grenzwerts</span>'
       : ''

@@ -4,7 +4,8 @@ import type { FormUnit, RuleUnit } from '@opengewerk/platform-domain'
  * What a figure in a form of this application is counted in. Stored as whole
  * thousandths of it. The first five are what a test protocol measures; the
  * others are for the fields a business gives its report (#78), a distance
- * driven or the temperature on site.
+ * driven or the temperature on site, and the month for the interval a
+ * protocol names to the next inspection (#301).
  */
 export const measurementUnits = [
   'ohm',
@@ -19,6 +20,7 @@ export const measurementUnits = [
   'degree_celsius',
   'piece',
   'percent',
+  'month',
 ] as const
 
 export type MeasurementUnit = (typeof measurementUnits)[number]
@@ -37,6 +39,8 @@ export const measurementUnitSign: Readonly<Record<MeasurementUnit, string>> = {
   degree_celsius: '°C',
   piece: 'Stk.',
   percent: '%',
+  // Short, because a field reads "Prüffrist in Mon." and its value "48 Mon.".
+  month: 'Mon.',
 }
 
 /**

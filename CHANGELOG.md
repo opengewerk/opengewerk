@@ -9,6 +9,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Das Prüfprotokoll der Wiederholungsprüfung nach DIN VDE 0105-100 (#301), nach der Feature-Gliederung v2.50 und den
+  Tafeln aus Version 104 des Canvas: An jeder Anlage steht es neben der Erstprüfung, mit Besichtigen, Erproben und
+  Messen je Stromkreis aus dem Stromkreisverzeichnis. Den Isolationswiderstand misst es ohne oder mit angeschlossenen
+  Verbrauchern, jedes mit seinem Mindestwert nach DGUV Information 203-072, Tabelle 11 (0,230 MΩ und 0,069 MΩ bei
+  230 V); Schleifenimpedanz und Fehlerstromschutz prüft es wie die Erstprüfung. Im Ergebnis nennt es die Prüffrist bis
+  zur nächsten Prüfung in Monaten, mit den Prüffristen aus Tabelle 1A der DGUV Vorschrift 3 als Hinweis, und darunter
+  den Tag, auf den sie fällt; das PDF druckt ihn mit. Aus dem letzten unterschriebenen Protokoll einer Anlage wird eine
+  Frist „Wiederholungsprüfung der Anlage“, die erste Fristart eines Gewerks: 60 Tage vorher eine Aufgabe und eine
+  Erinnerung für die Person, die unterschrieben hat; ein neues Protokoll verschiebt sie, mit der Anlage entfällt sie.
+  Ein neues Protokoll nimmt das letzte unterschriebene der Anlage als Vorlage, auch aus dem anderen Formular, und
+  übernimmt nur, was das neue Formular dafür kennzeichnet. Die Grenzwerte gehen zur fachkundigen Abnahme in #31.
+  Warum: Ein Elektrobetrieb prüft die Anlagen seiner Kunden wiederkehrend, und bis jetzt ließ sich nur die Erstprüfung
+  dokumentieren und niemand erinnerte an die nächste.
 - Nachrichten zum Urlaub (#806), nach der Feature-Gliederung v2.49 und den Tafeln aus Version 101 des Canvas: Ein neuer
   Urlaubsantrag kommt per Push zu allen im Betrieb, die Abwesenheiten pflegen, außer zu der Person, die ihn stellt; die
   Entscheidung darüber kommt zu der Person, die ihn gestellt hat. Die Nachricht nennt nur den Zeitraum und „freigegeben“

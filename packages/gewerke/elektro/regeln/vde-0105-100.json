@@ -1,0 +1,24 @@
+{
+  "package": "elektro.vde-0105-100",
+  "note": "Grenzwerte der Wiederholungsprüfung nach DIN VDE 0105-100, für das Prüfprotokoll (#301). Vorprüfung am 02.11.2026 anhand der DGUV Information 203-072 vom April 2021, die die Werte der Norm zusammenstellt; die fachkundige Abnahme steht aus wie bei den Regelpaketen in #31, und bis dahin ist jeder Wert eine Hilfe beim Ablesen und keine Freigabe. Die Grenzwerte gelten ab dem 01.06.2017, dem Ausgabedatum von DIN VDE 0105-100/A1:2017-06. Schleifenimpedanz, Auslösestrom und Auslösezeit nimmt das Protokoll aus dem Paket der Erstprüfung, elektro.vde-0100-600.",
+  "records": [
+    {
+      "key": "elektro.insulation.recurring_without_loads",
+      "validFrom": "2017-06-01",
+      "validUntil": null,
+      "unit": "kiloohms",
+      "value": 230,
+      "source": "DGUV Information 203-072:2021-04, Tabelle 11, Wiederholungsprüfung nach DIN VDE 0105-100/A1 (VDE 0105-100/A1):2017-06",
+      "note": "Ohne angeschlossene Verbraucher, in trockener Umgebung, im TN-, TT- und FELV-System: 1000 Ω je Volt Nennspannung, bei 230 V also 230 kΩ. In feuchter Umgebung gelten 500 Ω/V, im IT-System 50 Ω/V, bei SELV und PELV 0,25 MΩ; diese Fälle unterscheidet das Protokoll in dieser Fassung noch nicht."
+    },
+    {
+      "key": "elektro.insulation.recurring_with_loads",
+      "validFrom": "2017-06-01",
+      "validUntil": null,
+      "unit": "kiloohms",
+      "value": 69,
+      "source": "DGUV Information 203-072:2021-04, Tabelle 11, Wiederholungsprüfung nach DIN VDE 0105-100/A1 (VDE 0105-100/A1):2017-06",
+      "note": "Mit angeschlossenen und eingeschalteten Verbrauchern, in trockener Umgebung, im TN-, TT- und FELV-System: 300 Ω je Volt Nennspannung, bei 230 V also 69 kΩ. In feuchter Umgebung gelten 150 Ω/V; das unterscheidet das Protokoll in dieser Fassung noch nicht."
+    }
+  ]
+}
