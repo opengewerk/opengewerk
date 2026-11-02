@@ -1,0 +1,15 @@
+{
+  "package": "elektro.mastr",
+  "note": "Die Frist der Betreiber-Meldung zum Marktstammdatenregister, die die Ausfüllhilfe nennt (#306). Melden muss der Anlagenbetreiber, nicht der Elektrofachbetrieb. Ändert der Verordnungsgeber die Frist, bekommt der alte Satz sein Ende und ein neuer kommt dazu; die Ausfüllhilfe liest den Wert, der am Tag der Inbetriebnahme galt. Geprüft am 02.11.2026 am Text der MaStRV auf gesetze-im-internet.de.",
+  "records": [
+    {
+      "key": "elektro.mastr.registration_months",
+      "validFrom": "2017-07-01",
+      "validUntil": null,
+      "unit": "months",
+      "value": 1,
+      "source": "§ 5 Abs. 5 MaStRV",
+      "note": "Einheiten und EEG-Anlagen sind innerhalb eines Monats nach ihrer Inbetriebnahme zu registrieren, Solaranlagen und Stromspeicher eingeschlossen. Die Verordnung gilt seit dem 01.07.2017."
+    }
+  ]
+}

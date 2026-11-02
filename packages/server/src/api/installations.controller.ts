@@ -10,6 +10,8 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import {
+  gridOperatorLinkProblem,
+  gridOperatorReferenceProblem,
   type InstallationId,
   inverterLinkProblem,
   pvSystemLinkProblem,
@@ -44,11 +46,13 @@ const writableFields = [
   'inverterId',
   'yieldForecastKwh',
   'yieldForecastSource',
+  'gridOperatorId',
+  'gridOperatorReference',
 ] as const
 
 /**
- * Refuses a link to a PV system that does not hold (#300), with the field in
- * the sentence: the questions the sync asks, answered as a 422 like a missing
+ * Refuses a link to a PV system that does not hold (#300), and a grid operator
+ * at an installation that names none (#306), with the field in the sentence: the questions the sync asks, answered as a 422 like a missing
  * reference, and before the trigger in the database would answer with a
  * sentence about a constraint.
  */
@@ -60,7 +64,9 @@ async function requirePvLink(
   const at = (field: string) => (field in values ? values[field] : current?.[field])
   const problem =
     pvSystemLinkProblem(at('kind'), at('pvSystemId')) ??
-    inverterLinkProblem(at('pvSystemId'), at('inverterId'))
+    inverterLinkProblem(at('pvSystemId'), at('inverterId')) ??
+    gridOperatorLinkProblem(at('kind'), at('gridOperatorId')) ??
+    gridOperatorReferenceProblem(at('gridOperatorReference'))
 
   if (problem !== null) {
     throw new UnprocessableEntityException(problem)
@@ -129,6 +135,7 @@ export class InstallationsController {
           siteId: installations.siteId,
           pvSystemId: installations.pvSystemId,
           inverterId: installations.inverterId,
+          gridOperatorId: installations.gridOperatorId,
         })
         .from(installations)
         .where(and(eq(installations.id, id as InstallationId), isNull(installations.deletedAt)))

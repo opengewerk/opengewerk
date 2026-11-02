@@ -616,7 +616,7 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 
   await plantBoards(post, cabinet, today)
   await plantAppliances(post, estate, today)
-  await plantPhotovoltaic(post, berg, house)
+  await plantPhotovoltaic(post, berg, house, today)
 
   const catalogue = await plantMaterial(post, (path, body) => send(base, 'PUT', path, body), today)
   const circuitBreaker = catalogue.get('2140')
@@ -1519,7 +1519,27 @@ async function plantPhotovoltaic(
   post: (path: string, body: unknown) => Promise<Answer>,
   berg: string,
   house: string,
+  today: IsoDate,
 ): Promise<void> {
+  // Two grid operators (#306): the one the system is reported to, with the
+  // entry of the business in its directory running out within the lead of its
+  // deadline, and one without an entry.
+  const operator = idOf(
+    await post('/grid-operators', {
+      name: 'Stadtwerke Neckartal Netze GmbH',
+      portalUrl: 'https://netzportal.neckartal-netze.de',
+      requirements:
+        'Anmeldung über das Netzportal mit dem Datenblatt der Erzeugungsanlage, den Einheitenzertifikaten der Wechselrichter, Lageplan und Übersichtsschaltplan. Fertigmeldung mit dem Inbetriebsetzungsprotokoll.',
+      contactName: 'Sandra Fuchs',
+      contactEmail: 'netzanschluss@neckartal-netze.de',
+      contactPhone: '06221 50 40-310',
+      registrationNumber: 'IV-2023-0417',
+      registeredUntil: addDays(today, 59),
+      responsibleElectrician: 'Moritz Kohm',
+    }),
+  )
+  await post('/grid-operators', { name: 'Netze Bergstraße GmbH' })
+
   const system = idOf(
     await post('/installations', {
       siteId: house,
@@ -1530,6 +1550,8 @@ async function plantPhotovoltaic(
       // The forecast of the yield from the planning, with its source (#305).
       yieldForecastKwh: 9120,
       yieldForecastSource: 'PV*SOL premium, Planung vom 02.03.2022',
+      gridOperatorId: operator,
+      gridOperatorReference: 'SNN-2026-04711',
       notes: 'Zwei Dachflächen, Süd und West.',
     }),
   )

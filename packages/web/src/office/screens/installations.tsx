@@ -1,5 +1,5 @@
 import type { RecordState } from '@opengewerk/domain'
-import { belongsToPvSystemKind } from '@opengewerk/domain'
+import { belongsToPvSystemKind, reportsToGridOperator } from '@opengewerk/domain'
 import { Button, Panel, Status } from '@opengewerk/platform-web'
 import { date } from '@opengewerk/platform-web/format'
 import {
@@ -35,6 +35,12 @@ import { BoardsSection, ChartButton } from './boards.js'
 import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
 import { ProtocolsSection } from './protocols.js'
+import {
+  asGridOperatorLink,
+  GridOperatorFact,
+  GridSection,
+  useGridOperatorFields,
+} from './grid-documents.js'
 import { PvDocumentsSection } from './pv-documents.js'
 import { asInstallation, installationCheck, installationFields, warrantyText } from './sites.js'
 import {
@@ -181,6 +187,8 @@ export function InstallationScreen() {
     maybeText(installation, 'siteId') ?? undefined,
     installationId,
   )
+  // The grid operator and its number (#306), for a PV system and a battery or wallbox of its own.
+  const gridFields = useGridOperatorFields(installation ?? null)
   const writes = useMay('installation.write')
   const createsJobs = useMay('job.write')
   const [editing, setEditing] = useState(false)
@@ -199,6 +207,7 @@ export function InstallationScreen() {
   const kind = installationKindOf(installation)
   const pv = kind === 'pv_system'
   const companion = belongsToPvSystemKind(kind)
+  const reports = reportsToGridOperator(kind, maybeText(installation, 'pvSystemId'))
   const firstBoard = boards[0]
   const firstInverter = inverters[0]
   // A PV system opens its structure at its first inverter, anything else at its first board.
@@ -214,6 +223,7 @@ export function InstallationScreen() {
   const fields = [
     ...installationFields.slice(0, -1),
     ...linkFields,
+    ...gridFields,
     ...installationFields.slice(-1),
   ]
 
@@ -276,6 +286,8 @@ export function InstallationScreen() {
             <ProtocolsSection installationId={installationId} />
             {/* The papers for the operator below the protocols, as the board "PV-Anlage" has them (#305). */}
             {pv ? <PvDocumentsSection installationId={installationId} /> : null}
+            {/* The papers for the grid operator and the help for the register below them (#306). */}
+            {reports ? <GridSection installationId={installationId} kind={kind} /> : null}
             <JobsPanel
               caption="Aufträge an der Anlage"
               jobs={jobs}
@@ -335,6 +347,7 @@ export function InstallationScreen() {
                     const saved = await client.update('installations', installationId, {
                       ...asInstallation(values),
                       ...asCompanion(values),
+                      ...asGridOperatorLink(values),
                     })
 
                     if (saved.outcome === 'queued') {
@@ -360,6 +373,14 @@ export function InstallationScreen() {
                       ) : null,
                     },
                     ...(pv ? pvFacts : []),
+                    ...(reports
+                      ? [
+                          {
+                            label: 'Netzbetreiber',
+                            value: <GridOperatorFact installationId={installationId} />,
+                          },
+                        ]
+                      : []),
                     ...(companion
                       ? [
                           {

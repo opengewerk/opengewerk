@@ -6,7 +6,7 @@ import type {
   Synced,
 } from '@opengewerk/platform-domain'
 
-import type { InstallationId, SiteId } from './identifier.js'
+import type { GridOperatorId, InstallationId, SiteId } from './identifier.js'
 
 /**
  * What stands in a building and needs looking after. The inverter of a PV
@@ -75,6 +75,13 @@ export interface Installation extends Synced {
   readonly yieldForecastKwh: number | null
   /** Where the forecast comes from: the planning software and its day. */
   readonly yieldForecastSource: string | null
+  /**
+   * The grid operator a PV system, or a battery or wallbox of its own, is
+   * reported to (#306), and the number it is known by there. Kept at the desk
+   * and carried to the device only as part of the installation.
+   */
+  readonly gridOperatorId: GridOperatorId | null
+  readonly gridOperatorReference: string | null
 }
 
 /** The largest forecast of a year a PV system can have, a hundred gigawatt hours. */

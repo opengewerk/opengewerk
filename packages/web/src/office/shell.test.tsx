@@ -153,7 +153,8 @@ describe('the header of the office', () => {
 })
 
 describe('the navigation of the office', () => {
-  const master = ['Stammdaten', 'Kunden *', 'Objekte', 'Anlagen', 'Textbausteine']
+  // The grid operators for the owner and the office (#306), not for a technician.
+  const master = ['Stammdaten', 'Kunden *', 'Objekte', 'Anlagen', 'Netzbetreiber', 'Textbausteine']
   const material = ['Material', 'Artikel', 'Lieferanten', 'Lager']
   const foot = ['Abgleich', 'Abgeglichen, gerade eben']
 
@@ -215,7 +216,8 @@ describe('the navigation of the office', () => {
 
     await within(nav).findByRole('link', { name: 'Lieferanten' })
     expect(listed(nav)).toEqual([
-      ...master,
+      // No grid operators: a technician reports nothing to them (#306).
+      ...master.filter((entry) => entry !== 'Netzbetreiber'),
       'Arbeit',
       'Aufträge',
       'Belege',

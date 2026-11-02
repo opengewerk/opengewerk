@@ -16,6 +16,7 @@ import {
   TextAlignStart,
   Truck,
   Users,
+  UtilityPole,
   Warehouse,
   Zap,
 } from 'lucide-react'
@@ -45,6 +46,7 @@ export function useNavigation(): readonly NavigationGroup[] {
   const readsTime = useMay('time.read')
   const readsArticles = useMay('article.read')
   const readsSuppliers = useMay('supplier.read')
+  const readsGridOperators = useMay('grid_operator.read')
   const readsPeople = useMay('person.read')
   const keepsAbsences = useMay('absence.write')
   const plans = useMay('job.write')
@@ -67,6 +69,10 @@ export function useNavigation(): readonly NavigationGroup[] {
           icon: Zap,
           also: ['/verteiler', '/stromkreise', '/wechselrichter', '/strings', '/pruefprotokolle'],
         },
+        // The grid operators and the entry of the business in their directories (#306).
+        ...(readsGridOperators
+          ? [{ to: '/netzbetreiber', label: 'Netzbetreiber', icon: UtilityPole }]
+          : []),
         ...(readsDocuments
           ? [{ to: '/textbausteine', label: 'Textbausteine', icon: TextAlignStart }]
           : []),

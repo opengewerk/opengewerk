@@ -64,7 +64,7 @@ export interface PvHandoverEntry {
 }
 
 /** A name as it may stand in a file name. */
-function safe(value: string): string {
+export function safe(value: string): string {
   return value.replaceAll(/[\\/:*?"<>|]+/g, '-')
 }
 
@@ -479,7 +479,8 @@ export class PvDocumentsController {
   }
 }
 
-function pdf(response: Response, bytes: Uint8Array, name: string): StreamableFile {
+/** The bytes of a PDF as the answer of a route, shown in the browser and saved under its name. */
+export function pdf(response: Response, bytes: Uint8Array, name: string): StreamableFile {
   response.setHeader('Cache-Control', 'no-store')
 
   return new StreamableFile(Buffer.from(bytes), {

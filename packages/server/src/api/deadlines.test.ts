@@ -472,6 +472,16 @@ describe('the settings of each kind', () => {
         responsible: 'source',
         actions: ['task'],
       }),
+      // The entry of the business in an installer directory (#306), 90 days ahead, for the lead.
+      expect.objectContaining({
+        key: 'elektro.installer_registration',
+        title: 'Eintragung im Installateurverzeichnis läuft ab',
+        trade: 'elektro',
+        intervalDays: null,
+        leadDays: 90,
+        responsible: 'lead',
+        actions: ['task', 'reminder'],
+      }),
     ])
   })
 

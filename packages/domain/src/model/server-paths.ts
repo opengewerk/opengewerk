@@ -45,4 +45,6 @@ export const serverPaths = [
   'appointments',
   // The own appointments in the own calendar, and the address of it (#291).
   'calendar',
+  // The grid operators and the entry of the business in their directories (#306).
+  'grid-operators',
 ] as const
