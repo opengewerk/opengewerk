@@ -371,7 +371,7 @@ describe('a task nobody wrote', () => {
         .insert(tasks)
         .values({
           tenantId: north.id,
-          title: 'E-Check Hausverwaltung fällig',
+          title: 'Wiederholungsprüfung Hausverwaltung fällig',
           dueOn: '2026-10-01',
           assigneeUserId: 'britta',
           customerId: customerId as never,
