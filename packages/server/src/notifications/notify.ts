@@ -135,6 +135,24 @@ export type Notification =
       readonly revision: number
       readonly change: 'new' | 'changed' | 'cancelled'
     }
+  | {
+      /**
+       * Leave somebody asked for (#806), by push to everybody who keeps
+       * absences, raised by the route that took the request; once per
+       * request, and only while nobody has decided it yet.
+       */
+      readonly kind: 'leave_request'
+      readonly absenceId: string
+    }
+  | {
+      /**
+       * The decision about a request (#806), by push to whoever asked,
+       * raised by the route that decided it; once per request and decision.
+       */
+      readonly kind: 'leave_decision'
+      readonly absenceId: string
+      readonly decision: 'approved' | 'rejected'
+    }
 
 /** What every message needs besides its cause: where the instance is reached. */
 export interface NotifyContext {
@@ -187,6 +205,10 @@ export function causeOf(notification: Notification): string {
       return `deadline_due:${notification.deadlineId}:${notification.dueOn}`
     case 'appointment':
       return `appointment:${notification.personId}:${String(notification.revision)}:${notification.change}`
+    case 'leave_request':
+      return `leave_request:${notification.absenceId}`
+    case 'leave_decision':
+      return `leave_decision:${notification.absenceId}:${notification.decision}`
   }
 }
 

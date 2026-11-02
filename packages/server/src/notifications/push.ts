@@ -9,11 +9,19 @@ import {
 } from '@opengewerk/domain'
 import type { Database, PushDraft, PushRules } from '@opengewerk/platform-server'
 
+import { decisionNews, openRequest } from '../absences/leave-news.js'
 import { stillNews } from '../appointments/appointments.js'
 import { deadlineKinds } from '../deadlines/registry.js'
 import { pushes } from '../push/outbox.js'
 import { causeOf, deadlineStillDue, type Notification, taskStillDue } from './notify.js'
-import { appointmentPush, deadlineDuePush, taskDuePush, testPush } from './templates.js'
+import {
+  appointmentPush,
+  deadlineDuePush,
+  leaveDecisionPush,
+  leaveRequestPush,
+  taskDuePush,
+  testPush,
+} from './templates.js'
 
 /**
  * The second channel of the notifications (#284): push messages to the
@@ -32,6 +40,9 @@ const links: Readonly<Record<PushOccasion | 'test', Readonly<Record<PushEntry, s
   task_due: { office: '/aufgaben', site: '/m/' },
   deadline_due: { office: '/fristen', site: '/m/' },
   appointment: { office: '/plantafel', site: '/m/termine' },
+  // A request is decided in the office; whoever asked reads the decision where they asked.
+  leave_request: { office: '/abwesenheiten', site: '/m/' },
+  leave_decision: { office: '/m/urlaub', site: '/m/urlaub' },
   test: { office: '/konto', site: '/m/' },
 }
 
@@ -174,6 +185,80 @@ export async function pushAppointment(
       urls: links.appointment,
       // A day late it still tells somebody where to go, or not to go.
       expiresAt: hoursAfter(context.now, 24),
+    },
+    context.now,
+  )
+}
+
+/**
+ * A request for leave (#806), to everybody who keeps absences, or to nobody
+ * where it was withdrawn or decided before the message was written.
+ */
+export async function pushLeaveRequest(
+  database: Database,
+  tenantId: TenantId,
+  notification: Of<'leave_request'>,
+  context: PushNotifyContext,
+): Promise<readonly string[]> {
+  const actor = { tenantId, reason: 'notification' }
+  const open = await database.forTenant(actor, (tx) =>
+    openRequest(tx, notification.absenceId, context.now),
+  )
+
+  if (!open) {
+    return []
+  }
+
+  const written: string[] = []
+
+  for (const userId of open.recipients) {
+    written.push(
+      ...(await writePush(
+        database,
+        tenantId,
+        {
+          kind: 'leave_request',
+          cause: causeOf(notification),
+          userId,
+          text: leaveRequestPush(open.news),
+          urls: links.leave_request,
+          // A request waits for a decision for days; three of them it is worth a message.
+          expiresAt: hoursAfter(context.now, 72),
+        },
+        context.now,
+      )),
+    )
+  }
+
+  return written
+}
+
+/** The decision about a request (#806), to whoever asked, while it stands. */
+export async function pushLeaveDecision(
+  database: Database,
+  tenantId: TenantId,
+  notification: Of<'leave_decision'>,
+  context: PushNotifyContext,
+): Promise<readonly string[]> {
+  const actor = { tenantId, reason: 'notification' }
+  const decided = await database.forTenant(actor, (tx) =>
+    decisionNews(tx, notification.absenceId, notification.decision, context.now),
+  )
+
+  if (!decided) {
+    return []
+  }
+
+  return writePush(
+    database,
+    tenantId,
+    {
+      kind: 'leave_decision',
+      cause: causeOf(notification),
+      userId: decided.userId,
+      text: leaveDecisionPush({ decision: notification.decision, span: decided.news }),
+      urls: links.leave_decision,
+      expiresAt: hoursAfter(context.now, 72),
     },
     context.now,
   )
