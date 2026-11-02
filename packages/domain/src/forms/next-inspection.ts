@@ -20,17 +20,21 @@ export const nextInspectionKey = 'next_inspection_months'
 /**
  * The field in which a protocol says why the test was made, and the answers
  * with which it tests only a part of the installation (#814): an extension or
- * a change, after DIN VDE 0100-600. Such a protocol names no next inspection,
- * whatever stands in its field, and the deadline of the last test of the
- * whole stands; one that names no occasion tests the whole.
+ * a change, after DIN VDE 0100-600. The deadline of the last test of the
+ * whole stands after such a protocol, unless it names an interval that ends
+ * sooner (#822); one that names no occasion tests the whole.
  */
 export const occasionKey = 'occasion'
 
 const partialOccasions: readonly string[] = ['extension', 'change']
 
-/** What the screens and the paper say in place of the day, for a test of a part. */
+/** What the screens and the paper say in place of the day, for a test of a part that names no interval. */
 export const partialTestSentence =
   'Nach einer Erweiterung oder Änderung bleibt die Frist der letzten Prüfung der Anlage stehen.'
+
+/** What they say after the day a test of a part names: it counts only where it is the sooner (#822). */
+export const partialDueCondition =
+  'wenn die Frist der letzten Prüfung der Anlage nicht früher endet'
 
 /** Whether a field is the one in which a protocol names its next inspection. */
 export function isNextInspection(field: FormField): field is NumberField {
@@ -75,17 +79,60 @@ export function testsPart(definition: FormDefinition, values: FormValues): boole
 
 /**
  * The day the next inspection of a protocol is due, or null where its
- * definition names none, where it tests only a part of the installation and
- * where its interval is not one to count with.
+ * definition names none and where its interval is not one to count with. A
+ * test of a part of the installation names the day of that part, which
+ * counts for the installation only where it is the sooner (`installationDueOn`).
  */
 export function nextInspectionOn(
   definition: FormDefinition,
   values: FormValues,
   performedOn: IsoDate,
 ): IsoDate | null {
-  return nextInspectionField(definition) === null || testsPart(definition, values)
+  return nextInspectionField(definition) === null
     ? null
     : inspectionDueAfter(performedOn, values[nextInspectionKey])
+}
+
+/** A signed protocol of an installation, as its next inspection is read out of it. */
+export interface SignedTest {
+  readonly definition: FormDefinition
+  readonly values: FormValues
+  readonly performedOn: IsoDate
+}
+
+/**
+ * The day the next inspection of an installation is due, out of its signed
+ * protocols with the newest first, and the protocol that names it, or null
+ * (#822). The last test of the whole counts, and a test of a part after it
+ * where the extended or changed part is to be tested sooner: the earlier day
+ * holds. A test of a part never moves the day back, one before the last test
+ * of the whole no longer counts, and where that test names no day or there
+ * is none, a test of a part makes no deadline of its own (#814). A protocol
+ * whose form names no next inspection, as the first inspection before its
+ * third version, is passed over.
+ */
+export function installationDueOn<T extends SignedTest>(
+  tests: readonly T[],
+): { readonly on: IsoDate; readonly test: T } | null {
+  let sooner: { readonly on: IsoDate; readonly test: T } | null = null
+
+  for (const test of tests) {
+    if (nextInspectionField(test.definition) === null) {
+      continue
+    }
+
+    const on = nextInspectionOn(test.definition, test.values, test.performedOn)
+
+    if (!testsPart(test.definition, test.values)) {
+      return on === null ? null : sooner !== null && sooner.on < on ? sooner : { on, test }
+    }
+
+    if (on !== null && (sooner === null || on < sooner.on)) {
+      sooner = { on, test }
+    }
+  }
+
+  return null
 }
 
 /**
@@ -93,7 +140,7 @@ export function nextInspectionOn(
  * the sentence the engine says of a required field, or null (#814). A field
  * the definition does not mark as required, as in the first inspection after
  * DIN VDE 0100-600, is needed where the protocol tests the whole installation,
- * a new one, and stays empty after an extension or a change.
+ * a new one, and may stay empty after an extension or a change (#822).
  */
 export function nextInspectionMissing(
   definition: FormDefinition,

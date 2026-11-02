@@ -22,6 +22,7 @@ import {
   type MeasurementField,
   measurementUnitSign,
   type NumberField,
+  partialDueCondition,
   partialTestSentence,
   readFormValues,
   type RecordState,
@@ -607,7 +608,7 @@ export function FieldInput({
   readonly circuit: BlockCircuit | null
   readonly appliance?: ApplianceFacts | null
   readonly performedOn: string
-  /** The protocol tests only a part of the installation and names no next inspection (#814). */
+  /** The protocol tests only a part of the installation, whose day counts only where it is the sooner (#814, #822). */
   readonly partOnly?: boolean
   readonly photos: readonly { readonly value: string; readonly label: string }[]
   readonly onChange: (value: FieldValue | undefined) => void
@@ -761,8 +762,9 @@ export function FieldText({
 /**
  * The day the interval to the next inspection comes to, under its field
  * (#301): the deadline engine reminds of the same day once the protocol is
- * signed. A test of a part of the installation comes to none, and the line
- * says why (#814).
+ * signed. After a test of a part of the installation the line says that the
+ * deadline of the whole stands (#814), and with an interval that its day
+ * holds only where it is the sooner (#822).
  */
 export function NextInspection({
   performedOn,
@@ -773,14 +775,18 @@ export function NextInspection({
   readonly value: FieldValue | undefined
   readonly partOnly?: boolean
 }) {
-  if (partOnly) {
-    return <p className="text-table text-ink-muted">{partialTestSentence}</p>
-  }
-
   const due = inspectionDueAfter(performedOn as IsoDate, value)
 
-  return due === null ? null : (
-    <p className="text-table text-ink-muted">{`Nächste Prüfung bis zum ${date(due)}.`}</p>
+  if (due === null) {
+    return partOnly ? <p className="text-table text-ink-muted">{partialTestSentence}</p> : null
+  }
+
+  return (
+    <p className="text-table text-ink-muted">
+      {partOnly
+        ? `Nächste Prüfung bis zum ${date(due)}, ${partialDueCondition}.`
+        : `Nächste Prüfung bis zum ${date(due)}.`}
+    </p>
   )
 }
 

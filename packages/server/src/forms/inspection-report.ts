@@ -1,4 +1,5 @@
 import { PDFDocument } from '@cantoo/pdf-lib'
+import { fieldsOf, type IsoDate, occasionKey } from '@opengewerk/domain'
 import { fontFaces, type PrintJob, text } from '@opengewerk/platform-server'
 
 import {
@@ -37,6 +38,10 @@ export interface ReportedInstallation {
   readonly kind: string
   /** Null for an installation nobody has tested yet. */
   readonly last: LastTest | null
+  /** The day its next inspection is due, the day of its deadline (#822), or null. */
+  readonly next: IsoDate | null
+  /** The test of a part after the last test of the whole that drew that day forward, or null. */
+  readonly sooner: LastTest | null
 }
 
 export interface InspectionReport extends ApplianceReport {
@@ -74,8 +79,10 @@ export function inspectionResult(report: InspectionReport): {
   const lasts = [...report.installations, ...report.appliances].map((entry) => entry.last)
   const tested = lasts.filter((last): last is LastTest => last !== null)
   const defects = tested.some((last) => verdictOf(last).defects)
-  const next = tested
-    .map(nextOf)
+  const next = [
+    ...report.installations.map((entry) => entry.next),
+    ...report.appliances.map((entry) => (entry.last ? nextOf(entry.last) : null)),
+  ]
     .filter((on) => on !== null)
     .sort()[0]
 
@@ -110,10 +117,23 @@ const style = `
   .verdict { font-size: 11pt; font-weight: 600; }
 `
 
+/**
+ * Under the test of the whole, the test of a part that drew the next day
+ * forward (#822): "Vorgezogen durch die Erweiterung vom 20.10.2026".
+ */
+function drawnForward(sooner: LastTest): string {
+  const field = fieldsOf(sooner.definition).find((entry) => entry.key === occasionKey)
+  const option =
+    field?.kind === 'choice'
+      ? field.options.find((entry) => entry.value === sooner.values[occasionKey])
+      : undefined
+
+  return `Vorgezogen durch die ${option?.label ?? 'Teilprüfung'} vom ${day(sooner.performedOn)}`
+}
+
 function installationRow(entry: ReportedInstallation): string {
-  const { last } = entry
+  const { last, next, sooner } = entry
   const verdict = last ? verdictOf(last) : null
-  const next = last ? nextOf(last) : null
   const result =
     verdict === null
       ? '<span class="untested">noch nicht geprüft</span>'
@@ -123,7 +143,9 @@ function installationRow(entry: ReportedInstallation): string {
 
   return `<tr>
     <td>${text(entry.designation)}<div class="maker">${text(entry.kind)}</div></td>
-    <td>${last ? text(testOf(last)) : ''}</td>
+    <td>${last ? text(testOf(last)) : ''}${
+      sooner ? `<div class="maker">${text(drawnForward(sooner))}</div>` : ''
+    }</td>
     <td class="figure">${last ? day(last.performedOn) : ''}</td>
     <td>${result}</td>
     <td class="figure">${next ? day(next) : ''}</td>

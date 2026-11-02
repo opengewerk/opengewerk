@@ -196,6 +196,14 @@ describe('the test of the electrical installation of a site', () => {
       on: '2024-05-17',
       values: { occasion: 'new', verdict: 'passed', next_inspection_months: 48_000 },
     })
+    // A change after it whose part is due sooner draws the next test forward (#822).
+    await aProtocol({
+      installation: roof,
+      key: 'vde-0100-600',
+      version: 3,
+      on: '2026-10-20',
+      values: { occasion: 'change', verdict: 'passed', next_inspection_months: 12_000 },
+    })
     // A draft is no test anybody vouched for.
     await aProtocol({
       installation: store,
@@ -223,9 +231,14 @@ describe('the test of the electrical installation of a site', () => {
     expect(report).toContain(
       '3 Anlagen: 1 ohne Mängel, 1 mit Mängeln, 1 noch nicht geprüft. 2 Geräte: 1 ohne Mängel, 0 mit Mängeln, 1 noch nicht geprüft.',
     )
-    expect(report).toContain('Nächste Prüfung am Objekt: 02.11.2027.')
+    expect(report).toContain('Nächste Prüfung am Objekt: 20.10.2027.')
     expect(report).toContain('<td>Wiederholungsprüfung nach DIN VDE 0105-100</td>')
-    expect(report).toContain('<td>Erstprüfung nach DIN VDE 0100-600</td>')
+    expect(report).toContain('<td class="figure">17.05.2024</td>')
+    expect(report).toContain(
+      '<td>Erstprüfung nach DIN VDE 0100-600<div class="maker">Vorgezogen durch die Änderung vom 20.10.2026</div></td>',
+    )
+    expect(report).toContain('<td class="figure">20.10.2027</td>')
+    expect(report).toContain('<td class="figure">02.11.2030</td>')
     expect(report).not.toContain('05.11.2026')
     expect(report).not.toContain('01.03.2022')
     // The protocols of the two tested installations behind the report, by their designation.

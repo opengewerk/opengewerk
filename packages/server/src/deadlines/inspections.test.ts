@@ -21,7 +21,8 @@ import { type DeadlineRow, runDeadlinesOf } from './engine.js'
  * a first inspection before its third version and an interval nobody can
  * count with make none; the installation gone, the deadline drops. Since
  * #814 the first inspection of a new installation names the first recurring
- * one, and one after an extension or a change leaves the deadline as it was.
+ * one, and one after an extension or a change leaves the deadline as it was,
+ * unless it names an interval that ends sooner (#822).
  */
 
 const north = newId<'tenant'>() as TenantId
@@ -238,11 +239,11 @@ describe('a signed protocol of a recurring inspection', () => {
     ])
   })
 
-  it('keeps its deadline when an extension or a change is tested after it, whatever the interval says', async () => {
+  it('keeps its deadline when an extension or a change after it names no interval, or a longer one', async () => {
     await aProtocol({ performedOn: '2033-09-18' })
     await aProtocol({
       performedOn: '2035-01-10',
-      months: 12,
+      months: null,
       key: 'vde-0100-600',
       version: 3,
       occasion: 'extension',
@@ -258,6 +259,53 @@ describe('a signed protocol of a recurring inspection', () => {
 
     expect(await kept()).toEqual([
       expect.objectContaining({ anchorOn: '2033-09-18', dueOn: '2037-09-18', status: 'open' }),
+    ])
+  })
+
+  it('is drawn forward by an extension or a change after it that is due sooner (#822)', async () => {
+    await aProtocol({ performedOn: '2033-09-18' })
+    await runDeadlinesOf({ database }, north, early)
+    await aProtocol({
+      performedOn: '2035-01-10',
+      months: 24,
+      key: 'vde-0100-600',
+      version: 3,
+      occasion: 'extension',
+      by: 'olga',
+    })
+    await aProtocol({
+      performedOn: '2035-06-01',
+      months: 48,
+      key: 'vde-0100-600',
+      version: 3,
+      occasion: 'change',
+    })
+    await runDeadlinesOf({ database }, north, early)
+
+    expect(await kept()).toEqual([
+      expect.objectContaining({
+        sourceId: place.installation,
+        anchorOn: '2035-01-10',
+        dueOn: '2037-01-10',
+        naturalUserId: 'olga',
+        status: 'open',
+      }),
+    ])
+  })
+
+  it('is not drawn forward by an extension before it', async () => {
+    await aProtocol({
+      performedOn: '2032-01-10',
+      months: 12,
+      key: 'vde-0100-600',
+      version: 3,
+      occasion: 'extension',
+    })
+    await aProtocol({ performedOn: '2033-09-18' })
+    await runDeadlinesOf({ database }, north, early)
+
+    expect(await kept()).toEqual([
+      expect.objectContaining({ anchorOn: '2033-09-18', dueOn: '2037-09-18' }),
     ])
   })
 

@@ -2,7 +2,7 @@ import type { FormDefinition, IsoDate } from '@opengewerk/domain'
 import { elektroRegistry } from '@opengewerk/gewerk-elektro'
 import { describe, expect, it } from 'vitest'
 
-import type { LastTest } from './appliance-report.js'
+import { type LastTest, nextOf } from './appliance-report.js'
 import {
   type InspectionReport,
   inspectionReportJob,
@@ -39,6 +39,8 @@ function report(
       designation: `Anlage ${String(index + 1)}`,
       kind: 'Zählerschrank',
       last,
+      next: last ? nextOf(last) : null,
+      sooner: null,
     })),
     appliances: appliances.map((last, index) => ({
       appliance: {

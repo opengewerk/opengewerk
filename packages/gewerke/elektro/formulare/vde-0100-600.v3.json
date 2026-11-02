@@ -248,7 +248,7 @@
           "label": "Prüffrist bis zur ersten Wiederholungsprüfung",
           "unit": "month",
           "decimals": 0,
-          "hint": "Pflicht bei einer Neuanlage. Legt der Betreiber nach seiner Gefährdungsbeurteilung fest. Prüffristen nach Tabelle 1A der Durchführungsanweisungen zu § 5 der DGUV Vorschrift 3: 48 Monate, in Betriebsstätten, Räumen und Anlagen besonderer Art 12 Monate."
+          "hint": "Pflicht bei einer Neuanlage. Nach einer Erweiterung oder Änderung nur, wenn der erweiterte oder geänderte Teil früher geprüft werden muss als die Anlage; dann gilt der frühere Tag. Legt der Betreiber nach seiner Gefährdungsbeurteilung fest. Prüffristen nach Tabelle 1A der Durchführungsanweisungen zu § 5 der DGUV Vorschrift 3: 48 Monate, in Betriebsstätten, Räumen und Anlagen besonderer Art 12 Monate."
         },
         { "kind": "photo", "key": "photo", "label": "Foto" },
         {
