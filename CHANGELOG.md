@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Prüfung der Elektroinstallation als Prüfbericht je Objekt (#302), nach der Feature-Gliederung v2.53 und den
+  Tafeln aus Version 109 des Canvas: Am Objekt im Büro öffnet „Prüfung der Elektroinstallation“ ein PDF, dessen erste
+  Seite das Ergebnis des Ganzen nennt, je Anlage die letzte unterschriebene Prüfung der ganzen Anlage
+  (Wiederholungsprüfung oder Erstprüfung) und je Gerät die letzte Prüfung nach DGUV Vorschrift 3, jeweils mit Ergebnis
+  und dem Tag der nächsten, dazu den nächsten Prüftag am Objekt. Dahinter folgt das Protokoll jeder Anlage, wie es für
+  sich gedruckt wird. Eine Erstprüfung nach einer Erweiterung oder Änderung zählt nicht als Prüfung der ganzen Anlage,
+  eine Heizung erscheint nur, wenn sie mit einem Protokoll einer Anlage geprüft ist. Warum: Mit dem Bericht dokumentiert
+  ein Betrieb auch seinen E-CHECK, ohne ein Formular mit dem Namen der Marke und ohne etwas doppelt zu erfassen; die
+  Fristen bleiben an den Protokollen.
 - Die Erstprüfung nach DIN VDE 0100-600 nennt die Prüffrist bis zur ersten Wiederholungsprüfung (#814), nach der
   Feature-Gliederung v2.52: Fassung 3 des Protokolls hat das Feld im Ergebnis, mit den Prüffristen aus Tabelle 1A der
   DGUV Vorschrift 3 als Hinweis. Bei einer Neuanlage ist es Pflicht, und aus dem unterschriebenen Protokoll wird die

@@ -57,9 +57,10 @@ export interface ApplianceReport {
   readonly appliances: readonly ReportedAppliance[]
 }
 
-const margin: PageMargin = { top: '12mm', right: '12mm', bottom: '16mm', left: '12mm' }
+/** The margins of a report on landscape A4, the room for its footer below (#303, #302). */
+export const reportMargin: PageMargin = { top: '12mm', right: '12mm', bottom: '16mm', left: '12mm' }
 
-function day(on: string): string {
+export function day(on: string): string {
   return `${on.slice(8, 10)}.${on.slice(5, 7)}.${on.slice(0, 4)}`
 }
 
@@ -75,7 +76,7 @@ function endOfMonth(on: IsoDate): IsoDate {
  * What a test found, by the field `verdict` of its form, and whether it found
  * defects; a form without that field says nothing either way.
  */
-function verdictOf(test: LastTest): { readonly said: string; readonly defects: boolean } {
+export function verdictOf(test: LastTest): { readonly said: string; readonly defects: boolean } {
   const field = test.definition.sections
     .flatMap((section) => section.fields)
     .find((entry) => entry.key === 'verdict')
@@ -87,7 +88,7 @@ function verdictOf(test: LastTest): { readonly said: string; readonly defects: b
 }
 
 /** The day the next test is due, as the last one names it. */
-function nextOf(test: LastTest): IsoDate | null {
+export function nextOf(test: LastTest): IsoDate | null {
   return nextInspectionOn(test.definition, test.values, test.performedOn)
 }
 
@@ -110,7 +111,8 @@ export function reportSummary(report: ApplianceReport): string {
   ].join(' ')
 }
 
-const pageStyle = `
+/** The look of a report, shared by the report of the electrical installation (#302). */
+export const reportStyle = `
   html {
     font-family: ${typeface};
     font-size: 9pt;
@@ -168,7 +170,8 @@ function row(entry: ReportedAppliance): string {
   </tr>`
 }
 
-function footer(report: ApplianceReport): string {
+/** The footer of a report: what it is, of which site, on which day, and the page. */
+export function reportFooter(line: string): string {
   return `<style>
     ${fontFaces([400])}
     .footer {
@@ -179,9 +182,38 @@ function footer(report: ApplianceReport): string {
     }
   </style>
   <div class="footer">
-    <span>Prüfbericht nach DGUV Vorschrift 3, ${text(report.site)}, Stand ${day(report.on)}</span>
+    <span>${text(line)}</span>
     <span>Seite <span class="pageNumber"></span> von <span class="totalPages"></span></span>
   </div>`
+}
+
+/** The head of a report: its title, the site and its customer, the day, and the business. */
+export function reportHead(
+  title: string,
+  report: Pick<ApplianceReport, 'keeper' | 'site' | 'customer' | 'on'>,
+  basis: string,
+): string {
+  return `<header class="head">
+  <div>
+    <h1>${text(title)}</h1>
+    <p class="where">${text(report.site)}${present(report.customer) ? `, für ${text(report.customer)}` : ''}</p>
+    <p class="where">Stand ${day(report.on)}, ${text(basis)}</p>
+  </div>
+  <div class="keeper">
+    <div class="keeper-name">${text(report.keeper.name)}</div>
+    ${present(report.keeper.phone) ? `<div>Telefon ${text(report.keeper.phone)}</div>` : ''}
+  </div>
+</header>`
+}
+
+/** The appliances of a site, one line each, or that there is none. */
+export function applianceTable(appliances: readonly ReportedAppliance[]): string {
+  return appliances.length === 0
+    ? '<p class="untested">An diesem Objekt gibt es noch kein Gerät.</p>'
+    : `<table>
+  <thead><tr><th>Inventar</th><th>Gerät</th><th>Schutzklasse</th><th>Art</th><th>Standort</th><th>Geprüft am</th><th>Ergebnis</th><th>Nächste Prüfung</th></tr></thead>
+  <tbody>${appliances.map(row).join('')}</tbody>
+</table>`
 }
 
 export function applianceReportJob(report: ApplianceReport): Required<Omit<PrintJob, 'size'>> {
@@ -192,33 +224,23 @@ export function applianceReportJob(report: ApplianceReport): Required<Omit<Print
 <title>${text(`Prüfbericht nach DGUV Vorschrift 3, ${report.site}`)}</title>
 <style>
 ${fontFaces([400, 600])}
-${pageStyle}
+${reportStyle}
 </style>
 </head>
 <body>
-<header class="head">
-  <div>
-    <h1>Prüfbericht nach DGUV Vorschrift 3</h1>
-    <p class="where">${text(report.site)}${present(report.customer) ? `, für ${text(report.customer)}` : ''}</p>
-    <p class="where">Stand ${day(report.on)}, je Gerät das letzte unterschriebene Protokoll</p>
-  </div>
-  <div class="keeper">
-    <div class="keeper-name">${text(report.keeper.name)}</div>
-    ${present(report.keeper.phone) ? `<div>Telefon ${text(report.keeper.phone)}</div>` : ''}
-  </div>
-</header>
-${
-  report.appliances.length === 0
-    ? '<p class="untested">An diesem Objekt gibt es noch kein Gerät.</p>'
-    : `<table>
-  <thead><tr><th>Inventar</th><th>Gerät</th><th>Schutzklasse</th><th>Art</th><th>Standort</th><th>Geprüft am</th><th>Ergebnis</th><th>Nächste Prüfung</th></tr></thead>
-  <tbody>${report.appliances.map(row).join('')}</tbody>
-</table>`
-}
+${reportHead('Prüfbericht nach DGUV Vorschrift 3', report, 'je Gerät das letzte unterschriebene Protokoll')}
+${applianceTable(report.appliances)}
 <p class="summary">${text(reportSummary(report))}</p>
 <p class="note">Die Prüffristen legt der Betreiber nach seiner Gefährdungsbeurteilung fest. Die einzelnen Messwerte stehen im Prüfprotokoll des Geräts.</p>
 </body>
 </html>`
 
-  return { html, footerHtml: footer(report), margin, landscape: true }
+  return {
+    html,
+    footerHtml: reportFooter(
+      `Prüfbericht nach DGUV Vorschrift 3, ${report.site}, Stand ${day(report.on)}`,
+    ),
+    margin: reportMargin,
+    landscape: true,
+  }
 }

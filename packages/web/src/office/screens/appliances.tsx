@@ -53,19 +53,29 @@ export function applianceReportAddress(siteId: string): string {
   return `/sites/${encodeURIComponent(siteId)}/appliance-report`
 }
 
-/** The button of the report, a link the browser opens beside the office; without a network none. */
-function ReportButton({ siteId }: { readonly siteId: string }) {
+/**
+ * The button of a report the server prints, a link the browser opens beside
+ * the office; without a network none. The report of the appliances here, the
+ * test of the electrical installation on the record of the site (#302).
+ */
+export function ReportButton({
+  href,
+  children,
+}: {
+  readonly href: string
+  readonly children: string
+}) {
   const { online } = useSyncStatus()
 
   return online ? (
     <a
-      href={applianceReportAddress(siteId)}
+      href={href}
       target="_blank"
       rel="noopener noreferrer"
       className="inline-flex h-control min-h-tap items-center justify-center gap-[7px] rounded-control border border-control bg-surface px-[14px] text-body text-ink no-underline lg:whitespace-nowrap"
     >
       <Printer size={15} strokeWidth={2.3} aria-hidden="true" />
-      Prüfbericht als PDF
+      {children}
     </a>
   ) : (
     <Button
@@ -73,7 +83,7 @@ function ReportButton({ siteId }: { readonly siteId: string }) {
       disabled
       title="Den Prüfbericht druckt der Server, dafür braucht es Verbindung."
     >
-      Prüfbericht als PDF
+      {children}
     </Button>
   )
 }
@@ -159,7 +169,9 @@ export function AppliancesPanel({ siteId }: { readonly siteId: string }) {
           >
             Geräteverzeichnis öffnen
           </Button>
-          {appliances.length > 0 ? <ReportButton siteId={siteId} /> : null}
+          {appliances.length > 0 ? (
+            <ReportButton href={applianceReportAddress(siteId)}>Prüfbericht als PDF</ReportButton>
+          ) : null}
         </div>
       </div>
     </Panel>
@@ -239,7 +251,9 @@ export function ApplianceRegister({ adding = false }: { readonly adding?: boolea
         sub={`${addressLine(site)}. Geprüft nach DGUV Vorschrift 3, je Gerät mit seinem letzten Protokoll.`}
         actions={
           <>
-            {appliances.length > 0 ? <ReportButton siteId={siteId} /> : null}
+            {appliances.length > 0 ? (
+              <ReportButton href={applianceReportAddress(siteId)}>Prüfbericht als PDF</ReportButton>
+            ) : null}
             {writes ? (
               <Button
                 tone="primary"

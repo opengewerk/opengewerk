@@ -24,7 +24,8 @@ import { aTenantChoice } from '../../session/test-tenants.js'
  * verdeckt, angezeigt, nicht mehr lesbar" and "Zugang bearbeiten": what each
  * way in opens and its hint, the value hidden until the office asks the route
  * for it, which answers with the value and keeps who saw it. Nothing of a
- * value lies on the device.
+ * value lies on the device. Beside it, the way to the test of the electrical
+ * installation of the site in the head of the record (#302).
  */
 
 let server: TestServer
@@ -363,5 +364,16 @@ describe('keeping the ways into a site', () => {
     await waitFor(() => {
       expect(sent('DELETE').map((call) => call.key)).toEqual(['DELETE /sites/s-1/accesses/a-1'])
     })
+  })
+})
+
+describe('the test of the electrical installation on the record of a site (#302)', () => {
+  it('opens the report the server prints, as the board "Objekt" draws it', async () => {
+    await mount()
+
+    const link = await screen.findByRole('link', { name: 'Prüfung der Elektroinstallation' })
+
+    expect(link.getAttribute('href')).toBe('/sites/s-1/inspection-report')
+    expect(link.getAttribute('target')).toBe('_blank')
   })
 })

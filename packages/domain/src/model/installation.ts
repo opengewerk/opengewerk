@@ -30,6 +30,17 @@ export const installationKinds = [
 
 export type InstallationKind = (typeof installationKinds)[number]
 
+/** How the screens and the report of a site (#302) name it. */
+export const installationKindLabel: Readonly<Record<InstallationKind, string>> = {
+  pv_system: 'PV-Anlage',
+  battery: 'Speicher',
+  meter: 'Zähler',
+  meter_cabinet: 'Zählerschrank',
+  wallbox: 'Wallbox',
+  heating: 'Heizung',
+  other: 'Sonstige',
+}
+
 /**
  * A system in a building: PV, storage, meter, meter cabinet, wallbox, heating.
  * Carries its own history, its warranty and later its test records. Below it
