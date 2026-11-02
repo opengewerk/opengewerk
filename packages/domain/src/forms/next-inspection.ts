@@ -17,6 +17,21 @@ import type { FormValue, FormValues } from './values.js'
  */
 export const nextInspectionKey = 'next_inspection_months'
 
+/**
+ * The field in which a protocol says why the test was made, and the answers
+ * with which it tests only a part of the installation (#814): an extension or
+ * a change, after DIN VDE 0100-600. Such a protocol names no next inspection,
+ * whatever stands in its field, and the deadline of the last test of the
+ * whole stands; one that names no occasion tests the whole.
+ */
+export const occasionKey = 'occasion'
+
+const partialOccasions: readonly string[] = ['extension', 'change']
+
+/** What the screens and the paper say in place of the day, for a test of a part. */
+export const partialTestSentence =
+  'Nach einer Erweiterung oder Änderung bleibt die Frist der letzten Prüfung der Anlage stehen.'
+
 /** Whether a field is the one in which a protocol names its next inspection. */
 export function isNextInspection(field: FormField): field is NumberField {
   return field.key === nextInspectionKey && field.kind === 'number' && field.unit === 'month'
@@ -47,16 +62,49 @@ export function inspectionDueAfter(
   return months < 1 || months > longestIntervalMonths ? null : addMonths(performedOn, months)
 }
 
+/** Whether a protocol tests only a part of its installation, by its occasion (#814). */
+export function testsPart(definition: FormDefinition, values: FormValues): boolean {
+  const occasion = values[occasionKey]
+
+  return (
+    typeof occasion === 'string' &&
+    partialOccasions.includes(occasion) &&
+    fieldsOf(definition).some((field) => field.key === occasionKey && field.kind === 'choice')
+  )
+}
+
 /**
  * The day the next inspection of a protocol is due, or null where its
- * definition names none or its interval is not one to count with.
+ * definition names none, where it tests only a part of the installation and
+ * where its interval is not one to count with.
  */
 export function nextInspectionOn(
   definition: FormDefinition,
   values: FormValues,
   performedOn: IsoDate,
 ): IsoDate | null {
-  return nextInspectionField(definition) === null
+  return nextInspectionField(definition) === null || testsPart(definition, values)
     ? null
     : inspectionDueAfter(performedOn, values[nextInspectionKey])
+}
+
+/**
+ * What the field of the next inspection lacks before a protocol is signed, as
+ * the sentence the engine says of a required field, or null (#814). A field
+ * the definition does not mark as required, as in the first inspection after
+ * DIN VDE 0100-600, is needed where the protocol tests the whole installation,
+ * a new one, and stays empty after an extension or a change.
+ */
+export function nextInspectionMissing(
+  definition: FormDefinition,
+  values: FormValues,
+): string | null {
+  const field = nextInspectionField(definition)
+
+  return field === null ||
+    field.required === true ||
+    testsPart(definition, values) ||
+    values[nextInspectionKey] !== undefined
+    ? null
+    : `${field.label} fehlt.`
 }

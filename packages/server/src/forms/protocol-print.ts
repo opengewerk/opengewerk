@@ -16,9 +16,11 @@ import {
   measurementUnitSign,
   nextInspectionKey,
   nextInspectionOn,
+  partialTestSentence,
   type RuleSet,
   signatureBox,
   type SignatureValue,
+  testsPart,
 } from '@opengewerk/domain'
 import {
   fontFaces,
@@ -133,13 +135,16 @@ function fieldRow(
         })
       : null
 
-  // The interval to the next inspection with the day it comes to (#301).
+  // The interval to the next inspection with the day it comes to (#301); a
+  // test of a part of the installation names none, whatever was typed (#814).
+  const interval = field.key === nextInspectionKey
+  const part = interval && testsPart(protocol.definition, protocol.values)
   const next =
-    field.key === nextInspectionKey
+    interval && !part
       ? nextInspectionOn(protocol.definition, protocol.values, protocol.performedOn)
       : null
 
-  return `<tr><th>${text(field.label)}</th><td>${printed}${
+  return `<tr><th>${text(field.label)}</th><td>${part ? text(partialTestSentence) : printed}${
     next === null ? '' : `, nächste Prüfung bis zum ${day(next)}`
   }${
     verdict && verdict.within === false

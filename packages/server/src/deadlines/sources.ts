@@ -5,6 +5,7 @@ import {
   qualificationCatalogue,
   type DeadlineSource,
   type DocumentId,
+  type FormDefinition,
   type InstallationId,
   type IsoDate,
   type JobId,
@@ -12,9 +13,10 @@ import {
   nextInspectionOn,
   readFormValues,
   type SiteId,
+  testsPart,
 } from '@opengewerk/domain'
 import { type SourceQuery, stockLevels } from '@opengewerk/platform-server'
-import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
 
 import { documents } from '../database/schema/index.js'
 import { tradeForms } from '../forms/registry.js'
@@ -203,6 +205,34 @@ export const qualificationsRunningOut: SourceQuery<DeadlineValues> = async (tx) 
 }
 
 /**
+ * The forms that hang on an installation or an appliance and name a next
+ * inspection, each version on its own (#814): a form names it from a version
+ * on, as the first inspection after DIN VDE 0100-600 from its third, and a
+ * protocol in an older version names none and is passed over.
+ */
+function namingNextInspection(subject: FormDefinition['attachesTo']): SQL | null {
+  const versions = tradeForms
+    .current()
+    .filter((definition) => definition.attachesTo === subject)
+    .flatMap((current) =>
+      Array.from({ length: current.version }, (_, index) =>
+        tradeForms.definitionFor(current.key, index + 1),
+      ),
+    )
+    .filter(
+      (definition): definition is FormDefinition =>
+        definition !== null && nextInspectionField(definition) !== null,
+    )
+
+  return versions.length === 0
+    ? null
+    : sql`(r.definition_key, r.definition_version) in (${sql.join(
+        versions.map((definition) => sql`(${definition.key}, ${definition.version}::integer)`),
+        sql`, `,
+      )})`
+}
+
+/**
  * The next inspections the protocols name (#301): one source for each
  * installation, out of its last signed protocol whose form names a next
  * inspection, the newest day of the test first. Due when that protocol says,
@@ -213,19 +243,15 @@ export const qualificationsRunningOut: SourceQuery<DeadlineValues> = async (tx) 
  *
  * A newer protocol moves the day, and one that names no interval it can use
  * leaves the installation without a deadline rather than falling back on an
- * older one: the last test is the one that counts. An installation, site or
- * customer deleted lets the deadline drop.
+ * older one: the last test is the one that counts. A test of only a part of
+ * the installation, the first inspection after an extension or a change,
+ * does not count (#814), and the last test of the whole stands. An
+ * installation, site or customer deleted lets the deadline drop.
  */
 export const inspectionsDue: SourceQuery<DeadlineValues> = async (tx) => {
-  const keys = tradeForms
-    .current()
-    .filter(
-      (definition) =>
-        definition.attachesTo === 'installation' && nextInspectionField(definition) !== null,
-    )
-    .map((definition) => definition.key)
+  const forms = namingNextInspection('installation')
 
-  if (keys.length === 0) {
+  if (forms === null) {
     return []
   }
 
@@ -241,28 +267,31 @@ export const inspectionsDue: SourceQuery<DeadlineValues> = async (tx) => {
     site: string
     customer_id: string
   }>(sql`
-    select distinct on (r.installation_id)
-           r.definition_key, r.definition_version, r.performed_on::text as performed_on, r.values,
+    select r.definition_key, r.definition_version, r.performed_on::text as performed_on, r.values,
            r.updated_by, i.id as installation_id, i.designation, s.id as site_id,
            s.designation as site, s.customer_id
       from form_records r
       join installations i on i.id = r.installation_id and i.deleted_at is null
       join sites s on s.id = i.site_id and s.deleted_at is null
       join customers c on c.id = s.customer_id and c.deleted_at is null
-     where r.deleted_at is null and r.status = 'signed'
-       and r.definition_key in (${sql.join(
-         keys.map((key) => sql`${key}`),
-         sql`, `,
-       )})
+     where r.deleted_at is null and r.status = 'signed' and ${forms}
      order by r.installation_id, r.performed_on desc, r.updated_at desc, r.id desc`)
+
+  // The newest protocol of each installation that tests the whole of it.
+  const counted = new Set<string>()
 
   return rows.flatMap((row) => {
     const definition = tradeForms.definitionFor(row.definition_key, Number(row.definition_version))
+    const values = readFormValues(row.values) ?? {}
+
+    if (counted.has(row.installation_id) || (definition && testsPart(definition, values))) {
+      return []
+    }
+
+    counted.add(row.installation_id)
+
     const performedOn = row.performed_on as IsoDate
-    const due =
-      definition === null
-        ? null
-        : nextInspectionOn(definition, readFormValues(row.values) ?? {}, performedOn)
+    const due = definition === null ? null : nextInspectionOn(definition, values, performedOn)
 
     return due === null
       ? []
@@ -294,15 +323,9 @@ export const inspectionsDue: SourceQuery<DeadlineValues> = async (tx) => {
  * appliances of a site due the same day (`sharesTasksBySite`).
  */
 export const appliancesDue: SourceQuery<DeadlineValues> = async (tx) => {
-  const keys = tradeForms
-    .current()
-    .filter(
-      (definition) =>
-        definition.attachesTo === 'appliance' && nextInspectionField(definition) !== null,
-    )
-    .map((definition) => definition.key)
+  const forms = namingNextInspection('appliance')
 
-  if (keys.length === 0) {
+  if (forms === null) {
     return []
   }
 
@@ -327,11 +350,7 @@ export const appliancesDue: SourceQuery<DeadlineValues> = async (tx) => {
       join appliances a on a.id = r.appliance_id and a.deleted_at is null
       join sites s on s.id = a.site_id and s.deleted_at is null
       join customers c on c.id = s.customer_id and c.deleted_at is null
-     where r.deleted_at is null and r.status = 'signed'
-       and r.definition_key in (${sql.join(
-         keys.map((key) => sql`${key}`),
-         sql`, `,
-       )})
+     where r.deleted_at is null and r.status = 'signed' and ${forms}
      order by r.appliance_id, r.performed_on desc, r.updated_at desc, r.id desc`)
 
   return rows.flatMap((row) => {

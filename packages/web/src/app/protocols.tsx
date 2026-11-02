@@ -22,11 +22,13 @@ import {
   type MeasurementField,
   measurementUnitSign,
   type NumberField,
+  partialTestSentence,
   readFormValues,
   type RecordState,
   sealProblems,
   type SignatureValue,
   templateValues,
+  testsPart,
   tripCharacteristicLabel,
 } from '@opengewerk/domain'
 import { elektroRegistry, elektroRules } from '@opengewerk/gewerk-elektro'
@@ -596,6 +598,7 @@ export function FieldInput({
   circuit,
   appliance = null,
   performedOn,
+  partOnly = false,
   photos,
   onChange,
 }: {
@@ -604,6 +607,8 @@ export function FieldInput({
   readonly circuit: BlockCircuit | null
   readonly appliance?: ApplianceFacts | null
   readonly performedOn: string
+  /** The protocol tests only a part of the installation and names no next inspection (#814). */
+  readonly partOnly?: boolean
   readonly photos: readonly { readonly value: string; readonly label: string }[]
   readonly onChange: (value: FieldValue | undefined) => void
 }) {
@@ -633,7 +638,7 @@ export function FieldInput({
       return isNextInspection(field) ? (
         <div className="flex flex-col gap-1">
           <FigureInput field={field} value={value} onChange={onChange} />
-          <NextInspection performedOn={performedOn} value={value} />
+          <NextInspection performedOn={performedOn} value={value} partOnly={partOnly} />
         </div>
       ) : (
         <FigureInput field={field} value={value} onChange={onChange} />
@@ -721,6 +726,7 @@ export function FieldText({
   circuit,
   appliance = null,
   performedOn,
+  partOnly = false,
   photos,
 }: {
   readonly field: BlockField
@@ -728,6 +734,7 @@ export function FieldText({
   readonly circuit: BlockCircuit | null
   readonly appliance?: ApplianceFacts | null
   readonly performedOn: string
+  readonly partOnly?: boolean
   readonly photos: readonly { readonly value: string; readonly label: string }[]
 }) {
   return (
@@ -745,7 +752,7 @@ export function FieldText({
           performedOn={performedOn}
         />
       ) : isNextInspection(field) ? (
-        <NextInspection performedOn={performedOn} value={value} />
+        <NextInspection performedOn={performedOn} value={value} partOnly={partOnly} />
       ) : null}
     </div>
   )
@@ -754,15 +761,22 @@ export function FieldText({
 /**
  * The day the interval to the next inspection comes to, under its field
  * (#301): the deadline engine reminds of the same day once the protocol is
- * signed.
+ * signed. A test of a part of the installation comes to none, and the line
+ * says why (#814).
  */
 export function NextInspection({
   performedOn,
   value,
+  partOnly = false,
 }: {
   readonly performedOn: string
   readonly value: FieldValue | undefined
+  readonly partOnly?: boolean
 }) {
+  if (partOnly) {
+    return <p className="text-table text-ink-muted">{partialTestSentence}</p>
+  }
+
   const due = inspectionDueAfter(performedOn as IsoDate, value)
 
   return due === null ? null : (
@@ -1041,6 +1055,8 @@ export interface ProtocolDraft {
   readonly photos: readonly { readonly value: string; readonly label: string }[]
   readonly editable: boolean
   readonly draft: FormValues
+  /** The draft tests only a part of the installation and names no next inspection (#814). */
+  readonly partOnly: boolean
   readonly set: (key: string, value: FormValue | undefined) => void
   readonly performedOn: string
   readonly setPerformedOn: (value: string) => void
@@ -1165,6 +1181,7 @@ export function useProtocolDraft(record: RecordState): ProtocolDraft {
     photos,
     editable,
     draft,
+    partOnly: definition !== null && testsPart(definition, draft),
     set,
     performedOn,
     setPerformedOn,
@@ -1196,6 +1213,7 @@ export function ProtocolSheet({
     photos,
     editable,
     draft,
+    partOnly,
     set,
     performedOn,
     setPerformedOn,
@@ -1272,6 +1290,7 @@ export function ProtocolSheet({
                 circuit={null}
                 appliance={appliance}
                 performedOn={performedOn}
+                partOnly={partOnly}
                 photos={photos}
                 onChange={(changed) => {
                   set(field.key, changed)
@@ -1285,6 +1304,7 @@ export function ProtocolSheet({
                 circuit={null}
                 appliance={appliance}
                 performedOn={performedOn}
+                partOnly={partOnly}
                 photos={photos}
               />
             )

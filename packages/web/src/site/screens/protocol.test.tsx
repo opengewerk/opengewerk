@@ -343,6 +343,15 @@ describe('a test protocol on site (#79)', () => {
     expect(screen.getByRole('button', { name: 'Unterschreiben' })).toHaveProperty('disabled', true)
     expect(screen.getByText('Erst speichern, dann unterschreiben.')).toBeTruthy()
 
+    // A new installation names the interval to its first recurring
+    // inspection before it is signed (#814).
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+    await screen.findByText('Prüffrist bis zur ersten Wiederholungsprüfung fehlt.')
+    expect(screen.getByRole('button', { name: 'Unterschreiben' })).toHaveProperty('disabled', true)
+    await user.type(
+      screen.getByLabelText('Prüffrist bis zur ersten Wiederholungsprüfung in Mon.'),
+      '48',
+    )
     await user.click(screen.getByRole('button', { name: 'Speichern' }))
     await screen.findByText(
       'Das Protokoll ist vollständig. Mit der Unterschrift wird es festgeschrieben.',
@@ -372,10 +381,10 @@ describe('a test protocol on site (#79)', () => {
     const sent = server.operations()
 
     // Created, saved on leaving each of the four steps that changed something
-    // and with "Speichern", then signed; a step left unchanged sends nothing.
+    // and twice with "Speichern", then signed; a step left unchanged sends nothing.
     expect(sent.map((operation) => `${operation.entity} ${operation.kind}`)).toEqual([
       'form_records create',
-      ...Array.from({ length: 6 }, () => 'form_records update'),
+      ...Array.from({ length: 7 }, () => 'form_records update'),
     ])
 
     const signed = Object.fromEntries(
@@ -385,6 +394,7 @@ describe('a test protocol on site (#79)', () => {
 
     expect(signed['status']).toBe('signed')
     expect(values?.['tester_signature']).toMatchObject({ name: 'Paul Prüfer' })
+    expect(values?.['next_inspection_months']).toBe(48_000)
     expect(values?.['circuits']).toEqual([
       {
         circuitId: 'k-1',
