@@ -66,6 +66,7 @@ const screens: Words = {
   form_records: '/pruefprotokolle/',
   articles: '/artikel/',
   suppliers: '/lieferanten/',
+  grid_operators: '/netzbetreiber/',
 }
 
 /** The label of the link to a record, "Zum Kunden". */
@@ -83,6 +84,7 @@ const links: Words = {
   appliances: 'Zum Gerät',
   articles: 'Zum Artikel',
   suppliers: 'Zum Lieferanten',
+  grid_operators: 'Zum Netzbetreiber',
 }
 
 /** What happened to a document where one word says it. */

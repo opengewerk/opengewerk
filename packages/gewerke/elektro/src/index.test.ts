@@ -57,11 +57,16 @@ describe('the package Elektro und PV', () => {
       'regeln/dguv-v3.json',
       'regeln/vde-ar-n-4105.json',
       'regeln/iec-62446-1.json',
+      'regeln/mastr.json',
     ])
-    expect(elektroManifest.deadlines).toEqual(['fristen/vde-0105-100.json', 'fristen/dguv-v3.json'])
+    expect(elektroManifest.deadlines).toEqual([
+      'fristen/vde-0105-100.json',
+      'fristen/dguv-v3.json',
+      'fristen/netzbetreiber.json',
+    ])
     expect(elektroForms).toHaveLength(elektroManifest.forms.length)
     expect(elektroRulePackages).toHaveLength(elektroManifest.rules.length)
-    expect(elektroDeadlineKinds).toHaveLength(2)
+    expect(elektroDeadlineKinds).toHaveLength(3)
   })
 
   it('has definitions that hold together', () => {
@@ -502,6 +507,25 @@ describe('the package Elektro und PV', () => {
         actions: ['task'],
         taskTitle: 'Geräte nach DGUV Vorschrift 3 prüfen am Objekt {objekt}',
       }),
+      // The entry in the installer directory of a grid operator (#306), the owner's.
+      expect.objectContaining({
+        key: 'elektro.installer_registration',
+        trade: 'elektro',
+        source: 'installer_registration',
+        intervalDays: null,
+        intervalMonths: null,
+        leadDays: 90,
+        responsible: 'lead',
+        actions: ['task', 'reminder'],
+        taskTitle: 'Eintragung im Installateurverzeichnis verlängern: {quelle}',
+      }),
     ])
+  })
+
+  it('names the month an operator has to register a unit in, from the MaStRV on', () => {
+    expect(elektroRules.valueAt('elektro.mastr.registration_months', 'months', '2026-11-02')).toBe(
+      1,
+    )
+    expect(elektroRules.at('elektro.mastr.registration_months', '2017-06-30')).toBeNull()
   })
 })

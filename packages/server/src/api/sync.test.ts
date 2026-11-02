@@ -341,7 +341,9 @@ describe('the tables', () => {
       name === 'calendar_feeds' ||
       // The handovers of the papers of a PV system (#305), made and read in the
       // office at the routes of the installation.
-      name === 'pv_handovers'
+      name === 'pv_handovers' ||
+      // The grid operators (#306), kept at the desk; an installation carries only the key.
+      name === 'grid_operators'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

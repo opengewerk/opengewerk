@@ -1,4 +1,4 @@
-import { installationKinds } from '@opengewerk/domain'
+import { gridOperatorKinds, gridOperatorLimits, installationKinds } from '@opengewerk/domain'
 import {
   primaryId,
   reference,
@@ -21,6 +21,7 @@ import {
   type PgTableExtraConfigValue,
 } from 'drizzle-orm/pg-core'
 
+import { gridOperators } from './grid-operators.js'
 import { inverters } from './photovoltaic.js'
 import { sites } from './sites.js'
 
@@ -39,6 +40,10 @@ export const installationKind = pgEnum('installation_kind', installationKinds)
  * and the inverter one of that system, the keys cannot say; the sync and the
  * routes ask it first (`pvLinkRefusal`), and a trigger holds it for every
  * other way in.
+ *
+ * A PV system, a battery or a wallbox names the grid operator it is reported
+ * to and the number it is known by there (#306); a grid operator a living
+ * installation names is not removed.
  */
 export const installations = pgTable(
   'installations',
@@ -60,6 +65,9 @@ export const installations = pgTable(
     yieldForecastKwh: integer('yield_forecast_kwh'),
     /** Where the forecast comes from, the planning software and its day. */
     yieldForecastSource: text('yield_forecast_source'),
+    /** The grid operator it is reported to (#306), and the number it is known by there. */
+    gridOperatorId: reference<'grid-operator'>('grid_operator_id'),
+    gridOperatorReference: text('grid_operator_reference'),
     ...timestamps,
     ...syncColumns,
   },
@@ -89,6 +97,21 @@ export const installations = pgTable(
     check(
       'installations_yield_forecast',
       sql`${table.yieldForecastKwh} is null or ${table.yieldForecastKwh} between 1 and 100000000`,
+    ),
+    foreignKey({
+      columns: [table.tenantId, table.gridOperatorId],
+      foreignColumns: [gridOperators.tenantId, gridOperators.id],
+      name: 'installations_grid_operator_in_tenant',
+    }).onDelete('restrict'),
+    // Compared as text: a value of the enum added in the same run of migrations,
+    // as `battery` on a new instance, may not be named before it is committed.
+    check(
+      'installations_grid_operator_kind',
+      sql`${table.gridOperatorId} is null or ${table.kind}::text in (${sql.raw(gridOperatorKinds.map((kind) => `'${kind}'`).join(', '))})`,
+    ),
+    check(
+      'installations_grid_operator_reference_fits',
+      sql`char_length(coalesce(${table.gridOperatorReference}, '')) <= ${sql.raw(String(gridOperatorLimits.reference))}`,
     ),
     foreignKey({
       columns: [table.tenantId, table.siteId],

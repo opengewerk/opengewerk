@@ -9,6 +9,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Netzbetreiber, Netzbetreiber-Anmeldung und die Ausfüllhilfe für das Marktstammdatenregister (#306), nach der
+  Feature-Gliederung v2.58 und den Tafeln aus Version 117 des Canvas: Unter „Stammdaten“ pflegen Inhaber und Büro ihre
+  Netzbetreiber mit dem, was sie verlangen, ihrem Portal, einem Ansprechpartner und der Eintragung des Betriebs in ihr
+  Installateurverzeichnis (Nummer, gültig bis, verantwortliche Elektrofachkraft). Vor dem letzten Tag einer Eintragung
+  erinnert die neue Frist „Eintragung im Installateurverzeichnis läuft ab“ (Paket Elektro 0.8.0). Eine PV-Anlage und ein
+  Speicher oder eine Wallbox, die zu keiner PV-Anlage gehören, nennen ihren Netzbetreiber und die Kennung dort
+  (Migration 0116). Daraus entstehen Anmeldung und Fertigmeldung als vorausgefüllte Datenblätter mit der Eintragung des
+  Betriebs als E-Installateur-Nachweis; hinter der Fertigmeldung folgen die unterschriebenen Inbetriebsetzungsprotokolle.
+  Die Ausfüllhilfe nennt jede Frage, die das Register nach der Anlage zur MaStRV an Betreiber, Solareinheit, EEG-Anlage
+  und Speicher stellt, mit der Antwort aus der Anlage oder einer Zeile für den Betreiber, und oben seine Frist von einem
+  Monat nach der Inbetriebnahme (§ 5 Abs. 5 MaStRV, als Regel im Paket). Neue Rechte „Netzbetreiber ansehen“ und
+  „Netzbetreiber pflegen“ für Inhaber und Büro. Warum: Jede PV-Anlage, jeder Speicher und jede Wallbox geht an den
+  Netzbetreiber, und alles, was er und das Register fragen, steht schon in Kunde, Objekt und PV-Struktur.
 - Die PV-Anlagendokumentation (#305), nach der Feature-Gliederung v2.57 und den Tafeln aus Version 115 des Canvas:
   die Prüfung der Gleichstromseite nach DIN EN IEC 62446-1 als Formular, je String aus der PV-Struktur mit Polarität,
   Leerlaufspannung, Kurzschlussstrom und Isolationswiderstand gegen den Mindestwert von 1 MΩ (Paket Elektro 0.7.0); die

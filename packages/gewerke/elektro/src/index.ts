@@ -18,11 +18,13 @@ import vdeArN4105v1 from '../formulare/vde-ar-n-4105.v1.json' with { type: 'json
 import iec624461v1 from '../formulare/iec-62446-1.v1.json' with { type: 'json' }
 import vde0105100Deadlines from '../fristen/vde-0105-100.json' with { type: 'json' }
 import dguvV3Deadlines from '../fristen/dguv-v3.json' with { type: 'json' }
+import gridOperatorDeadlines from '../fristen/netzbetreiber.json' with { type: 'json' }
 import vde0100600Limits from '../regeln/vde-0100-600.json' with { type: 'json' }
 import vde0105100Limits from '../regeln/vde-0105-100.json' with { type: 'json' }
 import dguvV3Limits from '../regeln/dguv-v3.json' with { type: 'json' }
 import vdeArN4105Values from '../regeln/vde-ar-n-4105.json' with { type: 'json' }
 import iec624461Limits from '../regeln/iec-62446-1.json' with { type: 'json' }
+import marketRegisterValues from '../regeln/mastr.json' with { type: 'json' }
 
 /**
  * The trade package Elektro und PV in the format of ADR 0008: a manifest, the
@@ -77,17 +79,21 @@ export const elektroRulePackages: readonly RulePackage[] = [
   dguvV3Limits as RulePackage,
   vdeArN4105Values as RulePackage,
   iec624461Limits as RulePackage,
+  marketRegisterValues as RulePackage,
 ]
 
 /**
  * The kinds of deadline the package brings (`fristen/`, ADR 0008): the
  * recurring inspection, due when the last protocol after DIN VDE 0105-100 of
  * an installation says, and the test of an appliance, due when its last protocol
- * after DGUV Vorschrift 3 says (#303). The server puts them beside the core's.
+ * after DGUV Vorschrift 3 says (#303), and the entry of the business in the
+ * installer directory of a grid operator, due on its last day (#306). The
+ * server puts them beside the core's.
  */
 export const elektroDeadlineKinds: readonly DeadlineKind[] = [
   ...(vde0105100Deadlines.kinds as readonly DeadlineKind[]),
   ...(dguvV3Deadlines.kinds as readonly DeadlineKind[]),
+  ...(gridOperatorDeadlines.kinds as readonly DeadlineKind[]),
 ]
 
 /** The limits of the package as a rule set, the one `limitVerdict` is asked with. */

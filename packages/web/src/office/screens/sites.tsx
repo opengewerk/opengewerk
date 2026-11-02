@@ -43,6 +43,7 @@ import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
 import { AccessPanel } from './site-access.js'
 import { TasksSection } from './tasks.js'
+import { asGridOperatorLink, useGridOperatorFields } from './grid-documents.js'
 import { useCompanionFields } from './pv-system.js'
 import { asCompanion } from '../../app/photovoltaic.js'
 
@@ -283,6 +284,8 @@ export function SiteScreen() {
   const [adding, setAdding] = useState<'installation' | 'job' | null>(null)
   // A battery, a meter or a wallbox says where it belongs from the start (#300).
   const linkFields = useCompanionFields(siteId)
+  // And its grid operator, for a PV system, a battery or a wallbox (#306).
+  const gridFields = useGridOperatorFields(null)
   const navigate = useNavigate()
 
   if (!site || !siteId) {
@@ -305,6 +308,7 @@ export function SiteScreen() {
         fields={[
           ...installationFields.slice(0, -1),
           ...linkFields,
+          ...gridFields,
           ...installationFields.slice(-1),
         ]}
         submitLabel="Anlage anlegen"
@@ -316,6 +320,7 @@ export function SiteScreen() {
           const made = await client.create('installations', {
             ...asInstallation(values),
             ...asCompanion(values),
+            ...asGridOperatorLink(values),
             siteId,
           })
 

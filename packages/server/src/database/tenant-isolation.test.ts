@@ -884,6 +884,12 @@ const crossings: readonly {
             values (${own.tenant}, ${other.installation}, '2026-11-02', '{}')`,
   },
   {
+    // An installation names the grid operator it is reported to (#306), never one of another business.
+    key: 'installations_grid_operator_in_tenant',
+    write: (own, other) =>
+      repoint('installations', 'grid_operator_id', own.installation, other.gridOperator),
+  },
+  {
     // The people of a supplier (#296), like those of a customer.
     key: 'contacts_supplier_in_tenant',
     write: (own, other) => repoint('contacts', 'supplier_id', own.supplierContact, other.supplier),
@@ -1377,6 +1383,8 @@ interface Planted {
   readonly qualificationKind: string
   /** An appointment at the job above (#290). */
   readonly appointment: string
+  /** A grid operator of the business (#306). */
+  readonly gridOperator: string
 }
 
 /**
@@ -1601,6 +1609,10 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     appointment: await one(
       "insert into appointments (tenant_id, job_id, starts_at, ends_at) values ($1, $2, '2026-11-06T07:00:00Z', '2026-11-06T15:00:00Z')",
       [tenant, job],
+    ),
+    gridOperator: await one(
+      "insert into grid_operators (tenant_id, name) values ($1, 'Stadtwerke Neckartal Netze GmbH')",
+      [tenant],
     ),
   }
 }

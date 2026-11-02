@@ -1,0 +1,19 @@
+{
+  "note": "Die Fristentypen des Pakets Elektro und PV (ADR 0008). Die Eintragung des Betriebs im Installateurverzeichnis eines Netzbetreibers läuft an ihrem letzten Tag ab (#306), wie eine Qualifikation in der Akte einer Person.",
+  "kinds": [
+    {
+      "key": "elektro.installer_registration",
+      "trade": "elektro",
+      "title": "Eintragung im Installateurverzeichnis läuft ab",
+      "about": "Die Eintragung des Betriebs im Installateurverzeichnis eines Netzbetreibers gilt bis zu ihrem letzten Tag. Rechtzeitig davor entsteht eine Aufgabe, sie zu verlängern. Steht unter „Netzbetreiber“ ein späteres Datum, wandert die Frist mit; ist der Netzbetreiber entfernt oder das Datum leer, entfällt sie.",
+      "source": "installer_registration",
+      "intervalDays": null,
+      "intervalMonths": null,
+      "leadDays": 90,
+      "responsible": "lead",
+      "actions": ["task", "reminder"],
+      "taskTitle": "Eintragung im Installateurverzeichnis verlängern: {quelle}",
+      "reference": "§ 13 Abs. 2 NAV"
+    }
+  ]
+}

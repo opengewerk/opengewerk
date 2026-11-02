@@ -63,6 +63,11 @@ import { HolidaysScreen } from './screens/holidays.js'
 import { MailSettingsScreen } from './screens/mail-settings.js'
 import { TaxScreen } from './screens/taxes.js'
 import { TextSnippetScreen } from './screens/text-snippets.js'
+import {
+  GridOperatorList,
+  GridOperatorScreen,
+  NewGridOperatorScreen,
+} from './screens/grid-operators.js'
 import { TimeScreen } from './screens/time.js'
 
 /**
@@ -261,6 +266,22 @@ const routes = [
     getParentRoute: () => office,
     path: '/textbausteine',
     component: TextSnippetScreen,
+  }),
+  // The grid operators (#306), the new one before the one with an id.
+  createRoute({
+    getParentRoute: () => office,
+    path: '/netzbetreiber',
+    component: GridOperatorList,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/netzbetreiber/neu',
+    component: NewGridOperatorScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/netzbetreiber/$gridOperatorId',
+    component: GridOperatorScreen,
   }),
   createRoute({ getParentRoute: () => office, path: '/konflikte', component: SyncScreen }),
   createRoute({ getParentRoute: () => office, path: '/konto', component: AccountScreen }),

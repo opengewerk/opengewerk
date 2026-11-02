@@ -19,7 +19,7 @@ import {
 import { type SourceQuery, stockLevels } from '@opengewerk/platform-server'
 import { and, eq, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
 
-import { documents } from '../database/schema/index.js'
+import { documents, gridOperators } from '../database/schema/index.js'
 import { tradeForms } from '../forms/registry.js'
 
 /**
@@ -395,6 +395,53 @@ export const appliancesDue: SourceQuery<DeadlineValues> = async (tx) => {
   })
 }
 
+/**
+ * The entries of the business in the installer directories of its grid
+ * operators (#306): one source for each grid operator with a number and a
+ * last day, named by the grid operator, as "Stadtwerke Neckartal Netze GmbH".
+ * Due on that day; the lead of the kind makes the task in time. The entry is
+ * the business's and names nobody, so the kind gives it to the owner. A later
+ * day moves it, and a grid operator removed or a day taken out lets it drop.
+ */
+export const installerRegistrationsRunningOut: SourceQuery<DeadlineValues> = async (tx) => {
+  const rows = await tx
+    .select({
+      id: gridOperators.id,
+      name: gridOperators.name,
+      registeredUntil: gridOperators.registeredUntil,
+    })
+    .from(gridOperators)
+    .where(
+      and(
+        isNull(gridOperators.deletedAt),
+        isNotNull(gridOperators.registeredUntil),
+        isNotNull(gridOperators.registrationNumber),
+        sql`btrim(${gridOperators.registrationNumber}) <> ''`,
+      ),
+    )
+
+  return rows.flatMap((row) =>
+    row.registeredUntil === null
+      ? []
+      : [
+          {
+            sourceId: row.id,
+            sourceLabel: row.name,
+            anchorOn: row.registeredUntil,
+            namedDueOn: row.registeredUntil,
+            naturalUserId: null,
+            values: {
+              documentId: null,
+              installationId: null,
+              customerId: null,
+              siteId: null,
+              jobId: null,
+            },
+          },
+        ],
+  )
+}
+
 /** Every source there is, by the name a kind gives it. */
 export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
   {
@@ -403,4 +450,5 @@ export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<
     qualification: qualificationsRunningOut,
     inspection: inspectionsDue,
     appliance_inspection: appliancesDue,
+    installer_registration: installerRegistrationsRunningOut,
   }

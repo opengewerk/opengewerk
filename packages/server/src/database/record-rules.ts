@@ -1,22 +1,24 @@
 import {
   applianceProblems,
-  countryProblem,
   correctionProblem,
-  locationProblem,
-  timeEntryProblem,
+  countryProblem,
   deviceInfoProblem,
   documentTextProblem,
+  gridOperatorLinkProblem,
+  gridOperatorReferenceProblem,
   inverterLinkProblem,
   jobNoteProblem,
   linePositionProblem,
   lineTextProblem,
+  locationProblem,
   lumpSumPriceBaseProblem,
-  priceBaseProblem,
   noteTimeProblem,
+  priceBaseProblem,
   pvSystemLinkProblem,
   servicePeriodProblem,
   signerNameProblem,
   supplierProblems,
+  timeEntryProblem,
   titleAmountProblem,
   tradeAttachments,
   tradeContacts,
@@ -132,6 +134,15 @@ const rules: RecordRules = {
     },
     // A forecast of the yield is a whole number of kilowatt hours (#305), as `installations_yield_forecast` holds.
     { fields: ['yieldForecastKwh'], problem: (at) => yieldForecastProblem(at('yieldForecastKwh')) },
+    // A grid operator only at a PV system, a battery or a wallbox (#306), as `installations_grid_operator_kind` holds.
+    {
+      fields: ['kind', 'gridOperatorId'],
+      problem: (at) => gridOperatorLinkProblem(at('kind'), at('gridOperatorId')),
+    },
+    {
+      fields: ['gridOperatorReference'],
+      problem: (at) => gridOperatorReferenceProblem(at('gridOperatorReference')),
+    },
   ],
   documents: [
     {

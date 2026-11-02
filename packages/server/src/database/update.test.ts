@@ -2124,3 +2124,112 @@ describe('the rollback of the papers of a PV system', () => {
     expect(await forced('installations')).toBe(true)
   })
 })
+
+describe('the roles before 0116', () => {
+  const before = () =>
+    readMigrationIndex().findIndex((entry) => entry.tag === '0116_grid_operators')
+
+  it('give the owner and the office the rights to the grid operators, and nobody else', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+         values ($1, 'owner', 'Inhaber', '{installation.write}', true, true),
+                ($1, 'office', 'Büro', '{installation.write}', false, false),
+                ($1, 'technician', 'Monteur', '{installation.write}', false, false)`,
+      [tenant.id],
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows: roles } = await admin.query<{ key: string; reads: boolean; keeps: boolean }>(
+      `select key, 'grid_operator.read' = any(rights) as reads,
+              'grid_operator.write' = any(rights) as keeps
+         from tenant_roles order by key`,
+    )
+    expect(roles).toEqual([
+      { key: 'office', reads: true, keeps: true },
+      { key: 'owner', reads: true, keeps: true },
+      { key: 'technician', reads: false, keeps: false },
+    ])
+  })
+})
+
+/**
+ * The rollback of 0116 (#306): a grid operator is what the office typed in,
+ * with the entry of the business in its directory. The rollback deletes none,
+ * nor the grid operator an installation names; while there is one, it stops
+ * and changes nothing, not even whether the policies hold for the owner.
+ */
+describe('the rollback of the grid operators', () => {
+  async function forced(table: string): Promise<boolean> {
+    const { rows } = await admin.query<{ forced: boolean }>(
+      'select relforcerowsecurity as forced from pg_class where relname = $1',
+      [table],
+    )
+
+    return rows[0]?.forced ?? false
+  }
+
+  it('deletes no grid operator and no reference, and stops while there is one', async () => {
+    const customer = newId<'customer'>()
+    const site = newId<'site'>()
+    const system = newId<'installation'>()
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name) values ($1, $2, 'private', 'Familie Weber')",
+      [customer, tenant.id],
+    )
+    await admin.query(
+      "insert into sites (id, tenant_id, customer_id, designation) values ($1, $2, $3, 'Wohnhaus')",
+      [site, tenant.id, customer],
+    )
+    await admin.query(
+      `insert into installations (id, tenant_id, site_id, kind, designation, grid_operator_reference)
+       values ($1, $2, $3, 'pv_system', 'PV-Anlage Dach', 'SNN-2026-04711')`,
+      [system, tenant.id, site],
+    )
+
+    await expect(revertMigration(admin, '0116_grid_operators')).rejects.toThrow(
+      'Die Rücknahme von 0116 löscht sie nicht',
+    )
+    expect(
+      (
+        await admin.query('select grid_operator_reference from installations where id = $1', [
+          system,
+        ])
+      ).rows,
+    ).toEqual([{ grid_operator_reference: 'SNN-2026-04711' }])
+    expect(await forced('installations')).toBe(true)
+    expect(await forced('grid_operators')).toBe(true)
+
+    // A grid operator alone stops it as well.
+    await admin.query(
+      `begin; set local session_replication_role = replica;
+       update installations set grid_operator_reference = null; commit;`,
+    )
+    await admin.query(
+      "insert into grid_operators (tenant_id, name, registration_number) values ($1, 'Stadtwerke Neckartal Netze GmbH', 'IV-2023-0417')",
+      [tenant.id],
+    )
+    await expect(revertMigration(admin, '0116_grid_operators')).rejects.toThrow(
+      'Die Rücknahme von 0116 löscht sie nicht',
+    )
+
+    // Taken out by hand, as the sentence says, the rollback goes through.
+    await admin.query(
+      `begin; set local session_replication_role = replica; delete from grid_operators; commit;`,
+    )
+    await revertMigration(admin, '0116_grid_operators')
+
+    expect(await tableNames(admin)).not.toContain('grid_operators')
+    expect(await columnNames(admin, 'installations')).not.toContain('grid_operator_id')
+    expect(await forced('installations')).toBe(true)
+  })
+})

@@ -234,6 +234,22 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       inverter_id: 'Am Wechselrichter',
       yield_forecast_kwh: 'Ertragsprognose',
       yield_forecast_source: 'Quelle der Ertragsprognose',
+      grid_operator_id: 'Netzbetreiber',
+      grid_operator_reference: 'Kennung beim Netzbetreiber',
+    },
+  },
+  // The grid operators and the entry of the business in their directories (#306).
+  grid_operators: {
+    label: 'Netzbetreiber',
+    fields: {
+      portal_url: 'Portal',
+      requirements: 'Was er verlangt',
+      contact_name: 'Ansprechpartner',
+      contact_email: 'E-Mail des Ansprechpartners',
+      contact_phone: 'Telefon des Ansprechpartners',
+      registration_number: 'Nummer im Installateurverzeichnis',
+      registered_until: 'Eingetragen bis',
+      responsible_electrician: 'Verantwortliche Elektrofachkraft',
     },
   },
   pv_handovers: {

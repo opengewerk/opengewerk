@@ -84,6 +84,9 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  * - `appliance_inspection`: the same for an appliance of the register (#303): the
  *   last signed protocol of an appliance that names its next test. One deadline
  *   per appliance, which drops with the appliance.
+ * - `installer_registration`: the entry of the business in the installer
+ *   directory of a grid operator (#306), due on its last day. A later day moves
+ *   it; a grid operator removed, or an entry without a last day, lets it drop.
  */
 export const deadlineSources = [
   'quote',
@@ -91,6 +94,7 @@ export const deadlineSources = [
   'qualification',
   'inspection',
   'appliance_inspection',
+  'installer_registration',
 ] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
@@ -285,6 +289,16 @@ export const sourceWords: Readonly<
       hint: 'Fällig nach der Prüffrist, die das letzte unterschriebene Protokoll des Geräts nennt.',
     },
     anchor: 'der letzten Prüfung',
+  },
+  // Due on the last day of the entry, without an interval (#306). The entry
+  // is the business's and names nobody, so the deadline waits with the owner.
+  installer_registration: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig am letzten Tag, an dem die Eintragung im Installateurverzeichnis gilt.',
+    },
+    anchor: 'dem letzten Tag',
   },
 }
 

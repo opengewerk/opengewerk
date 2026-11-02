@@ -44,6 +44,7 @@ const called: Readonly<Record<string, string>> = {
   suppliers: 'Den Lieferanten',
   articles: 'Den Artikel',
   supplier_articles: 'Den Lieferanten des Artikels',
+  grid_operators: 'Den Netzbetreiber',
 }
 
 /**

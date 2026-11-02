@@ -51,6 +51,14 @@ export const permissions = [
   'supplier.read',
   'supplier.write',
   /**
+   * The grid operators the business reports installations to, and its entry
+   * in their installer directories (#306): the owner and the office, as with
+   * the suppliers. Printing the papers of an installation goes with
+   * `installation.read`, which names its operator without the list.
+   */
+  'grid_operator.read',
+  'grid_operator.write',
+  /**
    * Booking the stores of the business (#298): a store and what it keeps,
    * a receipt, a transfer and a count. The owner and the office, decided on
    * 31.10.2026; a technician takes material out with a report, and that is
@@ -265,6 +273,8 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'article.write': 'Artikel pflegen',
   'supplier.read': 'Lieferanten ansehen',
   'supplier.write': 'Lieferanten pflegen',
+  'grid_operator.read': 'Netzbetreiber ansehen',
+  'grid_operator.write': 'Netzbetreiber pflegen',
   'stock.write': 'Lager buchen',
   'purchase.read': 'Einkaufspreise ansehen',
   'purchase.write': 'Einkaufspreise pflegen',
@@ -362,6 +372,8 @@ const officePermissions: readonly Permission[] = [
   'article.write',
   'supplier.read',
   'supplier.write',
+  'grid_operator.read',
+  'grid_operator.write',
   'stock.write',
   'purchase.read',
   'purchase.write',
