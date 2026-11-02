@@ -2182,7 +2182,8 @@ function sampleProtocols(
     phase_sequence: 'not_applicable',
   })
   // The signed one in the version it was filled in, the draft in the newest,
-  // with the remark over lines that version 2 brought (#256).
+  // with the remark over lines that version 2 brought (#256) and, as an
+  // extension, no interval to the next inspection of its own (#814).
   const record = (
     performedOn: string,
     status: 'draft' | 'signed',
@@ -2289,7 +2290,7 @@ function sampleProtocols(
             'F3: Schleifenimpedanz zu hoch, Klemmstelle in der Küche prüfen. Kennzeichnung der ' +
             'Stromkreise unvollständig.',
         },
-        2,
+        3,
       ),
     ],
   ]

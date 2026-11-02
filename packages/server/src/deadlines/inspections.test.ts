@@ -18,8 +18,10 @@ import { type DeadlineRow, runDeadlinesOf } from './engine.js'
  * the interval to the next one, and the deadline engine makes of it one
  * deadline at the installation, due when that protocol says, reminding the
  * person who signed sixty days before. A newer protocol moves it; a draft,
- * a first inspection and an interval nobody can count with make none; the
- * installation gone, the deadline drops.
+ * a first inspection before its third version and an interval nobody can
+ * count with make none; the installation gone, the deadline drops. Since
+ * #814 the first inspection of a new installation names the first recurring
+ * one, and one after an extension or a change leaves the deadline as it was.
  */
 
 const north = newId<'tenant'>() as TenantId
@@ -38,6 +40,7 @@ async function aProtocol(over: {
   key?: string
   version?: number
   status?: 'draft' | 'signed'
+  occasion?: string
   by?: string
   installation?: string
   tenant?: TenantId
@@ -47,6 +50,10 @@ async function aProtocol(over: {
 
   if (over.months !== null) {
     values['next_inspection_months'] = (over.months ?? 48) * 1000
+  }
+
+  if (over.occasion !== undefined) {
+    values['occasion'] = over.occasion
   }
 
   // Who writes a row is what the trigger of 0004 takes from the session, as
@@ -231,6 +238,29 @@ describe('a signed protocol of a recurring inspection', () => {
     ])
   })
 
+  it('keeps its deadline when an extension or a change is tested after it, whatever the interval says', async () => {
+    await aProtocol({ performedOn: '2033-09-18' })
+    await aProtocol({
+      performedOn: '2035-01-10',
+      months: 12,
+      key: 'vde-0100-600',
+      version: 3,
+      occasion: 'extension',
+    })
+    await aProtocol({
+      performedOn: '2036-04-20',
+      months: 48,
+      key: 'vde-0100-600',
+      version: 3,
+      occasion: 'change',
+    })
+    await runDeadlinesOf({ database }, north, early)
+
+    expect(await kept()).toEqual([
+      expect.objectContaining({ anchorOn: '2033-09-18', dueOn: '2037-09-18', status: 'open' }),
+    ])
+  })
+
   it('drops out when its installation is deleted', async () => {
     await aProtocol({ performedOn: '2033-09-18' })
     await runDeadlinesOf({ database }, north, early)
@@ -243,9 +273,62 @@ describe('a signed protocol of a recurring inspection', () => {
   })
 })
 
+describe('a signed first inspection of a new installation (#814)', () => {
+  it('names the first recurring inspection as the deadline of its installation', async () => {
+    await aProtocol({
+      performedOn: '2033-09-18',
+      months: 48,
+      key: 'vde-0100-600',
+      version: 3,
+      occasion: 'new',
+    })
+    await runDeadlinesOf({ database }, north, early)
+
+    expect(await kept()).toEqual([
+      expect.objectContaining({
+        kind: 'elektro.recurring_inspection',
+        sourceId: place.installation,
+        anchorOn: '2033-09-18',
+        dueOn: '2037-09-18',
+        naturalUserId: 'max',
+        status: 'open',
+      }),
+    ])
+  })
+
+  it('moves the deadline of a recurring inspection before it', async () => {
+    await aProtocol({ performedOn: '2031-05-04' })
+    await aProtocol({
+      performedOn: '2034-02-01',
+      months: 24,
+      key: 'vde-0100-600',
+      version: 3,
+      occasion: 'new',
+    })
+    await runDeadlinesOf({ database }, north, early)
+
+    expect(await kept()).toEqual([
+      expect.objectContaining({ anchorOn: '2034-02-01', dueOn: '2036-02-01' }),
+    ])
+  })
+})
+
 describe('no deadline comes', () => {
-  it('from a first inspection, which names no next one', async () => {
+  it('from a first inspection before its third version, which names no next one', async () => {
     await aProtocol({ performedOn: '2033-09-18', key: 'vde-0100-600', version: 2 })
+    await runDeadlinesOf({ database }, north, early)
+
+    expect(await kept()).toEqual([])
+  })
+
+  it('from the first inspection of an extension, with no test of the whole before it', async () => {
+    await aProtocol({
+      performedOn: '2033-09-18',
+      months: 48,
+      key: 'vde-0100-600',
+      version: 3,
+      occasion: 'extension',
+    })
     await runDeadlinesOf({ database }, north, early)
 
     expect(await kept()).toEqual([])

@@ -5,7 +5,9 @@ import {
   inspectionDueAfter,
   isNextInspection,
   nextInspectionField,
+  nextInspectionMissing,
   nextInspectionOn,
+  testsPart,
 } from './next-inspection.js'
 
 /**
@@ -14,7 +16,7 @@ import {
  * engine reminds of and what the paper says come from here.
  */
 
-function protocol(field: Record<string, unknown> | null): FormDefinition {
+function protocol(field: Record<string, unknown> | null, ...more: object[]): FormDefinition {
   return {
     key: 'probe',
     version: 1,
@@ -24,7 +26,7 @@ function protocol(field: Record<string, unknown> | null): FormDefinition {
       {
         key: 'result',
         title: 'Ergebnis',
-        fields: field === null ? [] : [field as never],
+        fields: [...more, ...(field === null ? [] : [field])] as never,
       },
     ],
   }
@@ -36,6 +38,19 @@ const months = {
   label: 'Prüffrist bis zur nächsten Prüfung',
   unit: 'month',
   decimals: 0,
+}
+
+/** Why the test was made, as the first inspection after DIN VDE 0100-600 asks it (#814). */
+const occasion = {
+  kind: 'choice',
+  key: 'occasion',
+  label: 'Anlass',
+  required: true,
+  options: [
+    { value: 'new', label: 'Neuanlage' },
+    { value: 'extension', label: 'Erweiterung' },
+    { value: 'change', label: 'Änderung' },
+  ],
 }
 
 describe('the next inspection of a protocol', () => {
@@ -83,5 +98,53 @@ describe('the next inspection of a protocol', () => {
         '2026-09-18',
       ),
     ).toBeNull()
+  })
+
+  it('is none for a test of only a part of the installation, whatever its field says (#814)', () => {
+    const first = protocol(months, occasion)
+
+    for (const part of ['extension', 'change']) {
+      expect(testsPart(first, { occasion: part }), part).toBe(true)
+      expect(
+        nextInspectionOn(first, { occasion: part, next_inspection_months: 48_000 }, '2026-11-02'),
+        part,
+      ).toBeNull()
+    }
+
+    expect(testsPart(first, { occasion: 'new' })).toBe(false)
+    expect(
+      nextInspectionOn(first, { occasion: 'new', next_inspection_months: 48_000 }, '2026-11-02'),
+    ).toBe('2030-11-02')
+    // An answer counts only where the form asks for the occasion.
+    expect(testsPart(protocol(months), { occasion: 'extension' })).toBe(false)
+    expect(testsPart(protocol(months, { ...occasion, kind: 'text' }), { occasion: 'change' })).toBe(
+      false,
+    )
+  })
+})
+
+describe('the next inspection before signing (#814)', () => {
+  it('is needed where the protocol tests the whole installation', () => {
+    const first = protocol(months, occasion)
+
+    expect(nextInspectionMissing(first, { occasion: 'new' })).toBe(
+      'Prüffrist bis zur nächsten Prüfung fehlt.',
+    )
+    expect(nextInspectionMissing(first, {})).toBe('Prüffrist bis zur nächsten Prüfung fehlt.')
+    expect(nextInspectionMissing(first, { occasion: 'new', next_inspection_months: 48_000 })).toBe(
+      null,
+    )
+  })
+
+  it('is not needed after an extension or a change', () => {
+    const first = protocol(months, occasion)
+
+    expect(nextInspectionMissing(first, { occasion: 'extension' })).toBeNull()
+    expect(nextInspectionMissing(first, { occasion: 'change' })).toBeNull()
+  })
+
+  it('leaves a required field, and a form without one, to the engine', () => {
+    expect(nextInspectionMissing(protocol({ ...months, required: true }), {})).toBeNull()
+    expect(nextInspectionMissing(protocol(null, occasion), { occasion: 'new' })).toBeNull()
   })
 })

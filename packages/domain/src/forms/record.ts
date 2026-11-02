@@ -3,6 +3,8 @@ import type { FormRecordStatus, Id, IsoDate, Synced } from '@opengewerk/platform
 import type { ApplianceId, InstallationId, JobId } from '../model/identifier.js'
 import type { FormDefinition, FormRegistry } from './definition.js'
 import { tradeForms } from './engine.js'
+import { nextInspectionMissing } from './next-inspection.js'
+import { readFormValues } from './values.js'
 
 export { formRecordStatuses, type FormRecordStatus } from '@opengewerk/platform-domain'
 
@@ -42,7 +44,8 @@ export interface FormRecord extends Synced {
  * same registry on both sides: a definition this version does not know,
  * values that are not the text of an object, a value of the wrong kind, and a
  * form marked signed that lacks what signing needs are mistakes of the client
- * and refused with the sentence.
+ * and refused with the sentence. What signing needs includes the next
+ * inspection where the protocol has to name it (#814).
  */
 export function formRecordProblem(
   registry: FormRegistry,
@@ -53,7 +56,22 @@ export function formRecordProblem(
     readonly values: unknown
   },
 ): string | null {
-  return tradeForms.formRecordProblem(registry, record)
+  const problem = tradeForms.formRecordProblem(registry, record)
+
+  if (problem !== null || record.status !== 'signed') {
+    return problem
+  }
+
+  // Known and of the right kinds, or the engine would have said so.
+  const definition = registry.definitionFor(
+    record.definitionKey as string,
+    record.definitionVersion as number,
+  )
+  const values = readFormValues(record.values ?? '{}')
+  const missing =
+    definition === null || values === null ? null : nextInspectionMissing(definition, values)
+
+  return missing === null ? null : `Unterschrieben wird ein vollständiges Protokoll: ${missing}`
 }
 
 /**

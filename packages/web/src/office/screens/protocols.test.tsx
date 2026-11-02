@@ -379,6 +379,36 @@ describe('a test protocol in the office (#79)', () => {
     ).toBeTruthy()
   })
 
+  it('says under the interval of a first inspection after an extension that the last deadline stands (#814)', async () => {
+    server.put('form_records', {
+      id: 'p-10',
+      definitionKey: 'vde-0100-600',
+      definitionVersion: 3,
+      installationId: 'i-1',
+      jobId: null,
+      performedOn: '2026-11-02',
+      status: 'signed',
+      values: JSON.stringify({
+        tester: 'Paul Prüfer',
+        occasion: 'extension',
+        verdict: 'passed',
+        circuits: [],
+      }),
+    })
+    await mount('/pruefprotokolle/p-10')
+
+    await screen.findByRole('heading', {
+      level: 1,
+      name: 'Prüfprotokoll Erstprüfung nach DIN VDE 0100-600',
+    })
+    expect(
+      screen.getByText(
+        'Nach einer Erweiterung oder Änderung bleibt die Frist der letzten Prüfung der Anlage stehen.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByText(/^Nächste Prüfung bis zum/)).toBeNull()
+  })
+
   it('takes the answers of a draft as buttons and saves them from its head, as the board draws it', async () => {
     const user = userEvent.setup()
 

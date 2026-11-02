@@ -374,6 +374,62 @@ describe('a filled form as a record (#78)', () => {
       formRecordProblem(registry, record(formValuesText({ tester: 'Paul Prüfer' }), 'signed')),
     ).toBe('Unterschrieben wird ein vollständiges Protokoll: Unterschrift fehlt.')
   })
+
+  it('is signed after a new installation only with its next inspection, after an extension without (#814)', () => {
+    const first: FormDefinition = {
+      key: 'first',
+      version: 1,
+      title: 'Erstprüfung',
+      attachesTo: 'installation',
+      sections: [
+        {
+          key: 'result',
+          title: 'Ergebnis',
+          fields: [
+            {
+              kind: 'choice',
+              key: 'occasion',
+              label: 'Anlass',
+              required: true,
+              options: [
+                { value: 'new', label: 'Neuanlage' },
+                { value: 'extension', label: 'Erweiterung' },
+                { value: 'change', label: 'Änderung' },
+              ],
+            },
+            {
+              kind: 'number',
+              key: 'next_inspection_months',
+              label: 'Prüffrist bis zur ersten Wiederholungsprüfung',
+              unit: 'month',
+              decimals: 0,
+            },
+            { kind: 'signature', key: 'signature', label: 'Unterschrift', seals: true },
+          ],
+        },
+      ],
+    }
+    const firsts = formRegistry([first])
+    const filed = (values: FormValues, status = 'signed') => ({
+      definitionKey: 'first',
+      definitionVersion: 1,
+      status,
+      values: formValuesText({ ...values, signature }),
+    })
+
+    expect(formRecordProblem(firsts, filed({ occasion: 'new' }))).toBe(
+      'Unterschrieben wird ein vollständiges Protokoll: Prüffrist bis zur ersten Wiederholungsprüfung fehlt.',
+    )
+    expect(
+      formRecordProblem(firsts, filed({ occasion: 'new', next_inspection_months: 48_000 })),
+    ).toBeNull()
+    expect(formRecordProblem(firsts, filed({ occasion: 'extension' }))).toBeNull()
+    expect(formRecordProblem(firsts, filed({ occasion: 'new' }, 'draft'))).toBeNull()
+    expect(sealProblems(first, { occasion: 'new' }, { seal: false })).toEqual([
+      'Prüffrist bis zur ersten Wiederholungsprüfung fehlt.',
+    ])
+    expect(sealProblems(first, { occasion: 'change' }, { seal: false })).toEqual([])
+  })
 })
 
 describe('a measured value against its limit (#79)', () => {

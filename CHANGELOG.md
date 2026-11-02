@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die Erstprüfung nach DIN VDE 0100-600 nennt die Prüffrist bis zur ersten Wiederholungsprüfung (#814), nach der
+  Feature-Gliederung v2.52: Fassung 3 des Protokolls hat das Feld im Ergebnis, mit den Prüffristen aus Tabelle 1A der
+  DGUV Vorschrift 3 als Hinweis. Bei einer Neuanlage ist es Pflicht, und aus dem unterschriebenen Protokoll wird die
+  Frist „Wiederholungsprüfung der Anlage“; nach einer Erweiterung oder Änderung bleibt die Frist der letzten Prüfung
+  stehen, das Formular und das PDF sagen das an Stelle des Tags. Protokolle der Fassungen 1 und 2 nennen keine Frist
+  und lassen eine bestehende stehen; vorher hätte eine solche Erstprüfung nach einer Wiederholungsprüfung deren Frist
+  gelöscht, sobald das Formular das Feld bekommt. Warum: Nach einer Neuanlage erinnerte OpenGewerk erst, wenn die
+  erste Wiederholungsprüfung unterschrieben war, also nie von selbst an diese erste.
 - Das Geräteverzeichnis und die Prüfung nach DGUV Vorschrift 3 (#303), nach der Feature-Gliederung v2.51 und den
   Tafeln aus Version 106 des Canvas: Jedes Objekt hat ein Verzeichnis seiner Geräte, die an keinem Stromkreis hängen,
   mit Inventarnummer, Bezeichnung, Hersteller, Typ, Seriennummer, Schutzklasse, ortsveränderlich oder ortsfest,

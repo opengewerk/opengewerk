@@ -7,6 +7,7 @@ import {
 
 import type { BlockField, FormDefinition, SignatureField } from './definition.js'
 import { tradeForms } from './engine.js'
+import { nextInspectionMissing } from './next-inspection.js'
 
 export {
   type FieldValue,
@@ -66,8 +67,9 @@ export function valuesProblem(definition: FormDefinition, values: unknown): stri
 
 /**
  * What is missing before a form can be signed and fixed: the required fields
- * that are empty, required fields of every block included, and a signature
- * that seals it. As sentences, empty when nothing is.
+ * that are empty, required fields of every block included, a signature that
+ * seals it, and the next inspection where the protocol has to name it
+ * (#814). As sentences, empty when nothing is.
  *
  * Without the seal (`seal: false`) it is the question the form asks before it
  * offers the signature at all: whether everything else is there.
@@ -77,7 +79,10 @@ export function sealProblems(
   values: FormValues,
   options: { readonly seal?: boolean } = {},
 ): readonly string[] {
-  return tradeForms.sealProblems(definition, values, options)
+  const interval = nextInspectionMissing(definition, values)
+  const missing = tradeForms.sealProblems(definition, values, options)
+
+  return interval === null ? missing : [...missing, interval]
 }
 
 /** The sealing signature of a definition, if it has one. */

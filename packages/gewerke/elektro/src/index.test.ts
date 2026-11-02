@@ -42,6 +42,7 @@ describe('the package Elektro und PV', () => {
     expect(elektroManifest.forms).toEqual([
       'formulare/vde-0100-600.v1.json',
       'formulare/vde-0100-600.v2.json',
+      'formulare/vde-0100-600.v3.json',
       'formulare/vde-0105-100.v1.json',
       'formulare/dguv-v3.v1.json',
     ])
@@ -107,7 +108,7 @@ describe('the package Elektro und PV', () => {
     expect(
       elektroRegistry.current().map((definition) => [definition.key, definition.version]),
     ).toEqual([
-      ['vde-0100-600', 2],
+      ['vde-0100-600', 3],
       ['vde-0105-100', 1],
       ['dguv-v3', 1],
     ])
@@ -131,6 +132,48 @@ describe('the package Elektro und PV', () => {
       ) as FormDefinition),
       version: 2,
     })
+  })
+
+  it('adds in version 3 the interval to the first recurring inspection and changes nothing else (#814)', () => {
+    const second = elektroRegistry.definitionFor('vde-0100-600', 2) as FormDefinition
+    const third = elektroRegistry.definitionFor('vde-0100-600', 3) as FormDefinition
+    const interval = nextInspectionField(third)
+    const result = (definition: FormDefinition) =>
+      definition.sections.find((section) => section.key === 'result')?.fields ?? []
+
+    expect(interval).toMatchObject({
+      key: 'next_inspection_months',
+      label: 'Prüffrist bis zur ersten Wiederholungsprüfung',
+      unit: 'month',
+      decimals: 0,
+    })
+    // Needed after a new installation only, which the application asks
+    // (`nextInspectionMissing`), and nothing a test of a part could carry on.
+    expect(interval?.required).toBeUndefined()
+    expect(interval?.carry).toBeUndefined()
+    expect(interval?.hint).toContain('Pflicht bei einer Neuanlage.')
+    expect(interval?.hint).toContain(
+      'Tabelle 1A der Durchführungsanweisungen zu § 5 der DGUV Vorschrift 3',
+    )
+    expect(result(third).map((field) => field.key)).toEqual([
+      'verdict',
+      'defects',
+      'next_inspection_months',
+      'photo',
+      'tester_signature',
+    ])
+    expect({
+      ...third,
+      version: 2,
+      sections: third.sections.map((section) =>
+        section.key === 'result'
+          ? {
+              ...section,
+              fields: section.fields.filter((field) => field.key !== 'next_inspection_months'),
+            }
+          : section,
+      ),
+    }).toEqual(second)
   })
 
   it('judges the protocol of #79 as the standard does', () => {
@@ -186,7 +229,7 @@ describe('the package Elektro und PV', () => {
   })
 
   it('takes over from a first inspection what describes the installation and the test', () => {
-    const first = elektroRegistry.definitionFor('vde-0100-600', 2)
+    const first = elektroRegistry.definitionFor('vde-0100-600', 3)
     const recurring = elektroRegistry.definitionFor('vde-0105-100', 1)
     const carried = (definition: FormDefinition | null) =>
       definition ? fieldsOf(definition).filter((field) => field.carry === true) : []

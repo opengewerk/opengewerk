@@ -418,6 +418,7 @@ function OneField({
       circuit={null}
       appliance={protocol.appliance}
       performedOn={protocol.performedOn}
+      partOnly={protocol.partOnly}
       photos={protocol.photos}
       onChange={(changed) => {
         protocol.set(field.key, changed)
@@ -430,6 +431,7 @@ function OneField({
       circuit={null}
       appliance={protocol.appliance}
       performedOn={protocol.performedOn}
+      partOnly={protocol.partOnly}
       photos={protocol.photos}
     />
   )
