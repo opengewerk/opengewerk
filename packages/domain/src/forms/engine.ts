@@ -7,6 +7,7 @@ import {
 
 import type { TradeFormTerms } from './definition.js'
 import { applianceInsulation, applianceProtectiveConductor } from './appliance-limits.js'
+import { pvStringList } from './pv-strings.js'
 import { formUnits } from './units.js'
 
 /**
@@ -41,7 +42,7 @@ export const tradeFieldKinds = [
  */
 export const tradeForms = formEngine<TradeFormTerms>({
   units: formUnits,
-  lists: { circuits: circuitList },
+  lists: { circuits: circuitList, pv_strings: pvStringList },
   limits: {
     loop_impedance: loopImpedance,
     rcd_trip_current: residualTripCurrent,

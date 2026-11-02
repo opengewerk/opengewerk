@@ -1527,6 +1527,9 @@ async function plantPhotovoltaic(
       designation: 'PV-Anlage Dach',
       commissionedOn: '2022-05-17',
       warrantyEndsOn: '2032-05-17',
+      // The forecast of the yield from the planning, with its source (#305).
+      yieldForecastKwh: 9120,
+      yieldForecastSource: 'PV*SOL premium, Planung vom 02.03.2022',
       notes: 'Zwei Dachflächen, Süd und West.',
     }),
   )

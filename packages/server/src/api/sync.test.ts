@@ -338,7 +338,10 @@ describe('the tables', () => {
       name === 'holiday_settings' ||
       // The address of a calendar (#291): a hash a device has no use for, and
       // the address itself comes from the route that makes it.
-      name === 'calendar_feeds'
+      name === 'calendar_feeds' ||
+      // The handovers of the papers of a PV system (#305), made and read in the
+      // office at the routes of the installation.
+      name === 'pv_handovers'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

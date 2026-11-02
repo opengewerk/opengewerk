@@ -52,6 +52,7 @@ import type { FormEvent } from 'react'
 
 import { addAttachment } from '../../app/attachments.js'
 import {
+  blockNoun,
   blocksOf,
   circuitProtection,
   definitionOf,
@@ -59,6 +60,7 @@ import {
   filledIn,
   isSigned,
   missingBeforeSigning,
+  noBlocksSentence,
   outsideIn,
   type ProtocolDraft,
   ProtocolPdfLink,
@@ -792,11 +794,7 @@ function SectionStep({
           ),
         )}
         {group && blocks.length === 0 ? (
-          <SiteText muted>
-            {group.repeat === 'circuits'
-              ? 'Die Anlage hat kein Stromkreisverzeichnis, aus dem die Blöcke kommen.'
-              : 'Noch kein Block.'}
-          </SiteText>
+          <SiteText muted>{noBlocksSentence(group.repeat)}</SiteText>
         ) : null}
         {group?.repeat === 'free' ? (
           <Button
@@ -857,7 +855,7 @@ function BlockStep({
         ? '1 Wert außerhalb'
         : `${String(outside)} Werte außerhalb`,
   ].filter((part): part is string => part !== null)
-  const unit = group.repeat === 'circuits' ? 'Stromkreis' : 'Block'
+  const unit = blockNoun(group.repeat)
   const name = block.circuit?.designation ?? String(step.index + 1)
   const share = Math.round(((step.index + 1) / blocks.length) * 100)
 

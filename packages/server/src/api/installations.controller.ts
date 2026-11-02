@@ -42,6 +42,8 @@ const writableFields = [
   'notes',
   'pvSystemId',
   'inverterId',
+  'yieldForecastKwh',
+  'yieldForecastSource',
 ] as const
 
 /**

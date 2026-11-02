@@ -1,7 +1,14 @@
 import type { RecordState } from '@opengewerk/domain'
 import { inverterPowerText, inverterProblems } from '@opengewerk/domain'
 import { Button, Panel } from '@opengewerk/platform-web'
-import { refusalFor, text, useRecords, useSync } from '@opengewerk/platform-web/sync'
+import {
+  maybeText,
+  refusalFor,
+  text,
+  useRecord,
+  useRecords,
+  useSync,
+} from '@opengewerk/platform-web/sync'
 import type { FormField } from '@opengewerk/platform-web/sync'
 import { Link } from '@tanstack/react-router'
 import { ArrowDown, ArrowUp, Plus } from 'lucide-react'
@@ -183,13 +190,27 @@ export function CompanionsSection({ installationId }: { readonly installationId:
   )
 }
 
+const kilowattHours = new Intl.NumberFormat('de-DE')
+
+/** "9.120 kWh im Jahr, PV*SOL premium", or nothing where no forecast is known (#305). */
+export function forecastText(system: RecordState): string | null {
+  const value = system['yieldForecastKwh']
+  const source = maybeText(system, 'yieldForecastSource')
+
+  return typeof value === 'number'
+    ? `${kilowattHours.format(value)} kWh im Jahr${source ? `, ${source}` : ''}`
+    : null
+}
+
 /**
- * The two facts a PV system adds to its record: its peak power, "9,60 kWp aus
- * 24 Modulen", and its inverters, "1, zusammen 10,0 kW".
+ * The facts a PV system adds to its record: its peak power, "9,60 kWp aus
+ * 24 Modulen", its inverters, "1, zusammen 10,0 kW", and the forecast of its
+ * yield with the source it came from (#305).
  */
 export function usePvSystemFacts(installationId: string) {
   const inverters = useInverters(installationId)
   const modules = useSystemModules(installationId)
+  const system = useRecord('installations', installationId)
 
   return useMemo(() => {
     const inverterWatts = inverters.map((inverter) => figureOf(inverter, 'ratedPowerW'))
@@ -207,8 +228,9 @@ export function usePvSystemFacts(installationId: string) {
               ? `${String(inverters.length)}, zusammen ${inverterPowerText(sum)}`
               : String(inverters.length),
       },
+      { label: 'Ertragsprognose', value: system ? forecastText(system) : null },
     ]
-  }, [inverters, modules])
+  }, [inverters, modules, system])
 }
 
 /**

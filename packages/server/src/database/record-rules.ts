@@ -20,6 +20,7 @@ import {
   titleAmountProblem,
   tradeAttachments,
   tradeContacts,
+  yieldForecastProblem,
 } from '@opengewerk/domain'
 import {
   attachmentRecordRules,
@@ -129,6 +130,8 @@ const rules: RecordRules = {
       fields: ['pvSystemId', 'inverterId'],
       problem: (at) => inverterLinkProblem(at('pvSystemId'), at('inverterId')),
     },
+    // A forecast of the yield is a whole number of kilowatt hours (#305), as `installations_yield_forecast` holds.
+    { fields: ['yieldForecastKwh'], problem: (at) => yieldForecastProblem(at('yieldForecastKwh')) },
   ],
   documents: [
     {

@@ -181,6 +181,8 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   document_lines: ['designation', 'description'],
   // A label is told apart by its code, the one thing it says (#308).
   installation_labels: ['code'],
+  // A handover of the papers of a PV system by its day (#305).
+  pv_handovers: ['handed_over_on'],
   // An article by what it is called, a price by the day it begins, and what a
   // supplier sells by the supplier, which the page names (#296).
   articles: ['designation', 'number'],

@@ -1,0 +1,15 @@
+{
+  "package": "elektro.iec-62446-1",
+  "note": "Grenzwerte der Prüfung der Gleichstromseite einer PV-Anlage nach DIN EN IEC 62446-1 (VDE 0126-23-1), für das Prüfprotokoll (#305). Vorprüfung am 02.11.2026 an Zusammenfassungen der Norm, die selbst nicht frei zugänglich ist; die fachkundige Abnahme steht aus wie bei den Regelpaketen in #31, und bis dahin ist jeder Wert eine Hilfe beim Ablesen und keine Freigabe. Die Werte gelten ab dem 01.04.2019, dem Ausgabedatum von DIN EN IEC 62446-1 (VDE 0126-23-1):2019-04.",
+  "records": [
+    {
+      "key": "elektro.pv.insulation_minimum",
+      "validFrom": "2019-04-01",
+      "validUntil": null,
+      "unit": "kiloohms",
+      "value": 1000,
+      "source": "DIN EN IEC 62446-1 (VDE 0126-23-1):2019-04, Tabelle 2, Systemspannung ab 120 V",
+      "note": "Isolationswiderstand eines Strings gegen Erde, gemessen mit 500 V bei einer Systemspannung von 120 V bis 500 V und mit 1000 V darüber: mindestens 1 MΩ. Bei einer Systemspannung unter 120 V gelten 0,5 MΩ bei 250 V Prüfspannung; diese Stufe unterscheidet das Protokoll in dieser Fassung noch nicht."
+    }
+  ]
+}

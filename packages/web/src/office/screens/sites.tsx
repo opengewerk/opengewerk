@@ -1,4 +1,4 @@
-import { installationKinds, type RecordState } from '@opengewerk/domain'
+import { installationKinds, type RecordState, yieldForecastProblem } from '@opengewerk/domain'
 import { Button, Cell, Column, Panel, TablePanel, cardLink } from '@opengewerk/platform-web'
 import { date } from '@opengewerk/platform-web/format'
 import {
@@ -79,8 +79,45 @@ export const installationFields: readonly FormField[] = [
     kind: 'date',
     hint: 'Die Fristen-Engine wacht später darüber.',
   },
+  // What a PV system is planned to yield, from its planning with its source (#305).
+  {
+    name: 'yieldForecastKwh',
+    label: 'Ertragsprognose in kWh im Jahr',
+    numeric: true,
+    hint: 'Aus der Planung; OpenGewerk rechnet sie nicht selbst.',
+    shownWhen: (values) => values['kind'] === 'pv_system',
+  },
+  {
+    name: 'yieldForecastSource',
+    label: 'Quelle der Prognose',
+    hint: 'Womit und wann sie entstand, etwa PV*SOL oder PVGIS.',
+    shownWhen: (values) => values['kind'] === 'pv_system',
+  },
   { name: 'notes', label: 'Notizen' },
 ]
+
+/**
+ * The forecast as it is typed, "9120" or "9.120", in kilowatt hours; nothing
+ * for an empty field, and undefined for one that is no whole number (#305).
+ */
+export function yieldForecastOf(typed: string | undefined): number | null | undefined {
+  const value = typed?.trim() ?? ''
+
+  if (value === '') {
+    return null
+  }
+
+  return /^\d{1,3}(\.\d{3})+$|^\d+$/.test(value) ? Number(value.replaceAll('.', '')) : undefined
+}
+
+/** What keeps an installation from being saved before the sync is asked: a forecast that is no number. */
+export function installationCheck(values: Readonly<Record<string, string>>): string | null {
+  const forecast = yieldForecastOf(values['yieldForecastKwh'])
+
+  return forecast === undefined || yieldForecastProblem(forecast) !== null
+    ? 'Die Ertragsprognose ist eine ganze Zahl von Kilowattstunden im Jahr.'
+    : null
+}
 
 /**
  * Where the test of the electrical installation of a site comes from (#302):
@@ -100,6 +137,8 @@ export function asInstallation(values: Record<string, string>) {
     serialNumber: asTextOrNull(values['serialNumber']),
     commissionedOn: asTextOrNull(values['commissionedOn']),
     warrantyEndsOn: asTextOrNull(values['warrantyEndsOn']),
+    yieldForecastKwh: yieldForecastOf(values['yieldForecastKwh']) ?? null,
+    yieldForecastSource: asTextOrNull(values['yieldForecastSource']),
     notes: asTextOrNull(values['notes']),
   }
 }
@@ -269,6 +308,7 @@ export function SiteScreen() {
           ...installationFields.slice(-1),
         ]}
         submitLabel="Anlage anlegen"
+        check={installationCheck}
         onCancel={() => {
           setAdding(null)
         }}

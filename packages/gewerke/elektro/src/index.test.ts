@@ -8,6 +8,9 @@ import {
   limitVerdict,
   type MeasurementField,
   nextInspectionField,
+  pvStringItem,
+  testsPart,
+  valuesProblem,
 } from '@opengewerk/domain'
 import { describe, expect, it } from 'vitest'
 
@@ -46,12 +49,14 @@ describe('the package Elektro und PV', () => {
       'formulare/vde-0105-100.v1.json',
       'formulare/dguv-v3.v1.json',
       'formulare/vde-ar-n-4105.v1.json',
+      'formulare/iec-62446-1.v1.json',
     ])
     expect(elektroManifest.rules).toEqual([
       'regeln/vde-0100-600.json',
       'regeln/vde-0105-100.json',
       'regeln/dguv-v3.json',
       'regeln/vde-ar-n-4105.json',
+      'regeln/iec-62446-1.json',
     ])
     expect(elektroManifest.deadlines).toEqual(['fristen/vde-0105-100.json', 'fristen/dguv-v3.json'])
     expect(elektroForms).toHaveLength(elektroManifest.forms.length)
@@ -114,6 +119,7 @@ describe('the package Elektro und PV', () => {
       ['vde-0105-100', 1],
       ['dguv-v3', 1],
       ['vde-ar-n-4105', 1],
+      ['iec-62446-1', 1],
     ])
     expect(remark(first)).toEqual({ kind: 'text', key: 'remark', label: 'Bemerkung' })
     expect(remark(second)).toEqual({
@@ -378,6 +384,83 @@ describe('the package Elektro und PV', () => {
     )
     // A system commissioned before the Solarspitzengesetz has no such limit.
     expect(judged(100_000, '2025-02-24')?.within).toBeNull()
+  })
+
+  it('brings the test of the DC side of a PV system, string by string out of its structure (#305)', () => {
+    const protocol = elektroRegistry.definitionFor('iec-62446-1', 1)
+    const strings = (protocol ? fieldsOf(protocol) : []).find((entry) => entry.key === 'strings')
+
+    expect(protocol).toMatchObject({
+      attachesTo: 'installation',
+      installationKinds: ['pv_system'],
+      partOfInstallation: true,
+    })
+    expect(strings).toMatchObject({ kind: 'group', repeat: 'pv_strings' })
+    expect(strings?.kind === 'group' ? strings.fields.map((field) => field.key) : []).toEqual([
+      'polarity',
+      'open_circuit_voltage',
+      'short_circuit_current',
+      'insulation_resistance',
+      'remark',
+    ])
+    // A test of a part: no deadline of its own, and not the last test of the whole.
+    expect(protocol ? nextInspectionField(protocol) : undefined).toBeNull()
+    expect(protocol ? testsPart(protocol, {}) : false).toBe(true)
+  })
+
+  it('keeps a string in its block, and refuses one that carries a protective device (#305)', () => {
+    const protocol = elektroRegistry.definitionFor('iec-62446-1', 1) as FormDefinition
+    const string = pvStringItem({
+      designation: 'String 1',
+      mppInput: 1,
+      inverter: 'WR 1',
+      modules: 12,
+      ratedPowerW: 4800,
+    })
+
+    expect(string).toEqual({
+      designation: 'String 1',
+      consumer: 'WR 1, Eingang 1, 12 Module, 4,80 kWp',
+      tripCharacteristic: null,
+      ratedCurrentMilli: null,
+      ratedResidualCurrentMilli: null,
+    })
+    expect(
+      valuesProblem(protocol, { strings: [{ circuitId: 's-1', circuit: string, values: {} }] }),
+    ).toBeNull()
+    // Each part of a protective device on its own makes the block no string's.
+    for (const device of [
+      { tripCharacteristic: 'b' },
+      { ratedCurrentMilli: 16_000 },
+      { ratedResidualCurrentMilli: 30 },
+    ]) {
+      expect(
+        valuesProblem(protocol, {
+          strings: [{ circuitId: 's-1', circuit: { ...string, ...device }, values: {} }],
+        }),
+      ).toBe('Strings: jeder Block gehört zu einem String.')
+    }
+  })
+
+  it('judges the insulation of a string by the minimum of DIN EN IEC 62446-1 (#305)', () => {
+    const protocol = elektroRegistry.definitionFor('iec-62446-1', 1)
+    const strings = (protocol ? fieldsOf(protocol) : []).find((entry) => entry.key === 'strings')
+    const insulation =
+      strings?.kind === 'group'
+        ? strings.fields.find(
+            (entry): entry is MeasurementField =>
+              entry.key === 'insulation_resistance' && entry.kind === 'measurement',
+          )
+        : undefined
+    // In thousandths of a megaohm: 1 MΩ is 1000.
+    const judged = (milli: number, on = '2026-11-02') =>
+      insulation && limitVerdict(insulation, milli, { rules: elektroRules, on, circuit: null })
+
+    expect(judged(999)).toMatchObject({ within: false, limitMilli: 1000 })
+    expect(judged(1000)?.within).toBe(true)
+    expect(judged(999)?.source).toContain('DIN EN IEC 62446-1 (VDE 0126-23-1):2019-04, Tabelle 2')
+    // Before the edition of 2019 the protocol knows no limit rather than an invented one.
+    expect(judged(999, '2019-03-31')?.within).toBeNull()
   })
 
   it('takes over from the last test of an appliance what describes the test and its interval', () => {

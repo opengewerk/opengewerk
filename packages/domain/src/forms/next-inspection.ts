@@ -66,8 +66,15 @@ export function inspectionDueAfter(
   return months < 1 || months > longestIntervalMonths ? null : addMonths(performedOn, months)
 }
 
-/** Whether a protocol tests only a part of its installation, by its occasion (#814). */
+/**
+ * Whether a protocol tests only a part of its installation: by its occasion
+ * (#814), or because its form never tests more, as the DC side of a PV system (#305).
+ */
 export function testsPart(definition: FormDefinition, values: FormValues): boolean {
+  if (definition.partOfInstallation === true) {
+    return true
+  }
+
   const occasion = values[occasionKey]
 
   return (

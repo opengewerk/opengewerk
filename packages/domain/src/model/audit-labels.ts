@@ -232,6 +232,16 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       warranty_ends_on: 'Gewährleistung bis',
       pv_system_id: 'Gehört zu PV-Anlage',
       inverter_id: 'Am Wechselrichter',
+      yield_forecast_kwh: 'Ertragsprognose',
+      yield_forecast_source: 'Quelle der Ertragsprognose',
+    },
+  },
+  pv_handovers: {
+    label: 'Übergabe der PV-Unterlagen',
+    fields: {
+      handed_over_on: 'Übergeben am',
+      content: 'Inhalt der Mappe',
+      created_by: 'Übergeben von',
     },
   },
   instructions: {

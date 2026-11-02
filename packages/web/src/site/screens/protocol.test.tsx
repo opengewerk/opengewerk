@@ -718,3 +718,54 @@ describe('the commissioning protocol after VDE-AR-N 4105 on site (#304)', () => 
     })
   })
 })
+
+describe('the test of the DC side of a PV system on site (#305)', () => {
+  it('measures string by string out of the PV structure, with the minimum of the standard', async () => {
+    const user = userEvent.setup()
+    const { client } = await mount('/auftraege/j-2')
+
+    server.offline = true
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Prüfprotokoll Gleichstromseite nach DIN EN IEC 62446-1 anlegen',
+      }),
+    )
+    await screen.findByRole('list', { name: 'Abschnitte' })
+    expect(row('Messen').textContent).toContain('0 von 1')
+
+    await user.click(row('Messen'))
+    expect(await screen.findByText('Messen, String 1 von 1')).toBeTruthy()
+    expect(screen.getByText('WR 1, 2 Module, 0,86 kWp')).toBeTruthy()
+
+    await user.type(screen.getByLabelText('Isolationswiderstand Riso in MΩ'), '0,8')
+    expect(
+      screen.getByText(
+        'Außerhalb des Grenzwerts, mindestens 1,00 MΩ. Quelle: DIN EN IEC 62446-1 (VDE 0126-23-1):2019-04, Tabelle 2, Systemspannung ab 120 V.',
+      ),
+    ).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Zur Übersicht' }))
+    await screen.findByRole('list', { name: 'Abschnitte' })
+
+    await client.synchronise()
+    server.offline = false
+    await client.synchronise()
+
+    const saved = Object.fromEntries(
+      (server.operations().at(-1)?.patches ?? []).map((patch) => [patch.field, patch.to]),
+    )
+
+    expect(readFormValues(saved['values'])?.['strings']).toEqual([
+      {
+        circuitId: 'st-1',
+        circuit: {
+          designation: 'String 1',
+          consumer: 'WR 1, 2 Module, 0,86 kWp',
+          tripCharacteristic: null,
+          ratedCurrentMilli: null,
+          ratedResidualCurrentMilli: null,
+        },
+        values: { insulation_resistance: 800 },
+      },
+    ])
+  })
+})
