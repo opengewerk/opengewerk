@@ -209,7 +209,9 @@ describe('the capacity and the power an installation names (#307)', () => {
       400,
     )
 
-    expect(pushed.message).toContain('Eine Bemessungsleistung nennen nur ein Speicher und eine Wallbox.')
+    expect(pushed.message).toContain(
+      'Eine Bemessungsleistung nennen nur ein Speicher und eine Wallbox.',
+    )
     expect(
       (await admin.query("select 1 from installations where designation = 'Heizung'")).rowCount,
     ).toBe(0)
