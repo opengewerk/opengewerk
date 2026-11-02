@@ -15,9 +15,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   (Wiederholungsprüfung oder Erstprüfung) und je Gerät die letzte Prüfung nach DGUV Vorschrift 3, jeweils mit Ergebnis
   und dem Tag der nächsten, dazu den nächsten Prüftag am Objekt. Dahinter folgt das Protokoll jeder Anlage, wie es für
   sich gedruckt wird. Eine Erstprüfung nach einer Erweiterung oder Änderung zählt nicht als Prüfung der ganzen Anlage,
-  eine Heizung erscheint nur, wenn sie mit einem Protokoll einer Anlage geprüft ist. Warum: Mit dem Bericht dokumentiert
-  ein Betrieb auch seinen E-CHECK, ohne ein Formular mit dem Namen der Marke und ohne etwas doppelt zu erfassen; die
-  Fristen bleiben an den Protokollen.
+  eine Heizung erscheint nur, wenn sie mit einem Protokoll einer Anlage geprüft ist. Warum: Ein Betrieb gibt seinem Kunden
+  nach der Prüfung nach DIN VDE 0100-600, DIN VDE 0105-100 und DGUV Vorschrift 3 einen Bericht über das ganze Objekt,
+  ohne etwas doppelt zu erfassen; die Fristen bleiben an den Protokollen.
 - Die Erstprüfung nach DIN VDE 0100-600 nennt die Prüffrist bis zur ersten Wiederholungsprüfung (#814), nach der
   Feature-Gliederung v2.52: Fassung 3 des Protokolls hat das Feld im Ergebnis, mit den Prüffristen aus Tabelle 1A der
   DGUV Vorschrift 3 als Hinweis. Bei einer Neuanlage ist es Pflicht, und aus dem unterschriebenen Protokoll wird die
@@ -273,6 +273,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Konzept, Funktionsumfang und der Bericht der Prüfung der Elektroinstallation nennen die Normen, nach denen geprüft
+  wird, statt der Marke des ZVEH (Feature-Gliederung v2.54). Warum: Die Marke ist den Innungsbetrieben vorbehalten,
+  und OpenGewerk soll sie auch nicht als Zweck eines Berichts nennen.
 - Die Kennzeichnung einer Haltbarkeitsgarantie (#433) steht als Text im Code (`documents/durability-label.ts`)
   und wird zum Drucken nicht mehr aus `assets/legal` gelesen; ein Test hält den Text Byte für Byte gegen die Datei
   der Kommission und die Datei gegen ihre Prüfsumme. Warum: CodeQL meldete mit Alert 25 (`js/file-access-to-http`),

@@ -15,10 +15,9 @@ import {
 } from './appliance-report.js'
 
 /**
- * The test of the electrical installation of a site (#302), the report with
- * which a business also documents its E-CHECK: the mark of the ZVEH is no
- * name of a form, and the report is no form either. It brings together what
- * is recorded already, the last signed test of each installation and of each
+ * The test of the electrical installation of a site (#302), a report over
+ * the tests after DIN VDE 0100-600, DIN VDE 0105-100 and DGUV Vorschrift 3,
+ * and no form of its own. It brings together what is recorded already, the last signed test of each installation and of each
  * appliance, so nothing is filled in twice and the deadlines stay with the
  * protocols.
  *
