@@ -18,6 +18,7 @@ import {
   nextInspectionOn,
   partialDueCondition,
   partialTestSentence,
+  repeatNouns,
   type RuleSet,
   signatureBox,
   type SignatureValue,
@@ -218,7 +219,7 @@ function groupTable(
     .join('')
 
   return `<table class="blocks">
-    <thead><tr><th class="circuit">${field.repeat === 'circuits' ? 'Stromkreis' : ''}</th>${header}</tr></thead>
+    <thead><tr><th class="circuit">${field.repeat === 'free' ? '' : repeatNouns[field.repeat].one}</th>${header}</tr></thead>
     <tbody>${rows}</tbody>
   </table>
   ${limitLegend(field.fields, protocol)}`

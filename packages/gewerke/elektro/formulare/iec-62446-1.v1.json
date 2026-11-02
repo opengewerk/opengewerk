@@ -1,0 +1,206 @@
+{
+  "key": "iec-62446-1",
+  "version": 1,
+  "title": "Prüfprotokoll Gleichstromseite nach DIN EN IEC 62446-1",
+  "attachesTo": "installation",
+  "installationKinds": ["pv_system"],
+  "partOfInstallation": true,
+  "sections": [
+    {
+      "key": "general",
+      "title": "Prüfung",
+      "hint": "DIN EN IEC 62446-1 (VDE 0126-23-1):2019-04.",
+      "fields": [
+        { "kind": "text", "key": "tester", "label": "Prüfer", "required": true, "carry": true },
+        {
+          "kind": "text",
+          "key": "instrument",
+          "label": "Messgerät",
+          "hint": "Hersteller, Typ und Seriennummer.",
+          "carry": true
+        },
+        {
+          "kind": "number",
+          "key": "irradiance",
+          "label": "Einstrahlung",
+          "hint": "In Modulebene, während der Messung.",
+          "unit": "watt_per_square_metre",
+          "decimals": 0
+        },
+        {
+          "kind": "number",
+          "key": "module_temperature",
+          "label": "Modultemperatur",
+          "unit": "degree_celsius",
+          "decimals": 0
+        }
+      ]
+    },
+    {
+      "key": "inspection",
+      "title": "Besichtigen",
+      "hint": "DIN EN IEC 62446-1, Abschnitt 5.",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "modules_and_mounting",
+          "label": "Module, Unterkonstruktion und Befestigung",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "dc_cabling",
+          "label": "Leitungen und Steckverbinder der Gleichstromseite",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "dc_protection",
+          "label": "Gleichstrom-Lasttrennschalter und Schutzeinrichtungen",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "surge_protection",
+          "label": "Überspannungsschutz",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "labelling",
+          "label": "Kennzeichnung und Warnhinweise",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "trial",
+      "title": "Erproben",
+      "hint": "DIN EN IEC 62446-1, Abschnitt 6.4 und 6.8.",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "protective_bonding",
+          "label": "Durchgängigkeit von Schutzleiter und Potentialausgleich",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "inverter_function",
+          "label": "Funktion des Wechselrichters",
+          "required": true,
+          "options": [
+            { "value": "ok", "label": "in Ordnung" },
+            { "value": "defect", "label": "Mangel" },
+            { "value": "not_applicable", "label": "entfällt" }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "measurements",
+      "title": "Messen",
+      "hint": "DIN EN IEC 62446-1, Abschnitt 6.5 bis 6.7, je String aus der PV-Struktur.",
+      "fields": [
+        {
+          "kind": "group",
+          "key": "strings",
+          "label": "Strings",
+          "repeat": "pv_strings",
+          "fields": [
+            {
+              "kind": "choice",
+              "key": "polarity",
+              "label": "Polarität",
+              "required": true,
+              "options": [
+                { "value": "correct", "label": "richtig" },
+                { "value": "reversed", "label": "vertauscht" }
+              ]
+            },
+            {
+              "kind": "measurement",
+              "key": "open_circuit_voltage",
+              "label": "Leerlaufspannung Uoc",
+              "unit": "volt",
+              "decimals": 0,
+              "required": true
+            },
+            {
+              "kind": "measurement",
+              "key": "short_circuit_current",
+              "label": "Kurzschlussstrom Isc",
+              "unit": "ampere",
+              "decimals": 2,
+              "required": true
+            },
+            {
+              "kind": "measurement",
+              "key": "insulation_resistance",
+              "label": "Isolationswiderstand Riso",
+              "unit": "megaohm",
+              "decimals": 2,
+              "limit": { "kind": "at_least", "rule": "elektro.pv.insulation_minimum" },
+              "required": true
+            },
+            { "kind": "text", "key": "remark", "label": "Bemerkung", "multiline": true }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "result",
+      "title": "Ergebnis",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "verdict",
+          "label": "Ergebnis",
+          "required": true,
+          "options": [
+            { "value": "passed", "label": "Keine Mängel festgestellt" },
+            { "value": "defects", "label": "Mängel festgestellt" }
+          ]
+        },
+        { "kind": "text", "key": "defects", "label": "Mängel", "multiline": true },
+        { "kind": "photo", "key": "photo", "label": "Foto" },
+        {
+          "kind": "signature",
+          "key": "tester_signature",
+          "label": "Unterschrift des Prüfers",
+          "seals": true
+        }
+      ]
+    }
+  ]
+}

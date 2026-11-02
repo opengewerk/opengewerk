@@ -877,6 +877,13 @@ const crossings: readonly {
             values (${own.tenant}, ${other.installation}, '7K2M9QX4TBA3HW8P')`,
   },
   {
+    // A handover of the papers of a PV system (#305), only ever added.
+    key: 'pv_handovers_installation_in_tenant',
+    write: (own, other) =>
+      sql`insert into pv_handovers (tenant_id, installation_id, handed_over_on, content)
+            values (${own.tenant}, ${other.installation}, '2026-11-02', '{}')`,
+  },
+  {
     // The people of a supplier (#296), like those of a customer.
     key: 'contacts_supplier_in_tenant',
     write: (own, other) => repoint('contacts', 'supplier_id', own.supplierContact, other.supplier),

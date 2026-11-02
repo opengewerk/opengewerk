@@ -5,9 +5,10 @@ import type { FormUnit, RuleUnit } from '@opengewerk/platform-domain'
  * thousandths of it. The first five are what a test protocol measures; the
  * others are for the fields a business gives its report (#78), a distance
  * driven or the temperature on site, and the month for the interval a
- * protocol names to the next inspection (#301). The last three are the power
- * of a PV system on its commissioning protocol (#304): a thousandth of a
- * kilowatt is a watt, as the PV structure counts it.
+ * protocol names to the next inspection (#301). Then the power of a PV
+ * system on its commissioning protocol (#304), a thousandth of a kilowatt
+ * being a watt, as the PV structure counts it; and the current and the
+ * irradiance the test of its DC side measures with (#305).
  */
 export const measurementUnits = [
   'ohm',
@@ -26,6 +27,8 @@ export const measurementUnits = [
   'kilowatt',
   'kilovoltampere',
   'kilowatt_peak',
+  'ampere',
+  'watt_per_square_metre',
 ] as const
 
 export type MeasurementUnit = (typeof measurementUnits)[number]
@@ -49,6 +52,8 @@ export const measurementUnitSign: Readonly<Record<MeasurementUnit, string>> = {
   kilowatt: 'kW',
   kilovoltampere: 'kVA',
   kilowatt_peak: 'kWp',
+  ampere: 'A',
+  watt_per_square_metre: 'W/m²',
 }
 
 /**

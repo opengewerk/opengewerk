@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Die PV-Anlagendokumentation (#305), nach der Feature-Gliederung v2.57 und den Tafeln aus Version 115 des Canvas:
+  die Prüfung der Gleichstromseite nach DIN EN IEC 62446-1 als Formular, je String aus der PV-Struktur mit Polarität,
+  Leerlaufspannung, Kurzschlussstrom und Isolationswiderstand gegen den Mindestwert von 1 MΩ (Paket Elektro 0.7.0); die
+  Ertragsprognose als Wert mit Quelle an der PV-Anlage (Migration 0115); „Stringplan und Komponentenliste“ als PDF aus
+  der Struktur; und an der PV-Anlage im Büro „Übergeben“, das die Mappe für den Betreiber festhält: Komponenten,
+  Stringplan, Ertragsprognose und die letzten unterschriebenen Protokolle, so wie an diesem Tag, als ein PDF. Eine
+  Übergabe lässt sich weder ändern noch löschen. Warum: Ein Betrieb übergibt jede PV-Anlage mit ihren Unterlagen, und
+  was er übergeben hat, muss er später genau so wieder zeigen können.
 - Das Inbetriebsetzungsprotokoll nach VDE-AR-N 4105 (#304), nach der Feature-Gliederung v2.56 und den Tafeln aus
   Version 113 des Canvas: An einer PV-Anlage oder einem Speicher entsteht es nach Formular F.9 der Fassung 2026-03,
   vorbelegt aus dem Kunden des Objekts und der PV-Struktur (Anlagenbetreiber mit Anschrift, Wechselrichter, Speicher,

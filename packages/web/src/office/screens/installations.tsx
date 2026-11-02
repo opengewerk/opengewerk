@@ -35,7 +35,8 @@ import { BoardsSection, ChartButton } from './boards.js'
 import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
 import { ProtocolsSection } from './protocols.js'
-import { asInstallation, installationFields, warrantyText } from './sites.js'
+import { PvDocumentsSection } from './pv-documents.js'
+import { asInstallation, installationCheck, installationFields, warrantyText } from './sites.js'
 import {
   CompanionsSection,
   InvertersSection,
@@ -273,6 +274,8 @@ export function InstallationScreen() {
               <BoardsSection installationId={installationId} />
             )}
             <ProtocolsSection installationId={installationId} />
+            {/* The papers for the operator below the protocols, as the board "PV-Anlage" has them (#305). */}
+            {pv ? <PvDocumentsSection installationId={installationId} /> : null}
             <JobsPanel
               caption="Aufträge an der Anlage"
               jobs={jobs}
@@ -324,6 +327,7 @@ export function InstallationScreen() {
                   columns="lg:grid-cols-1"
                   record={installation}
                   submitLabel="Speichern"
+                  check={installationCheck}
                   onCancel={() => {
                     setEditing(false)
                   }}

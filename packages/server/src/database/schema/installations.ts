@@ -13,6 +13,7 @@ import {
   date,
   foreignKey,
   index,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -55,6 +56,10 @@ export const installations = pgTable(
     notes: text('notes'),
     pvSystemId: reference<'installation'>('pv_system_id'),
     inverterId: reference<'inverter'>('inverter_id'),
+    /** What a PV system is planned to yield in a year, typed in from its planning (#305). */
+    yieldForecastKwh: integer('yield_forecast_kwh'),
+    /** Where the forecast comes from, the planning software and its day. */
+    yieldForecastSource: text('yield_forecast_source'),
     ...timestamps,
     ...syncColumns,
   },
@@ -80,6 +85,10 @@ export const installations = pgTable(
     check(
       'installations_not_own_system',
       sql`${table.pvSystemId} is null or ${table.pvSystemId} <> ${table.id}`,
+    ),
+    check(
+      'installations_yield_forecast',
+      sql`${table.yieldForecastKwh} is null or ${table.yieldForecastKwh} between 1 and 100000000`,
     ),
     foreignKey({
       columns: [table.tenantId, table.siteId],

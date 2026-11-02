@@ -59,7 +59,7 @@ export {
  */
 export interface TradeFormTerms {
   readonly unit: MeasurementUnit
-  readonly list: 'circuits'
+  readonly list: 'circuits' | 'pv_strings'
   readonly limit:
     | 'loop_impedance'
     | 'rcd_trip_current'
@@ -94,6 +94,12 @@ export interface FormDefinition extends GeneralFormDefinition<TradeFormTerms> {
    * report leaves out (#304). A test where the definition says nothing.
    */
   readonly purpose?: 'test' | 'commissioning'
+  /**
+   * The form tests a part of the installation, always: the DC side of a PV
+   * system (#305). Like a first inspection after an extension (#814), the
+   * report of a site names it not as the test of the whole.
+   */
+  readonly partOfInstallation?: boolean
   /**
    * The fields a new form starts filled from the structure of the
    * installation, by key, with what fills each (#304, `structureValues`).

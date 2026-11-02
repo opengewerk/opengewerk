@@ -67,6 +67,29 @@ export interface Installation extends Synced {
   readonly pvSystemId: InstallationId | null
   /** The inverter of that PV system it hangs at, where it hangs at one. */
   readonly inverterId: InverterId | null
+  /**
+   * What a PV system is planned to yield in a year, in kilowatt hours, typed
+   * in from its planning with its source (#305). OpenGewerk asks no service
+   * on the internet for it.
+   */
+  readonly yieldForecastKwh: number | null
+  /** Where the forecast comes from: the planning software and its day. */
+  readonly yieldForecastSource: string | null
+}
+
+/** The largest forecast of a year a PV system can have, a hundred gigawatt hours. */
+export const largestYieldForecastKwh = 100_000_000
+
+/** What is wrong with a forecast of the yield, or nothing: a whole number of kilowatt hours above none (#305). */
+export function yieldForecastProblem(value: unknown): string | null {
+  return value === null ||
+    value === undefined ||
+    (typeof value === 'number' &&
+      Number.isInteger(value) &&
+      value >= 1 &&
+      value <= largestYieldForecastKwh)
+    ? null
+    : 'Die Ertragsprognose ist eine ganze Zahl von Kilowattstunden im Jahr.'
 }
 
 /**

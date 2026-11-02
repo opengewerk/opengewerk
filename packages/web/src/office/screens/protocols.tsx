@@ -46,12 +46,14 @@ import type { ReactNode } from 'react'
 
 import {
   blockHeading,
+  blockNoun,
   blocksOf,
   circuitProtection,
   FieldInput,
   FieldText,
   filledIn,
   isSigned,
+  noBlocksSentence,
   outsideIn,
   protocolRules,
   ProtocolPdfLink,
@@ -810,11 +812,7 @@ function MeasurementsCard({
     return (
       <Panel title={title} action={action}>
         {lead}
-        <p className="text-[13px] leading-[1.4] text-ink-muted">
-          {field.repeat === 'circuits'
-            ? 'Die Anlage hat kein Stromkreisverzeichnis, aus dem die Blöcke kommen.'
-            : 'Noch kein Block.'}
-        </p>
+        <p className="text-[13px] leading-[1.4] text-ink-muted">{noBlocksSentence(field.repeat)}</p>
       </Panel>
     )
   }
@@ -848,7 +846,7 @@ function MeasurementsCard({
     >
       <thead>
         <tr>
-          <Column>Stromkreis</Column>
+          <Column>{blockNoun(field.repeat)}</Column>
           {columns.map((nested) => (
             <Column
               key={nested.key}

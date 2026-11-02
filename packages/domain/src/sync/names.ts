@@ -73,6 +73,8 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   serialNumber: 'Seriennummer',
   commissionedOn: 'In Betrieb seit',
   warrantyEndsOn: 'Gewährleistung bis',
+  yieldForecastKwh: 'Ertragsprognose',
+  yieldForecastSource: 'Quelle der Ertragsprognose',
   customerId: 'Kunde',
   siteId: 'Objekt',
   supplierId: 'Lieferant',

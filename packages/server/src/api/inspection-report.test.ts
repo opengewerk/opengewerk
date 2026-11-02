@@ -213,6 +213,15 @@ describe('the test of the electrical installation of a site', () => {
       values: { verdict: 'passed' },
       status: 'draft',
     })
+    // The test of the DC side tests a part of the PV system (#305), and the report names
+    // the test of the whole before it.
+    await aProtocol({
+      installation: roof,
+      key: 'iec-62446-1',
+      version: 1,
+      on: '2026-10-26',
+      values: { verdict: 'passed' },
+    })
     // A commissioning protocol is no test (#304): the report names the test of the roof
     // before it, and a battery with nothing but its commissioning is not tested yet.
     for (const installation of [roof, store]) {
@@ -254,6 +263,7 @@ describe('the test of the electrical installation of a site', () => {
     expect(report).not.toContain('01.03.2022')
     expect(report).not.toContain('25.10.2026')
     expect(report).not.toContain('Inbetriebsetzung')
+    expect(report).not.toContain('Gleichstromseite')
     // The protocols of the two tested installations behind the report, by their designation.
     expect(protocols.map((job) => /<h1>([^<]*)<\/h1>/.exec(job.html)?.[1])).toEqual([
       'Prüfprotokoll Erstprüfung nach DIN VDE 0100-600',

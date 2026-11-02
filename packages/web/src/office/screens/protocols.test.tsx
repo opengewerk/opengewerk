@@ -667,12 +667,13 @@ describe('the commissioning protocol after VDE-AR-N 4105 in the office (#304)', 
 
     const section = await screen.findByRole('region', { name: 'Prüfprotokolle' })
 
-    // The two tests take over from the last one; a commissioning has nothing to take.
+    // The three tests take over from the last one, the DC side among them (#305); a
+    // commissioning has nothing to take.
     expect(
       within(section).getAllByRole('button', {
         name: 'Mit dem Protokoll vom 24.09.2026 als Vorlage',
       }),
-    ).toHaveLength(2)
+    ).toHaveLength(3)
     await user.click(
       within(section).getByRole('button', {
         name: 'Inbetriebsetzungsprotokoll nach VDE-AR-N 4105 anlegen',

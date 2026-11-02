@@ -29,6 +29,7 @@ import {
   partialDueCondition,
   partialTestSentence,
   readFormValues,
+  repeatNouns,
   type RecordState,
   sealProblems,
   type SignatureValue,
@@ -69,7 +70,7 @@ import type { FormEvent, ReactNode } from 'react'
 
 import type { SyncClient } from '../sync/client.js'
 import { useBlockCircuits } from './electrical.js'
-import { useInstallationStructure } from './photovoltaic.js'
+import { useBlockStrings, useInstallationStructure } from './photovoltaic.js'
 
 /**
  * The test protocol of #79 on both entries, over the form engine of #78.
@@ -218,6 +219,7 @@ export function startingValues(
   circuits: readonly (BlockCircuit & { readonly id: string })[],
   template: RecordState | null,
   structure: InstallationStructure | null = null,
+  strings: readonly (BlockCircuit & { readonly id: string })[] = [],
 ): FormValues {
   const templateDefinition = template ? definitionOf(template) : null
   const carried =
@@ -234,12 +236,13 @@ export function startingValues(
   }
 
   for (const field of fieldsOf(definition)) {
-    if (field.kind === 'group' && field.repeat === 'circuits') {
+    // A group per circuit over the chart, a group per string over the PV structure (#305).
+    if (field.kind === 'group' && field.repeat !== 'free') {
       const blocks = values[field.key]
 
       values[field.key] = circuitBlocks(
         Array.isArray(blocks) ? (blocks as readonly GroupBlock[]) : [],
-        circuits,
+        field.repeat === 'circuits' ? circuits : strings,
       )
     }
   }
@@ -261,6 +264,8 @@ export async function startProtocol(
     readonly template: RecordState | null
     /** What the structure of the installation says, where the form starts from it (#304). */
     readonly structure?: InstallationStructure | null
+    /** The strings of a PV system, for a group that repeats over them (#305). */
+    readonly strings?: readonly (BlockCircuit & { readonly id: string })[]
   },
 ): Promise<EditResult> {
   return client.create('form_records', {
@@ -271,9 +276,29 @@ export async function startProtocol(
     performedOn: today(),
     status: 'draft',
     values: formValuesText(
-      startingValues(input.definition, input.circuits, input.template, input.structure ?? null),
+      startingValues(
+        input.definition,
+        input.circuits,
+        input.template,
+        input.structure ?? null,
+        input.strings ?? [],
+      ),
     ),
   })
+}
+
+/** Why a group has no blocks, in the words of the list it repeats over. */
+export function noBlocksSentence(repeat: GroupField['repeat']): string {
+  return repeat === 'circuits'
+    ? 'Die Anlage hat kein Stromkreisverzeichnis, aus dem die Blöcke kommen.'
+    : repeat === 'pv_strings'
+      ? 'Die PV-Anlage hat noch keinen String, aus dem die Blöcke kommen.'
+      : 'Noch kein Block.'
+}
+
+/** What one block of a group is called: a circuit, a string, or a block of its own (#305). */
+export function blockNoun(repeat: GroupField['repeat']): string {
+  return repeat === 'free' ? 'Block' : repeatNouns[repeat].one
 }
 
 /** Whether a form takes anything over from a template; a commissioning protocol does not (#304). */
@@ -320,6 +345,7 @@ export function ProtocolsList({
   const circuits = useBlockCircuits(installationId)
   const installation = useRecord('installations', installationId)
   const structure = useInstallationStructure(installationId)
+  const strings = useBlockStrings(installationId)
   // The forms of what the list belongs to: the protocols of an installation,
   // those for its kind among them (#304), or the test of an appliance.
   const subject = applianceId === undefined ? 'installation' : 'appliance'
@@ -350,6 +376,7 @@ export function ProtocolsList({
         circuits,
         template,
         structure,
+        strings,
       })
 
       if (made.outcome === 'refused') {
@@ -1000,11 +1027,7 @@ function GroupSection({
       ) : null}
 
       {blocks.length === 0 ? (
-        <p className="text-body text-ink-muted">
-          {field.repeat === 'circuits'
-            ? 'Die Anlage hat kein Stromkreisverzeichnis, aus dem die Blöcke kommen.'
-            : 'Noch kein Block.'}
-        </p>
+        <p className="text-body text-ink-muted">{noBlocksSentence(field.repeat)}</p>
       ) : (
         blocks.map((block, index) => (
           <BlockCard

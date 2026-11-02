@@ -2050,3 +2050,77 @@ describe('the rollback of the register of appliances', () => {
     expect(await forced('form_records')).toBe(true)
   })
 })
+
+/**
+ * The rollback of 0115 (#305): a handover is the folder a business gave its
+ * customer, and a forecast is what the office typed in. The rollback deletes
+ * neither; while there is one, it stops and changes nothing, not even whether
+ * the policies hold for the owner.
+ */
+describe('the rollback of the papers of a PV system', () => {
+  async function forced(table: string): Promise<boolean> {
+    const { rows } = await admin.query<{ forced: boolean }>(
+      'select relforcerowsecurity as forced from pg_class where relname = $1',
+      [table],
+    )
+
+    return rows[0]?.forced ?? false
+  }
+
+  it('deletes no handover and no forecast, and stops while there is one', async () => {
+    const customer = newId<'customer'>()
+    const site = newId<'site'>()
+    const system = newId<'installation'>()
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name) values ($1, $2, 'private', 'Familie Weber')",
+      [customer, tenant.id],
+    )
+    await admin.query(
+      "insert into sites (id, tenant_id, customer_id, designation) values ($1, $2, $3, 'Wohnhaus')",
+      [site, tenant.id, customer],
+    )
+    await admin.query(
+      `insert into installations (id, tenant_id, site_id, kind, designation, yield_forecast_kwh)
+       values ($1, $2, $3, 'pv_system', 'PV-Anlage Dach', 9120)`,
+      [system, tenant.id, site],
+    )
+
+    await expect(revertMigration(admin, '0115_pv_documentation')).rejects.toThrow(
+      'Die Rücknahme von 0115 löscht sie nicht',
+    )
+    expect(
+      (await admin.query('select yield_forecast_kwh from installations where id = $1', [system]))
+        .rows,
+    ).toEqual([{ yield_forecast_kwh: 9120 }])
+    expect(await forced('installations')).toBe(true)
+    expect(await forced('pv_handovers')).toBe(true)
+
+    // A handover alone stops it as well.
+    await admin.query(
+      `begin; set local session_replication_role = replica;
+       update installations set yield_forecast_kwh = null; commit;`,
+    )
+    await admin.query(
+      `insert into pv_handovers (tenant_id, installation_id, handed_over_on, content)
+       values ($1, $2, '2026-11-02', '{}')`,
+      [tenant.id, system],
+    )
+    await expect(revertMigration(admin, '0115_pv_documentation')).rejects.toThrow(
+      'Die Rücknahme von 0115 löscht sie nicht',
+    )
+
+    // Taken out by hand, as the sentence says, the rollback goes through.
+    await admin.query(
+      `begin; set local session_replication_role = replica; delete from pv_handovers; commit;`,
+    )
+    await revertMigration(admin, '0115_pv_documentation')
+
+    expect(await tableNames(admin)).not.toContain('pv_handovers')
+    expect(await columnNames(admin, 'installations')).not.toContain('yield_forecast_kwh')
+    expect(await forced('installations')).toBe(true)
+  })
+})

@@ -1,6 +1,8 @@
 import {
   belongsToPvSystemKind,
+  type BlockCircuit,
   type InstallationStructure,
+  pvStringItem,
   type RecordState,
   type StructurePart,
 } from '@opengewerk/domain'
@@ -158,4 +160,47 @@ export function useInstallationStructure(
       meters: ofKind('meter'),
     }
   }, [installation, customer, kind, systemId, inverters, modules, companions])
+}
+
+/**
+ * The strings of a PV system as the blocks of a test of its DC side take them
+ * (#305): in the order of the structure, inverter by inverter, each with its
+ * inverter, its input, its modules and their power.
+ */
+export function useBlockStrings(
+  installationId: string | undefined,
+): readonly (BlockCircuit & { readonly id: string })[] {
+  const inverters = useInverters(installationId)
+  const strings = useRecords('pv_strings')
+  const modules = useRecords('pv_modules')
+
+  return useMemo(
+    () =>
+      inverters.flatMap((inverter) =>
+        ordered(
+          strings.filter((pvString) => text(pvString, 'inverterId') === String(inverter['id'])),
+        ).map((pvString) => {
+          const own = modules.filter(
+            (module) => text(module, 'pvStringId') === String(pvString['id']),
+          )
+          const powers = own.map((module) => module['ratedPowerW'])
+          const input = pvString['mppInput']
+
+          return {
+            id: String(pvString['id']),
+            ...pvStringItem({
+              designation: text(pvString, 'designation'),
+              mppInput: typeof input === 'number' ? input : null,
+              inverter: maybeText(inverter, 'designation'),
+              modules: own.length,
+              ratedPowerW:
+                own.length > 0 && powers.every((power) => typeof power === 'number')
+                  ? (powers as number[]).reduce((sum, power) => sum + power, 0)
+                  : null,
+            }),
+          }
+        }),
+      ),
+    [inverters, strings, modules],
+  )
 }
