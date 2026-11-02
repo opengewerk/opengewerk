@@ -67,9 +67,16 @@ function checked(
   values: Partial<Record<Writable, unknown>>,
   existing: typeof gridOperators.$inferSelect | null,
 ): Partial<typeof gridOperators.$inferInsert> {
-  const stored: Record<string, unknown> = {}
+  const stored: Partial<Record<Writable, unknown>> = {}
 
-  for (const [field, value] of Object.entries(values)) {
+  // Over the fields this route writes, never over the keys of the body.
+  for (const field of writableFields) {
+    if (!(field in values)) {
+      continue
+    }
+
+    const value = values[field]
+
     stored[field] =
       typeof value === 'string'
         ? field === 'requirements'
