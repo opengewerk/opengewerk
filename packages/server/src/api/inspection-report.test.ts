@@ -213,6 +213,17 @@ describe('the test of the electrical installation of a site', () => {
       values: { verdict: 'passed' },
       status: 'draft',
     })
+    // A commissioning protocol is no test (#304): the report names the test of the roof
+    // before it, and a battery with nothing but its commissioning is not tested yet.
+    for (const installation of [roof, store]) {
+      await aProtocol({
+        installation,
+        key: 'vde-ar-n-4105',
+        version: 1,
+        on: '2026-10-25',
+        values: { handed_over: true },
+      })
+    }
     await aProtocol({
       appliance: drill,
       key: 'dguv-v3',
@@ -241,6 +252,8 @@ describe('the test of the electrical installation of a site', () => {
     expect(report).toContain('<td class="figure">02.11.2030</td>')
     expect(report).not.toContain('05.11.2026')
     expect(report).not.toContain('01.03.2022')
+    expect(report).not.toContain('25.10.2026')
+    expect(report).not.toContain('Inbetriebsetzung')
     // The protocols of the two tested installations behind the report, by their designation.
     expect(protocols.map((job) => /<h1>([^<]*)<\/h1>/.exec(job.html)?.[1])).toEqual([
       'Prüfprotokoll Erstprüfung nach DIN VDE 0100-600',

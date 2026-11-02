@@ -13,6 +13,7 @@ import type {
 } from '@opengewerk/domain'
 import {
   circuitBlocks,
+  dayLabel,
   formatMeasured,
   formValuesText,
   limitVerdict,
@@ -192,7 +193,11 @@ function OfficeProtocol({
       />
 
       <NoteBox tone={signed ? 'done' : 'neutral'} icon={statusIcons.sign}>
-        {signed ? signedNote(definition, protocol) : unsignedNote}
+        {signed
+          ? signedNote(definition, protocol)
+          : definition?.purpose === 'commissioning'
+            ? commissioningNote
+            : unsignedNote}
       </NoteBox>
 
       {trouble ? (
@@ -223,6 +228,10 @@ const unsignedNote =
   'Unterschrieben wird auf der Baustelle, von der Person, die geprüft hat. Danach ändert sich an ' +
   'diesem Protokoll nichts mehr.'
 
+const commissioningNote =
+  'Unterschrieben wird auf der Baustelle, vom Anlagenbetreiber und vom Elektrofachbetrieb. ' +
+  'Danach ändert sich an diesem Protokoll nichts mehr.'
+
 /** "Unterschrieben von Anna Weber am 18.09.2026. …", from the signature that sealed it. */
 function signedNote(definition: FormDefinition | null, protocol: ProtocolDraft): string {
   const field = definition ? sealingField(definition) : null
@@ -242,11 +251,9 @@ function layoutOf(section: FormSection): Layout {
     return 'measurements'
   }
 
-  if (
-    section.fields.some(
-      (field) => field.kind === 'signature' || (field.kind === 'text' && field.multiline === true),
-    )
-  ) {
+  // The signatures beside the findings; long texts alone, as the operator and the
+  // parts of a commissioning protocol (#304), stand among the other fields.
+  if (section.fields.some((field) => field.kind === 'signature')) {
     return 'result'
   }
 
@@ -369,12 +376,14 @@ function Sections({
   return <>{cards}</>
 }
 
-/** The day of the test, which decides which limits apply. */
+/** The day of the test, or of the commissioning (#304), which decides which limits apply. */
 function PerformedOn({ protocol }: { readonly protocol: ProtocolDraft }) {
+  const label = protocol.definition ? dayLabel(protocol.definition) : 'Tag der Prüfung'
+
   if (!protocol.editable) {
     return (
       <div className="flex flex-col gap-1">
-        <FieldLabel>Tag der Prüfung</FieldLabel>
+        <FieldLabel>{label}</FieldLabel>
         <p className="numeric text-body">{date(protocol.performedOn)}</p>
       </div>
     )
@@ -382,7 +391,7 @@ function PerformedOn({ protocol }: { readonly protocol: ProtocolDraft }) {
 
   return (
     <Field
-      label="Tag der Prüfung"
+      label={label}
       type="date"
       hint="Nach diesem Tag richten sich die Grenzwerte."
       value={protocol.performedOn}

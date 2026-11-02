@@ -336,6 +336,17 @@ function isPhoto(value: unknown): boolean {
   return typeof value === 'string' && value.length > 0 && value.length <= 64
 }
 
+/** A day that is on the calendar, `2026-02-28` and not `2026-02-30`, as a date field holds it. */
+function isCalendarDay(value: unknown): boolean {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false
+  }
+
+  const at = new Date(`${value}T00:00:00Z`)
+
+  return !Number.isNaN(at.getTime()) && at.toISOString().slice(0, 10) === value
+}
+
 function isCheckPointAnswer(value: unknown): value is CheckPointValue {
   return (
     typeof value === 'object' &&
@@ -730,6 +741,8 @@ export function formEngine<T extends FormTerms>(setup: FormEngineSetup<T>): Form
         return isPhoto(value) ? null : `${field.label}: ein Foto aus den Dateien.`
       case 'check_point':
         return checkPointProblem(field, value)
+      case 'date':
+        return isCalendarDay(value) ? null : `${field.label}: ein Tag des Kalenders.`
       case 'signature': {
         if (!isSignature(value)) {
           return `${field.label}: eine Unterschrift mit Namen.`

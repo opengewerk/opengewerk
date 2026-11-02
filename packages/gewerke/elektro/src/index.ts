@@ -14,11 +14,13 @@ import vde0100600v2 from '../formulare/vde-0100-600.v2.json' with { type: 'json'
 import vde0100600v3 from '../formulare/vde-0100-600.v3.json' with { type: 'json' }
 import vde0105100v1 from '../formulare/vde-0105-100.v1.json' with { type: 'json' }
 import dguvV3v1 from '../formulare/dguv-v3.v1.json' with { type: 'json' }
+import vdeArN4105v1 from '../formulare/vde-ar-n-4105.v1.json' with { type: 'json' }
 import vde0105100Deadlines from '../fristen/vde-0105-100.json' with { type: 'json' }
 import dguvV3Deadlines from '../fristen/dguv-v3.json' with { type: 'json' }
 import vde0100600Limits from '../regeln/vde-0100-600.json' with { type: 'json' }
 import vde0105100Limits from '../regeln/vde-0105-100.json' with { type: 'json' }
 import dguvV3Limits from '../regeln/dguv-v3.json' with { type: 'json' }
+import vdeArN4105Values from '../regeln/vde-ar-n-4105.json' with { type: 'json' }
 
 /**
  * The trade package Elektro und PV in the format of ADR 0008: a manifest, the
@@ -53,6 +55,8 @@ export const elektroManifest: TradeManifest = manifest
  * (#814). The recurring inspection after DIN VDE 0105-100 is the second form
  * (#301), the test of a appliance after DGUV Vorschrift 3 the third, the first
  * that hangs on an appliance of the register and not on an installation (#303).
+ * The fourth is no test: the commissioning protocol after VDE-AR-N 4105 of a
+ * PV system or a battery, started from its structure (#304).
  */
 export const elektroForms: readonly FormDefinition[] = [
   vde0100600v1 as FormDefinition,
@@ -60,12 +64,14 @@ export const elektroForms: readonly FormDefinition[] = [
   vde0100600v3 as FormDefinition,
   vde0105100v1 as FormDefinition,
   dguvV3v1 as FormDefinition,
+  vdeArN4105v1 as FormDefinition,
 ]
 
 export const elektroRulePackages: readonly RulePackage[] = [
   vde0100600Limits as RulePackage,
   vde0105100Limits as RulePackage,
   dguvV3Limits as RulePackage,
+  vdeArN4105Values as RulePackage,
 ]
 
 /**

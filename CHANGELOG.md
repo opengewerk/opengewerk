@@ -9,6 +9,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Das Inbetriebsetzungsprotokoll nach VDE-AR-N 4105 (#304), nach der Feature-Gliederung v2.56 und den Tafeln aus
+  Version 113 des Canvas: An einer PV-Anlage oder einem Speicher entsteht es nach Formular F.9 der Fassung 2026-03,
+  vorbelegt aus dem Kunden des Objekts und der PV-Struktur (Anlagenbetreiber mit Anschrift, Wechselrichter, Speicher,
+  Zählernummer, SAmax, PAmax und Modulleistung). Die Begrenzung der Einspeisung auf 60 Prozent ohne intelligentes
+  Messsystem steht als Regel mit Gültigkeit ab dem 25.02.2025 im Paket Elektro 0.6.0 und wird gemessen wie ein
+  Messwert. Anlagenbetreiber und Elektrofachbetrieb unterschreiben auf dem Gerät, der Betrieb zuletzt; dafür nimmt der
+  Schritt „Unterschreiben“ auf der Baustelle jetzt alle Unterschriften eines Formulars auf. Neu in der Formular-Engine
+  des Fundaments ist das Feld „Datum“, hier für den ersten Netzparallelbetrieb, und ein Formular kann sagen, für welche
+  Arten von Anlagen es ist, was es aus der Struktur vorbelegt und dass es keine Prüfung ist: der Prüfbericht je Objekt
+  nennt es nicht. Warum: Jeder PV-Anlage folgt das Protokoll für den Netzbetreiber, und alles, was es fragt, steht
+  schon in Kunde, Objekt und PV-Struktur.
 - Die Prüfung der Elektroinstallation als Prüfbericht je Objekt (#302), nach der Feature-Gliederung v2.53 und den
   Tafeln aus Version 109 des Canvas: Am Objekt im Büro öffnet „Prüfung der Elektroinstallation“ ein PDF, dessen erste
   Seite das Ergebnis des Ganzen nennt, je Anlage die letzte unterschriebene Prüfung der ganzen Anlage

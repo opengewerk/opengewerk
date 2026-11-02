@@ -3,9 +3,13 @@ import {
   type BlockCircuit,
   type BlockField,
   circuitBlocks,
+  dayLabel,
   type FieldValue,
+  fieldsOf,
   formatMeasured,
+  type FormDefinition,
   type FormSection,
+  type FormValues,
   formValuesText,
   type GroupField,
   isRuleLimit,
@@ -16,6 +20,7 @@ import {
   type RecordState,
   type RuleLimitKind,
   sealingField,
+  type SignatureField,
   signerNameProblem,
 } from '@opengewerk/domain'
 import { Button, Field, Panel } from '@opengewerk/platform-web'
@@ -121,10 +126,17 @@ export function InstallationProtocols({
 
 /**
  * What kind of protocol, for the line under "Prüfprotokoll" in the header:
- * "Erstprüfung nach DIN VDE 0100-600" rather than the whole title again.
+ * "Erstprüfung nach DIN VDE 0100-600" rather than the whole title again. Under
+ * "Inbetriebsetzung" it is "Protokoll nach VDE-AR-N 4105" (#304).
  */
 function kindOfProtocol(record: RecordState): string {
-  const title = definitionOf(record)?.title ?? ''
+  const definition = definitionOf(record)
+  const title = definition?.title ?? ''
+
+  if (definition?.purpose === 'commissioning') {
+    return title.replace(/^Inbetriebsetzungsprotokoll /, 'Protokoll ')
+  }
+
   const word = 'Prüfprotokoll '
 
   return title.startsWith(word) ? title.slice(word.length) : title
@@ -317,7 +329,9 @@ export function SiteProtocolScreen() {
   return (
     <SiteScreen>
       <SiteHeader
-        title="Prüfprotokoll"
+        title={
+          definitionOf(record)?.purpose === 'commissioning' ? 'Inbetriebsetzung' : 'Prüfprotokoll'
+        }
         sub={[kindOfProtocol(record), place].filter((part) => part !== '').join(', ')}
       />
       {isSigned(record) ? (
@@ -507,6 +521,8 @@ function Overview({
   const resultSection = definition.sections.find(isResult)
   const missing = protocol.unsaved ? [] : missingBeforeSigning(record)
   const seal = sealingField(definition)
+  // A commissioning protocol is signed by the operator and the business (#304).
+  const signedBy = signatureFields(definition).length
 
   return (
     <>
@@ -519,7 +535,7 @@ function Overview({
         }}
       >
         <Field
-          label="Tag der Prüfung"
+          label={dayLabel(definition)}
           type="date"
           hint="Nach diesem Tag richten sich die Grenzwerte."
           value={protocol.performedOn}
@@ -606,7 +622,7 @@ function Overview({
         ) : null}
       </form>
 
-      <Panel title={seal?.label ?? 'Unterschrift'}>
+      <Panel title={signedBy > 1 ? 'Unterschriften' : (seal?.label ?? 'Unterschrift')}>
         <div className="flex flex-col gap-2.5">
           {protocol.unsaved ? (
             <SiteText>Erst speichern, dann unterschreiben.</SiteText>
@@ -624,7 +640,9 @@ function Overview({
             </div>
           ) : (
             <SiteText>
-              Das Protokoll ist vollständig. Mit der Unterschrift wird es festgeschrieben.
+              {signedBy > 1
+                ? 'Das Protokoll ist vollständig. Mit den Unterschriften wird es festgeschrieben.'
+                : 'Das Protokoll ist vollständig. Mit der Unterschrift wird es festgeschrieben.'}
             </SiteText>
           )}
           {/* Copper only while it can be pressed: until then the copper is
@@ -1169,7 +1187,11 @@ function DefectPhoto({ record, jobId }: { readonly record: RecordState; readonly
   )
 }
 
-/** The tester signs: the name, the signature, and the protocol is fixed. */
+/**
+ * The signatures are given: each one the form has, in its order, the one that
+ * fixes the protocol last. A test has the tester's alone; a commissioning
+ * protocol the operator's before the business's (#304).
+ */
 function SigningStep({
   record,
   onBack,
@@ -1181,9 +1203,12 @@ function SigningStep({
   const definition = definitionOf(record)
   const seal = definition ? sealingField(definition) : null
   const values = valuesOf(record)
-  const [name, setName] = useState(typeof values['tester'] === 'string' ? values['tester'] : '')
-  const [path, setPath] = useState<string | null>(null)
-  const [problem, setProblem] = useState<string | undefined>(undefined)
+  const signatures = definition ? signatureFields(definition) : []
+  const [names, setNames] = useState<Readonly<Record<string, string>>>(() =>
+    Object.fromEntries(signatures.map((field) => [field.key, signerOf(field, values, seal)])),
+  )
+  const [paths, setPaths] = useState<Readonly<Record<string, string | null>>>({})
+  const [problems, setProblems] = useState<Readonly<Record<string, string>>>({})
   const [trouble, setTrouble] = useState<string | null>(null)
   const [working, setWorking] = useState(false)
   const formId = useId()
@@ -1191,16 +1216,28 @@ function SigningStep({
   async function sign(event: FormEvent) {
     event.preventDefault()
 
-    const nameProblem = signerNameProblem(name)
+    const found = Object.fromEntries(
+      signatures.flatMap((field) => {
+        const problem = signerNameProblem(names[field.key] ?? '')
 
-    if (nameProblem !== null) {
-      setProblem(nameProblem)
+        return problem === null ? [] : [[field.key, problem]]
+      }),
+    )
 
+    setProblems(found)
+
+    if (Object.keys(found).length > 0) {
       return
     }
 
-    if (!path) {
-      setTrouble('Bitte im Feld unterschreiben.')
+    const unsigned = signatures.find((field) => !paths[field.key])
+
+    if (unsigned) {
+      setTrouble(
+        signatures.length > 1
+          ? `Bitte im Feld „${unsigned.label}“ unterschreiben.`
+          : 'Bitte im Feld unterschreiben.',
+      )
 
       return
     }
@@ -1211,16 +1248,21 @@ function SigningStep({
       return
     }
 
-    setProblem(undefined)
     setTrouble(null)
     setWorking(true)
 
     try {
+      const signedAt = new Date().toISOString()
       const signed = await client.update('form_records', String(record['id']), {
         status: 'signed',
         values: formValuesText({
           ...values,
-          [seal.key]: { name: name.trim(), path, signedAt: new Date().toISOString() },
+          ...Object.fromEntries(
+            signatures.map((field) => [
+              field.key,
+              { name: (names[field.key] ?? '').trim(), path: paths[field.key] ?? '', signedAt },
+            ]),
+          ),
         }),
       })
 
@@ -1235,8 +1277,9 @@ function SigningStep({
   return (
     <>
       <p className="text-[17px] leading-[1.45] font-semibold">
-        Mit der Unterschrift bestätigen Sie die Prüfung, wie sie im Protokoll steht. Danach ändert
-        sich daran nichts mehr.
+        {definition?.purpose === 'commissioning'
+          ? 'Mit den Unterschriften bestätigen Sie die Inbetriebsetzung, wie sie im Protokoll steht. Danach ändert sich daran nichts mehr.'
+          : 'Mit der Unterschrift bestätigen Sie die Prüfung, wie sie im Protokoll steht. Danach ändert sich daran nichts mehr.'}
       </p>
 
       <form
@@ -1246,20 +1289,31 @@ function SigningStep({
           void sign(event)
         }}
       >
-        <Panel title={seal?.label ?? 'Unterschrift'}>
-          <div className="flex flex-col gap-3">
-            <Field
-              label="Name"
-              autoComplete="off"
-              value={name}
-              problem={problem}
-              onChange={(event) => {
-                setName(event.target.value)
-              }}
-            />
-            <SignaturePad label="Unterschriftsfeld" onChange={setPath} />
-          </div>
-        </Panel>
+        {(signatures.length > 0 ? signatures : [null]).map((field) => {
+          const key = field?.key ?? ''
+
+          return (
+            <Panel key={key} title={field?.label ?? 'Unterschrift'}>
+              <div className="flex flex-col gap-3">
+                <Field
+                  label="Name"
+                  autoComplete="off"
+                  value={names[key] ?? ''}
+                  problem={problems[key]}
+                  onChange={(event) => {
+                    setNames({ ...names, [key]: event.target.value })
+                  }}
+                />
+                <SignaturePad
+                  label="Unterschriftsfeld"
+                  onChange={(path) => {
+                    setPaths((before) => ({ ...before, [key]: path }))
+                  }}
+                />
+              </div>
+            </Panel>
+          )
+        })}
       </form>
 
       {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
@@ -1274,6 +1328,28 @@ function SigningStep({
       </SiteActionBar>
     </>
   )
+}
+
+/** The signature fields of a form, the one that fixes it last. */
+function signatureFields(definition: FormDefinition): readonly SignatureField[] {
+  const all = fieldsOf(definition).filter(
+    (field): field is SignatureField => field.kind === 'signature',
+  )
+
+  return [
+    ...all.filter((field) => field.seals !== true),
+    ...all.filter((field) => field.seals === true),
+  ]
+}
+
+/**
+ * The name a signature starts with: the tester's for the one that fixes the
+ * protocol, the first line of the operator for the operator's (#304).
+ */
+function signerOf(field: SignatureField, values: FormValues, seal: SignatureField | null): string {
+  const said = field.key === seal?.key ? values['tester'] : values['operator']
+
+  return typeof said === 'string' ? (said.split(/\r?\n/)[0] ?? '').trim() : ''
 }
 
 /**

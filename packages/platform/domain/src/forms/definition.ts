@@ -22,6 +22,7 @@ export const blockFieldKinds = [
   'photo',
   'check_point',
   'meter_reading',
+  'date',
 ] as const
 
 export type BlockFieldKind = (typeof blockFieldKinds)[number]
@@ -179,6 +180,14 @@ export interface MeterReadingField<T extends FormTerms = FormTerms> extends Bloc
 }
 
 /**
+ * A day of the calendar, as `YYYY-MM-DD`, beside the day of the form itself:
+ * the day something else happened that the form records.
+ */
+export interface DateField extends BlockFieldBase {
+  readonly kind: 'date'
+}
+
+/**
  * A signature drawn on the device, with the name typed beside it. One that
  * `seals` the form fixes it: once it is given, nothing in the form changes.
  */
@@ -197,6 +206,7 @@ type AnyBlockField<T extends FormTerms> =
   | PhotoField
   | CheckPointField
   | MeterReadingField<T>
+  | DateField
 
 /**
  * A field of a section or of a block, of a kind the application shows: an

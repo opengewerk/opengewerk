@@ -41,7 +41,8 @@ type Subject = 'installation' | 'appliance'
  * The newest signed test of each subject, in a form this version reads that
  * hangs on that kind of subject. For an installation only a test of the whole
  * counts: a first inspection after an extension or a change tests a part
- * (#814), and the report names the last test of the whole installation.
+ * (#814), and the report names the last test of the whole installation. A
+ * commissioning protocol is no test at all (#304).
  */
 function lastTests(
   records: readonly (typeof formRecords.$inferSelect)[],
@@ -57,6 +58,7 @@ function lastTests(
     if (
       id !== null &&
       definition?.attachesTo === subject &&
+      definition.purpose !== 'commissioning' &&
       !lastOf.has(id) &&
       !(subject === 'installation' && testsPart(definition, values))
     ) {

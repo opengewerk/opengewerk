@@ -182,3 +182,43 @@ describe('the test of an appliance on paper (#303)', () => {
     )
   })
 })
+
+describe('the commissioning protocol after VDE-AR-N 4105 on paper (#304)', () => {
+  const commissioning = elektroRegistry.definitionFor('vde-ar-n-4105', 1)
+
+  it('names the day of the commissioning, the power and the day the system first ran with the grid', () => {
+    expect(commissioning).not.toBeNull()
+
+    const { html } = protocolPrintJob({
+      ...protocol,
+      definition: commissioning as FormDefinition,
+      values: {
+        operator: 'Familie Berger\nLindenweg 4, 68535 Edingen-Neckarhausen',
+        apparent_power: 9500,
+        module_power: 9460,
+        feed_in_limit: 70_000,
+        grid_parallel_on: '2026-11-04',
+      },
+      performedOn: '2026-11-02',
+      rules: elektroRules,
+    })
+
+    expect(html).toContain('<p class="where">In Betrieb gesetzt am 02.11.2026</p>')
+    expect(html).not.toContain('Geprüft am')
+    expect(html).toContain(
+      '<tr><th>Anlagenbetreiber</th><td>Familie Berger<br>Lindenweg 4, 68535 Edingen-Neckarhausen</td></tr>',
+    )
+    expect(html).toContain('<tr><th>Maximale Scheinleistung SAmax</th><td>9,50 kVA</td></tr>')
+    expect(html).toContain('<tr><th>Modulleistung</th><td>9,46 kWp</td></tr>')
+    expect(html).toContain('<tr><th>Erster Netzparallelbetrieb</th><td>04.11.2026</td></tr>')
+    // 70 % is over the limit of the Solarspitzengesetz, which is named with its source.
+    expect(html).toContain(
+      '<tr><th>Begrenzung der Einspeisung</th><td>70 % <span class="outside">außerhalb des Grenzwerts</span></td></tr>',
+    )
+    expect(html).toContain(
+      '<strong>Begrenzung der Einspeisung:</strong> höchstens 60 %; § 9 Abs. 2',
+    )
+    expect(html).toContain('<tr><th>Unterschrift des Anlagenbetreibers</th>')
+    expect(html).toContain('<tr><th>Unterschrift des Elektrofachbetriebs</th>')
+  })
+})
