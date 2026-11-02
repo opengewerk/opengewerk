@@ -6,6 +6,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Logger,
   NotFoundException,
   Param,
   Patch,
@@ -37,6 +38,8 @@ import {
   setHolidays,
   withdraw,
 } from '../absences/absences.js'
+import type { Notification } from '../notifications/notify.js'
+import { notifyPush } from '../notifications/occasions.js'
 import { todayInGermany, yearInGermany } from '../today.js'
 import { RequiresMembership, RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
@@ -105,6 +108,8 @@ async function answering<Result>(work: () => Promise<Result>): Promise<Result> {
  */
 @Controller('absences')
 export class AbsencesController {
+  private readonly logger = new Logger(AbsencesController.name)
+
   constructor(private readonly database: Database) {}
 
   @Get()
@@ -173,14 +178,17 @@ export class AbsencesController {
 
   @Post('mine')
   @RequiresMembership()
-  ask(@CurrentIdentity() identity: RequestIdentity, @Body() body: unknown) {
+  async ask(@CurrentIdentity() identity: RequestIdentity, @Body() body: unknown) {
     const values = pick(body, absenceFields)
-
-    return answering(() =>
+    const asked = await answering(() =>
       this.database.forTenant(identity, (tx) =>
         requestLeave(tx, identity.tenantId, identity.userId, values),
       ),
     )
+
+    await this.tell(identity, { kind: 'leave_request', absenceId: asked.id })
+
+    return asked
   }
 
   @Delete('mine/:id')
@@ -278,28 +286,56 @@ export class AbsencesController {
 
   @Post(':id/approve')
   @RequiresPermission('absence.write')
-  approve(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
-    return answering(() =>
+  async approve(@CurrentIdentity() identity: RequestIdentity, @Param('id') id: string) {
+    const decided = await answering(() =>
       this.database.forTenant(identity, (tx) =>
         decide(tx, identity.userId, id, 'approve', null, new Date()),
       ),
     )
+
+    await this.tell(identity, {
+      kind: 'leave_decision',
+      absenceId: decided.id,
+      decision: 'approved',
+    })
+
+    return decided
   }
 
   @Post(':id/reject')
   @RequiresPermission('absence.write')
-  reject(
+  async reject(
     @CurrentIdentity() identity: RequestIdentity,
     @Param('id') id: string,
     @Body() body: unknown,
   ) {
     const { answer } = pick(body, ['answer'] as const)
-
-    return answering(() =>
+    const decided = await answering(() =>
       this.database.forTenant(identity, (tx) =>
         decide(tx, identity.userId, id, 'reject', answer, new Date()),
       ),
     )
+
+    await this.tell(identity, {
+      kind: 'leave_decision',
+      absenceId: decided.id,
+      decision: 'rejected',
+    })
+
+    return decided
+  }
+
+  /**
+   * The push message of a request or a decision (#806), after it is written.
+   * A message that cannot be written does not take the request back.
+   */
+  private async tell(identity: RequestIdentity, notification: Notification): Promise<void> {
+    try {
+      await notifyPush(this.database, identity.tenantId, notification, { now: new Date() })
+    } catch (error) {
+      // Told nobody; the request or the decision stands as it was written.
+      this.logger.warn(`Eine Push-Nachricht zum Urlaub ließ sich nicht schreiben: ${String(error)}`)
+    }
   }
 }
 

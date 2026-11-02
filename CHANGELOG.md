@@ -9,6 +9,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Nachrichten zum Urlaub (#806), nach der Feature-Gliederung v2.49 und den Tafeln aus Version 101 des Canvas: Ein neuer
+  Urlaubsantrag kommt per Push zu allen im Betrieb, die Abwesenheiten pflegen, außer zu der Person, die ihn stellt; die
+  Entscheidung darüber kommt zu der Person, die ihn gestellt hat. Die Nachricht nennt nur den Zeitraum und „freigegeben“
+  oder „abgelehnt“, keinen Namen und keine Antwort. Unter „Konto“ und im Menü der Baustelle stehen dafür die Anlässe
+  „Urlaubsanträge“ und „Entscheidung über Urlaub“, einzeln abschaltbar. Warum: Bis dahin erfuhr niemand von einem
+  Antrag, solange er nicht selbst nachsah.
 - Das Kalender-Abo (#291), nach der Feature-Gliederung v2.48 und den Tafeln aus Version 100 des Canvas: Unter „Konto“
   und unter „Meine Termine“ erstellt jede Person die Adresse ihres eigenen Kalenders, im Format iCalendar, das Google
   Kalender, Apple, Outlook, Thunderbird und auf Android ICSx⁵ lesen. Der Kalender zeigt ihre Termine mit Auftrag, Kunde,
