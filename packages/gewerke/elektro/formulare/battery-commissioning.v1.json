@@ -1,0 +1,364 @@
+{
+  "key": "battery-commissioning",
+  "version": 1,
+  "title": "Inbetriebnahmeprotokoll Batteriespeicher",
+  "attachesTo": "installation",
+  "installationKinds": ["battery"],
+  "purpose": "commissioning",
+  "fromStructure": {
+    "operator": "operator",
+    "storage": "installation",
+    "usable_capacity": "usable_capacity",
+    "rated_power": "rated_power"
+  },
+  "sections": [
+    {
+      "key": "storage",
+      "title": "Speicher",
+      "hint": "Nach den Angaben des Herstellers und VDE-AR-E 2510-2. Die Inbetriebsetzung am Netz hält das Protokoll nach VDE-AR-N 4105 fest.",
+      "fields": [
+        {
+          "kind": "text",
+          "key": "operator",
+          "label": "Anlagenbetreiber",
+          "hint": "Name und Anschrift, vorbelegt aus dem Kunden des Objekts.",
+          "multiline": true,
+          "required": true
+        },
+        {
+          "kind": "text",
+          "key": "storage",
+          "label": "Speicher",
+          "hint": "Hersteller, Typ und Seriennummer, vorbelegt aus der Anlage.",
+          "multiline": true,
+          "required": true
+        },
+        {
+          "kind": "text",
+          "key": "modules",
+          "label": "Batteriemodule",
+          "hint": "Anzahl und Seriennummern der Module.",
+          "multiline": true
+        },
+        {
+          "kind": "choice",
+          "key": "technology",
+          "label": "Batterietechnologie",
+          "required": true,
+          "options": [
+            {
+              "value": "lithium",
+              "label": "Lithium-Ionen"
+            },
+            {
+              "value": "lead",
+              "label": "Blei"
+            },
+            {
+              "value": "redox_flow",
+              "label": "Redox-Flow"
+            },
+            {
+              "value": "high_temperature",
+              "label": "Hochtemperatur"
+            },
+            {
+              "value": "nickel",
+              "label": "Nickel-Cadmium oder Nickel-Metallhydrid"
+            },
+            {
+              "value": "other",
+              "label": "Sonstige"
+            }
+          ]
+        },
+        {
+          "kind": "number",
+          "key": "usable_capacity",
+          "label": "Nutzbare Speicherkapazität",
+          "hint": "Vorbelegt aus der Anlage.",
+          "unit": "kilowatt_hour",
+          "decimals": 2,
+          "required": true
+        },
+        {
+          "kind": "number",
+          "key": "rated_power",
+          "label": "Bemessungsleistung",
+          "hint": "Mit der er lädt und entlädt, nach dem Datenblatt seines Wechselrichters.",
+          "unit": "kilowatt",
+          "decimals": 2,
+          "required": true
+        },
+        {
+          "kind": "choice",
+          "key": "coupling",
+          "label": "Kopplung",
+          "required": true,
+          "options": [
+            {
+              "value": "ac",
+              "label": "AC-gekoppelt, mit eigenem Wechselrichter"
+            },
+            {
+              "value": "dc",
+              "label": "DC-gekoppelt, am Wechselrichter der PV-Anlage"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "backup",
+          "label": "Ersatzstrom",
+          "required": true,
+          "options": [
+            {
+              "value": "none",
+              "label": "Keiner"
+            },
+            {
+              "value": "emergency",
+              "label": "Notstrom an einer Steckdose"
+            },
+            {
+              "value": "backup",
+              "label": "Ersatzstrom mit Umschaltung"
+            },
+            {
+              "value": "island",
+              "label": "Inselbetrieb"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "site",
+      "title": "Aufstellort und Installation",
+      "hint": "Nach der Installationsanleitung des Herstellers.",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "transport",
+          "label": "Ohne Transportschaden, Module unbeschädigt",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "location",
+          "label": "Aufstellort zulässig: Raum, Untergrund, Abstände und Belüftung",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "temperature",
+          "label": "Umgebungstemperatur im zulässigen Bereich",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "fire_protection",
+          "label": "Nicht in Rettungswegen, Abstand zu brennbaren Stoffen",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "wiring",
+          "label": "Leitungen, Absicherung und Trennstelle nach Herstellerangaben",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "labelling",
+          "label": "Kennzeichnung für Einsatzkräfte am Hausanschluss oder an der Verteilung",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "commissioning",
+      "title": "Inbetriebnahme",
+      "fields": [
+        {
+          "kind": "text",
+          "key": "firmware",
+          "label": "Firmware",
+          "hint": "Stand von Speicher und Wechselrichter bei der Inbetriebnahme."
+        },
+        {
+          "kind": "choice",
+          "key": "communication",
+          "label": "Kommunikation zwischen Batteriemanagement und Wechselrichter",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "number",
+          "key": "state_of_charge",
+          "label": "Ladezustand bei der Inbetriebnahme",
+          "unit": "percent",
+          "decimals": 0
+        },
+        {
+          "kind": "choice",
+          "key": "backup_test",
+          "label": "Umschaltung auf Ersatzstrom erprobt",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "yes_no",
+          "key": "registered",
+          "label": "Beim Hersteller registriert",
+          "hint": "Wo der Hersteller das für die Garantie verlangt."
+        }
+      ]
+    },
+    {
+      "key": "handover",
+      "title": "Übergabe",
+      "fields": [
+        {
+          "kind": "yes_no",
+          "key": "handed_over",
+          "label": "Betreiber eingewiesen, Unterlagen übergeben",
+          "required": true,
+          "hint": "Bedienungsanleitung, Datenblatt und Garantiebedingungen."
+        },
+        {
+          "kind": "text",
+          "key": "remarks",
+          "label": "Bemerkungen",
+          "multiline": true
+        },
+        {
+          "kind": "photo",
+          "key": "photo",
+          "label": "Foto"
+        },
+        {
+          "kind": "signature",
+          "key": "operator_signature",
+          "label": "Unterschrift des Anlagenbetreibers",
+          "required": true
+        },
+        {
+          "kind": "signature",
+          "key": "installer_signature",
+          "label": "Unterschrift des Elektrofachbetriebs",
+          "seals": true
+        }
+      ]
+    }
+  ]
+}

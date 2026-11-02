@@ -68,6 +68,11 @@ import {
   GridOperatorScreen,
   NewGridOperatorScreen,
 } from './screens/grid-operators.js'
+import {
+  FundingProgramList,
+  FundingProgramScreen,
+  NewFundingProgramScreen,
+} from './screens/funding-programs.js'
 import { TimeScreen } from './screens/time.js'
 
 /**
@@ -282,6 +287,22 @@ const routes = [
     getParentRoute: () => office,
     path: '/netzbetreiber/$gridOperatorId',
     component: GridOperatorScreen,
+  }),
+  // The funding programmes (#307), the new one before the one with an id.
+  createRoute({
+    getParentRoute: () => office,
+    path: '/foerderprogramme',
+    component: FundingProgramList,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/foerderprogramme/neu',
+    component: NewFundingProgramScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/foerderprogramme/$fundingProgramId',
+    component: FundingProgramScreen,
   }),
   createRoute({ getParentRoute: () => office, path: '/konflikte', component: SyncScreen }),
   createRoute({ getParentRoute: () => office, path: '/konto', component: AccountScreen }),

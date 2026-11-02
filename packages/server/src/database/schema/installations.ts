@@ -1,4 +1,11 @@
-import { gridOperatorKinds, gridOperatorLimits, installationKinds } from '@opengewerk/domain'
+import {
+  capacityKinds,
+  gridOperatorKinds,
+  gridOperatorLimits,
+  installationKinds,
+  largestRating,
+  ratedPowerKinds,
+} from '@opengewerk/domain'
 import {
   primaryId,
   reference,
@@ -68,6 +75,9 @@ export const installations = pgTable(
     /** The grid operator it is reported to (#306), and the number it is known by there. */
     gridOperatorId: reference<'grid-operator'>('grid_operator_id'),
     gridOperatorReference: text('grid_operator_reference'),
+    /** What a battery delivers of its charge, and the power a battery or a wallbox is rated for (#307). */
+    usableCapacityWh: integer('usable_capacity_wh'),
+    ratedPowerW: integer('rated_power_w'),
     ...timestamps,
     ...syncColumns,
   },
@@ -112,6 +122,13 @@ export const installations = pgTable(
     check(
       'installations_grid_operator_reference_fits',
       sql`char_length(coalesce(${table.gridOperatorReference}, '')) <= ${sql.raw(String(gridOperatorLimits.reference))}`,
+    ),
+    check(
+      'installations_ratings',
+      sql`(${table.usableCapacityWh} is null or (${table.kind}::text in (${sql.raw(capacityKinds.map((kind) => `'${kind}'`).join(', '))})
+          and ${table.usableCapacityWh} between 1 and ${sql.raw(String(largestRating))}))
+        and (${table.ratedPowerW} is null or (${table.kind}::text in (${sql.raw(ratedPowerKinds.map((kind) => `'${kind}'`).join(', '))})
+          and ${table.ratedPowerW} between 1 and ${sql.raw(String(largestRating))}))`,
     ),
     foreignKey({
       columns: [table.tenantId, table.siteId],

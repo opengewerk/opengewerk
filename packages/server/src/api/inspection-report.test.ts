@@ -296,6 +296,37 @@ describe('the test of the electrical installation of a site', () => {
     expect(pages).toBe(2)
   })
 
+  it('names the commissioning of a wallbox as its test, not the one of a battery (#307)', async () => {
+    const site = await aSite('Birkenweg 7')
+    const wallbox = await anInstallation(site, 'wallbox', 'Wallbox Garage')
+    const store = await anInstallation(site, 'battery', 'Speicher Keller')
+
+    await aProtocol({
+      installation: wallbox,
+      key: 'vde-0100-722',
+      version: 1,
+      on: '2026-11-02',
+      values: { verdict: 'passed', next_inspection_months: 48_000 },
+    })
+    await aProtocol({
+      installation: store,
+      key: 'battery-commissioning',
+      version: 1,
+      on: '2026-11-02',
+      values: { handed_over: true },
+    })
+
+    const { report, protocols } = await printed(site)
+
+    expect(report).toContain(
+      '<td>Inbetriebnahmeprotokoll Ladeeinrichtung nach DIN VDE 0100-600 und DIN VDE 0100-722</td>',
+    )
+    expect(report).toContain('<td class="figure">02.11.2030</td>')
+    expect(report).not.toContain('Batteriespeicher')
+    expect(report).toContain('2 Anlagen: 1 ohne Mängel, 0 mit Mängeln, 1 noch nicht geprüft.')
+    expect(protocols).toHaveLength(1)
+  })
+
   it('is one page with nothing tested, and says so', async () => {
     const site = await aSite('Leer')
     const { report, protocols, pages } = await printed(site)

@@ -119,7 +119,8 @@ function partOf(record: RecordState): StructurePart {
  * The structure a protocol at an installation starts from (#304): the
  * customer of its site, and for a PV system, or a battery that belongs to
  * one, the inverters, modules, batteries and meters of that system. A battery
- * of no system is the only battery there is.
+ * of no system is the only battery there is. And the installation itself,
+ * with the power and capacity it names (#307).
  */
 export function useInstallationStructure(
   installationId: string | undefined,
@@ -158,6 +159,14 @@ export function useInstallationStructure(
       batteries:
         systemId === undefined && kind === 'battery' ? [partOf(installation)] : ofKind('battery'),
       meters: ofKind('meter'),
+      // The installation itself, as a wallbox or a battery names its power and capacity (#307).
+      installation: {
+        ...partOf(installation),
+        usableCapacityWh:
+          typeof installation['usableCapacityWh'] === 'number'
+            ? installation['usableCapacityWh']
+            : null,
+      },
     }
   }, [installation, customer, kind, systemId, inverters, modules, companions])
 }

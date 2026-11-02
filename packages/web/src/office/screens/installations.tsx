@@ -1,5 +1,5 @@
 import type { RecordState } from '@opengewerk/domain'
-import { belongsToPvSystemKind, reportsToGridOperator } from '@opengewerk/domain'
+import { belongsToPvSystemKind, fundingKinds, reportsToGridOperator } from '@opengewerk/domain'
 import { Button, Panel, Status } from '@opengewerk/platform-web'
 import { date } from '@opengewerk/platform-web/format'
 import {
@@ -42,7 +42,15 @@ import {
   useGridOperatorFields,
 } from './grid-documents.js'
 import { PvDocumentsSection } from './pv-documents.js'
-import { asInstallation, installationCheck, installationFields, warrantyText } from './sites.js'
+import {
+  asInstallation,
+  installationCheck,
+  installationFields,
+  installationForForm,
+  ratingText,
+  warrantyText,
+} from './sites.js'
+import { FundingSection } from './funding-programs.js'
 import {
   CompanionsSection,
   InvertersSection,
@@ -161,6 +169,11 @@ export function InstallationList() {
   )
 }
 
+/** "7,68 kWh", "11 kW", or nothing where the installation names none (#307). */
+function ratedFact(value: unknown, unit: string): string | null {
+  return typeof value === 'number' ? `${ratingText(value)} ${unit}` : null
+}
+
 /**
  * One installation, `anlage()` of the canvas: its boards, protocols, jobs and
  * files at the left, its facts at the right, and the way into the structure
@@ -190,6 +203,7 @@ export function InstallationScreen() {
   // The grid operator and its number (#306), for a PV system and a battery or wallbox of its own.
   const gridFields = useGridOperatorFields(installation ?? null)
   const writes = useMay('installation.write')
+  const readsFunding = useMay('funding_program.read')
   const createsJobs = useMay('job.write')
   const [editing, setEditing] = useState(false)
   const [addingJob, setAddingJob] = useState(false)
@@ -208,6 +222,7 @@ export function InstallationScreen() {
   const pv = kind === 'pv_system'
   const companion = belongsToPvSystemKind(kind)
   const reports = reportsToGridOperator(kind, maybeText(installation, 'pvSystemId'))
+  const fundable = (fundingKinds as readonly string[]).includes(kind)
   const firstBoard = boards[0]
   const firstInverter = inverters[0]
   // A PV system opens its structure at its first inverter, anything else at its first board.
@@ -288,6 +303,10 @@ export function InstallationScreen() {
             {pv ? <PvDocumentsSection installationId={installationId} /> : null}
             {/* The papers for the grid operator and the help for the register below them (#306). */}
             {reports ? <GridSection installationId={installationId} kind={kind} /> : null}
+            {/* The papers for a funding programme below them (#307), with the right to the programmes. */}
+            {readsFunding && fundable ? (
+              <FundingSection installationId={installationId} kind={kind} />
+            ) : null}
             <JobsPanel
               caption="Aufträge an der Anlage"
               jobs={jobs}
@@ -337,7 +356,7 @@ export function InstallationScreen() {
                   // One column in the side column from 1024 pixels on, as the form of the
                   // canvas stands there; two squeezed the lists of a battery to a word.
                   columns="lg:grid-cols-1"
-                  record={installation}
+                  record={installationForForm(installation)}
                   submitLabel="Speichern"
                   check={installationCheck}
                   onCancel={() => {
@@ -359,7 +378,8 @@ export function InstallationScreen() {
                 />
               ) : (
                 <FactList
-                  keyWidth={110}
+                  // Wider for a battery and a wallbox, so that "Bemessungsleistung" stays one word (#307).
+                  keyWidth={kind === 'battery' || kind === 'wallbox' ? 140 : 110}
                   facts={[
                     {
                       label: 'Objekt',
@@ -406,6 +426,23 @@ export function InstallationScreen() {
                     { label: 'Hersteller', value: maybeText(installation, 'manufacturer') },
                     { label: 'Typ', value: maybeText(installation, 'model') },
                     { label: 'Seriennummer', value: maybeText(installation, 'serialNumber') },
+                    // What a battery delivers and the power a battery or a wallbox is rated for (#307).
+                    ...(kind === 'battery'
+                      ? [
+                          {
+                            label: 'Nutzbare Speicherkapazität',
+                            value: ratedFact(installation['usableCapacityWh'], 'kWh'),
+                          },
+                        ]
+                      : []),
+                    ...(kind === 'battery' || kind === 'wallbox'
+                      ? [
+                          {
+                            label: 'Bemessungsleistung',
+                            value: ratedFact(installation['ratedPowerW'], 'kW'),
+                          },
+                        ]
+                      : []),
                     {
                       label: 'In Betrieb seit',
                       value: maybeText(installation, 'commissionedOn')

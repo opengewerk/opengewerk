@@ -77,6 +77,7 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   yieldForecastSource: 'Quelle der Ertragsprognose',
   gridOperatorId: 'Netzbetreiber',
   gridOperatorReference: 'Kennung beim Netzbetreiber',
+  usableCapacityWh: 'Nutzbare Speicherkapazität',
   customerId: 'Kunde',
   siteId: 'Objekt',
   supplierId: 'Lieferant',

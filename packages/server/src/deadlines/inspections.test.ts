@@ -397,3 +397,27 @@ describe('no deadline comes', () => {
     expect(await kept(south)).toEqual([])
   })
 })
+
+describe('a signed commissioning protocol of a wallbox (#307)', () => {
+  it('names the first recurring inspection, as the first inspection of a new installation does', async () => {
+    await aProtocol({ performedOn: '2033-11-02', months: 48, key: 'vde-0100-722' })
+    await runDeadlinesOf({ database }, north, early)
+
+    expect(await kept()).toEqual([
+      expect.objectContaining({
+        kind: 'elektro.recurring_inspection',
+        sourceId: place.installation,
+        anchorOn: '2033-11-02',
+        dueOn: '2037-11-02',
+        naturalUserId: 'max',
+      }),
+    ])
+  })
+
+  it('makes none for a battery, whose commissioning names no next inspection', async () => {
+    await aProtocol({ performedOn: '2033-11-02', months: 48, key: 'battery-commissioning' })
+    await runDeadlinesOf({ database }, north, early)
+
+    expect(await kept()).toEqual([])
+  })
+})

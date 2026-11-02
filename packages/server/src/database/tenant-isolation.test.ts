@@ -1385,6 +1385,7 @@ interface Planted {
   readonly appointment: string
   /** A grid operator of the business (#306). */
   readonly gridOperator: string
+  readonly fundingProgram: string
 }
 
 /**
@@ -1612,6 +1613,11 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     ),
     gridOperator: await one(
       "insert into grid_operators (tenant_id, name) values ($1, 'Stadtwerke Neckartal Netze GmbH')",
+      [tenant],
+    ),
+    fundingProgram: await one(
+      `insert into funding_programs (tenant_id, name, kinds, evidence)
+       values ($1, 'Ladeinfrastruktur 2026', '{wallbox}', '[{"source":"invoice","label":"Rechnung"}]')`,
       [tenant],
     ),
   }

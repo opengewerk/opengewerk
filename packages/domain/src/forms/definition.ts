@@ -105,6 +105,12 @@ export interface FormDefinition extends GeneralFormDefinition<TradeFormTerms> {
    * installation, by key, with what fills each (#304, `structureValues`).
    */
   readonly fromStructure?: Readonly<Record<string, StructureFigure>>
+  /**
+   * The commissioning protocol goes to the grid operator: the completion binds
+   * the newest signed one behind it and takes its day (#306). The one after
+   * VDE-AR-N 4105; the one a manufacturer asks of a battery stays at home (#307).
+   */
+  readonly toGridOperator?: boolean
 }
 
 /** How the screens name the day of a filled form: the day of the test, or of the commissioning (#304). */
@@ -160,6 +166,12 @@ function ownProblems(definition: FormDefinition): readonly string[] {
 
   if (definition.purpose !== undefined && !['test', 'commissioning'].includes(definition.purpose)) {
     problems.push(`${definition.key}: der Zweck ${String(definition.purpose)} ist unbekannt.`)
+  }
+
+  if (definition.toGridOperator === true && definition.purpose !== 'commissioning') {
+    problems.push(
+      `${definition.key}: an den Netzbetreiber geht nur ein Protokoll der Inbetriebsetzung.`,
+    )
   }
 
   const fields = new Map(

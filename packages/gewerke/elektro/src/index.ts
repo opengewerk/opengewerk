@@ -16,6 +16,8 @@ import vde0105100v1 from '../formulare/vde-0105-100.v1.json' with { type: 'json'
 import dguvV3v1 from '../formulare/dguv-v3.v1.json' with { type: 'json' }
 import vdeArN4105v1 from '../formulare/vde-ar-n-4105.v1.json' with { type: 'json' }
 import iec624461v1 from '../formulare/iec-62446-1.v1.json' with { type: 'json' }
+import vde0100722v1 from '../formulare/vde-0100-722.v1.json' with { type: 'json' }
+import batteryCommissioningV1 from '../formulare/battery-commissioning.v1.json' with { type: 'json' }
 import vde0105100Deadlines from '../fristen/vde-0105-100.json' with { type: 'json' }
 import dguvV3Deadlines from '../fristen/dguv-v3.json' with { type: 'json' }
 import gridOperatorDeadlines from '../fristen/netzbetreiber.json' with { type: 'json' }
@@ -25,6 +27,7 @@ import dguvV3Limits from '../regeln/dguv-v3.json' with { type: 'json' }
 import vdeArN4105Values from '../regeln/vde-ar-n-4105.json' with { type: 'json' }
 import iec624461Limits from '../regeln/iec-62446-1.json' with { type: 'json' }
 import marketRegisterValues from '../regeln/mastr.json' with { type: 'json' }
+import vde0100722Limits from '../regeln/vde-0100-722.json' with { type: 'json' }
 
 /**
  * The trade package Elektro und PV in the format of ADR 0008: a manifest, the
@@ -62,6 +65,9 @@ export const elektroManifest: TradeManifest = manifest
  * The fourth is no test: the commissioning protocol after VDE-AR-N 4105 of a
  * PV system or a battery, started from its structure (#304). The fifth tests
  * the DC side of a PV system, string by string out of its structure (#305).
+ * The sixth puts a wallbox into operation with its first inspection after DIN
+ * VDE 0100-600 and DIN VDE 0100-722, and names the interval to the first
+ * recurring one; the seventh a battery, as its manufacturer asks (#307).
  */
 export const elektroForms: readonly FormDefinition[] = [
   vde0100600v1 as FormDefinition,
@@ -71,6 +77,8 @@ export const elektroForms: readonly FormDefinition[] = [
   dguvV3v1 as FormDefinition,
   vdeArN4105v1 as FormDefinition,
   iec624461v1 as FormDefinition,
+  vde0100722v1 as FormDefinition,
+  batteryCommissioningV1 as FormDefinition,
 ]
 
 export const elektroRulePackages: readonly RulePackage[] = [
@@ -80,6 +88,7 @@ export const elektroRulePackages: readonly RulePackage[] = [
   vdeArN4105Values as RulePackage,
   iec624461Limits as RulePackage,
   marketRegisterValues as RulePackage,
+  vde0100722Limits as RulePackage,
 ]
 
 /**

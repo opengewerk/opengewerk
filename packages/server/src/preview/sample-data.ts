@@ -1655,6 +1655,9 @@ async function plantPhotovoltaic(
     warrantyEndsOn: '2035-03-03',
     pvSystemId: system,
     inverterId: inverter,
+    // What it delivers and the power it is rated for, from its data sheet (#307).
+    usableCapacityWh: 7680,
+    ratedPowerW: 5000,
   })
   await post('/installations', {
     siteId: house,
@@ -1662,7 +1665,41 @@ async function plantPhotovoltaic(
     designation: 'Wallbox Garage',
     manufacturer: 'Mennekes',
     model: 'Amtron 4Business',
+    serialNumber: 'MA4B-2611-08812',
+    ratedPowerW: 11_000,
     pvSystemId: system,
+  })
+
+  // Two funding programmes as templates (#307): one for a wallbox with a
+  // declaration, one for a battery with what its operator brings.
+  await post('/funding-programs', {
+    name: 'Ladeinfrastruktur 2026',
+    sponsor: 'Stadtwerke Neckartal',
+    url: 'https://stadtwerke-neckartal.de/foerderung',
+    kinds: ['wallbox'],
+    evidence: [
+      { source: 'invoice', label: 'Rechnung mit einzeln ausgewiesenen Positionen' },
+      { source: 'declaration', label: 'Fachunternehmererklärung' },
+      { source: 'commissioning', label: 'Inbetriebnahmeprotokoll der Ladeeinrichtung' },
+      { source: 'photos', label: 'Foto der installierten Wallbox mit Typenschild' },
+      { source: 'serial_numbers', label: 'Seriennummer der Wallbox' },
+      { source: 'operator', label: 'Kontoauszug mit allen Zahlungen an den Fachbetrieb' },
+      { source: 'operator', label: 'Nachweis eines Ökostromvertrags' },
+    ],
+    declaration:
+      'Hiermit bestätigt {betrieb}, dass die Anlage {anlage} mit der Seriennummer {seriennummer} beim Anlagenbetreiber {betreiber}, {objekt}, fachgerecht nach den anerkannten Regeln der Technik errichtet und am {inbetriebnahme} in Betrieb genommen wurde. Die Bemessungsleistung beträgt {leistung}.',
+  })
+  await post('/funding-programs', {
+    name: 'Batteriespeicher 2026',
+    sponsor: 'Stadtwerke Neckartal',
+    kinds: ['battery'],
+    evidence: [
+      { source: 'invoice', label: 'Rechnung des Batteriespeichersystems' },
+      { source: 'commissioning', label: 'Protokoll des Installateurs' },
+      { source: 'serial_numbers', label: 'Seriennummer des Speichers' },
+      { source: 'operator', label: 'Registrierungsbestätigung der Bundesnetzagentur' },
+      { source: 'operator', label: 'Kontoauszug mit allen Zahlungen' },
+    ],
   })
 }
 

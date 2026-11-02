@@ -44,8 +44,15 @@ export interface GridPart {
   /** Maker and type, "Fronius Symo GEN24 10.0 Plus", where known. */
   readonly maker: string | null
   readonly serialNumber: string | null
-  /** In watts, where the structure names it; a battery and a wallbox name none. */
+  /** In watts, the power its line names: an inverter's, where the structure names it. */
   readonly ratedPowerW: number | null
+  /**
+   * What a battery delivers of its charge, in watt hours, and the power a
+   * battery or a wallbox is rated for, in watts (#307): printed on lines of
+   * their own, empty where the installation does not name them.
+   */
+  readonly capacityWh: number | null
+  readonly ratingW: number | null
   /** The inverter a battery hangs at, by its designation. */
   readonly inverter: string | null
   readonly commissionedOn: IsoDate | null
@@ -65,6 +72,9 @@ export interface GridPapers {
     readonly designation: string
     readonly maker: string | null
     readonly serialNumber: string | null
+    /** A battery's usable capacity in watt hours and the power a battery or wallbox is rated for (#307). */
+    readonly capacityWh: number | null
+    readonly ratingW: number | null
   }
   /** The grid operator the installation is reported to, null where it names none. */
   readonly operator: {
@@ -106,6 +116,16 @@ const peak = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumF
 /** "10 kW". */
 export function kilowattText(watts: number): string {
   return `${kilowatts.format(watts / 1000)} kW`
+}
+
+/** "7,68 kWh", from watt hours (#307). */
+export function kilowattHourText(wattHours: number): string {
+  return `${kilowatts.format(wattHours / 1000)} kWh`
+}
+
+/** A power or a capacity as its line prints it, or null for a line to write on. */
+function ratingText(value: number | null, text: (value: number) => string): string | null {
+  return value === null ? null : text(value)
 }
 
 /** "9,60 kWp". */
@@ -220,19 +240,28 @@ export function gridSections(papers: GridPapers, completion: boolean): readonly 
 
   // A battery and a wallbox of a PV system go with its papers; one of their own are the plant itself.
   for (const battery of papers.batteries) {
-    plant.push(['Speicher', partLine(battery)], ['Nutzbare Speicherkapazität', null])
+    plant.push(
+      ['Speicher', partLine(battery)],
+      ['Nutzbare Speicherkapazität', ratingText(battery.capacityWh, kilowattHourText)],
+    )
   }
 
   if (installation.kind === 'battery') {
-    plant.push(['Nutzbare Speicherkapazität', null], ['Wechselrichterleistung', null])
+    plant.push(
+      ['Nutzbare Speicherkapazität', ratingText(installation.capacityWh, kilowattHourText)],
+      ['Wechselrichterleistung', ratingText(installation.ratingW, kilowattText)],
+    )
   }
 
   for (const wallbox of papers.wallboxes) {
-    plant.push(['Wallbox', partLine(wallbox)], ['Bemessungsleistung der Wallbox', null])
+    plant.push(
+      ['Wallbox', partLine(wallbox)],
+      ['Bemessungsleistung der Wallbox', ratingText(wallbox.ratingW, kilowattText)],
+    )
   }
 
   if (installation.kind === 'wallbox') {
-    plant.push(['Bemessungsleistung', null])
+    plant.push(['Bemessungsleistung', ratingText(installation.ratingW, kilowattText)])
   }
 
   if (!completion) {
@@ -445,6 +474,8 @@ export function marketRegisterSections(papers: GridPapers): readonly SheetSectio
             maker: papers.installation.maker,
             serialNumber: papers.installation.serialNumber,
             ratedPowerW: null,
+            capacityWh: papers.installation.capacityWh,
+            ratingW: papers.installation.ratingW,
             inverter: null,
             commissionedOn: papers.commissionedOn,
           },
@@ -464,8 +495,8 @@ export function marketRegisterSections(papers: GridPapers): readonly SheetSectio
         ],
         ['Speichertechnologie', 'Batterie', 'B.1.9.1'],
         ['Batterietechnologie', null, 'B.1.9.2.2'],
-        ['Nutzbare Speicherkapazität', null, 'D.2.1'],
-        ['Wechselrichterleistung', null, 'B.1.9.2.1'],
+        ['Nutzbare Speicherkapazität', ratingText(battery.capacityWh, kilowattHourText), 'D.2.1'],
+        ['Wechselrichterleistung', ratingText(battery.ratingW, kilowattText), 'B.1.9.2.1'],
         [
           'AC- oder DC-gekoppelt',
           battery.inverter === null ? null : `DC-gekoppelt, am ${battery.inverter}`,
@@ -493,7 +524,7 @@ h2 { font-size: 10pt; font-weight: 600; margin: 3.5mm 0 1mm; break-after: avoid;
 .blank-hint { font-size: 7.5pt; color: #8f97a4; }
 `
 
-function sheetTable(rows: readonly SheetRow[], hint: string | null): string {
+export function sheetTable(rows: readonly SheetRow[], hint: string | null): string {
   const blank = `<span class="blank">${hint === null ? '' : `<span class="blank-hint">${text(hint)}</span>`}</span>`
 
   return `<table class="sheet"><tbody>${rows
@@ -506,7 +537,13 @@ function sheetTable(rows: readonly SheetRow[], hint: string | null): string {
     .join('')}</tbody></table>`
 }
 
-function sheetJob(title: string, body: string, footer: string): Required<Omit<PrintJob, 'size'>> {
+/** A portrait A4 page of the office's papers, with the styles of a sheet and those a caller adds (#307). */
+export function sheetJob(
+  title: string,
+  body: string,
+  footer: string,
+  style = '',
+): Required<Omit<PrintJob, 'size'>> {
   const html = `<!doctype html>
 <html lang="de">
 <head>
@@ -514,6 +551,7 @@ function sheetJob(title: string, body: string, footer: string): Required<Omit<Pr
 <title>${text(title)}</title>
 <style>
 ${sheetStyle}
+${style}
 </style>
 </head>
 <body>
@@ -529,7 +567,7 @@ ${body}
   }
 }
 
-function head(title: string, lines: readonly string[], keeper: GridParty): string {
+export function sheetHead(title: string, lines: readonly string[], keeper: GridParty): string {
   return `<header class="head">
   <div>
     <h1>${text(title)}</h1>
@@ -589,7 +627,7 @@ export function gridPaperJob(
   ]
     .filter(present)
     .join(' ')
-  const body = `${head(title, lines, papers.keeper)}
+  const body = `${sheetHead(title, lines, papers.keeper)}
 ${asks}
 ${gridSections(papers, completion)
   .map((section) => `<h2>${text(section.title)}</h2>${sheetTable(section.rows, null)}`)
@@ -614,7 +652,7 @@ export function marketRegisterJob(
     papers.commissionedOn === null || dueOn === null
       ? 'Frist: ein Monat nach der Inbetriebnahme (§ 5 Abs. 5 MaStRV). Der Tag der Inbetriebnahme steht noch nicht fest.'
       : `Frist: ein Monat nach der Inbetriebnahme (§ 5 Abs. 5 MaStRV). In Betrieb seit ${day(papers.commissionedOn)}, also bis zum ${day(dueOn)}.`
-  const body = `${head(title, [where(papers), `Stand ${day(on)}, aus Kunde, Anlage und PV-Struktur`], papers.keeper)}
+  const body = `${sheetHead(title, [where(papers), `Stand ${day(on)}, aus Kunde, Anlage und PV-Struktur`], papers.keeper)}
 <div class="box"><div class="box-title">Melden muss der Anlagenbetreiber</div><div>Er registriert sich selbst als Marktakteur und jede Einheit, unter marktstammdatenregister.de; der Elektrofachbetrieb meldet nicht. ${text(deadline)}</div></div>
 ${marketRegisterSections(papers)
   .map(

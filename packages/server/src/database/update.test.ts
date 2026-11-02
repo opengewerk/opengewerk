@@ -2233,3 +2233,108 @@ describe('the rollback of the grid operators', () => {
     expect(await forced('installations')).toBe(true)
   })
 })
+
+describe('the roles before 0117', () => {
+  const before = () =>
+    readMigrationIndex().findIndex((entry) => entry.tag === '0117_funding_programs')
+
+  it('give the owner and the office the rights to the funding programmes, and nobody else', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+         values ($1, 'owner', 'Inhaber', '{installation.write}', true, true),
+                ($1, 'office', 'Büro', '{installation.write}', false, false),
+                ($1, 'technician', 'Monteur', '{installation.write}', false, false)`,
+      [tenant.id],
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows: roles } = await admin.query<{ key: string; reads: boolean; keeps: boolean }>(
+      `select key, 'funding_program.read' = any(rights) as reads,
+              'funding_program.write' = any(rights) as keeps
+         from tenant_roles order by key`,
+    )
+    expect(roles).toEqual([
+      { key: 'office', reads: true, keeps: true },
+      { key: 'owner', reads: true, keeps: true },
+      { key: 'technician', reads: false, keeps: false },
+    ])
+  })
+})
+
+/**
+ * The rollback of 0117 (#307): a funding programme is what the office typed
+ * in, a capacity or a power what it read off a data sheet. The rollback
+ * deletes none of them; while there is one, it stops and changes nothing.
+ */
+describe('the rollback of the funding programmes', () => {
+  async function forced(table: string): Promise<boolean> {
+    const { rows } = await admin.query<{ forced: boolean }>(
+      'select relforcerowsecurity as forced from pg_class where relname = $1',
+      [table],
+    )
+
+    return rows[0]?.forced ?? false
+  }
+
+  it('deletes no programme and no rating, and stops while there is one', async () => {
+    const customer = newId<'customer'>()
+    const site = newId<'site'>()
+    const wallbox = newId<'installation'>()
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name) values ($1, $2, 'private', 'Familie Weber')",
+      [customer, tenant.id],
+    )
+    await admin.query(
+      "insert into sites (id, tenant_id, customer_id, designation) values ($1, $2, $3, 'Wohnhaus')",
+      [site, tenant.id, customer],
+    )
+    await admin.query(
+      `insert into installations (id, tenant_id, site_id, kind, designation, rated_power_w)
+       values ($1, $2, $3, 'wallbox', 'Wallbox Garage', 11000)`,
+      [wallbox, tenant.id, site],
+    )
+
+    await expect(revertMigration(admin, '0117_funding_programs')).rejects.toThrow(
+      'Die Rücknahme von 0117 löscht sie nicht',
+    )
+    expect(
+      (await admin.query('select rated_power_w from installations where id = $1', [wallbox])).rows,
+    ).toEqual([{ rated_power_w: 11000 }])
+    expect(await forced('installations')).toBe(true)
+    expect(await forced('funding_programs')).toBe(true)
+
+    // A programme alone stops it as well.
+    await admin.query(
+      `begin; set local session_replication_role = replica;
+       update installations set rated_power_w = null; commit;`,
+    )
+    await admin.query(
+      `insert into funding_programs (tenant_id, name, kinds, evidence)
+       values ($1, 'Ladeinfrastruktur 2026', '{wallbox}', '[{"source":"invoice","label":"Rechnung"}]')`,
+      [tenant.id],
+    )
+    await expect(revertMigration(admin, '0117_funding_programs')).rejects.toThrow(
+      'Die Rücknahme von 0117 löscht sie nicht',
+    )
+
+    // Taken out by hand, as the sentence says, the rollback goes through.
+    await admin.query(
+      `begin; set local session_replication_role = replica; delete from funding_programs; commit;`,
+    )
+    await revertMigration(admin, '0117_funding_programs')
+
+    expect(await tableNames(admin)).not.toContain('funding_programs')
+    expect(await columnNames(admin, 'installations')).not.toContain('rated_power_w')
+    expect(await forced('installations')).toBe(true)
+  })
+})

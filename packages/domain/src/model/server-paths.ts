@@ -47,4 +47,6 @@ export const serverPaths = [
   'calendar',
   // The grid operators and the entry of the business in their directories (#306).
   'grid-operators',
+  // The funding programmes as templates of the office (#307).
+  'funding-programs',
 ] as const

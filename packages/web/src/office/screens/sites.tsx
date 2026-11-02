@@ -94,8 +94,59 @@ export const installationFields: readonly FormField[] = [
     hint: 'Womit und wann sie entstand, etwa PV*SOL oder PVGIS.',
     shownWhen: (values) => values['kind'] === 'pv_system',
   },
+  // What a battery delivers and the power a battery or a wallbox is rated for (#307).
+  {
+    name: 'usableCapacityWh',
+    label: 'Nutzbare Speicherkapazität in kWh',
+    numeric: true,
+    hint: 'Nach dem Datenblatt, die Kapazität, die der Speicher abgibt.',
+    shownWhen: (values) => values['kind'] === 'battery',
+  },
+  {
+    name: 'ratedPowerW',
+    label: 'Bemessungsleistung in kW',
+    numeric: true,
+    hint: 'Nach dem Datenblatt; bei einem Speicher die Leistung, mit der er lädt und entlädt.',
+    shownWhen: (values) => values['kind'] === 'battery' || values['kind'] === 'wallbox',
+  },
   { name: 'notes', label: 'Notizen' },
 ]
+
+/**
+ * A capacity or a power as it is typed, "7,68" in kilowatt hours or "11" in
+ * kilowatts, in watt hours or watts as the installation keeps it (#307);
+ * nothing for an empty field, and undefined for one that is no number with at
+ * most three places after the comma.
+ */
+export function ratingOf(typed: string | undefined): number | null | undefined {
+  const value = typed?.trim() ?? ''
+
+  if (value === '') {
+    return null
+  }
+
+  const match = /^(\d{1,6})(?:[,.](\d{1,3}))?$/.exec(value)
+
+  return match ? Number(match[1]) * 1000 + Number((match[2] ?? '').padEnd(3, '0')) : undefined
+}
+
+/** A capacity or a power as the form shows it, "7,68" for 7680. */
+export function ratingText(value: unknown): string {
+  return typeof value === 'number'
+    ? new Intl.NumberFormat('de-DE', { maximumFractionDigits: 3, useGrouping: false }).format(
+        value / 1000,
+      )
+    : ''
+}
+
+/** The installation as its form starts: a capacity and a power in kilowatt hours and kilowatts. */
+export function installationForForm(installation: RecordState): RecordState {
+  return {
+    ...installation,
+    usableCapacityWh: ratingText(installation['usableCapacityWh']),
+    ratedPowerW: ratingText(installation['ratedPowerW']),
+  }
+}
 
 /**
  * The forecast as it is typed, "9120" or "9.120", in kilowatt hours; nothing
@@ -115,8 +166,19 @@ export function yieldForecastOf(typed: string | undefined): number | null | unde
 export function installationCheck(values: Readonly<Record<string, string>>): string | null {
   const forecast = yieldForecastOf(values['yieldForecastKwh'])
 
-  return forecast === undefined || yieldForecastProblem(forecast) !== null
-    ? 'Die Ertragsprognose ist eine ganze Zahl von Kilowattstunden im Jahr.'
+  if (forecast === undefined || yieldForecastProblem(forecast) !== null) {
+    return 'Die Ertragsprognose ist eine ganze Zahl von Kilowattstunden im Jahr.'
+  }
+
+  const capacity = ratingOf(values['usableCapacityWh'])
+  const power = ratingOf(values['ratedPowerW'])
+
+  if (capacity === undefined || capacity === 0) {
+    return 'Die nutzbare Speicherkapazität ist eine Zahl in kWh über null, etwa 7,68.'
+  }
+
+  return power === undefined || power === 0
+    ? 'Die Bemessungsleistung ist eine Zahl in kW über null, etwa 11.'
     : null
 }
 
@@ -140,6 +202,8 @@ export function asInstallation(values: Record<string, string>) {
     warrantyEndsOn: asTextOrNull(values['warrantyEndsOn']),
     yieldForecastKwh: yieldForecastOf(values['yieldForecastKwh']) ?? null,
     yieldForecastSource: asTextOrNull(values['yieldForecastSource']),
+    usableCapacityWh: ratingOf(values['usableCapacityWh']) ?? null,
+    ratedPowerW: ratingOf(values['ratedPowerW']) ?? null,
     notes: asTextOrNull(values['notes']),
   }
 }

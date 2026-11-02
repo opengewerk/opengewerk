@@ -8,7 +8,9 @@ import type { FormUnit, RuleUnit } from '@opengewerk/platform-domain'
  * protocol names to the next inspection (#301). Then the power of a PV
  * system on its commissioning protocol (#304), a thousandth of a kilowatt
  * being a watt, as the PV structure counts it; and the current and the
- * irradiance the test of its DC side measures with (#305).
+ * irradiance the test of its DC side measures with (#305). And the capacity
+ * of a battery on its commissioning protocol (#307), a thousandth of a
+ * kilowatt hour being a watt hour, as the installation counts it.
  */
 export const measurementUnits = [
   'ohm',
@@ -29,6 +31,7 @@ export const measurementUnits = [
   'kilowatt_peak',
   'ampere',
   'watt_per_square_metre',
+  'kilowatt_hour',
 ] as const
 
 export type MeasurementUnit = (typeof measurementUnits)[number]
@@ -54,6 +57,7 @@ export const measurementUnitSign: Readonly<Record<MeasurementUnit, string>> = {
   kilowatt_peak: 'kWp',
   ampere: 'A',
   watt_per_square_metre: 'W/m²',
+  kilowatt_hour: 'kWh',
 }
 
 /**

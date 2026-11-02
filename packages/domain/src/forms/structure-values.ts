@@ -5,7 +5,7 @@ import type { FormValue, FormValues } from './values.js'
 /**
  * What the structure of an installation tells a protocol it starts (#304):
  * the customer it belongs to, the inverters, modules, batteries and meters of
- * a PV system. A definition names, under `fromStructure`, which of its fields
+ * a PV system, and what a wallbox or a battery says of itself (#307). A definition names, under `fromStructure`, which of its fields
  * starts with which of them; whoever fills the form in checks them and
  * changes them like any other value, and once it is signed they stay as they
  * were that day, whatever the structure says later.
@@ -25,6 +25,12 @@ export const structureFigures = [
   'module_power',
   /** Whether a battery belongs to the system. */
   'battery_present',
+  /** The installation itself on a line: designation, maker and type, serial number (#307). */
+  'installation',
+  /** The power the installation is rated for, a wallbox or a battery. */
+  'rated_power',
+  /** What a battery delivers of its charge. */
+  'usable_capacity',
 ] as const
 
 export type StructureFigure = (typeof structureFigures)[number]
@@ -44,6 +50,9 @@ export const structureFigureFields: Readonly<
   inverter_power: { kind: 'number', units: ['kilowatt', 'kilovoltampere'] },
   module_power: { kind: 'number', units: ['kilowatt_peak'] },
   battery_present: { kind: 'yes_no' },
+  installation: { kind: 'text' },
+  rated_power: { kind: 'number', units: ['kilowatt', 'kilovoltampere'] },
+  usable_capacity: { kind: 'number', units: ['kilowatt_hour'] },
 }
 
 /** An inverter, a battery or a meter as the structure has it. */
@@ -64,6 +73,11 @@ export interface InstallationStructure {
   readonly modules: readonly { readonly ratedPowerW: number | null }[]
   readonly batteries: readonly StructurePart[]
   readonly meters: readonly StructurePart[]
+  /**
+   * The installation the protocol starts at, as it names itself (#307): a
+   * wallbox with its rated power, a battery with its capacity in watt hours.
+   */
+  readonly installation?: (StructurePart & { readonly usableCapacityWh?: number | null }) | null
 }
 
 function filled(value: string | null | undefined): value is string {
@@ -110,6 +124,11 @@ function totalPower(
   return parts.reduce((sum, part) => sum + (part.ratedPowerW ?? 0), 0)
 }
 
+/** A whole number of watts or watt hours, the thousandths of the field's unit, or nothing. */
+function wholeOrNothing(value: number | null | undefined): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined
+}
+
 /** What one figure comes to for a structure, or nothing where the structure does not say. */
 export function structureValue(
   figure: StructureFigure,
@@ -138,6 +157,18 @@ export function structureValue(
       return totalPower(structure.modules)
     case 'battery_present':
       return structure.batteries.length > 0
+    case 'installation': {
+      // Its power has a field of its own, so the line names what it is and nothing more.
+      const line = structure.installation
+        ? partLine({ ...structure.installation, ratedPowerW: null })
+        : ''
+
+      return line === '' ? undefined : line
+    }
+    case 'rated_power':
+      return wholeOrNothing(structure.installation?.ratedPowerW)
+    case 'usable_capacity':
+      return wholeOrNothing(structure.installation?.usableCapacityWh)
   }
 }
 

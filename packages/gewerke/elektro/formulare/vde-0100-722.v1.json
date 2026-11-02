@@ -1,0 +1,523 @@
+{
+  "key": "vde-0100-722",
+  "version": 1,
+  "title": "Inbetriebnahmeprotokoll Ladeeinrichtung nach DIN VDE 0100-600 und DIN VDE 0100-722",
+  "attachesTo": "installation",
+  "installationKinds": ["wallbox"],
+  "purpose": "commissioning",
+  "fromStructure": {
+    "operator": "operator",
+    "charging_station": "installation",
+    "rated_power": "rated_power"
+  },
+  "sections": [
+    {
+      "key": "plant",
+      "title": "Ladeeinrichtung",
+      "hint": "DIN VDE 0100-722:2019-06, mit der Erstprüfung nach DIN VDE 0100-600.",
+      "fields": [
+        {
+          "kind": "text",
+          "key": "operator",
+          "label": "Betreiber",
+          "hint": "Name und Anschrift, vorbelegt aus dem Kunden des Objekts.",
+          "multiline": true,
+          "required": true
+        },
+        {
+          "kind": "text",
+          "key": "charging_station",
+          "label": "Ladeeinrichtung",
+          "hint": "Hersteller, Typ und Seriennummer, vorbelegt aus der Anlage.",
+          "required": true
+        },
+        {
+          "kind": "number",
+          "key": "rated_power",
+          "label": "Bemessungsleistung",
+          "hint": "Vorbelegt aus der Anlage.",
+          "unit": "kilowatt",
+          "decimals": 2,
+          "required": true
+        },
+        {
+          "kind": "number",
+          "key": "charging_points",
+          "label": "Anzahl der Ladepunkte",
+          "unit": "piece",
+          "decimals": 0,
+          "required": true
+        },
+        {
+          "kind": "yes_no",
+          "key": "public_access",
+          "label": "Öffentlich zugänglich",
+          "hint": "Dann gilt dazu die Ladesäulenverordnung.",
+          "required": true
+        },
+        {
+          "kind": "choice",
+          "key": "grid_notice",
+          "label": "Mitteilung an den Netzbetreiber",
+          "required": true,
+          "hint": "Jede Ladeeinrichtung ist vor der Inbetriebnahme mitzuteilen; über 12 kVA Summen-Bemessungsleistung je Anlage braucht sie die Zustimmung des Netzbetreibers (§ 19 Abs. 2 NAV).",
+          "options": [
+            {
+              "value": "notified",
+              "label": "Mitgeteilt"
+            },
+            {
+              "value": "approved",
+              "label": "Mitgeteilt, Zustimmung liegt vor"
+            },
+            {
+              "value": "missing",
+              "label": "Noch nicht mitgeteilt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "controllable",
+          "label": "Steuerbare Verbrauchseinrichtung nach § 14a EnWG",
+          "required": true,
+          "hint": "Eine nicht öffentlich zugängliche Ladeeinrichtung über 4,2 kW, in Betrieb seit dem 01.01.2024 (Festlegung BK6-22-300 der Bundesnetzagentur).",
+          "options": [
+            {
+              "value": "connected",
+              "label": "Steuerung angeschlossen"
+            },
+            {
+              "value": "prepared",
+              "label": "Vorbereitet, Steuerung folgt"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "general",
+      "title": "Prüfung",
+      "fields": [
+        {
+          "kind": "text",
+          "key": "tester",
+          "label": "Prüfer",
+          "required": true,
+          "carry": true
+        },
+        {
+          "kind": "text",
+          "key": "instrument",
+          "label": "Messgerät",
+          "carry": true,
+          "hint": "Hersteller, Typ und Seriennummer, dazu der Prüfadapter."
+        },
+        {
+          "kind": "choice",
+          "key": "earthing_system",
+          "label": "Netzform",
+          "required": true,
+          "carry": true,
+          "options": [
+            {
+              "value": "tn_c",
+              "label": "TN-C"
+            },
+            {
+              "value": "tn_s",
+              "label": "TN-S"
+            },
+            {
+              "value": "tn_c_s",
+              "label": "TN-C-S"
+            },
+            {
+              "value": "tt",
+              "label": "TT"
+            },
+            {
+              "value": "it",
+              "label": "IT"
+            }
+          ]
+        },
+        {
+          "kind": "number",
+          "key": "nominal_voltage",
+          "label": "Nennspannung",
+          "carry": true,
+          "unit": "volt",
+          "decimals": 0
+        }
+      ]
+    },
+    {
+      "key": "inspection",
+      "title": "Besichtigen",
+      "hint": "DIN VDE 0100-600, Abschnitt 6.4.2, mit den Anforderungen der DIN VDE 0100-722.",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "conductors",
+          "label": "Kabel und Leitungen für den Dauerstrom des Ladens bemessen und verlegt",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ],
+          "hint": "Bemessen nach DIN VDE 0100-430; die Abschaltbedingungen nach DIN VDE 0100-410 eingehalten."
+        },
+        {
+          "kind": "choice",
+          "key": "rcd_per_point",
+          "label": "Je Ladepunkt eine Fehlerstrom-Schutzeinrichtung mit höchstens 30 mA",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ],
+          "hint": "DIN VDE 0100-722, 722.411.3.3; sie kann in der Ladeeinrichtung sitzen."
+        },
+        {
+          "kind": "choice",
+          "key": "dc_protection",
+          "label": "Schutz bei Gleichfehlerströmen",
+          "required": true,
+          "hint": "Je Ladepunkt eine RCD Typ B, oder eine RCD Typ A oder F mit Fehlergleichstrom-Überwachung (RDC-DD) nach IEC 62955; DIN VDE 0100-722, 722.531.3.101.",
+          "options": [
+            {
+              "value": "type_b",
+              "label": "RCD Typ B"
+            },
+            {
+              "value": "rdc_dd",
+              "label": "RCD Typ A oder F mit RDC-DD"
+            },
+            {
+              "value": "defect",
+              "label": "Fehlt, Mangel"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "overcurrent_per_point",
+          "label": "Überstromschutz je Ladepunkt",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ],
+          "hint": "DIN VDE 0100-722, 722.533.101."
+        },
+        {
+          "kind": "choice",
+          "key": "mechanical",
+          "label": "Schutz gegen mechanische Beschädigung und Witterung am Aufstellort",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "connector",
+          "label": "Ladesteckdose oder fest angeschlagenes Ladekabel unbeschädigt",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "documentation",
+          "label": "Unterlagen des Herstellers vorhanden, Stromkreis im Stromkreisverzeichnis",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "trial",
+      "title": "Erproben",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "rcd_test_button",
+          "label": "Prüftaste der Fehlerstromschutzeinrichtungen",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "charging_states",
+          "label": "Ladevorgang mit dem Prüfadapter, Abschaltung im Fehlerfall",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ],
+          "hint": "Die Zustände des Fahrzeugs nach DIN EN IEC 61851-1 nachgebildet, mit Fehler am Steuerkontakt."
+        },
+        {
+          "kind": "choice",
+          "key": "load_management",
+          "label": "Lastmanagement und Ansteuerung von außen",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "measurements",
+      "title": "Messen",
+      "hint": "DIN VDE 0100-600, Abschnitt 6.4.3, am Ladepunkt mit dem Prüfadapter.",
+      "fields": [
+        {
+          "kind": "measurement",
+          "key": "protective_conductor",
+          "label": "Durchgängigkeit des Schutzleiters RPE",
+          "unit": "ohm",
+          "decimals": 2
+        },
+        {
+          "kind": "measurement",
+          "key": "insulation_resistance",
+          "label": "Isolationswiderstand Riso",
+          "unit": "megaohm",
+          "decimals": 2,
+          "limit": {
+            "kind": "at_least",
+            "rule": "elektro.insulation.minimum_up_to_500v"
+          }
+        },
+        {
+          "kind": "measurement",
+          "key": "loop_impedance",
+          "label": "Schleifenimpedanz Zs",
+          "unit": "ohm",
+          "decimals": 2,
+          "hint": "Die Abschaltbedingung nach DIN VDE 0100-410 beurteilt der Prüfer mit dem Überstromschutz des Stromkreises."
+        },
+        {
+          "kind": "measurement",
+          "key": "rcd_trip_current",
+          "label": "Auslösestrom IΔ",
+          "unit": "milliampere",
+          "decimals": 1,
+          "limit": {
+            "kind": "at_most",
+            "rule": "elektro.charging.rcd_rated_residual_current"
+          }
+        },
+        {
+          "kind": "measurement",
+          "key": "rcd_trip_time",
+          "label": "Auslösezeit tΔ",
+          "unit": "millisecond",
+          "decimals": 0,
+          "limit": {
+            "kind": "at_most",
+            "rule": "elektro.rcd.trip_time_maximum"
+          }
+        },
+        {
+          "kind": "measurement",
+          "key": "dc_trip_current",
+          "label": "Auslösestrom der Fehlergleichstrom-Überwachung",
+          "unit": "milliampere",
+          "decimals": 1,
+          "hint": "Nur bei einer RCD Typ A oder F mit Fehlergleichstrom-Überwachung nach IEC 62955; bei einer RCD Typ B leer.",
+          "limit": {
+            "kind": "at_most",
+            "rule": "elektro.charging.dc_residual_current"
+          }
+        },
+        {
+          "kind": "choice",
+          "key": "phase_sequence",
+          "label": "Drehfeld",
+          "options": [
+            {
+              "value": "clockwise",
+              "label": "rechts"
+            },
+            {
+              "value": "counterclockwise",
+              "label": "links"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "result",
+      "title": "Ergebnis",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "verdict",
+          "label": "Ergebnis",
+          "required": true,
+          "options": [
+            {
+              "value": "passed",
+              "label": "Keine Mängel festgestellt"
+            },
+            {
+              "value": "defects",
+              "label": "Mängel festgestellt"
+            }
+          ]
+        },
+        {
+          "kind": "text",
+          "key": "defects",
+          "label": "Mängel",
+          "multiline": true
+        },
+        {
+          "kind": "number",
+          "key": "next_inspection_months",
+          "label": "Prüffrist bis zur ersten Wiederholungsprüfung",
+          "required": true,
+          "unit": "month",
+          "decimals": 0,
+          "hint": "Wie bei einer Neuanlage nach DIN VDE 0100-600. Im Betrieb eines Kunden legt er sie nach seiner Gefährdungsbeurteilung fest. Prüffristen nach Tabelle 1A der Durchführungsanweisungen zu § 5 der DGUV Vorschrift 3: 48 Monate, in Betriebsstätten, Räumen und Anlagen besonderer Art 12 Monate."
+        },
+        {
+          "kind": "yes_no",
+          "key": "handed_over",
+          "label": "Betreiber eingewiesen, Unterlagen übergeben",
+          "required": true
+        },
+        {
+          "kind": "photo",
+          "key": "photo",
+          "label": "Foto"
+        },
+        {
+          "kind": "signature",
+          "key": "operator_signature",
+          "label": "Unterschrift des Betreibers"
+        },
+        {
+          "kind": "signature",
+          "key": "tester_signature",
+          "label": "Unterschrift des Prüfers",
+          "seals": true
+        }
+      ]
+    }
+  ]
+}

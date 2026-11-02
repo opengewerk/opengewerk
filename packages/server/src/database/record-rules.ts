@@ -15,6 +15,7 @@ import {
   noteTimeProblem,
   priceBaseProblem,
   pvSystemLinkProblem,
+  ratingProblem,
   servicePeriodProblem,
   signerNameProblem,
   supplierProblems,
@@ -142,6 +143,15 @@ const rules: RecordRules = {
     {
       fields: ['gridOperatorReference'],
       problem: (at) => gridOperatorReferenceProblem(at('gridOperatorReference')),
+    },
+    // A capacity only at a battery, a power only at a battery or a wallbox (#307), as `installations_ratings` holds.
+    {
+      fields: ['kind', 'usableCapacityWh'],
+      problem: (at) => ratingProblem('usableCapacityWh', at('kind'), at('usableCapacityWh')),
+    },
+    {
+      fields: ['kind', 'ratedPowerW'],
+      problem: (at) => ratingProblem('ratedPowerW', at('kind'), at('ratedPowerW')),
     },
   ],
   documents: [

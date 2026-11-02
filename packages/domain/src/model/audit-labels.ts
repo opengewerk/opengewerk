@@ -236,6 +236,19 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       yield_forecast_source: 'Quelle der Ertragsprognose',
       grid_operator_id: 'Netzbetreiber',
       grid_operator_reference: 'Kennung beim Netzbetreiber',
+      usable_capacity_wh: 'Nutzbare Speicherkapazität',
+      rated_power_w: 'Bemessungsleistung',
+    },
+  },
+  // The funding programmes as templates of the office (#307).
+  funding_programs: {
+    label: 'Förderprogramm',
+    fields: {
+      sponsor: 'Fördergeber',
+      url: 'Seite im Internet',
+      kinds: 'Gilt für',
+      evidence: 'Nachweise',
+      declaration: 'Text der Fachunternehmererklärung',
     },
   },
   // The grid operators and the entry of the business in their directories (#306).

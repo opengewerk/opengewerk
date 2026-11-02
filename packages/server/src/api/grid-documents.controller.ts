@@ -77,7 +77,7 @@ function maker(part: { readonly manufacturer: string | null; readonly model: str
   return said === '' ? null : said
 }
 
-/** The newest signed commissioning protocol of each installation, by its key. */
+/** The newest signed commissioning protocol for the grid operator of each installation, by its key (#307). */
 async function commissioningOf(
   tx: TenantTransaction,
   ids: readonly string[],
@@ -104,6 +104,7 @@ async function commissioningOf(
 
     if (
       definition?.purpose === 'commissioning' &&
+      definition.toGridOperator === true &&
       record.installationId !== null &&
       !newest.has(record.installationId)
     ) {
@@ -236,6 +237,8 @@ async function papersOf(
     maker: maker(entry),
     serialNumber: entry.serialNumber,
     ratedPowerW: null,
+    capacityWh: entry.usableCapacityWh,
+    ratingW: entry.ratedPowerW,
     inverter:
       ownInverters.find((inverter) => inverter.id === entry.inverterId)?.designation ?? null,
     commissionedOn: commissionedOf(entry),
@@ -283,6 +286,8 @@ async function papersOf(
         designation: installation.designation,
         maker: maker(installation),
         serialNumber: installation.serialNumber,
+        capacityWh: installation.usableCapacityWh,
+        ratingW: installation.ratedPowerW,
       },
       operator:
         operator === null
@@ -312,6 +317,8 @@ async function papersOf(
         maker: maker(inverter),
         serialNumber: inverter.serialNumber,
         ratedPowerW: inverter.ratedPowerW,
+        capacityWh: null,
+        ratingW: null,
         inverter: null,
         commissionedOn: null,
       })),
