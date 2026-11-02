@@ -47,15 +47,8 @@ export const customerKindLabel: Readonly<Record<CustomerKind, string>> = {
   general_contractor: 'Generalunternehmer',
 }
 
-export const installationKindLabel: Readonly<Record<InstallationKind, string>> = {
-  pv_system: 'PV-Anlage',
-  battery: 'Speicher',
-  meter: 'Zähler',
-  meter_cabinet: 'Zählerschrank',
-  wallbox: 'Wallbox',
-  heating: 'Heizung',
-  other: 'Sonstige',
-}
+// The report of a site prints the same words (#302).
+export { installationKindLabel } from '@opengewerk/domain'
 
 export const jobKindLabel: Readonly<Record<JobKind, string>> = {
   project: 'Projekt',

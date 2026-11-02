@@ -35,7 +35,7 @@ import { installationKindLabel, installationKindOf, jobStatusOf } from '../../ap
 import { useMay } from '../../app/queries.js'
 import { setTags } from '../../session/tags.js'
 import { type ChosenTags, TagPicker, TagPill, useTagsBy } from '../tags.js'
-import { AppliancesPanel } from './appliances.js'
+import { AppliancesPanel, ReportButton } from './appliances.js'
 import { FilesPanel } from './attachments.js'
 import { ContactsSection } from './contacts.js'
 import { placeOf, tagsChanged } from './customers.js'
@@ -81,6 +81,15 @@ export const installationFields: readonly FormField[] = [
   },
   { name: 'notes', label: 'Notizen' },
 ]
+
+/**
+ * Where the test of the electrical installation of a site comes from (#302):
+ * the server prints it out of the last tests of its installations and
+ * appliances, with their protocols behind it.
+ */
+export function inspectionReportAddress(siteId: string): string {
+  return `/sites/${encodeURIComponent(siteId)}/inspection-report`
+}
 
 export function asInstallation(values: Record<string, string>) {
   return {
@@ -226,6 +235,7 @@ export function SiteScreen() {
   const jobs = useRelated('jobs', 'siteId', siteId)
   const writes = useMay('site.write')
   const createsInstallations = useMay('installation.write')
+  const readsInstallations = useMay('installation.read')
   const createsJobs = useMay('job.write')
   const tagged = useTagsBy('site')
   const [editing, setEditing] = useState(false)
@@ -306,6 +316,11 @@ export function SiteScreen() {
         actions={
           <>
             <ChangesButton table="sites" id={siteId} />
+            {readsInstallations ? (
+              <ReportButton href={inspectionReportAddress(siteId)}>
+                Prüfung der Elektroinstallation
+              </ReportButton>
+            ) : null}
             {writes ? (
               <Button
                 icon={Pencil}
