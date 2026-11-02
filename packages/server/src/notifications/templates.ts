@@ -180,6 +180,44 @@ export function appointmentPush(facts: {
   }
 }
 
+/** The days of an absence as the site names them: "10.11. bis 14.11.2031", or one day with its half. */
+export interface LeaveSpan {
+  readonly firstDay: string
+  readonly lastDay: string
+  readonly startsAtNoon: boolean
+  readonly endsAtNoon: boolean
+}
+
+function spanText(span: LeaveSpan): string {
+  const first = germanDate(span.firstDay)
+
+  if (span.firstDay === span.lastDay) {
+    return `${first}${span.startsAtNoon ? ', ab Mittag' : span.endsAtNoon ? ', bis Mittag' : ''}`
+  }
+
+  return `${first.slice(0, 6)} bis ${germanDate(span.lastDay)}`
+}
+
+/**
+ * Leave somebody asked for (#806), to whoever keeps absences: the days and
+ * nothing else. Not the name, because the message stands on a locked screen;
+ * a request is always for leave, never for sickness.
+ */
+export function leaveRequestPush(span: LeaveSpan): PushText {
+  return { title: 'Urlaubsantrag', body: spanText(span) }
+}
+
+/** The decision about a request (#806), to whoever asked: the days and how it went, not the answer. */
+export function leaveDecisionPush(facts: {
+  readonly decision: 'approved' | 'rejected'
+  readonly span: LeaveSpan
+}): PushText {
+  return {
+    title: facts.decision === 'approved' ? 'Urlaub freigegeben' : 'Urlaub abgelehnt',
+    body: spanText(facts.span),
+  }
+}
+
 /** The message a person sends themselves from "Konto", to see that push works. */
 export function testPush(): PushText {
   return {

@@ -166,6 +166,18 @@ describe('"Konto"', () => {
           about: 'Wenn du einen neuen Termin bekommst oder einer sich ändert oder entfällt.',
           on: true,
         },
+        {
+          key: 'leave_request',
+          label: 'Urlaubsanträge',
+          about: 'Wenn jemand Urlaub beantragt; nur, wenn du Abwesenheiten pflegst.',
+          on: true,
+        },
+        {
+          key: 'leave_decision',
+          label: 'Entscheidung über Urlaub',
+          about: 'Wenn über deinen Urlaubsantrag entschieden ist.',
+          on: true,
+        },
       ],
       devices: [],
     })
@@ -262,6 +274,8 @@ describe('an occasion', () => {
       expect.objectContaining({ key: 'task_due', on: false }),
       expect.objectContaining({ key: 'deadline_due', on: true }),
       expect.objectContaining({ key: 'appointment', on: true }),
+      expect.objectContaining({ key: 'leave_request', on: true }),
+      expect.objectContaining({ key: 'leave_decision', on: true }),
     ])
     expect((await overview('max')).occasions.every((occasion) => occasion.on)).toBe(true)
 

@@ -8,7 +8,13 @@
  * portal in phase 5. Each person switches off under "Konto" what they do not
  * want as push, and every occasion is on until they do.
  */
-export const pushOccasions = ['task_due', 'deadline_due', 'appointment'] as const
+export const pushOccasions = [
+  'task_due',
+  'deadline_due',
+  'appointment',
+  'leave_request',
+  'leave_decision',
+] as const
 
 export type PushOccasion = (typeof pushOccasions)[number]
 
@@ -31,6 +37,15 @@ export const pushOccasionWords: Readonly<
   appointment: {
     label: 'Termine',
     about: 'Wenn du einen neuen Termin bekommst oder einer sich ändert oder entfällt.',
+  },
+  // A request goes to whoever keeps absences, its decision to whoever asked (#806).
+  leave_request: {
+    label: 'Urlaubsanträge',
+    about: 'Wenn jemand Urlaub beantragt; nur, wenn du Abwesenheiten pflegst.',
+  },
+  leave_decision: {
+    label: 'Entscheidung über Urlaub',
+    about: 'Wenn über deinen Urlaubsantrag entschieden ist.',
   },
 }
 
