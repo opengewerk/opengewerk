@@ -1,4 +1,5 @@
 import {
+  type ApplianceFacts,
   type BlockCircuit,
   type BlockField,
   circuitBlocks,
@@ -14,6 +15,7 @@ import {
   type GroupBlock,
   type GroupField,
   inspectionDueAfter,
+  isApplianceFacts,
   isNextInspection,
   type IsoDate,
   limitVerdict,
@@ -42,7 +44,14 @@ import {
 import { amount, date, scaledNumber, today } from '@opengewerk/platform-web/format'
 import { useHoldUpdates } from '@opengewerk/platform-web/shell'
 import { NotSent, SiteRow, SiteRows } from '@opengewerk/platform-web/site'
-import { refusalFor, text, useRelated, useSync, useSyncStatus } from '@opengewerk/platform-web/sync'
+import {
+  refusalFor,
+  text,
+  useRecord,
+  useRelated,
+  useSync,
+  useSyncStatus,
+} from '@opengewerk/platform-web/sync'
 import type { EditResult } from '@opengewerk/platform-web/sync'
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
@@ -91,9 +100,12 @@ export function isSigned(record: RecordState): boolean {
   return record['status'] === 'signed'
 }
 
-/** The protocols of an installation, the newest test first. */
-export function useProtocols(installationId: string | undefined): readonly RecordState[] {
-  const related = useRelated('form_records', 'installationId', installationId)
+/** The protocols of an installation, or of an appliance of the register (#303), the newest test first. */
+export function useProtocols(
+  id: string | undefined,
+  field: 'installationId' | 'applianceId' = 'installationId',
+): readonly RecordState[] {
+  const related = useRelated('form_records', field, id)
 
   return useMemo(
     () =>
@@ -221,12 +233,15 @@ export function startingValues(
   return values
 }
 
-/** A new protocol at an installation, through the outbox like everything written on site. */
+/**
+ * A new protocol at an installation, or at an appliance of the register
+ * (#303), through the outbox like everything written on site.
+ */
 export async function startProtocol(
   client: SyncClient,
   input: {
     readonly definition: FormDefinition
-    readonly installationId: string
+    readonly subject: { readonly installationId: string } | { readonly applianceId: string }
     readonly jobId: string | null
     readonly circuits: readonly (BlockCircuit & { readonly id: string })[]
     readonly template: RecordState | null
@@ -235,7 +250,7 @@ export async function startProtocol(
   return client.create('form_records', {
     definitionKey: input.definition.key,
     definitionVersion: input.definition.version,
-    installationId: input.installationId,
+    ...input.subject,
     jobId: input.jobId,
     performedOn: today(),
     status: 'draft',
@@ -250,11 +265,15 @@ export async function startProtocol(
  */
 export function ProtocolsList({
   installationId,
+  applianceId,
   jobId,
   pathOf,
   onStarted,
 }: {
-  readonly installationId: string
+  /** The installation the protocols hang on; or, for the test of an appliance, */
+  readonly installationId?: string
+  /** the appliance of the register (#303). */
+  readonly applianceId?: string
   readonly jobId: string | null
   /** Where a protocol opens, on the entry that shows the list. */
   readonly pathOf: (recordId: string) => string
@@ -262,13 +281,26 @@ export function ProtocolsList({
 }) {
   const client = useSync()
   const entry = useEntry()
-  const protocols = useProtocols(installationId)
+  const protocols = useProtocols(
+    applianceId ?? installationId,
+    applianceId === undefined ? 'installationId' : 'applianceId',
+  )
   // The last signed one, of whichever form: a recurring inspection takes over
   // from the first what both know (1.3). A draft is a test nobody has vouched
   // for yet, and a form of another version of OpenGewerk cannot be read.
   const template =
     protocols.find((protocol) => isSigned(protocol) && definitionOf(protocol) !== null) ?? null
   const circuits = useBlockCircuits(installationId)
+  // The forms of what the list belongs to: the protocols of an installation,
+  // or the test of an appliance.
+  const subject = applianceId === undefined ? 'installation' : 'appliance'
+  const definitions = protocolRegistry
+    .current()
+    .filter((definition) => definition.attachesTo === subject)
+  const nothingYet =
+    subject === 'appliance'
+      ? 'An diesem Gerät gibt es noch kein Prüfprotokoll.'
+      : 'An dieser Anlage gibt es noch kein Prüfprotokoll.'
   const [trouble, setTrouble] = useState<string | null>(null)
   const [working, setWorking] = useState(false)
 
@@ -279,7 +311,8 @@ export function ProtocolsList({
     try {
       const made = await startProtocol(client, {
         definition,
-        installationId,
+        subject:
+          applianceId === undefined ? { installationId: installationId ?? '' } : { applianceId },
         jobId,
         circuits,
         template,
@@ -302,9 +335,7 @@ export function ProtocolsList({
     return (
       <div className="flex flex-col gap-2.5">
         {protocols.length === 0 ? (
-          <p className="text-[13px] leading-[1.4] text-ink-muted">
-            An dieser Anlage gibt es noch kein Prüfprotokoll.
-          </p>
+          <p className="text-[13px] leading-[1.4] text-ink-muted">{nothingYet}</p>
         ) : (
           <ul>
             {/* In the order they were done, as the card lists them, so that the
@@ -341,14 +372,14 @@ export function ProtocolsList({
           </ul>
         )}
 
-        {circuits.length === 0 ? (
+        {subject === 'installation' && circuits.length === 0 ? (
           <p className="text-[13px] leading-[1.4] text-ink-muted">
             Gemessen wird je Stromkreis aus dem Stromkreisverzeichnis. Solange die Anlage keinen
             hat, bleibt der Teil "Messen" leer.
           </p>
         ) : null}
 
-        {protocolRegistry.current().map((definition) => {
+        {definitions.map((definition) => {
           return (
             <div key={definition.key} className="flex flex-col items-start gap-2.5">
               <Button
@@ -392,9 +423,7 @@ export function ProtocolsList({
   return (
     <div className="flex flex-col gap-2.5">
       {protocols.length === 0 ? (
-        <p className="py-2 text-[16px] leading-[1.45] text-ink-muted">
-          An dieser Anlage gibt es noch kein Prüfprotokoll.
-        </p>
+        <p className="py-2 text-[16px] leading-[1.45] text-ink-muted">{nothingYet}</p>
       ) : (
         <SiteRows>
           {protocols.map((protocol) => {
@@ -422,14 +451,14 @@ export function ProtocolsList({
         </SiteRows>
       )}
 
-      {circuits.length === 0 ? (
+      {subject === 'installation' && circuits.length === 0 ? (
         <p className="text-[16px] leading-[1.45] text-ink-muted">
           Gemessen wird je Stromkreis aus dem Stromkreisverzeichnis. Solange die Anlage keinen hat,
           bleibt der Teil "Messen" leer.
         </p>
       ) : null}
 
-      {protocolRegistry.current().map((definition) => {
+      {definitions.map((definition) => {
         return (
           <div key={definition.key} className="flex flex-col gap-1">
             <Button
@@ -474,11 +503,14 @@ export function Verdict({
   field,
   value,
   circuit,
+  appliance = null,
   performedOn,
 }: {
   readonly field: MeasurementField
   readonly value: FieldValue | undefined
   readonly circuit: BlockCircuit | null
+  /** The appliance a test after DGUV Vorschrift 3 is done at (#303). */
+  readonly appliance?: ApplianceFacts | null
   readonly performedOn: string
 }) {
   if (!field.limit) {
@@ -489,6 +521,7 @@ export function Verdict({
     rules: protocolRules,
     on: performedOn,
     circuit,
+    appliance,
   })
 
   return (
@@ -561,6 +594,7 @@ export function FieldInput({
   field,
   value,
   circuit,
+  appliance = null,
   performedOn,
   photos,
   onChange,
@@ -568,6 +602,7 @@ export function FieldInput({
   readonly field: BlockField
   readonly value: FieldValue | undefined
   readonly circuit: BlockCircuit | null
+  readonly appliance?: ApplianceFacts | null
   readonly performedOn: string
   readonly photos: readonly { readonly value: string; readonly label: string }[]
   readonly onChange: (value: FieldValue | undefined) => void
@@ -607,7 +642,13 @@ export function FieldInput({
       return (
         <div className="flex flex-col gap-1">
           <FigureInput field={field} value={value} onChange={onChange} />
-          <Verdict field={field} value={value} circuit={circuit} performedOn={performedOn} />
+          <Verdict
+            field={field}
+            value={value}
+            circuit={circuit}
+            appliance={appliance}
+            performedOn={performedOn}
+          />
         </div>
       )
     case 'choice':
@@ -678,12 +719,14 @@ export function FieldText({
   field,
   value,
   circuit,
+  appliance = null,
   performedOn,
   photos,
 }: {
   readonly field: BlockField
   readonly value: FieldValue | undefined
   readonly circuit: BlockCircuit | null
+  readonly appliance?: ApplianceFacts | null
   readonly performedOn: string
   readonly photos: readonly { readonly value: string; readonly label: string }[]
 }) {
@@ -694,7 +737,13 @@ export function FieldText({
         {shownValue(field, value, photos)}
       </p>
       {field.kind === 'measurement' ? (
-        <Verdict field={field} value={value} circuit={circuit} performedOn={performedOn} />
+        <Verdict
+          field={field}
+          value={value}
+          circuit={circuit}
+          appliance={appliance}
+          performedOn={performedOn}
+        />
       ) : isNextInspection(field) ? (
         <NextInspection performedOn={performedOn} value={value} />
       ) : null}
@@ -969,10 +1018,26 @@ function usePhotos(
   )
 }
 
+/** What the limits of a test are worked out from, of an appliance as the device holds it (#303). */
+export function applianceFactsOf(appliance: RecordState | null): ApplianceFacts | null {
+  const facts = appliance
+    ? {
+        protectionClass: appliance['protectionClass'],
+        cordLengthMilli: appliance['cordLengthMilli'] ?? null,
+      }
+    : null
+
+  return isApplianceFacts(facts) ? facts : null
+}
+
 /** What a screen needs of a protocol to show it and to save what is typed into it. */
 export interface ProtocolDraft {
   readonly definition: FormDefinition | null
   readonly circuits: readonly (BlockCircuit & { readonly id: string })[]
+  /** The appliance the test is done at, what its limits are worked out from (#303). */
+  readonly appliance: ApplianceFacts | null
+  /** Its record, for a screen that names it. */
+  readonly applianceId: string | null
   readonly photos: readonly { readonly value: string; readonly label: string }[]
   readonly editable: boolean
   readonly draft: FormValues
@@ -1004,6 +1069,8 @@ export function useProtocolDraft(record: RecordState): ProtocolDraft {
   const installationId = text(record, 'installationId')
   const circuits = useBlockCircuits(installationId)
   const photos = usePhotos(installationId)
+  const applianceId = text(record, 'applianceId') || null
+  const appliance = applianceFactsOf(useRecord('appliances', applianceId ?? undefined))
   const editable = !isSigned(record)
   // Read and written again, so that two texts of the same values compare
   // equal whoever wrote them.
@@ -1093,6 +1160,8 @@ export function useProtocolDraft(record: RecordState): ProtocolDraft {
   return {
     definition,
     circuits,
+    appliance,
+    applianceId,
     photos,
     editable,
     draft,
@@ -1123,6 +1192,7 @@ export function ProtocolSheet({
   const {
     definition,
     circuits,
+    appliance,
     photos,
     editable,
     draft,
@@ -1200,6 +1270,7 @@ export function ProtocolSheet({
                 field={field}
                 value={value}
                 circuit={null}
+                appliance={appliance}
                 performedOn={performedOn}
                 photos={photos}
                 onChange={(changed) => {
@@ -1212,6 +1283,7 @@ export function ProtocolSheet({
                 field={field}
                 value={value}
                 circuit={null}
+                appliance={appliance}
                 performedOn={performedOn}
                 photos={photos}
               />

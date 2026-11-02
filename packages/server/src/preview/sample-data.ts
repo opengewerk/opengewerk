@@ -615,6 +615,7 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   }
 
   await plantBoards(post, cabinet, today)
+  await plantAppliances(post, estate, today)
   await plantPhotovoltaic(post, berg, house)
 
   const catalogue = await plantMaterial(post, (path, body) => send(base, 'PUT', path, body), today)
@@ -1870,6 +1871,218 @@ async function plantBoards(
 
   if (refused.length > 0) {
     throw new Error(`The sample boards were not all taken: ${JSON.stringify(refused)}`)
+  }
+}
+
+/**
+ * The register of the caretaker at the estate (#303), as the boards
+ * "Geräteverzeichnis" and "Geräte am Objekt" draw it: five appliances tested
+ * after DGUV Vorschrift 3, one of them with defects and one due in a few
+ * days, and a cable drum nobody has tested yet. Through the outbox, as a
+ * device writes them; figures in thousandths of their unit.
+ */
+async function plantAppliances(
+  post: (path: string, body: unknown) => Promise<Answer>,
+  estate: string,
+  today: IsoDate,
+): Promise<void> {
+  const daysAgo = (days: number): IsoDate => {
+    const day = new Date(`${today}T12:00:00Z`)
+
+    day.setUTCDate(day.getUTCDate() - days)
+
+    return day.toISOString().slice(0, 10)
+  }
+  const appliance = (
+    inventoryNumber: string,
+    designation: string,
+    protectionClass: 'I' | 'II',
+    location: string,
+    more: Record<string, unknown> = {},
+  ) => ({
+    siteId: estate,
+    inventoryNumber,
+    designation,
+    protectionClass,
+    mobility: 'portable',
+    location,
+    ...more,
+  })
+  const drill = newId<'appliance'>()
+  const lead = newId<'appliance'>()
+  const heater = newId<'appliance'>()
+  const coffee = newId<'appliance'>()
+  const washer = newId<'appliance'>()
+  const drum = newId<'appliance'>()
+  const tested = (
+    on: IsoDate,
+    measured: Record<string, number>,
+    months: number,
+    found: { readonly verdict: 'passed' | 'defects'; readonly defects?: string } = {
+      verdict: 'passed',
+    },
+    cord: 'ok' | 'defect' = 'ok',
+  ) => ({
+    definitionKey: 'dguv-v3',
+    definitionVersion: 1,
+    jobId: null,
+    performedOn: on,
+    status: 'signed',
+    values: JSON.stringify({
+      tester: 'Anna Weber',
+      instrument: 'Benning ST 760, 21044817',
+      test_kind: 'recurring',
+      current_method: 'differential',
+      housing: 'ok',
+      cord,
+      plug: 'ok',
+      markings: 'ok',
+      suitability: 'ok',
+      ...measured,
+      function: 'ok',
+      safety_devices: 'not_applicable',
+      ...found,
+      next_inspection_months: months * 1000,
+      tester_signature: {
+        name: 'Anna Weber',
+        path: sampleSignature,
+        signedAt: `${on}T09:30:00.000Z`,
+      },
+    }),
+  })
+  const parts: [string, string, Record<string, unknown>][] = [
+    [
+      'appliances',
+      drill,
+      appliance('001', 'Bohrhammer', 'II', 'Werkstatt, Keller', {
+        manufacturer: 'Bosch',
+        model: 'GBH 2-26',
+      }),
+    ],
+    [
+      'appliances',
+      lead,
+      appliance('002', 'Verlängerungsleitung 25 m', 'I', 'Werkstatt, Keller', {
+        manufacturer: 'Brennenstuhl',
+        cordLengthMilli: 25_000,
+      }),
+    ],
+    [
+      'appliances',
+      heater,
+      appliance('003', 'Heizlüfter', 'I', 'Hausmeisterbüro', {
+        manufacturer: 'Stiebel Eltron',
+        model: 'CK 20',
+        cordLengthMilli: 1_800,
+      }),
+    ],
+    [
+      'appliances',
+      coffee,
+      appliance('004', 'Kaffeemaschine', 'I', 'Hausmeisterbüro', {
+        manufacturer: 'Melitta',
+        model: 'Look IV',
+        cordLengthMilli: 1_200,
+      }),
+    ],
+    [
+      'appliances',
+      washer,
+      appliance('005', 'Waschmaschine', 'I', 'Waschküche', {
+        manufacturer: 'Miele',
+        model: 'WWD 120',
+        mobility: 'fixed',
+      }),
+    ],
+    [
+      'appliances',
+      drum,
+      appliance('006', 'Kabeltrommel 50 m', 'I', 'Garage', {
+        manufacturer: 'as-Schwabe',
+        cordLengthMilli: 50_000,
+      }),
+    ],
+    [
+      'form_records',
+      newId<'form-record'>(),
+      {
+        ...tested(daysAgo(10), { insulation: 25_000, touch_current: 80 }, 12),
+        applianceId: drill,
+      },
+    ],
+    [
+      'form_records',
+      newId<'form-record'>(),
+      {
+        ...tested(
+          daysAgo(10),
+          { protective_conductor: 520, insulation: 100_000, protective_conductor_current: 10 },
+          12,
+        ),
+        applianceId: lead,
+      },
+    ],
+    [
+      'form_records',
+      newId<'form-record'>(),
+      {
+        ...tested(
+          daysAgo(10),
+          { protective_conductor: 140, insulation: 3_200, protective_conductor_current: 640 },
+          12,
+          {
+            verdict: 'defects',
+            defects: 'Anschlussleitung am Knickschutz beschädigt, Gerät außer Betrieb genommen.',
+          },
+          'defect',
+        ),
+        applianceId: heater,
+      },
+    ],
+    [
+      'form_records',
+      newId<'form-record'>(),
+      {
+        ...tested(
+          daysAgo(360),
+          { protective_conductor: 120, insulation: 18_500, protective_conductor_current: 520 },
+          12,
+        ),
+        applianceId: coffee,
+      },
+    ],
+    [
+      'form_records',
+      newId<'form-record'>(),
+      {
+        ...tested(
+          daysAgo(45),
+          { protective_conductor: 90, insulation: 45_000, protective_conductor_current: 1_100 },
+          48,
+        ),
+        applianceId: washer,
+      },
+    ],
+  ]
+
+  const sent = await post('/sync', {
+    deviceId: 'vorschau-rechner',
+    operations: parts.map(([entity, recordId, values]) => ({
+      id: newId<'operation'>(),
+      entity,
+      recordId,
+      kind: 'create',
+      baseVersion: null,
+      patches: Object.entries(values).map(([field, to]) => ({ field, from: null, to })),
+      recordedAt: new Date().toISOString(),
+    })),
+  })
+  const refused = (
+    (sent['receipts'] ?? []) as { outcome?: string; reason?: string | null }[]
+  ).filter((taken) => taken.outcome !== 'applied')
+
+  if (refused.length > 0) {
+    throw new Error(`The sample appliances were not all taken: ${JSON.stringify(refused)}`)
   }
 }
 

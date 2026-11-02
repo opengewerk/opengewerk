@@ -6,6 +6,7 @@ import {
 } from '@opengewerk/platform-domain'
 
 import type { TradeFormTerms } from './definition.js'
+import { applianceInsulation, applianceProtectiveConductor } from './appliance-limits.js'
 import { formUnits } from './units.js'
 
 /**
@@ -27,8 +28,8 @@ export const tradeFieldKinds = [
 /**
  * The form engine of the foundation (ADR 0010, opengewerk-haustechnik#28),
  * bound to the forms of this application: its units, the circuits a group
- * repeats over, the two limits worked out of a circuit, the kinds of field its
- * screens show, and its sentences. A field of its forms is about nothing but
+ * repeats over, the two limits worked out of a circuit and the two of a
+ * appliance, the kinds of field its screens show, and its sentences. A field of its forms is about nothing but
  * what the form hangs on, so it names no records.
  *
  * A block keeps its circuit under `circuitId` and `circuit`, the keys every
@@ -39,7 +40,12 @@ export const tradeFieldKinds = [
 export const tradeForms = formEngine<TradeFormTerms>({
   units: formUnits,
   lists: { circuits: circuitList },
-  limits: { loop_impedance: loopImpedance, rcd_trip_current: residualTripCurrent },
+  limits: {
+    loop_impedance: loopImpedance,
+    rcd_trip_current: residualTripCurrent,
+    appliance_insulation: applianceInsulation,
+    appliance_protective_conductor: applianceProtectiveConductor,
+  },
   kinds: tradeFieldKinds,
   blockKeys: { id: 'circuitId', item: 'circuit' },
   sentences: {

@@ -12,9 +12,12 @@ import manifest from '../manifest.json' with { type: 'json' }
 import vde0100600v1 from '../formulare/vde-0100-600.v1.json' with { type: 'json' }
 import vde0100600v2 from '../formulare/vde-0100-600.v2.json' with { type: 'json' }
 import vde0105100v1 from '../formulare/vde-0105-100.v1.json' with { type: 'json' }
+import dguvV3v1 from '../formulare/dguv-v3.v1.json' with { type: 'json' }
 import vde0105100Deadlines from '../fristen/vde-0105-100.json' with { type: 'json' }
+import dguvV3Deadlines from '../fristen/dguv-v3.json' with { type: 'json' }
 import vde0100600Limits from '../regeln/vde-0100-600.json' with { type: 'json' }
 import vde0105100Limits from '../regeln/vde-0105-100.json' with { type: 'json' }
+import dguvV3Limits from '../regeln/dguv-v3.json' with { type: 'json' }
 
 /**
  * The trade package Elektro und PV in the format of ADR 0008: a manifest, the
@@ -45,26 +48,33 @@ export const elektroManifest: TradeManifest = manifest
  * Every version of every form the package has shipped, the oldest kept for the
  * forms filled in it. Version 2 of the protocol differs from version 1 in one
  * thing: the remark on a circuit takes more than a line (#256). The recurring
- * inspection after DIN VDE 0105-100 is the second form (#301).
+ * inspection after DIN VDE 0105-100 is the second form (#301), the test of a
+ * appliance after DGUV Vorschrift 3 the third, the first that hangs on an appliance
+ * of the register and not on an installation (#303).
  */
 export const elektroForms: readonly FormDefinition[] = [
   vde0100600v1 as FormDefinition,
   vde0100600v2 as FormDefinition,
   vde0105100v1 as FormDefinition,
+  dguvV3v1 as FormDefinition,
 ]
 
 export const elektroRulePackages: readonly RulePackage[] = [
   vde0100600Limits as RulePackage,
   vde0105100Limits as RulePackage,
+  dguvV3Limits as RulePackage,
 ]
 
 /**
  * The kinds of deadline the package brings (`fristen/`, ADR 0008): the
  * recurring inspection, due when the last protocol after DIN VDE 0105-100 of
- * an installation says. The server puts them beside the core's.
+ * an installation says, and the test of an appliance, due when its last protocol
+ * after DGUV Vorschrift 3 says (#303). The server puts them beside the core's.
  */
-export const elektroDeadlineKinds: readonly DeadlineKind[] =
-  vde0105100Deadlines.kinds as readonly DeadlineKind[]
+export const elektroDeadlineKinds: readonly DeadlineKind[] = [
+  ...(vde0105100Deadlines.kinds as readonly DeadlineKind[]),
+  ...(dguvV3Deadlines.kinds as readonly DeadlineKind[]),
+]
 
 /** The limits of the package as a rule set, the one `limitVerdict` is asked with. */
 export const elektroRules: RuleSet = ruleSet(elektroRulePackages.flatMap((entry) => entry.records))

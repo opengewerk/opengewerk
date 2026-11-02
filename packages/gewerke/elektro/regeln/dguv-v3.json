@@ -1,0 +1,96 @@
+{
+  "package": "elektro.dguv-v3",
+  "note": "Grenzwerte der Geräteprüfung nach DGUV Vorschrift 3, für das Prüfprotokoll (#303). Vorprüfung am 02.11.2026 anhand der DGUV Information 203-070 vom April 2026, die die Werte der Wiederholungsprüfung nach DIN EN 50699 (VDE 0702) zusammenstellt; die fachkundige Abnahme steht aus wie bei den Regelpaketen in #31, und bis dahin ist jeder Wert eine Hilfe beim Ablesen und keine Freigabe. Ob dieselben Werte für die Prüfung nach Instandsetzung nach DIN EN 50678 (VDE 0701) gelten, gehört zu dieser Abnahme. Die Grenzwerte gelten ab dem 01.06.2021, dem Ausgabedatum von DIN EN 50699 (VDE 0702):2021-06.",
+  "records": [
+    {
+      "key": "elektro.appliance.protective_conductor_base",
+      "validFrom": "2021-06-01",
+      "validUntil": null,
+      "unit": "milliohms",
+      "value": 300,
+      "source": "DGUV Information 203-070:2026-04, Tabelle 1, nach DIN EN 50699 (VDE 0702):2021-06",
+      "note": "Schutzleiterwiderstand eines Geräts der Schutzklasse I mit einer Leitung bis 5 m und einem Leiterquerschnitt bis 1,5 mm². Für größere Querschnitte gilt der berechnete Widerstand der Leitung; das unterscheidet das Protokoll in dieser Fassung noch nicht."
+    },
+    {
+      "key": "elektro.appliance.protective_conductor_base_length",
+      "validFrom": "2021-06-01",
+      "validUntil": null,
+      "unit": "millimetres",
+      "value": 5000,
+      "source": "DGUV Information 203-070:2026-04, Tabelle 1, nach DIN EN 50699 (VDE 0702):2021-06",
+      "note": "Bis zu dieser Länge der Leitung gilt der Grundwert."
+    },
+    {
+      "key": "elektro.appliance.protective_conductor_step",
+      "validFrom": "2021-06-01",
+      "validUntil": null,
+      "unit": "milliohms",
+      "value": 100,
+      "source": "DGUV Information 203-070:2026-04, Tabelle 1, nach DIN EN 50699 (VDE 0702):2021-06",
+      "note": "Zuschlag je weitere 7,5 m Leitung, für jeden angefangenen Abschnitt."
+    },
+    {
+      "key": "elektro.appliance.protective_conductor_step_length",
+      "validFrom": "2021-06-01",
+      "validUntil": null,
+      "unit": "millimetres",
+      "value": 7500,
+      "source": "DGUV Information 203-070:2026-04, Tabelle 1, nach DIN EN 50699 (VDE 0702):2021-06",
+      "note": "Die Länge eines Abschnitts, für den der Zuschlag gilt."
+    },
+    {
+      "key": "elektro.appliance.protective_conductor_maximum",
+      "validFrom": "2021-06-01",
+      "validUntil": null,
+      "unit": "milliohms",
+      "value": 1000,
+      "source": "DGUV Information 203-070:2026-04, Tabelle 1, nach DIN EN 50699 (VDE 0702):2021-06",
+      "note": "Höchster Schutzleiterwiderstand, gleich wie lang die Leitung ist."
+    },
+    {
+      "key": "elektro.appliance.insulation_class_one",
+      "validFrom": "2021-06-01",
+      "validUntil": null,
+      "unit": "kiloohms",
+      "value": 1000,
+      "source": "DGUV Information 203-070:2026-04, Tabelle 1, nach DIN EN 50699 (VDE 0702):2021-06",
+      "note": "Schutzklasse I, zwischen aktiven Teilen und Schutzleiter samt den damit verbundenen berührbaren leitfähigen Teilen. Bei Geräten mit Heizelementen gelten 0,3 MΩ, und über 3,5 kW ist ein Gerät auch darunter einwandfrei, wenn der Schutzleiterstrom eingehalten ist; das unterscheidet das Protokoll in dieser Fassung noch nicht."
+    },
+    {
+      "key": "elektro.appliance.insulation_class_two",
+      "validFrom": "2021-06-01",
+      "validUntil": null,
+      "unit": "kiloohms",
+      "value": 2000,
+      "source": "DGUV Information 203-070:2026-04, Tabelle 1, nach DIN EN 50699 (VDE 0702):2021-06",
+      "note": "Schutzklasse II, zwischen aktiven Teilen und berührbaren leitfähigen Teilen."
+    },
+    {
+      "key": "elektro.appliance.insulation_class_three",
+      "validFrom": "2021-06-01",
+      "validUntil": null,
+      "unit": "kiloohms",
+      "value": 250,
+      "source": "DGUV Information 203-070:2026-04, Tabelle 1, nach DIN EN 50699 (VDE 0702):2021-06",
+      "note": "Schutzklasse III."
+    },
+    {
+      "key": "elektro.appliance.protective_conductor_current",
+      "validFrom": "2021-06-01",
+      "validUntil": null,
+      "unit": "microamperes",
+      "value": 3500,
+      "source": "DGUV Information 203-070:2026-04, Tabelle 1, nach DIN EN 50699 (VDE 0702):2021-06",
+      "note": "An leitfähigen Teilen mit Verbindung zum Schutzleiter. Bei Geräten mit Heizelementen über 3,5 kW gilt 1 mA je kW bis höchstens 10 mA; das unterscheidet das Protokoll in dieser Fassung noch nicht."
+    },
+    {
+      "key": "elektro.appliance.touch_current",
+      "validFrom": "2021-06-01",
+      "validUntil": null,
+      "unit": "microamperes",
+      "value": 500,
+      "source": "DGUV Information 203-070:2026-04, Tabelle 1, nach DIN EN 50699 (VDE 0702):2021-06",
+      "note": "An berührbaren leitfähigen Teilen ohne Verbindung zum Schutzleiter, bei Schutzklasse I und II."
+    }
+  ]
+}

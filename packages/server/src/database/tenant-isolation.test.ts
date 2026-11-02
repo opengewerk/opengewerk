@@ -468,6 +468,10 @@ const crossings: readonly {
     write: (own, other) => repoint('installations', 'site_id', own.installation, other.site),
   },
   {
+    key: 'appliances_site_in_tenant',
+    write: (own, other) => repoint('appliances', 'site_id', own.appliance, other.site),
+  },
+  {
     key: 'jobs_customer_in_tenant',
     write: (own, other) => repoint('jobs', 'customer_id', own.job, other.customer),
   },
@@ -732,6 +736,13 @@ const crossings: readonly {
     write: (own, other) =>
       sql`insert into form_records (tenant_id, definition_key, definition_version, installation_id, performed_on)
             values (${own.tenant}, 'vde-0100-600', 1, ${other.installation}, current_date)`,
+  },
+  {
+    // The test of an appliance of the other business (#303).
+    key: 'form_records_appliance_in_tenant',
+    write: (own, other) =>
+      sql`insert into form_records (tenant_id, definition_key, definition_version, appliance_id, performed_on)
+            values (${own.tenant}, 'dguv-v3', 1, ${other.appliance}, current_date)`,
   },
   {
     key: 'form_records_job_in_tenant',
@@ -1313,6 +1324,8 @@ interface Planted {
   readonly site: string
   readonly siteContact: string
   readonly installation: string
+  /** An appliance of the register at the site (#303). */
+  readonly appliance: string
   /** A battery that belongs to the PV system above and hangs at its inverter. */
   readonly companion: string
   readonly job: string
@@ -1402,6 +1415,10 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     "insert into installations (tenant_id, site_id, kind, designation) values ($1, $2, 'pv_system', 'PV-Anlage')",
     [tenant, site],
   )
+  const appliance = await one(
+    "insert into appliances (tenant_id, site_id, designation, protection_class) values ($1, $2, 'Bohrhammer', 'II')",
+    [tenant, site],
+  )
   const job = await one(
     "insert into jobs (tenant_id, customer_id, kind, designation) values ($1, $2, 'project', 'Neubau')",
     [tenant, customer],
@@ -1472,6 +1489,7 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
       [tenant, site],
     ),
     installation,
+    appliance,
     companion,
     job,
     document,

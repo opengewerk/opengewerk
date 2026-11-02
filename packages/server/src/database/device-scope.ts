@@ -157,6 +157,7 @@ export const scopedEntities: readonly string[] = [
   'sites',
   'site_tags',
   'installations',
+  'appliances',
   'installation_labels',
   'distribution_boards',
   'board_sections',
@@ -181,7 +182,7 @@ export const scopedEntities: readonly string[] = [
  *
  * What hangs on a job follows the keys downwards: its customer, site and
  * installation, the other installations at that site, their boards, circuits
- * and PV parts, its documents with their lines, signatures and sources, and
+ * and PV parts, the appliances of the register there (#303), its documents with their lines, signatures and sources, and
  * the tasks and files at any of these. A task handed to the person or written
  * by them comes along wherever it hangs. And whatever the person created,
  * found in the audit log by its first entry, stays on their device: the
@@ -202,6 +203,7 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
   const installations = sql`(select i.id from installations i
     where i.id in (select installation_id from jobs where id = any(${ids}) and installation_id is not null)
        or i.site_id in ${sites})`
+  const appliances = sql`(select id from appliances where site_id in ${sites})`
   const boards = sql`(select id from distribution_boards where installation_id in ${installations})`
   const circuits = sql`(select id from circuits where distribution_board_id in ${boards})`
   const inverters = sql`(select id from inverters where installation_id in ${installations})`
@@ -244,6 +246,9 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
     sites: sql`${column('id')} in ${sites}`,
     site_tags: sql`(${column('site_id')} in ${sites} or ${createdBy('sites', column('site_id'))})`,
     installations: sql`${column('id')} in ${installations}`,
+    // The appliances of the sites of its jobs (#303), tested there one after
+    // another without a network.
+    appliances: sql`${column('id')} in ${appliances}`,
     // The labels of the installations the device holds (#308), so that a scan
     // opens one of them without a network, and says nothing of any other.
     installation_labels: sql`${column('installation_id')} in ${installations}`,
@@ -266,6 +271,7 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
     attachments: sql`${column('id')} in ${attachments}`,
     attachment_versions: sql`${column('attachment_id')} in ${attachments}`,
     form_records: sql`(${column('installation_id')} in ${installations}
+      or ${column('appliance_id')} in ${appliances}
       or ${column('job_id')} in ${jobs})`,
   }
 

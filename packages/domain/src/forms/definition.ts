@@ -46,12 +46,18 @@ export {
  * What the forms of this application name: its units, the circuits a group
  * repeats over, the two limits worked out of a circuit, the loop impedance
  * from its protective device and the tripping current from its residual
- * current device, and the kinds of field it shows.
+ * current appliance, the two worked out of an appliance (#303), its insulation by
+ * the protection class and its protective conductor by the lead, and the
+ * kinds of field it shows.
  */
 export interface TradeFormTerms {
   readonly unit: MeasurementUnit
   readonly list: 'circuits'
-  readonly limit: 'loop_impedance' | 'rcd_trip_current'
+  readonly limit:
+    | 'loop_impedance'
+    | 'rcd_trip_current'
+    | 'appliance_insulation'
+    | 'appliance_protective_conductor'
   readonly kind: (typeof tradeFieldKinds)[number]
 }
 
@@ -66,9 +72,10 @@ export type FormSection = GeneralFormSection<TradeFormTerms>
 export interface FormDefinition extends GeneralFormDefinition<TradeFormTerms> {
   /**
    * What a filled form hangs on: an installation, for a test protocol; a
+   * appliance of the register, for its test after DGUV Vorschrift 3 (#303); a
    * document, for the fields a business gives its report.
    */
-  readonly attachesTo: 'installation' | 'document'
+  readonly attachesTo: 'installation' | 'appliance' | 'document'
 }
 
 /** The definitions a version of OpenGewerk knows, by key and version. */

@@ -40,6 +40,7 @@ import {
 } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import { clockOf, useStopwatch } from '../../app/time.js'
+import { JobAppliances } from './appliances.js'
 import { InstallationPanel } from './installation.js'
 import { AppointmentsCard } from './appointments.js'
 import { JobContacts } from './contacts.js'
@@ -535,6 +536,9 @@ export function SiteJobScreen() {
     />
   ) : null
 
+  // The appliances of the site after DGUV Vorschrift 3, under the installation (#303).
+  const appliances = site ? <JobAppliances jobId={jobId} siteId={String(site['id'])} /> : null
+
   const todo = maybeText(job, 'description') ? (
     <Panel title="Was zu tun ist">
       <p className="text-[17px] leading-[1.45] whitespace-pre-line [overflow-wrap:anywhere]">
@@ -637,6 +641,7 @@ export function SiteJobScreen() {
             {where}
             {access}
             {plant}
+            {appliances}
             {contacts}
             {lineage}
           </div>
@@ -672,6 +677,7 @@ export function SiteJobScreen() {
       {contacts}
       {lineage}
       {plant}
+      {appliances}
       {todo}
       {notes}
       {time}

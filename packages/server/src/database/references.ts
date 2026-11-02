@@ -29,6 +29,7 @@ const called: Readonly<Record<string, string>> = {
   customers: 'Den Kunden',
   sites: 'Das Objekt',
   installations: 'Die Anlage',
+  appliances: 'Das Gerät',
   jobs: 'Den Auftrag',
   documents: 'Den Beleg',
   files: 'Die Datei',

@@ -81,8 +81,17 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  *   next inspection (#301, `nextInspectionOn`). One deadline per
  *   installation, due when that protocol says; a newer protocol moves it, an
  *   installation deleted lets it drop. The person it names is who signed.
+ * - `appliance_inspection`: the same for an appliance of the register (#303): the
+ *   last signed protocol of an appliance that names its next test. One deadline
+ *   per appliance, which drops with the appliance.
  */
-export const deadlineSources = ['quote', 'store_minimum', 'qualification', 'inspection'] as const
+export const deadlineSources = [
+  'quote',
+  'store_minimum',
+  'qualification',
+  'inspection',
+  'appliance_inspection',
+] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
 
@@ -96,7 +105,10 @@ export interface DeadlineKind extends FoundationDeadlineKind<DeadlineSource, Dea
   readonly trade: string | null
   /**
    * The title of the task it makes, with `{quelle}` where the source goes:
-   * "Angebot {quelle} nachfassen".
+   * "Angebot {quelle} nachfassen". A title that names the site with
+   * `{objekt}` instead makes one task for all deadlines of the kind due the
+   * same day for the same person at the same site (1.2, #303): the test of a
+   * hundred appliances at a customer is one task and not a hundred.
    */
   readonly taskTitle: string
 }
@@ -160,8 +172,14 @@ const catalogue: DeadlineCatalogue<DeadlineKind> = {
       )
     }
 
-    if (kind.actions.includes('task') && !kind.taskTitle.includes('{quelle}')) {
-      problems.push(`${kind.key}: der Titel der Aufgabe nennt die Quelle nicht ({quelle}).`)
+    if (
+      kind.actions.includes('task') &&
+      !kind.taskTitle.includes('{quelle}') &&
+      !kind.taskTitle.includes('{objekt}')
+    ) {
+      problems.push(
+        `${kind.key}: der Titel der Aufgabe nennt weder die Quelle ({quelle}) noch das Objekt ({objekt}).`,
+      )
     }
 
     return problems
@@ -185,9 +203,26 @@ export function deadlineRegistry(kinds: readonly DeadlineKind[]): DeadlineRegist
   return registryOf(kinds, catalogue)
 }
 
-/** The title of the task a deadline makes, with its source put in. */
-export function taskTitleOf(kind: DeadlineKind, source: string): string {
-  return kind.taskTitle.replaceAll('{quelle}', source)
+/**
+ * The title of the task a deadline makes, with its source and its site put
+ * in; a deadline at no site leaves the site out with the word before it.
+ */
+export function taskTitleOf(
+  kind: DeadlineKind,
+  source: string,
+  site: string | null = null,
+): string {
+  const withSite =
+    site === null
+      ? kind.taskTitle.replaceAll(' am Objekt {objekt}', '').replaceAll('{objekt}', '')
+      : kind.taskTitle.replaceAll('{objekt}', site)
+
+  return withSite.replaceAll('{quelle}', source)
+}
+
+/** Whether the tasks of a kind are shared by the deadlines of a site, as `{objekt}` says. */
+export function sharesTasksBySite(kind: Pick<DeadlineKind, 'taskTitle'>): boolean {
+  return kind.taskTitle.includes('{objekt}') && !kind.taskTitle.includes('{quelle}')
 }
 
 /**
@@ -239,6 +274,15 @@ export const sourceWords: Readonly<
     interval: {
       label: 'Fällig nach',
       hint: 'Fällig nach der Prüffrist, die das letzte unterschriebene Protokoll der Anlage nennt.',
+    },
+    anchor: 'der letzten Prüfung',
+  },
+  // The same for an appliance of the register (#303).
+  appliance_inspection: {
+    person: 'Wer das Gerät zuletzt geprüft hat',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig nach der Prüffrist, die das letzte unterschriebene Protokoll des Geräts nennt.',
     },
     anchor: 'der letzten Prüfung',
   },

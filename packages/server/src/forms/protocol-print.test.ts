@@ -54,6 +54,7 @@ const protocol: PrintedProtocol = {
   status: 'signed',
   keeper: { name: 'Probebetrieb', phone: null },
   installation: 'Probeanlage',
+  appliance: null,
   site: '',
   rules: ruleSet([
     {
@@ -112,5 +113,46 @@ describe('the next inspection on a printed protocol (#301)', () => {
 
     expect(html).toContain('<tr><th>Prüffrist bis zur nächsten Prüfung</th><td></td></tr>')
     expect(html).not.toContain('nächste Prüfung bis')
+  })
+})
+
+describe('the test of an appliance on paper (#303)', () => {
+  const test = elektroRegistry.definitionFor('dguv-v3', 1)
+  const printed = (
+    appliance: PrintedProtocol['appliance'],
+    values: PrintedProtocol['values'],
+  ): string =>
+    protocolPrintJob({
+      ...protocol,
+      definition: test as FormDefinition,
+      values,
+      performedOn: '2026-11-02',
+      installation: '002 Verlängerungsleitung 25 m, Schutzklasse I, Anschlussleitung 25 m',
+      appliance,
+      rules: elektroRules,
+    }).html
+
+  it('judges a value by the limit worked out of the appliance, and names it with its source', () => {
+    expect(test).not.toBeNull()
+
+    const lead = { protectionClass: 'I' as const, cordLengthMilli: 25_000 }
+
+    // 0,3 Ω up to 5 m and 0,1 Ω for each of the three lengths of 7,5 m begun beyond.
+    expect(printed(lead, { protective_conductor: 650 })).toContain(
+      '0,65 Ω <span class="outside">außerhalb des Grenzwerts</span>',
+    )
+    expect(printed(lead, { protective_conductor: 600 })).not.toContain('außerhalb des Grenzwerts')
+    expect(printed(lead, {})).toContain(
+      '<strong>Schutzleiterwiderstand RPE:</strong> höchstens 0,60 Ω; DGUV Information 203-070',
+    )
+  })
+
+  it('says why there is no limit where the protection class has no protective conductor', () => {
+    expect(printed({ protectionClass: 'II', cordLengthMilli: null }, {})).toContain(
+      '<strong>Schutzleiterwiderstand RPE:</strong> Ein Gerät dieser Schutzklasse hat keinen Schutzleiter.',
+    )
+    expect(printed({ protectionClass: 'II', cordLengthMilli: null }, {})).toContain(
+      '<strong>Isolationswiderstand Riso:</strong> mindestens 2,00 MΩ; DGUV Information 203-070',
+    )
   })
 })

@@ -17,6 +17,9 @@ export function useWayBack(): WayBack | null {
   const onProtocol = matchRoute({ to: '/auftraege/$jobId/pruefprotokolle/$recordId' })
   const onFiles = matchRoute({ to: '/auftraege/$jobId/dateien' })
   const onNote = matchRoute({ to: '/auftraege/$jobId/notiz' })
+  // The appliances of the site of a job, and a new one among them (#303).
+  const onAppliances = matchRoute({ to: '/auftraege/$jobId/geraete' })
+  const onNewAppliance = matchRoute({ to: '/auftraege/$jobId/geraete/neu' })
   const onInstallation = matchRoute({ to: '/anlagen/$installationId' })
   // The structure below a job, and the same below an installation a QR label
   // opened (#308).
@@ -90,9 +93,13 @@ export function useWayBack(): WayBack | null {
       : { to: baseOf(top), label: 'Zurück zur Anlage' }
   }
 
+  if (onNewAppliance) {
+    return { to: `/auftraege/${onNewAppliance.jobId}/geraete`, label: 'Zurück zu den Geräten' }
+  }
+
   // Everything else below a job back to the job, the job back to the list,
   // and the installation a label opened back to the camera.
-  const underJob = onReport || onDeliveryNote || onProtocol || onFiles || onNote
+  const underJob = onReport || onDeliveryNote || onProtocol || onFiles || onNote || onAppliances
 
   if (underJob) {
     return { to: `/auftraege/${underJob.jobId}`, label: 'Zurück zum Auftrag' }

@@ -46,11 +46,13 @@ export const measurementUnitSign: Readonly<Record<MeasurementUnit, string>> = {
 /**
  * How many thousandths of a field's unit one unit of a rule is. A rule in
  * kiloohms against a field in megaohms: one kiloohm is one thousandth of a
- * megaohm. A pair that is not here is a definition that asks the wrong rule,
+ * megaohm, as a milliohm of an ohm and a microampere of a milliampere (#303). A pair that is not here is a definition that asks the wrong rule,
  * and the tests of a trade package find it.
  */
 const fromRule: Readonly<Partial<Record<MeasurementUnit, Partial<Record<RuleUnit, number>>>>> = {
+  ohm: { milliohms: 1 },
   megaohm: { kiloohms: 1 },
+  milliampere: { microamperes: 1 },
   millisecond: { milliseconds: 1000 },
   volt: { volts: 1000 },
 }

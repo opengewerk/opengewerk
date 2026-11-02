@@ -2,6 +2,7 @@ import {
   type CustomerId,
   type DocumentStatus,
   formRecordProblem,
+  formSubjectProblem,
   isAllowed,
   type IsoDate,
   leavesByProgress,
@@ -54,6 +55,13 @@ import * as schema from './schema/index.js'
 type Check = SyncCheck<FoundIdentity>
 
 /** A field as the record would stand afterwards: what the operation sets, over what is held. */
+/** The definition a filled form names, or null for one this version does not know. */
+function definitionOf(key: unknown, version: unknown) {
+  return typeof key === 'string' && typeof version === 'number'
+    ? tradeForms.definitionFor(key, version)
+    : null
+}
+
 function standing(values: Record<string, unknown>, current: RecordState | null) {
   return (field: string) => (field in values ? values[field] : current?.[field])
 }
@@ -135,7 +143,10 @@ const reveal: Check = async ({ tx, operation, values, sender }) => {
 /**
  * A filled form is asked of its definition (#78), as the form asked it before
  * anything was queued: values that do not fit, or a form marked signed that
- * lacks what signing needs, are a mistake of the client.
+ * lacks what signing needs, are a mistake of the client. So is a form that
+ * hangs on an installation where its definition names an appliance, or the
+ * other way round (#303); that it hangs on exactly one, the check in the
+ * database holds.
  */
 const formRecord: Check = ({ operation, values, current }) => {
   if (operation.entity !== 'form_records' || operation.kind === 'delete') {
@@ -143,12 +154,17 @@ const formRecord: Check = ({ operation, values, current }) => {
   }
 
   const at = standing(values, current)
-  const problem = formRecordProblem(tradeForms, {
-    definitionKey: at('definitionKey'),
-    definitionVersion: at('definitionVersion'),
-    status: at('status') ?? 'draft',
-    values: at('values') ?? '{}',
-  })
+  const problem =
+    formRecordProblem(tradeForms, {
+      definitionKey: at('definitionKey'),
+      definitionVersion: at('definitionVersion'),
+      status: at('status') ?? 'draft',
+      values: at('values') ?? '{}',
+    }) ??
+    formSubjectProblem(definitionOf(at('definitionKey'), at('definitionVersion')), {
+      installationId: at('installationId'),
+      applianceId: at('applianceId'),
+    })
 
   return problem === null ? null : { kind: 'client', message: problem }
 }

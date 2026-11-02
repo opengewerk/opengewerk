@@ -3,6 +3,7 @@ import {
   type DeadlineKind,
   type DeadlineRegistry,
   type JobId,
+  sharesTasksBySite,
   type SiteId,
   taskTitleOf,
   type TenantId,
@@ -18,11 +19,11 @@ import {
   startDeadlineWorker as startFoundationWorker,
   type TenantTransaction,
 } from '@opengewerk/platform-server'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, isNull, ne, sql } from 'drizzle-orm'
 
 import { assignNumber } from '../database/number-ranges.js'
 import type { ApplicationDeadlineColumns } from '../database/schema/deadlines.js'
-import { deadlines, jobs, tasks } from '../database/schema/index.js'
+import { deadlines, jobs, sites, tasks } from '../database/schema/index.js'
 import { deadlineKinds } from './registry.js'
 import { deadlineSourceQueries, type DeadlineValues } from './sources.js'
 
@@ -66,7 +67,11 @@ const sentences = {
  *
  * - `task`: a task for the responsible person, due on the day the deadline
  *   is, written by nobody: the transaction acts for no person, and the
- *   trigger of 0019 leaves `created_by` empty (#80).
+ *   trigger of 0019 leaves `created_by` empty (#80). A kind whose task names
+ *   the site and not the source (`{objekt}`, #303) hangs a deadline on the
+ *   open task of the same kind its person already has at that site for that
+ *   day, so that the appliances of a customer due together are one task;
+ *   once it is done, so are all of them.
  * - `service_job`: a service job in draft at the customer and site of the
  *   source, for the office to plan.
  * - `status`: the handler the kind names.
@@ -93,11 +98,48 @@ function bound(
           return
         }
 
+        const [site] =
+          deadline.siteId === null
+            ? []
+            : await tx
+                .select({ designation: sites.designation })
+                .from(sites)
+                .where(eq(sites.id, deadline.siteId as SiteId))
+        const title = taskTitleOf(kind, deadline.sourceLabel, site?.designation ?? null)
+
+        if (sharesTasksBySite(kind) && deadline.siteId !== null) {
+          const [shared] = await tx
+            .select({ id: tasks.id })
+            .from(tasks)
+            .where(
+              and(
+                eq(tasks.title, title),
+                eq(tasks.notes, kind.title),
+                eq(tasks.assigneeUserId, responsible),
+                eq(tasks.siteId, deadline.siteId as SiteId),
+                eq(tasks.dueOn, deadline.dueOn),
+                ne(tasks.status, 'done'),
+                isNull(tasks.createdBy),
+                isNull(tasks.deletedAt),
+              ),
+            )
+            .limit(1)
+
+          if (shared) {
+            await tx
+              .update(deadlines)
+              .set({ taskId: shared.id })
+              .where(eq(deadlines.id, deadline.id))
+
+            return
+          }
+        }
+
         const [task] = await tx
           .insert(tasks)
           .values({
             tenantId,
-            title: taskTitleOf(kind, deadline.sourceLabel),
+            title,
             notes: kind.title,
             dueOn: deadline.dueOn,
             assigneeUserId: responsible,

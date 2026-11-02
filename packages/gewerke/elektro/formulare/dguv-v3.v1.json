@@ -1,0 +1,313 @@
+{
+  "key": "dguv-v3",
+  "version": 1,
+  "title": "Prüfprotokoll Geräteprüfung nach DGUV Vorschrift 3",
+  "attachesTo": "appliance",
+  "sections": [
+    {
+      "key": "general",
+      "title": "Prüfung",
+      "fields": [
+        {
+          "kind": "text",
+          "key": "tester",
+          "label": "Prüfer",
+          "required": true,
+          "carry": true
+        },
+        {
+          "kind": "text",
+          "key": "instrument",
+          "label": "Prüfgerät",
+          "carry": true,
+          "hint": "Hersteller, Typ und Seriennummer."
+        },
+        {
+          "kind": "choice",
+          "key": "test_kind",
+          "label": "Art der Prüfung",
+          "required": true,
+          "carry": true,
+          "options": [
+            {
+              "value": "recurring",
+              "label": "Wiederholungsprüfung nach DIN EN 50699 (VDE 0702)"
+            },
+            {
+              "value": "after_repair",
+              "label": "Prüfung nach Instandsetzung nach DIN EN 50678 (VDE 0701)"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "current_method",
+          "label": "Messverfahren der Ströme",
+          "carry": true,
+          "hint": "Wie Schutzleiter- und Berührungsstrom gemessen wurden.",
+          "options": [
+            {
+              "value": "direct",
+              "label": "Direkte Messung"
+            },
+            {
+              "value": "differential",
+              "label": "Differenzstrommessung"
+            },
+            {
+              "value": "alternative",
+              "label": "Ersatzableitstrommessung"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "inspection",
+      "title": "Besichtigen",
+      "hint": "DGUV Information 203-070, Abschnitt 3.4.",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "housing",
+          "label": "Gehäuse und Schutzabdeckungen",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "cord",
+          "label": "Anschlussleitung, Knickschutz und Zugentlastung",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "plug",
+          "label": "Stecker und Steckvorrichtungen",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "markings",
+          "label": "Aufschriften, Typschild und Kennzeichnung der Schutzklasse",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "suitability",
+          "label": "Eignung für den Einsatzbereich",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "measurements",
+      "title": "Messen",
+      "hint": "DGUV Information 203-070, Tabelle 1. Gemessen wird, was die Schutzklasse des Geräts verlangt.",
+      "fields": [
+        {
+          "kind": "measurement",
+          "key": "protective_conductor",
+          "label": "Schutzleiterwiderstand RPE",
+          "unit": "ohm",
+          "decimals": 2,
+          "limit": {
+            "kind": "appliance_protective_conductor"
+          }
+        },
+        {
+          "kind": "measurement",
+          "key": "insulation",
+          "label": "Isolationswiderstand Riso",
+          "unit": "megaohm",
+          "decimals": 2,
+          "limit": {
+            "kind": "appliance_insulation"
+          }
+        },
+        {
+          "kind": "measurement",
+          "key": "protective_conductor_current",
+          "label": "Schutzleiterstrom IPE",
+          "unit": "milliampere",
+          "decimals": 2,
+          "limit": {
+            "kind": "at_most",
+            "rule": "elektro.appliance.protective_conductor_current"
+          }
+        },
+        {
+          "kind": "measurement",
+          "key": "touch_current",
+          "label": "Berührungsstrom IB",
+          "unit": "milliampere",
+          "decimals": 2,
+          "limit": {
+            "kind": "at_most",
+            "rule": "elektro.appliance.touch_current"
+          }
+        }
+      ]
+    },
+    {
+      "key": "trial",
+      "title": "Erproben",
+      "hint": "DGUV Information 203-070, Abschnitt 3.6.",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "function",
+          "label": "Funktionsprüfung",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        },
+        {
+          "kind": "choice",
+          "key": "safety_devices",
+          "label": "Wirksamkeit von Sicherheitseinrichtungen",
+          "required": true,
+          "options": [
+            {
+              "value": "ok",
+              "label": "in Ordnung"
+            },
+            {
+              "value": "defect",
+              "label": "Mangel"
+            },
+            {
+              "value": "not_applicable",
+              "label": "entfällt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "result",
+      "title": "Ergebnis",
+      "fields": [
+        {
+          "kind": "choice",
+          "key": "verdict",
+          "label": "Ergebnis",
+          "required": true,
+          "options": [
+            {
+              "value": "passed",
+              "label": "Keine Mängel festgestellt"
+            },
+            {
+              "value": "defects",
+              "label": "Mängel festgestellt"
+            }
+          ]
+        },
+        {
+          "kind": "text",
+          "key": "defects",
+          "label": "Mängel",
+          "multiline": true
+        },
+        {
+          "kind": "number",
+          "key": "next_inspection_months",
+          "label": "Prüffrist bis zur nächsten Prüfung",
+          "required": true,
+          "carry": true,
+          "unit": "month",
+          "decimals": 0,
+          "hint": "Legt der Betreiber nach seiner Gefährdungsbeurteilung fest. Richtwerte nach Tabelle 1B der Durchführungsanweisungen zu § 5 der DGUV Vorschrift 3: 6 Monate, auf Baustellen 3 Monate; bei einer Fehlerquote unter 2 Prozent länger, höchstens 12 Monate auf Baustellen, in Fertigungsstätten und Werkstätten und 24 Monate in Büros. Ortsfeste Betriebsmittel nach Tabelle 1A: 48 Monate."
+        },
+        {
+          "kind": "signature",
+          "key": "tester_signature",
+          "label": "Unterschrift des Prüfers",
+          "seals": true
+        }
+      ]
+    }
+  ]
+}

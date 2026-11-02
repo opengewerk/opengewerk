@@ -59,7 +59,8 @@ export function useNavigation(): readonly NavigationGroup[] {
       title: 'Stammdaten',
       entries: [
         { to: '/', label: 'Kunden', icon: Users, also: ['/kunden'] },
-        { to: '/objekte', label: 'Objekte', icon: House },
+        // The register of appliances of a site and an appliance in it (#303).
+        { to: '/objekte', label: 'Objekte', icon: House, also: ['/geraete'] },
         {
           to: '/anlagen',
           label: 'Anlagen',

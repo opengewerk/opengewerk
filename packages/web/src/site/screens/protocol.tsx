@@ -1,4 +1,5 @@
 import {
+  type ApplianceFacts,
   type BlockCircuit,
   type BlockField,
   circuitBlocks,
@@ -8,6 +9,7 @@ import {
   formValuesText,
   type GroupField,
   isRuleLimit,
+  limitIsMinimum,
   limitVerdict,
   type MeasurementField,
   measurementUnitSign,
@@ -17,7 +19,7 @@ import {
   signerNameProblem,
 } from '@opengewerk/domain'
 import { Button, Field, Panel } from '@opengewerk/platform-web'
-import { amount, date, scaledNumber } from '@opengewerk/platform-web/format'
+import { amount, date, scaledNumber, today } from '@opengewerk/platform-web/format'
 import {
   SignaturePad,
   SiteActionBar,
@@ -62,8 +64,17 @@ import {
   useProtocolDraft,
   valuesOf,
 } from '../../app/protocols.js'
+import {
+  applianceHeading,
+  applianceName,
+  applianceState,
+  nextToTest,
+  useAppliances,
+  useApplianceTests,
+} from '../../app/appliances.js'
 import { useMay } from '../../app/queries.js'
 import { SiteHeader } from '../header.js'
+import { openTest } from './appliances.js'
 
 /**
  * The test protocol on site (#79), as the boards "Prüfprotokoll, Messen je
@@ -278,7 +289,12 @@ export function SiteProtocolScreen() {
   const record = useRecord('form_records', recordId)
   const installation = useRecord(
     'installations',
-    record ? text(record, 'installationId') : undefined,
+    record ? text(record, 'installationId') || undefined : undefined,
+  )
+  // Or the appliance of the register a test after DGUV Vorschrift 3 hangs on (#303).
+  const appliance = useRecord(
+    'appliances',
+    record ? text(record, 'applianceId') || undefined : undefined,
   )
 
   if (!record || !recordId || !jobId) {
@@ -292,7 +308,11 @@ export function SiteProtocolScreen() {
     )
   }
 
-  const place = installation ? text(installation, 'designation') : ''
+  const place = installation
+    ? text(installation, 'designation')
+    : appliance
+      ? applianceName(appliance)
+      : ''
 
   return (
     <SiteScreen>
@@ -303,6 +323,7 @@ export function SiteProtocolScreen() {
       {isSigned(record) ? (
         <>
           <SiteText muted>{`${date(record['performedOn'])}, unterschrieben`}</SiteText>
+          {appliance ? <NextAppliance appliance={appliance} jobId={jobId} /> : null}
           <ProtocolPdfLink recordId={recordId} />
           <ProtocolSheet key={recordId} record={record} />
         </>
@@ -570,6 +591,7 @@ function Overview({
                     field={field}
                     value={protocol.draft[field.key] as FieldValue | undefined}
                     circuit={null}
+                    appliance={protocol.appliance}
                     performedOn={protocol.performedOn}
                     photos={protocol.photos}
                     onChange={(changed) => {
@@ -712,24 +734,43 @@ function SectionStep({
   return (
     <Panel title={section.title}>
       <div className="flex flex-col gap-3">
+        {protocol.appliance &&
+        plainFields(section).some((field) => field.kind === 'measurement') ? (
+          <ApplianceHead protocol={protocol} />
+        ) : null}
         {section.hint ? (
           <SiteText muted size={15}>
             {section.hint}
           </SiteText>
         ) : null}
-        {plainFields(section).map((field) => (
-          <FieldInput
-            key={`${field.key}-${String(protocol.generation)}`}
-            field={field}
-            value={protocol.draft[field.key] as FieldValue | undefined}
-            circuit={null}
-            performedOn={protocol.performedOn}
-            photos={protocol.photos}
-            onChange={(changed) => {
-              protocol.set(field.key, changed)
-            }}
-          />
-        ))}
+        {plainFields(section).map((field) =>
+          field.kind === 'measurement' ? (
+            <MeasureCard
+              key={`${field.key}-${String(protocol.generation)}`}
+              field={field}
+              value={protocol.draft[field.key] as FieldValue | undefined}
+              circuit={null}
+              appliance={protocol.appliance}
+              performedOn={protocol.performedOn}
+              onChange={(changed) => {
+                protocol.set(field.key, changed)
+              }}
+            />
+          ) : (
+            <FieldInput
+              key={`${field.key}-${String(protocol.generation)}`}
+              field={field}
+              value={protocol.draft[field.key] as FieldValue | undefined}
+              circuit={null}
+              appliance={protocol.appliance}
+              performedOn={protocol.performedOn}
+              photos={protocol.photos}
+              onChange={(changed) => {
+                protocol.set(field.key, changed)
+              }}
+            />
+          ),
+        )}
         {group && blocks.length === 0 ? (
           <SiteText muted>
             {group.repeat === 'circuits'
@@ -926,8 +967,13 @@ export function shortLimit(field: MeasurementField, limitMilli: number | null): 
     return null
   }
 
-  // A limit worked out of the circuit is one a value may reach at most.
-  const kind = isRuleLimit(field.limit) ? field.limit.kind : 'at_most'
+  // A limit worked out of the circuit is one a value may reach at most; the
+  // insulation of an appliance one it has to reach (#303).
+  const kind = isRuleLimit(field.limit)
+    ? field.limit.kind
+    : limitIsMinimum(field)
+      ? 'at_least'
+      : 'at_most'
   // Rounded towards the strict side, as the sentence under the value is: down
   // for "höchstens", up for "mindestens" and "unter".
   const step = 10 ** Math.max(0, 3 - field.decimals)
@@ -947,12 +993,15 @@ function MeasureCard({
   field,
   value,
   circuit,
+  appliance = null,
   performedOn,
   onChange,
 }: {
   readonly field: MeasurementField
   readonly value: FieldValue | undefined
   readonly circuit: BlockCircuit | null
+  /** The appliance a test after DGUV Vorschrift 3 is done at, its limits worked out of it (#303). */
+  readonly appliance?: ApplianceFacts | null
   readonly performedOn: string
   readonly onChange: (value: number | undefined) => void
 }) {
@@ -963,6 +1012,7 @@ function MeasureCard({
     rules: protocolRules,
     on: performedOn,
     circuit,
+    appliance,
   })
   const state = verdict.within === false ? 'bad' : verdict.within === true ? 'ok' : 'muted'
   const wrong = state === 'bad' || problem !== undefined
@@ -1221,5 +1271,132 @@ function SigningStep({
         </Button>
       </SiteActionBar>
     </>
+  )
+}
+
+/**
+ * The appliance over its measured values, `device_head()` of the board
+ * "Geräteprüfung, Messen": its number on slate, its designation, and what its
+ * limits are worked out from.
+ */
+function ApplianceHead({ protocol }: { readonly protocol: ProtocolDraft }) {
+  const record = useRecord('appliances', protocol.applianceId ?? undefined)
+
+  return record ? <ApplianceLine appliance={record} /> : null
+}
+
+/** An appliance as the boards draw it over its test: its number on slate, its designation, its facts. */
+function ApplianceLine({ appliance: record }: { readonly appliance: RecordState }) {
+  const heading = applianceHeading(record)
+  const facts = heading.split(', ').slice(1).join(', ')
+
+  return (
+    <div className="flex items-center gap-2.5">
+      {text(record, 'inventoryNumber') ? (
+        <span className="shrink-0 rounded-[4px] bg-top px-2.5 py-0.5 font-condensed text-[22px] font-semibold text-top-ink">
+          {text(record, 'inventoryNumber')}
+        </span>
+      ) : null}
+      <div className="min-w-0">
+        <div className="text-[20px] font-bold">{text(record, 'designation')}</div>
+        <div className="text-[15px] text-ink-muted">{facts}</div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The way to the next appliance once a test is signed (#303), the card
+ * "Weiter" of the board: the next one of the site without a test of today,
+ * opened with its last protocol as the template, and the way back to the list.
+ */
+function NextAppliance({
+  appliance,
+  jobId,
+}: {
+  readonly appliance: RecordState
+  readonly jobId: string
+}) {
+  const client = useSync()
+  const navigate = useNavigate()
+  const siteId = text(appliance, 'siteId')
+  const appliances = useAppliances(siteId)
+  const tests = useApplianceTests()
+  const [trouble, setTrouble] = useState<string | null>(null)
+  const [working, setWorking] = useState(false)
+  const next = nextToTest(appliances, tests, String(appliance['id']))
+  const on = today()
+  const testedToday = appliances.filter(
+    (entry) => applianceState(tests.get(String(entry['id'])), on).kind === 'today',
+  ).length
+  const template = next
+    ? (tests.get(String(next['id'])) ?? []).find(
+        (test) => isSigned(test) && definitionOf(test) !== null,
+      )
+    : undefined
+
+  return (
+    <Panel
+      title="Weiter"
+      action={
+        <span className="text-[14px] text-ink-faint">
+          {`${String(testedToday)} von ${String(appliances.length)} heute geprüft`}
+        </span>
+      }
+    >
+      <div className="flex flex-col gap-2.5">
+        {next ? (
+          <>
+            <div className="flex flex-col gap-1">
+              <ApplianceLine appliance={next} />
+              <SiteText muted size={15}>
+                {template
+                  ? `Mit dem Protokoll vom ${date(template['performedOn'])} als Vorlage.`
+                  : 'Noch nicht geprüft.'}
+              </SiteText>
+            </div>
+            <Button
+              tone="primary"
+              wide
+              height={60}
+              icon={ChevronRight}
+              disabled={working}
+              onClick={() => {
+                setWorking(true)
+                setTrouble(null)
+                void openTest(client, next, tests.get(String(next['id'])), jobId)
+                  .then((opened) => {
+                    if ('path' in opened) {
+                      void navigate({ to: opened.path })
+                    } else {
+                      setTrouble(opened.trouble)
+                    }
+                  })
+                  .finally(() => {
+                    setWorking(false)
+                  })
+              }}
+            >
+              Nächstes Gerät prüfen
+            </Button>
+          </>
+        ) : (
+          <SiteText
+            muted
+          >{`Alle ${String(appliances.length)} Geräte am Objekt sind heute geprüft.`}</SiteText>
+        )}
+        {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}
+        <Button
+          tone="quiet"
+          wide
+          height={44}
+          onClick={() => {
+            void navigate({ to: `/auftraege/${jobId}/geraete` })
+          }}
+        >
+          Zu den Geräten
+        </Button>
+      </div>
+    </Panel>
   )
 }

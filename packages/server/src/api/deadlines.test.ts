@@ -462,6 +462,16 @@ describe('the settings of each kind', () => {
         responsible: 'source',
         actions: ['task', 'reminder'],
       }),
+      // The test of an appliance (#303), one task for the appliances of a site due the same day.
+      expect.objectContaining({
+        key: 'elektro.appliance_inspection',
+        title: 'Prüfung eines Geräts nach DGUV Vorschrift 3',
+        trade: 'elektro',
+        intervalDays: null,
+        leadDays: 30,
+        responsible: 'source',
+        actions: ['task'],
+      }),
     ])
   })
 

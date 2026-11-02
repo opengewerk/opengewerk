@@ -1,4 +1,5 @@
 import type {
+  Appliance,
   Article,
   ArticlePrice,
   Attachment,
@@ -87,6 +88,7 @@ import type {
   files,
   installationLabels,
   installations,
+  appliances,
   instructions,
   inverters,
   formDefinitions,
@@ -192,6 +194,7 @@ export type AttachmentVersionMatches = Assert<
 >
 export type SiteMatches = Assert<Exact<typeof sites.$inferSelect, Site>>
 export type InstallationMatches = Assert<Exact<typeof installations.$inferSelect, Installation>>
+export type ApplianceMatches = Assert<Exact<typeof appliances.$inferSelect, Appliance>>
 export type InstallationLabelMatches = Assert<
   Exact<typeof installationLabels.$inferSelect, InstallationLabel>
 >

@@ -38,6 +38,12 @@ import type { IsoDate } from '../model/identifier.js'
  * the calendar nor with Easter: the Wednesday before the last Sunday of the
  * church year, which is the last Wednesday before the 23rd of November. The
  * value is that day as in `month_day`, 1123.
+ *
+ * Milliohms, microamperes and millimetres came with the test of an appliance
+ * after DGUV Vorschrift 3 (opengewerk#303): a protective conductor resistance
+ * of at most 0.3 ohms is 300 milliohms, a touch current of at most 0.5
+ * milliamperes is 500 microamperes, and the lead it counts the resistance by
+ * is 5 metres, 5000 millimetres, the unit the length of a cable is kept in.
  */
 export const ruleUnits = [
   'basis_points',
@@ -60,6 +66,9 @@ export const ruleUnits = [
   'days_from_easter',
   'kilograms',
   'wednesday_before',
+  'milliohms',
+  'microamperes',
+  'millimetres',
 ] as const
 
 export type RuleUnit = (typeof ruleUnits)[number]

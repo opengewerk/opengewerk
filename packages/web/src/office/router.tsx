@@ -28,6 +28,11 @@ import { DeadlineListScreen } from './screens/deadlines.js'
 import { DocumentList } from './screens/document-list.js'
 import { DocumentScreen } from './screens/documents.js'
 import { InstallationList, InstallationScreen } from './screens/installations.js'
+import {
+  ApplianceRegisterScreen,
+  ApplianceScreen,
+  NewApplianceScreen,
+} from './screens/appliances.js'
 import { LabelLandingScreen } from './screens/label-landing.js'
 import { InstructionsScreen } from './screens/instructions.js'
 import { JobList, JobScreen } from './screens/jobs.js'
@@ -123,6 +128,22 @@ const routes = [
   // and "Anlagen" draw them (#219).
   createRoute({ getParentRoute: () => office, path: '/objekte', component: SiteList }),
   createRoute({ getParentRoute: () => office, path: '/objekte/$siteId', component: SiteScreen }),
+  // The register of appliances of a site and an appliance with its protocols (#303).
+  createRoute({
+    getParentRoute: () => office,
+    path: '/objekte/$siteId/geraete',
+    component: ApplianceRegisterScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/objekte/$siteId/geraete/neu',
+    component: NewApplianceScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/geraete/$applianceId',
+    component: ApplianceScreen,
+  }),
   createRoute({ getParentRoute: () => office, path: '/anlagen', component: InstallationList }),
   createRoute({
     getParentRoute: () => office,

@@ -178,6 +178,9 @@ describe('a set of rules with scopes', () => {
         'tonnes_co2e',
         'count_per_100_ml',
         'kilograms',
+        'milliohms',
+        'microamperes',
+        'millimetres',
       ]),
     )
   })

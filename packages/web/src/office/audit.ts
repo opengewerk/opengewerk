@@ -1,4 +1,5 @@
 import {
+  applianceMobilityLabel,
   auditVocabulary,
   cableInstallationMethodLabel,
   distributionBoardKindLabel,
@@ -55,6 +56,7 @@ const screens: Words = {
   customers: '/kunden/',
   sites: '/objekte/',
   installations: '/anlagen/',
+  appliances: '/geraete/',
   jobs: '/auftraege/',
   documents: '/belege/',
   distribution_boards: '/verteiler/',
@@ -78,6 +80,7 @@ const links: Words = {
   inverters: 'Zum Wechselrichter',
   pv_strings: 'Zum String',
   form_records: 'Zum Protokoll',
+  appliances: 'Zum Gerät',
   articles: 'Zum Artikel',
   suppliers: 'Zum Lieferanten',
 }
@@ -94,6 +97,8 @@ export const auditScreenWords: AuditScreenWords = {
   values: {
     customers: { kind: customerKindLabel },
     installations: { kind: installationKindLabel },
+    // The register of appliances (#303).
+    appliances: { mobility: applianceMobilityLabel },
     jobs: { kind: jobKindLabel, status: jobStatusLabel },
     tasks: { status: taskStatusLabel },
     documents: {

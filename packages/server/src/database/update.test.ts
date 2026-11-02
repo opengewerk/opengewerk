@@ -1979,3 +1979,74 @@ describe('the migrations in this repository', () => {
     }
   })
 })
+
+/**
+ * The rollback of 0114 (#303): the appliances of a business and their test
+ * protocols are records it keeps, a signed protocol evidence. The rollback
+ * deletes none of them; while there is one, it stops and changes nothing,
+ * not even whether the policies hold for the owner.
+ */
+describe('the rollback of the register of appliances', () => {
+  async function forced(table: string): Promise<boolean> {
+    const { rows } = await admin.query<{ forced: boolean }>(
+      'select relforcerowsecurity as forced from pg_class where relname = $1',
+      [table],
+    )
+
+    return rows[0]?.forced ?? false
+  }
+
+  it('deletes no appliance and no test of one, and stops while there is one', async () => {
+    const customer = newId<'customer'>()
+    const site = newId<'site'>()
+    const appliance = newId<'appliance'>()
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name) values ($1, $2, 'business', 'Hausverwaltung Süd GmbH')",
+      [customer, tenant.id],
+    )
+    await admin.query(
+      "insert into sites (id, tenant_id, customer_id, designation) values ($1, $2, $3, 'Rheinstraße 12')",
+      [site, tenant.id, customer],
+    )
+    await admin.query(
+      `insert into appliances (id, tenant_id, site_id, designation, protection_class)
+       values ($1, $2, $3, 'Kaffeemaschine', 'I')`,
+      [appliance, tenant.id, site],
+    )
+    await admin.query(
+      `insert into form_records (tenant_id, definition_key, definition_version, appliance_id, performed_on, status)
+       values ($1, 'dguv-v3', 1, $2, '2026-11-02', 'signed')`,
+      [tenant.id, appliance],
+    )
+
+    await expect(revertMigration(admin, '0114_appliances')).rejects.toThrow(
+      'Die Rücknahme von 0114 löscht keine Nachweise',
+    )
+    expect((await admin.query('select id from appliances')).rows).toEqual([{ id: appliance }])
+    expect(
+      (
+        await admin.query(
+          'select count(*)::int as kept from form_records where appliance_id = $1',
+          [appliance],
+        )
+      ).rows,
+    ).toEqual([{ kept: 1 }])
+    expect(await forced('appliances')).toBe(true)
+    expect(await forced('form_records')).toBe(true)
+
+    // Taken out by hand, as the sentence says, the rollback goes through.
+    await admin.query(
+      `begin; set local session_replication_role = replica;
+       delete from form_records; delete from appliances; commit;`,
+    )
+    await revertMigration(admin, '0114_appliances')
+
+    expect(await tableNames(admin)).not.toContain('appliances')
+    expect(await columnNames(admin, 'form_records')).not.toContain('appliance_id')
+    expect(await forced('form_records')).toBe(true)
+  })
+})

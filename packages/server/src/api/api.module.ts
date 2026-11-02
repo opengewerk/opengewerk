@@ -67,6 +67,7 @@ import { DocumentMailController } from './document-mail.controller.js'
 import { DocumentPdfController } from './document-pdf.controller.js'
 import { DocumentsController } from './documents.controller.js'
 import { EInvoiceController } from './e-invoice.controller.js'
+import { ApplianceReportController } from './appliance-report.controller.js'
 import { FormRecordsController } from './form-records.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
@@ -299,6 +300,7 @@ export class ApiModule {
         CircuitChartController,
         InstallationLabelsController,
         FormRecordsController,
+        ApplianceReportController,
         JobsController,
         CollectiveInvoicesController,
         TasksController,

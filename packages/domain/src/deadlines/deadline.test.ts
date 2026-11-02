@@ -18,6 +18,7 @@ import {
   deadlineRegistry,
   defaultResponsibleLabel,
   kindProblems,
+  sharesTasksBySite,
   sourceWords,
   taskTitleOf,
 } from './deadline.js'
@@ -92,6 +93,8 @@ describe('the registry', () => {
       ),
     ).toBe(true)
     expect(kindProblems({ ...followUp, taskTitle: 'Nachfassen' })).toHaveLength(1)
+    // A title may name the site instead, for a task the deadlines of a site share (#303).
+    expect(kindProblems({ ...followUp, taskTitle: 'Geräte prüfen am Objekt {objekt}' })).toEqual([])
   })
 
   it('refuses a kind that does nothing', () => {
@@ -176,6 +179,21 @@ describe('the lead and the interval', () => {
 describe('the task a deadline makes', () => {
   it('names its source', () => {
     expect(taskTitleOf(followUp, 'A-2026-0091')).toBe('Angebot A-2026-0091 nachfassen')
+  })
+
+  it('names its site where the kind says so, and leaves it out where there is none', () => {
+    const appliances = { ...followUp, taskTitle: 'Geräte prüfen am Objekt {objekt}' }
+
+    expect(taskTitleOf(appliances, '005 Kaffeemaschine', 'Rheinstraße 12')).toBe(
+      'Geräte prüfen am Objekt Rheinstraße 12',
+    )
+    expect(taskTitleOf(appliances, '005 Kaffeemaschine')).toBe('Geräte prüfen')
+  })
+
+  it('is shared by the deadlines of a site only where the title names the site and not the source', () => {
+    expect(sharesTasksBySite({ taskTitle: 'Geräte prüfen am Objekt {objekt}' })).toBe(true)
+    expect(sharesTasksBySite({ taskTitle: 'Angebot {quelle} nachfassen' })).toBe(false)
+    expect(sharesTasksBySite({ taskTitle: '{quelle} am Objekt {objekt}' })).toBe(false)
   })
 })
 
