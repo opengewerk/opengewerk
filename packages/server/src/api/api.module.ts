@@ -72,6 +72,8 @@ import { InspectionReportController } from './inspection-report.controller.js'
 import { PvDocumentsController } from './pv-documents.controller.js'
 import { GridDocumentsController } from './grid-documents.controller.js'
 import { GridOperatorsController } from './grid-operators.controller.js'
+import { FundingPapersController } from './funding-papers.controller.js'
+import { FundingProgramsController } from './funding-programs.controller.js'
 import { FormRecordsController } from './form-records.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
 import { InstallationsController } from './installations.controller.js'
@@ -309,6 +311,8 @@ export class ApiModule {
         PvDocumentsController,
         GridOperatorsController,
         GridDocumentsController,
+        FundingProgramsController,
+        FundingPapersController,
         JobsController,
         CollectiveInvoicesController,
         TasksController,

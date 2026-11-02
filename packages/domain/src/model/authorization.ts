@@ -59,6 +59,13 @@ export const permissions = [
   'grid_operator.read',
   'grid_operator.write',
   /**
+   * The funding programmes as templates (#307): the owner and the office keep
+   * them, and put together the papers of a programme at an installation,
+   * which lay in its invoices.
+   */
+  'funding_program.read',
+  'funding_program.write',
+  /**
    * Booking the stores of the business (#298): a store and what it keeps,
    * a receipt, a transfer and a count. The owner and the office, decided on
    * 31.10.2026; a technician takes material out with a report, and that is
@@ -275,6 +282,8 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'supplier.write': 'Lieferanten pflegen',
   'grid_operator.read': 'Netzbetreiber ansehen',
   'grid_operator.write': 'Netzbetreiber pflegen',
+  'funding_program.read': 'Förderprogramme ansehen',
+  'funding_program.write': 'Förderprogramme pflegen',
   'stock.write': 'Lager buchen',
   'purchase.read': 'Einkaufspreise ansehen',
   'purchase.write': 'Einkaufspreise pflegen',
@@ -374,6 +383,8 @@ const officePermissions: readonly Permission[] = [
   'supplier.write',
   'grid_operator.read',
   'grid_operator.write',
+  'funding_program.read',
+  'funding_program.write',
   'stock.write',
   'purchase.read',
   'purchase.write',

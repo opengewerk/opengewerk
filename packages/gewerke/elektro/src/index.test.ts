@@ -50,6 +50,8 @@ describe('the package Elektro und PV', () => {
       'formulare/dguv-v3.v1.json',
       'formulare/vde-ar-n-4105.v1.json',
       'formulare/iec-62446-1.v1.json',
+      'formulare/vde-0100-722.v1.json',
+      'formulare/battery-commissioning.v1.json',
     ])
     expect(elektroManifest.rules).toEqual([
       'regeln/vde-0100-600.json',
@@ -58,6 +60,7 @@ describe('the package Elektro und PV', () => {
       'regeln/vde-ar-n-4105.json',
       'regeln/iec-62446-1.json',
       'regeln/mastr.json',
+      'regeln/vde-0100-722.json',
     ])
     expect(elektroManifest.deadlines).toEqual([
       'fristen/vde-0105-100.json',
@@ -125,6 +128,8 @@ describe('the package Elektro und PV', () => {
       ['dguv-v3', 1],
       ['vde-ar-n-4105', 1],
       ['iec-62446-1', 1],
+      ['vde-0100-722', 1],
+      ['battery-commissioning', 1],
     ])
     expect(remark(first)).toEqual({ kind: 'text', key: 'remark', label: 'Bemerkung' })
     expect(remark(second)).toEqual({
@@ -361,6 +366,8 @@ describe('the package Elektro und PV', () => {
     })
     // A commissioning protocol is no test: nothing in it starts a deadline.
     expect(protocol ? nextInspectionField(protocol) : undefined).toBeNull()
+    // It is the one that goes to the grid operator behind the completion (#306, #307).
+    expect(protocol?.toGridOperator).toBe(true)
     expect(field('grid_parallel_on')).toMatchObject({ kind: 'date' })
     // Both sign on the device, the business last, and only then is it fixed.
     expect(field('operator_signature')).toMatchObject({ kind: 'signature', required: true })
@@ -527,5 +534,81 @@ describe('the package Elektro und PV', () => {
       1,
     )
     expect(elektroRules.at('elektro.mastr.registration_months', '2017-06-30')).toBeNull()
+  })
+
+  it('puts a wallbox into operation with its first inspection after DIN VDE 0100-722 (#307)', () => {
+    const protocol = elektroRegistry.definitionFor('vde-0100-722', 1)
+    const fields = protocol ? fieldsOf(protocol) : []
+    const field = (key: string) => fields.find((entry) => entry.key === key)
+
+    expect(protocol).toMatchObject({
+      attachesTo: 'installation',
+      installationKinds: ['wallbox'],
+      purpose: 'commissioning',
+    })
+    expect(protocol?.toGridOperator).toBeUndefined()
+    expect(protocol?.fromStructure).toEqual({
+      operator: 'operator',
+      charging_station: 'installation',
+      rated_power: 'rated_power',
+    })
+    // Like the first inspection of a new installation it names the interval, required.
+    expect(protocol ? nextInspectionField(protocol) : null).toMatchObject({
+      unit: 'month',
+      required: true,
+    })
+    expect(field('dc_protection')).toMatchObject({ kind: 'choice', required: true })
+    expect(field('tester_signature')).toMatchObject({ kind: 'signature', seals: true })
+  })
+
+  it('judges the RCD of a charging point by 30 mA and its DC fault monitor by 6 mA (#307)', () => {
+    const protocol = elektroRegistry.definitionFor('vde-0100-722', 1)
+    const measured = (key: string) =>
+      (protocol ? fieldsOf(protocol) : []).find(
+        (entry): entry is MeasurementField => entry.key === key && entry.kind === 'measurement',
+      )
+    const judged = (key: string, milli: number) => {
+      const field = measured(key)
+
+      return (
+        field &&
+        limitVerdict(field, milli, { rules: elektroRules, on: '2026-11-02', circuit: null })
+      )
+    }
+
+    // Milliamperes in thousandths: 30 mA is 30 000.
+    expect(judged('rcd_trip_current', 30_000)).toMatchObject({ within: true, limitMilli: 30_000 })
+    expect(judged('rcd_trip_current', 30_100)).toMatchObject({ within: false })
+    expect(judged('rcd_trip_current', 30_100)?.source).toContain('722.411.3.3')
+    expect(judged('dc_trip_current', 6000)).toMatchObject({ within: true, limitMilli: 6000 })
+    expect(judged('dc_trip_current', 6100)).toMatchObject({ within: false })
+    expect(judged('dc_trip_current', 6100)?.source).toContain('722.531.3.101')
+    // The rules of the first inspection for the trip time and the insulation.
+    expect(judged('rcd_trip_time', 301_000)).toMatchObject({ within: false, limitMilli: 300_000 })
+    expect(judged('insulation_resistance', 999)).toMatchObject({ within: false, limitMilli: 1000 })
+  })
+
+  it('puts a battery into operation as its manufacturer asks, beside VDE-AR-N 4105 (#307)', () => {
+    const protocol = elektroRegistry.definitionFor('battery-commissioning', 1)
+    const fields = protocol ? fieldsOf(protocol) : []
+
+    expect(protocol).toMatchObject({
+      attachesTo: 'installation',
+      installationKinds: ['battery'],
+      purpose: 'commissioning',
+    })
+    expect(protocol?.fromStructure).toEqual({
+      operator: 'operator',
+      storage: 'installation',
+      usable_capacity: 'usable_capacity',
+      rated_power: 'rated_power',
+    })
+    // No test of the installation, no deadline, and not for the grid operator.
+    expect(protocol ? nextInspectionField(protocol) : undefined).toBeNull()
+    expect(protocol?.toGridOperator).toBeUndefined()
+    expect(fields.filter((entry) => entry.kind === 'signature').map((entry) => entry.key)).toEqual([
+      'operator_signature',
+      'installer_signature',
+    ])
   })
 })

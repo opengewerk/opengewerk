@@ -82,6 +82,14 @@ export interface Installation extends Synced {
    */
   readonly gridOperatorId: GridOperatorId | null
   readonly gridOperatorReference: string | null
+  /**
+   * What a battery delivers of its charge, in watt hours, and the power a
+   * battery or a wallbox is rated for, in watts, from the data sheet (#307).
+   * The papers for the grid operator, the register and a funding programme
+   * name them, and a commissioning protocol starts with them.
+   */
+  readonly usableCapacityWh: number | null
+  readonly ratedPowerW: number | null
 }
 
 /** The largest forecast of a year a PV system can have, a hundred gigawatt hours. */
@@ -97,6 +105,45 @@ export function yieldForecastProblem(value: unknown): string | null {
       value <= largestYieldForecastKwh)
     ? null
     : 'Die Ertragsprognose ist eine ganze Zahl von Kilowattstunden im Jahr.'
+}
+
+/** The kinds that name a usable capacity, and those that name a rated power (#307). */
+export const capacityKinds: readonly InstallationKind[] = ['battery']
+export const ratedPowerKinds: readonly InstallationKind[] = ['battery', 'wallbox']
+
+/** The largest capacity and power an installation names: a hundred megawatt hours, a hundred megawatts. */
+export const largestRating = 100_000_000
+
+/**
+ * What is wrong with the usable capacity or the rated power of an
+ * installation, or nothing (#307): a whole number of watt hours or watts
+ * above none, at a kind that has it. As `installations_ratings` holds.
+ */
+export function ratingProblem(
+  field: 'usableCapacityWh' | 'ratedPowerW',
+  kind: unknown,
+  value: unknown,
+): string | null {
+  if (value === null || value === undefined) {
+    return null
+  }
+
+  const capacity = field === 'usableCapacityWh'
+
+  if (!(capacity ? capacityKinds : ratedPowerKinds).includes(kind as InstallationKind)) {
+    return capacity
+      ? 'Eine nutzbare Kapazität nennt nur ein Speicher.'
+      : 'Eine Bemessungsleistung nennen nur ein Speicher und eine Wallbox.'
+  }
+
+  return typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= largestRating
+    ? null
+    : capacity
+      ? 'Die nutzbare Kapazität ist größer als null und höchstens 100.000 kWh.'
+      : 'Die Bemessungsleistung ist größer als null und höchstens 100.000 kW.'
 }
 
 /**

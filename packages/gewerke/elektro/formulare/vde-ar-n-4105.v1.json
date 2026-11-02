@@ -5,6 +5,7 @@
   "attachesTo": "installation",
   "installationKinds": ["pv_system", "battery"],
   "purpose": "commissioning",
+  "toGridOperator": true,
   "fromStructure": {
     "operator": "operator",
     "inverters": "inverters",

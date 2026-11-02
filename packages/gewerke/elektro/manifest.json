@@ -1,7 +1,7 @@
 {
   "name": "elektro",
   "title": "Elektro und PV",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "minimumCore": "0.0.0",
   "forms": [
     "formulare/vde-0100-600.v1.json",
@@ -10,7 +10,9 @@
     "formulare/vde-0105-100.v1.json",
     "formulare/dguv-v3.v1.json",
     "formulare/vde-ar-n-4105.v1.json",
-    "formulare/iec-62446-1.v1.json"
+    "formulare/iec-62446-1.v1.json",
+    "formulare/vde-0100-722.v1.json",
+    "formulare/battery-commissioning.v1.json"
   ],
   "rules": [
     "regeln/vde-0100-600.json",
@@ -18,7 +20,8 @@
     "regeln/dguv-v3.json",
     "regeln/vde-ar-n-4105.json",
     "regeln/iec-62446-1.json",
-    "regeln/mastr.json"
+    "regeln/mastr.json",
+    "regeln/vde-0100-722.json"
   ],
   "deadlines": ["fristen/vde-0105-100.json", "fristen/dguv-v3.json", "fristen/netzbetreiber.json"]
 }

@@ -9,6 +9,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Wallbox und Speicher: Inbetriebnahme, Förderunterlagen und Prüfintervalle (#307), nach der Feature-Gliederung v2.59
+  und den Tafeln aus Version 120 des Canvas: Eine Wallbox bekommt ihr Inbetriebnahmeprotokoll als Erstprüfung nach
+  DIN VDE 0100-600 mit den Anforderungen der DIN VDE 0100-722, mit RCD je Ladepunkt höchstens 30 mA, Schutz bei
+  Gleichfehlerströmen (RCD Typ B oder Fehlergleichstrom-Überwachung höchstens 6 mA, beides als Regel im Paket Elektro
+  0.9.0) und der Prüffrist bis zur ersten Wiederholungsprüfung, aus der die Frist an der Anlage wird; der Prüfbericht je
+  Objekt nennt es als Prüfung der Anlage. Ein Speicher bekommt das Inbetriebnahmeprotokoll nach den Angaben des
+  Herstellers neben dem nach VDE-AR-N 4105, das allein hinter der Fertigmeldung an den Netzbetreiber geht. Speicher und
+  Wallbox nennen ihre nutzbare Kapazität und Bemessungsleistung (Migration 0117), und Anmeldung, Fertigmeldung und
+  Ausfüllhilfe drucken sie statt leerer Zeilen. Förderprogramme sind Vorlagen unter „Stammdaten“: die Nachweise eines
+  Programms in seiner Reihenfolge, aus OpenGewerk oder vom Betreiber, und der Text der Fachunternehmererklärung mit
+  Platzhaltern. An einer PV-Anlage, einem Speicher oder einer Wallbox entstehen daraus die Förderunterlagen als ein PDF:
+  die Liste der Nachweise mit dem, was beiliegt, fehlt oder der Betreiber bringt, dahinter Erklärung, Seriennummern,
+  Inbetriebnahmeprotokolle, Fotos und Rechnungen. Neue Rechte „Förderprogramme ansehen“ und „Förderprogramme pflegen“
+  für Inhaber und Büro. Warum: Nach der Montage einer Wallbox oder eines Speichers fehlten Protokoll, Frist und die
+  Unterlagen für die Förderung, und Förderprogramme wechseln zu oft, um sie in den Code zu schreiben.
 - Netzbetreiber, Netzbetreiber-Anmeldung und die Ausfüllhilfe für das Marktstammdatenregister (#306), nach der
   Feature-Gliederung v2.58 und den Tafeln aus Version 117 des Canvas: Unter „Stammdaten“ pflegen Inhaber und Büro ihre
   Netzbetreiber mit dem, was sie verlangen, ihrem Portal, einem Ansprechpartner und der Eintragung des Betriebs in ihr

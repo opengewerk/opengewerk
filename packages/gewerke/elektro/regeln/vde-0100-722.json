@@ -1,0 +1,24 @@
+{
+  "package": "elektro.vde-0100-722",
+  "note": "Grenzwerte des Inbetriebnahmeprotokolls einer Ladeeinrichtung nach DIN VDE 0100-600 und DIN VDE 0100-722 (#307). Die Auslösezeit der RCD und der Mindestwert des Isolationswiderstands sind die Regeln der Erstprüfung. Abgelesen an der Normauslegung 221-5 der DKE zu DIN VDE 0100-722:2019-06; die fachkundige Abnahme steht aus wie bei den Regelpaketen in #31.",
+  "records": [
+    {
+      "key": "elektro.charging.rcd_rated_residual_current",
+      "validFrom": "2019-06-01",
+      "validUntil": null,
+      "unit": "microamperes",
+      "value": 30000,
+      "source": "DIN VDE 0100-722:2019-06, 722.411.3.3",
+      "note": "Je Anschlusspunkt ein zusätzlicher Schutz durch eine Fehlerstrom-Schutzeinrichtung mit einem Bemessungsdifferenzstrom von höchstens 30 mA. Der gemessene Auslösestrom liegt darunter."
+    },
+    {
+      "key": "elektro.charging.dc_residual_current",
+      "validFrom": "2019-06-01",
+      "validUntil": null,
+      "unit": "microamperes",
+      "value": 6000,
+      "source": "DIN VDE 0100-722:2019-06, 722.531.3.101, mit IEC 62955",
+      "note": "Eine Fehlergleichstrom-Überwachung (RDC-DD) nach IEC 62955 schaltet bei einem Gleichfehlerstrom von höchstens 6 mA ab. Bei einer RCD Typ B wird nicht gemessen."
+    }
+  ]
+}

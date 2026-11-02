@@ -179,3 +179,87 @@ describe('a protocol that starts from the structure (#304)', () => {
     expect(definitionProblems({ ...commissioning, installationKinds: [] })).toEqual([sentence])
   })
 })
+
+describe('a protocol that starts from the installation itself (#307)', () => {
+  const charging: FormDefinition = {
+    key: 'probe-charging',
+    version: 1,
+    title: 'Probe der Ladeeinrichtung',
+    attachesTo: 'installation',
+    installationKinds: ['wallbox', 'battery'],
+    purpose: 'commissioning',
+    fromStructure: {
+      station: 'installation',
+      power: 'rated_power',
+      capacity: 'usable_capacity',
+    },
+    sections: [
+      {
+        key: 'plant',
+        title: 'Anlage',
+        fields: [
+          { kind: 'text', key: 'station', label: 'Ladeeinrichtung' },
+          { kind: 'number', key: 'power', label: 'Leistung', unit: 'kilowatt', decimals: 2 },
+          {
+            kind: 'number',
+            key: 'capacity',
+            label: 'Kapazität',
+            unit: 'kilowatt_hour',
+            decimals: 2,
+          },
+        ],
+      },
+    ],
+  }
+  const garage: InstallationStructure = {
+    operator: null,
+    inverters: [],
+    modules: [],
+    batteries: [],
+    meters: [],
+    installation: {
+      designation: 'Wallbox Garage',
+      manufacturer: 'Mennekes',
+      model: 'Amtron 4Business',
+      serialNumber: 'MA4B-1',
+      ratedPowerW: 11_000,
+      usableCapacityWh: 7680,
+    },
+  }
+
+  it('is a definition without problems', () => {
+    expect(definitionProblems(charging)).toEqual([])
+  })
+
+  it('starts with what the installation names: itself on a line, its power and its capacity', () => {
+    expect(structureValues(charging, garage)).toEqual({
+      station: 'Wallbox Garage, Mennekes Amtron 4Business, Seriennummer MA4B-1',
+      power: 11_000,
+      capacity: 7680,
+    })
+  })
+
+  it('says nothing where the installation names nothing, nor a power that is no whole watt', () => {
+    expect(
+      structureValues(charging, {
+        ...garage,
+        installation: {
+          designation: null,
+          manufacturer: null,
+          model: null,
+          serialNumber: null,
+          ratedPowerW: 1.5,
+          usableCapacityWh: null,
+        },
+      }),
+    ).toEqual({})
+    expect(structureValues(charging, { ...garage, installation: null })).toEqual({})
+  })
+
+  it('sends only a protocol of the commissioning to the grid operator', () => {
+    expect(definitionProblems({ ...charging, toGridOperator: true })).toEqual([])
+    expect(definitionProblems({ ...charging, purpose: 'test', toGridOperator: true })).toEqual([
+      'probe-charging: an den Netzbetreiber geht nur ein Protokoll der Inbetriebsetzung.',
+    ])
+  })
+})

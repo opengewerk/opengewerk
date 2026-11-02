@@ -15,6 +15,7 @@ import {
   type InstallationId,
   inverterLinkProblem,
   pvSystemLinkProblem,
+  ratingProblem,
   type RecordState,
 } from '@opengewerk/domain'
 import {
@@ -48,11 +49,14 @@ const writableFields = [
   'yieldForecastSource',
   'gridOperatorId',
   'gridOperatorReference',
+  'usableCapacityWh',
+  'ratedPowerW',
 ] as const
 
 /**
  * Refuses a link to a PV system that does not hold (#300), and a grid operator
- * at an installation that names none (#306), with the field in the sentence: the questions the sync asks, answered as a 422 like a missing
+ * at an installation that names none (#306), and a capacity or a power at a
+ * kind that has none (#307), with the field in the sentence: the questions the sync asks, answered as a 422 like a missing
  * reference, and before the trigger in the database would answer with a
  * sentence about a constraint.
  */
@@ -66,7 +70,9 @@ async function requirePvLink(
     pvSystemLinkProblem(at('kind'), at('pvSystemId')) ??
     inverterLinkProblem(at('pvSystemId'), at('inverterId')) ??
     gridOperatorLinkProblem(at('kind'), at('gridOperatorId')) ??
-    gridOperatorReferenceProblem(at('gridOperatorReference'))
+    gridOperatorReferenceProblem(at('gridOperatorReference')) ??
+    ratingProblem('usableCapacityWh', at('kind'), at('usableCapacityWh')) ??
+    ratingProblem('ratedPowerW', at('kind'), at('ratedPowerW'))
 
   if (problem !== null) {
     throw new UnprocessableEntityException(problem)
