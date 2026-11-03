@@ -154,14 +154,16 @@ describe('on call on site (#293)', () => {
     })
 
     expect(await screen.findByText('Offene Aufträge')).toBeTruthy()
-    expect(screen.queryByText('Du hast Bereitschaft')).toBeNull()
+    // The times come from the store after the list: give the card the time it would take.
+    await expect(screen.findByText('Du hast Bereitschaft', {}, { timeout: 500 })).rejects.toThrow()
   })
 
   it('shows no card without the right, in a time of the plan as well', async () => {
     await mount('/', {}, ['technician'], withoutOnCall)
 
     expect(await screen.findByText('Offene Aufträge')).toBeTruthy()
-    expect(screen.queryByText('Du hast Bereitschaft')).toBeNull()
+    // The times come from the store after the list: give the card the time it would take.
+    await expect(screen.findByText('Du hast Bereitschaft', {}, { timeout: 500 })).rejects.toThrow()
   })
 
   it('makes the call without a network: a new customer and a running service call with its moment', async () => {

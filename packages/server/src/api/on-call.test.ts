@@ -173,6 +173,9 @@ beforeAll(async () => {
 
   customer = (await post('/customers', { kind: 'private', name: 'Familie Arslan', ...invoiceable }))
     .id
+  // What the business charges at night and at the weekend, from the start of the year.
+  await setting('emergency.night_flat_cents', 4500)
+  await setting('emergency.weekend_basis_points', 5000)
   shift = (
     await post('/on-call-shifts', {
       userId: 'jonas',
@@ -454,8 +457,6 @@ describe('a service call made on call', () => {
 
 describe('the surcharge of an emergency call', () => {
   it('is the last line of the invoice out of its report, for the kind of the call', async () => {
-    await setting('emergency.night_flat_cents', 4500)
-
     const call = aCall()
 
     await push(app, jonas(), [call.operation])
@@ -471,8 +472,6 @@ describe('the surcharge of an emergency call', () => {
   })
 
   it('comes as a percentage on the working time and on nothing else', async () => {
-    await setting('emergency.weekend_basis_points', 5000)
-
     // Saturday 24.10.2026 at 10:00 in Germany.
     const call = aCall({ emergencyAt: '2026-10-24T08:00:00.000Z' })
 
