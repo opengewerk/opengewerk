@@ -157,6 +157,13 @@ describe('the on-call plan in the office (#293)', () => {
     expect(await screen.findByText('Jonas Brandt')).toBeTruthy()
     expect(screen.getByText('Lena Hoffmann')).toBeTruthy()
     expect(screen.getByText('Woche 45')).toBeTruthy()
+
+    // In German time, whatever the time zone of the computer.
+    const { day, minute } = berlinClock(inAWeek)
+    const clock = `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`
+    const shown = `${day.slice(8, 10)}.${day.slice(5, 7)}.${day.slice(0, 4)}, ${clock}`
+
+    expect(screen.getAllByText((content) => content.endsWith(shown)).length).toBeGreaterThan(0)
   })
 
   it('takes a new time with person, beginning and end', async () => {

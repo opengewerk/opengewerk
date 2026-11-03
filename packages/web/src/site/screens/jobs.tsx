@@ -1,6 +1,6 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Button, Confirm, Panel, useBand } from '@opengewerk/platform-web'
-import { date, moment, today } from '@opengewerk/platform-web/format'
+import { date, today } from '@opengewerk/platform-web/format'
 import {
   NotSent,
   SiteAnchor,
@@ -28,6 +28,7 @@ import clsx from 'clsx'
 import { Check, MapPin, Signature, Smartphone, Zap } from 'lucide-react'
 import { createContext, useContext, useMemo, useState } from 'react'
 
+import { berlinMoment } from '../../app/appointments.js'
 import { DocumentState } from '../../app/document-state.js'
 import { JobAcceptance } from './acceptance.js'
 import { JobDefects } from './defects.js'
@@ -513,7 +514,7 @@ export function SiteJobScreen() {
             ? [
                 {
                   label: 'Notdiensteinsatz',
-                  value: `Anruf ${moment(maybeText(job, 'emergencyAt'))} Uhr`,
+                  value: `Anruf ${berlinMoment(text(job, 'emergencyAt'))} Uhr`,
                 },
               ]
             : []),

@@ -1,6 +1,5 @@
-import { type RecordState, urgentRepairNote } from '@opengewerk/domain'
+import { berlinWall, type RecordState, urgentRepairNote } from '@opengewerk/domain'
 import { Button, Field, Panel } from '@opengewerk/platform-web'
-import { moment } from '@opengewerk/platform-web/format'
 import { SiteActionBar, SiteScreen, SiteText, SiteTrouble } from '@opengewerk/platform-web/site'
 import { maybeText, refusalFor, text, useRecords, useSync } from '@opengewerk/platform-web/sync'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -8,6 +7,7 @@ import { BellRing, Check, Plus } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 
+import { berlinMoment, clockOf, dayMonth, longDays, weekdayIndex } from '../../app/appointments.js'
 import { useMay } from '../../app/queries.js'
 import { urgentRepairTitle } from '../../app/service-calls.js'
 import { SiteHeader } from '../header.js'
@@ -22,6 +22,13 @@ import { SiteHeader } from '../header.js'
  * the job land only for a moment in one of them, and with the narrow right
  * of whoever is on call.
  */
+
+/** "Montag, 09.11., 07:00", the end of a time of the plan in German time. */
+function until(at: string): string {
+  const { day } = berlinWall(at)
+
+  return `${longDays[weekdayIndex(day)] ?? ''}, ${dayMonth(day)}, ${clockOf(at)}`
+}
 
 /** The time of the plan of this person that covers now, from the device. */
 function useCurrentShift(): RecordState | undefined {
@@ -57,7 +64,7 @@ export function OnCallCard() {
         Du hast Bereitschaft
       </p>
       <SiteText size={16}>
-        {`Bis ${moment(maybeText(shift, 'endsAt'))} Uhr. Nimmst du einen Anruf an, legst du den Einsatz hier an, auch ohne Netz.`}
+        {`Bis ${until(text(shift, 'endsAt'))}. Nimmst du einen Anruf an, legst du den Einsatz hier an, auch ohne Netz.`}
       </SiteText>
       <Link
         to="/einsatz/neu"
@@ -319,7 +326,7 @@ export function SiteNewCallScreen() {
       </form>
 
       <SiteText muted size={15}>
-        {`Notdiensteinsatz von ${moment(calledAt)} Uhr. Ohne Netz gespeichert; das Büro sieht ihn beim nächsten Abgleich, mit Nummer.`}
+        {`Notdiensteinsatz von ${berlinMoment(calledAt)} Uhr. Ohne Netz gespeichert; das Büro sieht ihn beim nächsten Abgleich, mit Nummer.`}
       </SiteText>
 
       {trouble ? <SiteTrouble>{trouble}</SiteTrouble> : null}

@@ -11,6 +11,7 @@ import {
   type RecordState,
   ruleText,
 } from '@opengewerk/domain'
+import { date } from '@opengewerk/platform-web/format'
 import { count, maybeText, text } from '@opengewerk/platform-web/sync'
 
 import type { BoardAbsence } from '../session/appointments.js'
@@ -90,6 +91,15 @@ export function clockOf(at: Date | string): string {
   const { minute } = berlinWall(at)
 
   return `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`
+}
+
+/**
+ * "02.11.2026, 17:00", a moment as the clock in Germany shows it: the time of
+ * an emergency call (#293) and of the on-call plan, whatever the time zone of
+ * the device.
+ */
+export function berlinMoment(at: Date | string): string {
+  return `${date(berlinWall(at).day)}, ${clockOf(at)}`
 }
 
 export const shortDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const

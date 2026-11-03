@@ -1,6 +1,6 @@
 import { addDays, berlinInstant, type IsoDate } from '@opengewerk/domain'
 import { Button, Field, Panel, SelectField } from '@opengewerk/platform-web'
-import { moment, today } from '@opengewerk/platform-web/format'
+import { today } from '@opengewerk/platform-web/format'
 import { NoteBox, PageHead, Screen } from '@opengewerk/platform-web/office'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -8,7 +8,7 @@ import { Check, Pencil, Plus, Repeat, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { clockOf } from '../../app/appointments.js'
+import { berlinMoment, clockOf, shortDays, weekdayIndex } from '../../app/appointments.js'
 import { useMay } from '../../app/queries.js'
 import { usePeople } from '../../app/tasks.js'
 import {
@@ -45,6 +45,13 @@ function minuteOf(clock: string): number {
 /** The day of a moment in Germany, as a date field shows it. */
 function dayOf(at: string): IsoDate {
   return new Date(at).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }) as IsoDate
+}
+
+/** "Mo 02.11.2026, 17:00", in German time like every appointment. */
+function whenOf(at: string): string {
+  const day = dayOf(at)
+
+  return `${shortDays[weekdayIndex(day)] ?? ''} ${berlinMoment(at)}`
 }
 
 interface Draft {
@@ -239,7 +246,7 @@ function SwapForm({
           value={other}
           options={candidates.map((candidate) => ({
             value: candidate.id,
-            label: `${names.get(candidate.userId) ?? 'Unbekannt'}, ${moment(candidate.startsAt)} bis ${moment(candidate.endsAt)}`,
+            label: `${names.get(candidate.userId) ?? 'Unbekannt'}, ${whenOf(candidate.startsAt)} bis ${whenOf(candidate.endsAt)}`,
           }))}
           onChange={setOther}
         />
@@ -321,18 +328,16 @@ export function OnCallScreen() {
         }
       />
 
-      {adding ? (
-        <Panel title="Neue Bereitschaft">
-          <ShiftForm
-            shift={null}
-            onDone={() => {
-              setAdding(false)
-            }}
-          />
-        </Panel>
-      ) : null}
-
-      <Panel title="Ab heute">
+      <Panel
+        title="Ab heute"
+        action={
+          shifts.length > 0 ? (
+            <span className="text-[13px] text-ink-muted">
+              {shifts.length === 1 ? '1 Zeit' : `${String(shifts.length)} Zeiten`}
+            </span>
+          ) : null
+        }
+      >
         {plan.isPending ? (
           <p className="text-[13px] text-ink-muted">Wird geladen.</p>
         ) : plan.isError ? (
@@ -343,6 +348,15 @@ export function OnCallScreen() {
           </p>
         ) : (
           <ul className="flex flex-col">
+            <li
+              aria-hidden="true"
+              className="hidden pb-1.5 text-[12px] font-semibold text-ink-muted sm:grid sm:grid-cols-[180px_190px_190px_minmax(0,1fr)] sm:gap-x-2"
+            >
+              <span>Person</span>
+              <span>Beginn</span>
+              <span>Ende</span>
+              <span>Notiz</span>
+            </li>
             {shifts.map((shift) => (
               <li
                 key={shift.id}
@@ -356,16 +370,20 @@ export function OnCallScreen() {
                     }}
                   />
                 ) : (
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <b className="min-w-[160px] text-[14px] font-semibold">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:grid sm:grid-cols-[180px_190px_190px_minmax(0,1fr)_auto]">
+                    <b className="w-full text-[14px] font-semibold sm:w-auto">
                       {names.get(shift.userId) ?? 'Unbekannt'}
                     </b>
-                    <span className="numeric text-[14px]">{`${moment(shift.startsAt)} bis ${moment(shift.endsAt)}`}</span>
-                    {shift.note ? (
-                      <span className="text-[14px] text-ink-muted">{shift.note}</span>
-                    ) : null}
+                    <span className="numeric text-[14px]">{whenOf(shift.startsAt)}</span>
+                    <span className="numeric text-[14px]">
+                      <span className="sm:hidden">bis </span>
+                      {whenOf(shift.endsAt)}
+                    </span>
+                    <span className="w-full text-[14px] text-ink-muted sm:w-auto">
+                      {shift.note ?? ''}
+                    </span>
                     {writes ? (
-                      <span className="ml-auto flex gap-1.5">
+                      <span className="flex flex-wrap gap-1.5 sm:flex-nowrap sm:justify-end">
                         <Button
                           icon={Pencil}
                           onClick={() => {
@@ -377,6 +395,7 @@ export function OnCallScreen() {
                         </Button>
                         <Button
                           icon={Repeat}
+                          disabled={swapping === shift.id}
                           onClick={() => {
                             setSwapping(shift.id)
                             setEditing(null)
@@ -411,6 +430,17 @@ export function OnCallScreen() {
           </p>
         ) : null}
       </Panel>
+
+      {adding ? (
+        <Panel title="Neue Bereitschaft">
+          <ShiftForm
+            shift={null}
+            onDone={() => {
+              setAdding(false)
+            }}
+          />
+        </Panel>
+      ) : null}
     </Screen>
   )
 }

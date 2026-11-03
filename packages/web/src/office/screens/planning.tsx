@@ -34,7 +34,7 @@ import {
   useSyncStatus,
 } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
 import {
   BellRing,
@@ -177,7 +177,6 @@ export function PlanningScreen() {
   const jobRecords = useRecords('jobs')
   const customerRecords = useRecords('customers')
   const { people: staff } = usePeople()
-  const navigate = useNavigate()
   const facts = useQuery({
     queryKey: [...boardKey, start, to],
     queryFn: () => boardFacts(start, to),
@@ -451,14 +450,6 @@ export function PlanningScreen() {
                 </Button>
               ))}
             </div>
-            <Button
-              icon={BellRing}
-              onClick={() => {
-                void navigate({ to: '/plantafel/bereitschaft' })
-              }}
-            >
-              Rufbereitschaft
-            </Button>
             {mayWrite ? (
               <Button
                 tone="primary"
@@ -513,6 +504,15 @@ export function PlanningScreen() {
             ))}
           </section>
           <Legend compact={compact} />
+          <p className="m-0 text-[13px] text-ink-muted">
+            Wer Bereitschaft hat, steht über den Personen.{' '}
+            <Link
+              to="/plantafel/bereitschaft"
+              className="font-semibold text-copper-text underline underline-offset-2"
+            >
+              Rufbereitschaft planen
+            </Link>
+          </p>
           {compact ? (
             <p className="m-0 text-[13px] text-ink-faint">
               Vier Wochen zeigen die letzten vier Ziffern des Auftrags. Was ein Termin ist, sagt
@@ -646,7 +646,7 @@ function OnCallRow({
 
               return (
                 <div key={shift.id} title={name}>
-                  <div className="truncate font-semibold">{name}</div>
+                  <div className="font-semibold break-words hyphens-auto">{name}</div>
                   {!compact && (begins || ends) ? (
                     <div className="text-ink-muted">
                       {[
