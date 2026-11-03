@@ -438,6 +438,25 @@ export class DocumentsController {
         throw new ConflictException('Der Beleg ist schon festgeschrieben.')
       }
 
+      // An invoice made on site out of a report the customer signed (#292)
+      // finds the report without its number: the technician may make the
+      // draft and may not issue. The report is issued here first, in the same
+      // transaction, so that the chain is fixed from its start and the report
+      // has its number before the invoice made out of it.
+      if (existing.predecessorDocumentId !== null) {
+        const [predecessor] = await tx
+          .select()
+          .from(documents)
+          .where(
+            and(eq(documents.id, existing.predecessorDocumentId), isNull(documents.deletedAt)),
+          )
+          .for('update')
+
+        if (predecessor && isSignedReport(predecessor)) {
+          await fixDocument(tx, identity, predecessor)
+        }
+      }
+
       const { content, missing } = await contentForIssuing(tx, existing)
 
       if (missing.length > 0) {
@@ -458,38 +477,7 @@ export class DocumentsController {
         })
       }
 
-      const issuedAt = new Date()
-      const number = await assignDocumentNumber(tx, identity.tenantId, existing.kind, issuedAt)
-
-      // `deletedAt` a second time, and not out of habit. The lock above keeps
-      // a deletion out since the read, and this condition still holds if the
-      // lock is ever taken away: what comes out of that race cannot be
-      // repaired on a running installation. The number is spent, the entry is
-      // in the hash chain, and the document is fixed and out of every list at
-      // the same time.
-      const [issued] = await tx
-        .update(documents)
-        .set({ status: 'issued', number, issuedAt, issuedBy: identity.userId, updatedAt: issuedAt })
-        .where(
-          and(
-            eq(documents.id, existing.id),
-            inArray(documents.status, [...issuable]),
-            isNull(documents.deletedAt),
-          ),
-        )
-        .returning()
-
-      if (!issued) {
-        throw new NotFoundException()
-      }
-
-      await tx.insert(documentSnapshots).values({
-        tenantId: identity.tenantId,
-        documentId: issued.id,
-        content: { ...content, number },
-      })
-
-      return issued
+      return issueWith(tx, identity, existing, content)
     })
   }
 
@@ -568,7 +556,11 @@ export class DocumentsController {
         )
       }
 
-      if (predecessor.status !== 'issued') {
+      // A report the customer signed is fixed by the signature, and the
+      // invoice out of it is made on site, as a draft (#292); the report gets
+      // its number when the invoice is issued. Any other predecessor is
+      // issued first.
+      if (predecessor.status !== 'issued' && !(kind === 'final_invoice' && isSignedReport(predecessor))) {
         throw new ConflictException(
           predecessor.status === 'draft'
             ? 'Ein Folgebeleg entsteht aus einem festgeschriebenen Beleg, und dieser ist noch ein ' +
@@ -1069,4 +1061,76 @@ export class DocumentsController {
       throw new ConflictException(reason)
     })
   }
+}
+
+
+type DocumentRow = typeof documents.$inferSelect
+
+/** A report the customer signed and nobody issued yet, which a signature fixed without a number. */
+function isSignedReport(document: Pick<DocumentRow, 'kind' | 'status'>): boolean {
+  return document.status === 'signed' && document.kind === 'time_and_material_report'
+}
+
+/**
+ * Issues a document that is locked and whose content is known: the number,
+ * the moment, who issued it, and the snapshot of what it says, in the
+ * transaction of the caller.
+ */
+async function issueWith(
+  tx: TenantTransaction,
+  identity: RequestIdentity,
+  existing: DocumentRow,
+  content: DocumentContent,
+): Promise<DocumentRow> {
+  const issuedAt = new Date()
+  const number = await assignDocumentNumber(tx, identity.tenantId, existing.kind, issuedAt)
+
+  // `deletedAt` a second time, and not out of habit. The lock above keeps
+  // a deletion out since the read, and this condition still holds if the
+  // lock is ever taken away: what comes out of that race cannot be
+  // repaired on a running installation. The number is spent, the entry is
+  // in the hash chain, and the document is fixed and out of every list at
+  // the same time.
+  const [issued] = await tx
+    .update(documents)
+    .set({ status: 'issued', number, issuedAt, issuedBy: identity.userId, updatedAt: issuedAt })
+    .where(
+      and(
+        eq(documents.id, existing.id),
+        inArray(documents.status, [...issuable]),
+        isNull(documents.deletedAt),
+      ),
+    )
+    .returning()
+
+  if (!issued) {
+    throw new NotFoundException()
+  }
+
+  await tx.insert(documentSnapshots).values({
+    tenantId: identity.tenantId,
+    documentId: issued.id,
+    content: { ...content, number },
+  })
+
+  return issued
+}
+
+/**
+ * Issues a signed report on the way to the invoice made out of it (#292). It
+ * lacks nothing a report could lack, or the invoice is not issued either and
+ * the office hears what the report lacks.
+ */
+async function fixDocument(
+  tx: TenantTransaction,
+  identity: RequestIdentity,
+  report: DocumentRow,
+): Promise<DocumentRow> {
+  const { content, missing } = await contentForIssuing(tx, report)
+
+  if (missing.length > 0) {
+    throw lacking(missing)
+  }
+
+  return issueWith(tx, identity, report, content)
 }

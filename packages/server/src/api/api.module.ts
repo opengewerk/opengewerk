@@ -75,6 +75,7 @@ import { GridOperatorsController } from './grid-operators.controller.js'
 import { FundingPapersController } from './funding-papers.controller.js'
 import { AcceptanceRequestController } from './acceptance-request.controller.js'
 import { DefectReportController } from './defect-report.controller.js'
+import { CallInstructionsController } from './call-instructions.controller.js'
 import { FundingProgramsController } from './funding-programs.controller.js'
 import { FormRecordsController } from './form-records.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
@@ -317,6 +318,7 @@ export class ApiModule {
         FundingPapersController,
         AcceptanceRequestController,
         DefectReportController,
+        CallInstructionsController,
         JobsController,
         CollectiveInvoicesController,
         TasksController,

@@ -98,6 +98,7 @@ const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
     { table: 'job_notes', column: 'job_id' },
     { table: 'job_assignments', column: 'job_id' },
     { table: 'defects', column: 'job_id' },
+    { table: 'early_start_requests', column: 'job_id' },
   ],
   // A defect with its steps (#311).
   defects: [{ table: 'defect_steps', column: 'defect_id' }],
@@ -236,6 +237,8 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   // A defect by what is wrong, a step by the step (#311).
   defects: ['description'],
   defect_steps: ['step'],
+  // Signed at the door, by whoever signed (#292).
+  early_start_requests: ['signer_name'],
   payments: ['received_on'],
   document_files: ['purpose'],
   document_instruction_choices: ['variant'],

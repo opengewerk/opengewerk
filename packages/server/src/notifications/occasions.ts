@@ -14,6 +14,7 @@ import {
   signedDocuments,
   taskDue,
 } from './notify.js'
+import { callInstructionsMail, signedEarlyStartMail, signedEarlyStarts } from './call-mail.js'
 import {
   pushAppointment,
   pushDeadlineDue,
@@ -85,6 +86,17 @@ export const occasions = occasionsOf<Notification, NotificationExtra>({
   leave_decision: {
     causeOf,
     push: pushLeaveDecision,
+  },
+  job_instructions: {
+    causeOf,
+    mail: (database, tenantId, notification) =>
+      callInstructionsMail(database, tenantId, notification),
+  },
+  early_start_signed: {
+    causeOf,
+    raise: { mail: (database, tenantId, now) => signedEarlyStarts(database, tenantId, now) },
+    mail: (database, tenantId, notification) =>
+      signedEarlyStartMail(database, tenantId, notification),
   },
 })
 

@@ -8,6 +8,7 @@ import {
   type InvitationId,
   type IssuerContent,
   type IsoDate,
+  type JobId,
   morningMinute,
   remindsBy,
   renderSignature,
@@ -153,6 +154,27 @@ export type Notification =
       readonly absenceId: string
       readonly decision: 'approved' | 'rejected'
     }
+  | {
+      /**
+       * The instructions of a service call sent from the office (#292), for
+       * a call taken on the phone. One per wish, like a document: sending
+       * them again is a new cause and a new message.
+       */
+      readonly kind: 'job_instructions'
+      readonly jobId: JobId
+      readonly request: string
+      readonly to: { readonly address: string; readonly name: string | null }
+      readonly requestedBy: string
+    }
+  | {
+      /**
+       * A request for an early start signed at the door (#292), raised by the
+       * job like a signed report, and sent with the instructions to the
+       * customer. Once per request.
+       */
+      readonly kind: 'early_start_signed'
+      readonly requestId: string
+    }
 
 /** What every message needs besides its cause: where the instance is reached. */
 export interface NotifyContext {
@@ -171,7 +193,7 @@ export interface NotifyContext {
  * out for, whose name takes the place of `{benutzer}`; a message nobody sent
  * by hand has none, and the lines naming one are left out.
  */
-async function signatureFor(
+export async function signatureFor(
   tx: TenantTransaction,
   tenantId: TenantId,
   issuer: IssuerContent,
@@ -186,7 +208,7 @@ async function signatureFor(
 }
 
 /** The name of the person a message is sent by, looked up for exactly that one identifier. */
-async function nameOf(database: Database, userId: string): Promise<string | null> {
+export async function nameOf(database: Database, userId: string): Promise<string | null> {
   return (await accountsOf(database, [userId], userId)).get(userId)?.name ?? null
 }
 
@@ -209,6 +231,10 @@ export function causeOf(notification: Notification): string {
       return `leave_request:${notification.absenceId}`
     case 'leave_decision':
       return `leave_decision:${notification.absenceId}:${notification.decision}`
+    case 'job_instructions':
+      return `job_instructions:${notification.jobId}:${notification.request}`
+    case 'early_start_signed':
+      return `early_start_signed:${notification.requestId}`
   }
 }
 

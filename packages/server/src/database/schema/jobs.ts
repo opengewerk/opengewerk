@@ -58,6 +58,8 @@ export const jobs = pgTable(
     // null for the second while the business has not said, and the job suggests one.
     vobAgreed: boolean('vob_agreed').notNull().default(false),
     buildingWork: boolean('building_work'),
+    // An urgent repair the customer asked for (#292): no right of withdrawal for it.
+    urgentRepair: boolean('urgent_repair').notNull().default(false),
     ...timestamps,
     ...syncColumns,
   },

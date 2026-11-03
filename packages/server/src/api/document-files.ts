@@ -46,6 +46,8 @@ import { LegalGraphicError, legalPage, withLegalPages } from '../documents/legal
 import {
   documentTitle,
   headingOf,
+  callInstructionsJob,
+  type CallInstructionsPrint,
   instructionSheet,
   legalPagesOf,
   type PrintAssets,
@@ -334,6 +336,31 @@ export class DocumentFiles {
     }
 
     return this.rendered(content, printedFor, (assets) => instructionSheet(content, index, assets))
+  }
+
+  /**
+   * The instructions of a service call as one PDF (#292), for its mail and
+   * for the office to print. Printed on every request and not kept: the words
+   * come from the instructions of the business on the day they are of, the
+   * signature from its row.
+   */
+  async printCallInstructions(
+    facts: CallInstructionsPrint,
+    printedFor: PrintedFor,
+  ): Promise<Uint8Array> {
+    const logo = facts.issuer.logo
+      ? { mediaType: facts.issuer.logo.mediaType, bytes: await this.read(facts.issuer.logo.sha256) }
+      : null
+
+    try {
+      return await this.render(callInstructionsJob(facts, { logo, durabilityLabel: null }), printedFor)
+    } catch (error) {
+      if (error instanceof RendererUnavailableError) {
+        throw new ServiceUnavailableException(error.message)
+      }
+
+      throw new BadGatewayException(error instanceof Error ? error.message : String(error))
+    }
   }
 
   /** A file of the Commission that is missing or changed is a fault of the installation. */

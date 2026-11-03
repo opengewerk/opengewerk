@@ -34,7 +34,7 @@ import { ApiModule } from './api/api.module.js'
 import { access, createAuthentication, SessionIdentitySource } from './authentication/access.js'
 import { application as opengewerk, readConfiguration } from './configuration.js'
 import { DocumentFiles } from './api/document-files.js'
-import { documentAttachments } from './mail/attachments.js'
+import { documentAttachments, withCallInstructions } from './mail/attachments.js'
 import { accountMessages } from './mail/account-messages.js'
 import { endInterruptedImports } from './datanorm/imports.js'
 import { SellingPrices } from './pricing/selling-prices.js'
@@ -279,16 +279,20 @@ async function start(): Promise<void> {
     pushWorker = startPushWorker({ database, vapid: push.vapid, post: push.post })
   }
 
+  // The same store and renderer the routes use, so that the file a message
+  // carries is the file the document keeps.
+  const printing = new DocumentFiles(database, output.files, output.renderer, output.limits)
+
   if (mail) {
     mailWorker = startMailWorker({
       database,
       connect: mail.connect,
       key: mail.key,
       origin,
-      // The same store and renderer the routes use, so that the file a
-      // message carries is the file the document keeps.
-      attachments: documentAttachments(
-        new DocumentFiles(database, output.files, output.renderer, output.limits),
+      attachments: withCallInstructions(
+        printing,
+        database,
+        documentAttachments(printing),
       ),
       invitationLinks: invitationLinks(database, origin),
     })

@@ -30,6 +30,7 @@ export type LocationConsentId = Id<'location-consent'>
 export type JobNoteId = Id<'job-note'>
 export type DefectId = Id<'defect'>
 export type DefectStepId = Id<'defect-step'>
+export type EarlyStartRequestId = Id<'early-start-request'>
 export type AppointmentId = Id<'appointment'>
 export type AppointmentPersonId = Id<'appointment-person'>
 export type CalendarFeedId = Id<'calendar-feed'>

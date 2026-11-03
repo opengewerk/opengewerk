@@ -60,6 +60,14 @@ export interface Job extends Synced {
    * it starts with.
    */
   readonly buildingWork: boolean | null
+  /**
+   * An urgent repair or maintenance the customer expressly asked to be visited
+   * for (#292): then there is no right of withdrawal for it, § 312g (2) no. 11
+   * BGB, and the job says so wherever its instructions are (`urgentRepairNote`).
+   * Set by the office when it takes the call; whatever else is agreed on site
+   * is not covered by it.
+   */
+  readonly urgentRepair: boolean
 }
 
 /**
@@ -173,6 +181,13 @@ export function followUpProblem(
  * What is wrong with the terms of a job (#310), or nothing: the VOB/B is
  * agreed or not, and the work is a building, is none, or not decided yet.
  */
+/** What is wrong with the mark of an urgent repair (#292): it is yes or no. */
+export function urgentRepairProblem(urgentRepair: unknown): string | null {
+  return urgentRepair !== undefined && typeof urgentRepair !== 'boolean'
+    ? 'Ob eine dringende Reparatur angefordert ist, heißt ja oder nein.'
+    : null
+}
+
 export function jobTermsProblem(vobAgreed: unknown, buildingWork: unknown): string | null {
   if (vobAgreed !== undefined && typeof vobAgreed !== 'boolean') {
     return 'Ob die VOB/B vereinbart ist, heißt ja oder nein.'

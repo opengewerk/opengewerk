@@ -3,6 +3,8 @@ import { foreignKey, index, pgEnum } from 'drizzle-orm/pg-core'
 
 import { deadlines } from './deadlines.js'
 import { documents } from './documents.js'
+import { earlyStartRequests } from './early-start-requests.js'
+import { jobs } from './jobs.js'
 import { tasks } from './tasks.js'
 
 /**
@@ -17,6 +19,8 @@ export const mailKinds = [
   'invitation',
   'deadline_due',
   'passkey_added',
+  // The instructions of a service call to its customer (#292).
+  'job_instructions',
 ] as const
 
 /**
@@ -42,6 +46,10 @@ export const { mailKind, mailStatus, mailOutbox } = mailOutboxSchema({
     documentId: reference<'document'>('document_id'),
     attachment: mailAttachment('attachment'),
     deadlineId: reference<'deadline'>('deadline_id'),
+    // The service call whose instructions go out, and the request for an
+    // early start signed at the door that comes along, if one did (#292).
+    jobId: reference<'job'>('job_id'),
+    earlyStartRequestId: reference<'early-start-request'>('early_start_request_id'),
   },
   constraints: (table) => [
     foreignKey({
@@ -61,6 +69,18 @@ export const { mailKind, mailStatus, mailOutbox } = mailOutboxSchema({
     }).onDelete('restrict'),
     index('mail_outbox_task_idx').on(table.tenantId, table.taskId),
     index('mail_outbox_document_idx').on(table.tenantId, table.documentId),
+    foreignKey({
+      columns: [table.tenantId, table.jobId],
+      foreignColumns: [jobs.tenantId, jobs.id],
+      name: 'mail_outbox_job_in_tenant',
+    }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.earlyStartRequestId],
+      foreignColumns: [earlyStartRequests.tenantId, earlyStartRequests.id],
+      name: 'mail_outbox_early_start_request_in_tenant',
+    }).onDelete('restrict'),
     index('mail_outbox_deadline_idx').on(table.tenantId, table.deadlineId),
+    index('mail_outbox_job_idx').on(table.tenantId, table.jobId),
+    index('mail_outbox_early_start_request_idx').on(table.tenantId, table.earlyStartRequestId),
   ],
 })

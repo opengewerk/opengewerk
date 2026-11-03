@@ -737,3 +737,40 @@ export function mailServerChangedMessage(facts: {
 
   return { subject: 'Der Mailserver Ihrer OpenGewerk-Instanz wurde geändert', body }
 }
+
+/**
+ * The message with the instructions of a service call (#292). Sent from the
+ * office for a call taken on the phone, with the sheet for an early start to
+ * fill in; sent by itself after a request was signed at the door, with that
+ * request.
+ */
+export function callInstructionsMessage(facts: {
+  readonly call: { readonly number: string | null; readonly designation: string }
+  readonly signed: { readonly signerName: string; readonly signedOn: string } | null
+  readonly issuer: IssuerContent
+  readonly signature: string
+}): MessageText {
+  const job = `Ihrem Auftrag „${facts.call.designation}“${facts.call.number ? ` (${facts.call.number})` : ''}`
+  const body = [
+    'Guten Tag,',
+    '',
+    `im Anhang erhalten Sie zu ${job} die Widerrufsbelehrung mit den Hinweisen zum Erlöschen ` +
+      'des Widerrufsrechts und dem Muster-Widerrufsformular.',
+    '',
+    facts.signed
+      ? `Dazu das Verlangen auf vorzeitigen Leistungsbeginn, das ${facts.signed.signerName} am ` +
+        `${germanDate(facts.signed.signedOn)} auf unserem Gerät unterschrieben hat.`
+      : 'Soll die Arbeit vor Ablauf der Widerrufsfrist beginnen, finden Sie im Anhang auch den ' +
+        'Vordruck für das Verlangen auf vorzeitigen Leistungsbeginn.',
+    '',
+    'Mit freundlichen Grüßen',
+    '',
+    '-- ',
+    facts.signature,
+  ].join('\n')
+
+  return {
+    subject: `Belehrungen zu Ihrem Auftrag ${facts.call.number ?? facts.call.designation} von ${facts.issuer.name}`,
+    body,
+  }
+}

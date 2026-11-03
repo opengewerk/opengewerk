@@ -4,6 +4,7 @@ import {
   defectHomeProblem,
   defectMomentProblem,
   defectSignatureProblem,
+  earlyStartSignatureProblem,
   correctionProblem,
   countryProblem,
   deviceInfoProblem,
@@ -20,6 +21,7 @@ import {
   priceBaseProblem,
   remedyDueProblem,
   jobTermsProblem,
+  urgentRepairProblem,
   pvSystemLinkProblem,
   ratingProblem,
   servicePeriodProblem,
@@ -136,6 +138,7 @@ const rules: RecordRules = {
       fields: ['vobAgreed', 'buildingWork'],
       problem: (at) => jobTermsProblem(at('vobAgreed'), at('buildingWork')),
     },
+    { fields: ['urgentRepair'], problem: (at) => urgentRepairProblem(at('urgentRepair')) },
   ],
   installations: [
     {
@@ -264,6 +267,16 @@ const rules: RecordRules = {
       fields: ['step', 'signerName', 'signaturePath'],
       problem: (at) => defectSignatureProblem(at('step'), at('signerName'), at('signaturePath')),
     },
+  ],
+  // The request for an early start at the door (#292): who signed and the
+  // signature, as under a report. What it was signed under, the sync asks.
+  early_start_requests: [
+    {
+      fields: ['signerName', 'path'],
+      problem: (at) => earlyStartSignatureProblem(at('signerName'), at('path')),
+    },
+    { fields: ['signedAt'], problem: (at) => defectMomentProblem(at('signedAt')) },
+    { fields: ['deviceInfo'], problem: (at) => deviceInfoProblem(at('deviceInfo')) },
   ],
 }
 

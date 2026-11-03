@@ -55,9 +55,12 @@ const sentences = {
   tenantFailed: (tenantId: TenantId) => `Der Versand für den Betrieb ${tenantId} ist gescheitert.`,
 }
 
-/** The files a message carries, made or read now. Only a message about a document carries one. */
+/**
+ * The files a message carries, made or read now. A message about a document
+ * carries one, and so does one with the instructions of a service call (#292).
+ */
 async function attachmentsOf(job: MailJob, row: OutboxRow): Promise<readonly MailAttachment[]> {
-  if (row.kind !== 'document') {
+  if (row.kind !== 'document' && row.kind !== 'job_instructions') {
     return []
   }
 

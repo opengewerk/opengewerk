@@ -49,6 +49,12 @@ export interface ShippedWording {
    * has one (#431).
    */
   readonly graphic?: string
+  /**
+   * The words a customer signs on a device instead of the sheet on paper
+   * (#292): the request alone, without how to send the paper back and the
+   * lines to write on. Only the sheet for an early start has them.
+   */
+  readonly onDevice?: string
   /** German, because whoever reads it is deciding whether it is right. */
   readonly note?: string
 }

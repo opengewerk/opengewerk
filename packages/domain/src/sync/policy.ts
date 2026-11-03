@@ -204,6 +204,13 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    */
   defect_steps: { create: true, change: 'never', reserved: ['createdBy'] },
   /**
+   * The request for an early start a consumer signs at the door (#292), made
+   * on site without a network like a signature under a report and never
+   * changed afterwards. The server checks what it was signed under and sends
+   * it to the customer.
+   */
+  early_start_requests: { create: true, change: 'never', reserved: ['createdBy'] },
+  /**
    * Which reports a collective invoice was made out of (#135), one row each.
    * Made by the route that makes the invoice, in the same transaction, and
    * released by the database when the invoice is cancelled or its draft is

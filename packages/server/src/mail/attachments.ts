@@ -1,8 +1,9 @@
 import { ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
-import { RuleError } from '@opengewerk/domain'
-import { type MailAttachment, MailDeliveryError } from '@opengewerk/platform-server'
+import { berlinClock, RuleError } from '@opengewerk/domain'
+import { type Database, type MailAttachment, MailDeliveryError } from '@opengewerk/platform-server'
 
 import type { DocumentFiles, MailedFile } from '../api/document-files.js'
+import { CallInstructionsRefused, callPrintFacts } from '../service-calls/instructions.js'
 import type { OutboxRow } from './outbox.js'
 
 /** Where the files a message carries come from. Handed to the job, so a test can bring its own. */
@@ -72,6 +73,58 @@ export function documentAttachments(files: DocumentFiles): AttachmentSource {
         error instanceof ConflictException ||
         error instanceof UnprocessableEntityException ||
         error instanceof RuleError
+
+      throw new MailDeliveryError(
+        `Der Anhang ließ sich nicht erzeugen: ${error instanceof Error ? error.message : String(error)}`,
+        final ? 'EDOCUMENT' : 'EATTACHMENT',
+        null,
+        { permanent: final },
+      )
+    }
+  }
+}
+
+/**
+ * The files of a message, with the instructions of a service call (#292)
+ * beside those of a document: the PDF of the instructions, printed when the
+ * message goes out, in the words of the day of the request signed at the door
+ * or of the day the office asked. A call that gets none any more, or whose
+ * letterhead lacks what the words need, will not print an hour later either,
+ * and the message is given up on with the reason.
+ */
+export function withCallInstructions(
+  files: DocumentFiles,
+  database: Database,
+  others: AttachmentSource,
+): AttachmentSource {
+  return async (row) => {
+    if (row.kind !== 'job_instructions') {
+      return others(row)
+    }
+
+    if (row.jobId === null) {
+      throw new MailDeliveryError('Der Nachricht fehlt der Auftrag, um den es geht.', 'EDOCUMENT', null, {
+        permanent: true,
+      })
+    }
+
+    const jobId = row.jobId
+    const printedFor = { tenantId: row.tenantId }
+
+    try {
+      const facts = await database.forTenant({ tenantId: row.tenantId, reason: 'mail' }, (tx) =>
+        callPrintFacts(tx, jobId, row.earlyStartRequestId, berlinClock(row.createdAt).day),
+      )
+
+      return [
+        {
+          filename: 'Belehrungen.pdf',
+          content: await files.printCallInstructions(facts, printedFor),
+          contentType: 'application/pdf',
+        },
+      ]
+    } catch (error) {
+      const final = error instanceof CallInstructionsRefused
 
       throw new MailDeliveryError(
         `Der Anhang ließ sich nicht erzeugen: ${error instanceof Error ? error.message : String(error)}`,

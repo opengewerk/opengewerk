@@ -58,6 +58,7 @@ export * from './model/time-account.js'
 export * from './model/time-entry.js'
 export * from './model/job-note.js'
 export * from './model/defect.js'
+export * from './model/early-start.js'
 export * from './model/tenant.js'
 export * from './model/text-snippet.js'
 

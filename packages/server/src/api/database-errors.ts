@@ -24,4 +24,7 @@ export const { answerFor, DatabaseExceptionFilter } = databaseErrors({
   OG011: 'Ein Foto eines Mangels liegt bei den Dateien seines Auftrags oder seiner Anlage.',
   OG012: 'Wer einen Mangel gemeldet hat, wann und aus welcher Abnahme, ändert sich nicht.',
   OG013: 'Wo ein Mangel steht, ändert nur ein neuer Schritt.',
+  // The trigger on the requests for an early start (0120, #292).
+  OG014:
+    'Ein Verlangen auf vorzeitigen Beginn gibt es nur bei einem Serviceeinsatz für einen Verbraucher.',
 })

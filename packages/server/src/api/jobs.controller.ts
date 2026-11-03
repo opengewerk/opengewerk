@@ -11,7 +11,7 @@ import {
   Put,
   UnprocessableEntityException,
 } from '@nestjs/common'
-import { type JobId, jobTermsProblem } from '@opengewerk/domain'
+import { type JobId, jobTermsProblem, urgentRepairProblem } from '@opengewerk/domain'
 import {
   Database,
   isUuid,
@@ -47,11 +47,15 @@ const writableFields = [
   'description',
   'vobAgreed',
   'buildingWork',
+  // Set by the office when it takes a call (#292).
+  'urgentRepair',
 ] as const
 
 /** Refuses terms of a job that are no yes or no (#310), with the sentence of `jobTermsProblem`. */
 function requireTerms(values: Readonly<Record<string, unknown>>): void {
-  const problem = jobTermsProblem(values['vobAgreed'], values['buildingWork'])
+  const problem =
+    jobTermsProblem(values['vobAgreed'], values['buildingWork']) ??
+    urgentRepairProblem(values['urgentRepair'])
 
   if (problem !== null) {
     throw new UnprocessableEntityException(problem)
