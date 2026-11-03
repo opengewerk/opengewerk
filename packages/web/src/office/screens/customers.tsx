@@ -673,8 +673,8 @@ function CustomerRecord({
           <>
             {facts}
             {contacts}
-            {tasks}
             {customerId ? <ContractsCard filter={{ customerId }} /> : null}
+            {tasks}
           </>
         }
       />

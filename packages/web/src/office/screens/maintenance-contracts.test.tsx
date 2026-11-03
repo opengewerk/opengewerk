@@ -338,7 +338,7 @@ describe('the maintenance contracts of the office (#294)', () => {
       'eine Laufzeit über 24 Monate (Buchst. a)',
     )
 
-    await user.click(screen.getByRole('checkbox', { name: 'PV-Anlage Dach' }))
+    await user.click(screen.getByRole('checkbox', { name: /^PV-Anlage Dach/ }))
     await user.click(screen.getByRole('button', { name: 'Speichern' }))
 
     expect(posted[0]).toMatchObject({

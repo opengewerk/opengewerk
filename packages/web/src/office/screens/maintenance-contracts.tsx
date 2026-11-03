@@ -18,7 +18,9 @@ import {
 } from '@opengewerk/domain'
 import {
   Button,
+  Cell,
   Choice,
+  Column,
   Confirm,
   Dialog,
   DialogActions,
@@ -26,6 +28,7 @@ import {
   Panel,
   Status,
   type StatusTone,
+  TablePanel,
   TextArea,
   useButtonLook,
 } from '@opengewerk/platform-web'
@@ -55,7 +58,14 @@ import { Check, FileClock, Pencil, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
-import { documentKindOf, documentStatusOf, jobStatusLabel, jobStatusOf } from '../../app/labels.js'
+import {
+  documentKindOf,
+  documentStatusOf,
+  installationKindLabel,
+  installationKindOf,
+  jobStatusLabel,
+  jobStatusOf,
+} from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
 import {
   createMaintenanceContract,
@@ -312,6 +322,9 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
     .map((line) => line.trim())
     .filter((line) => line !== '')
   const end = contract.cancelledOn === null ? termEndOn(contract, on) : null
+  // The next maintenance whose service job is not made yet, the first line of the table.
+  const upcoming =
+    next !== null && !made.some((job) => job['maintenanceDueOn'] === next) ? next : null
   const refresh = async () => {
     await queries.invalidateQueries({ queryKey: ['maintenance-contracts'] })
     await queries.invalidateQueries({ queryKey: ['maintenance-contract', contract.id] })
@@ -398,7 +411,17 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
         badges={
           <>
             <Status tone={toneOf[standing.tone]}>{standing.text}</Status>
-            <span className="text-[13px] text-ink-faint">{contract.number}</span>
+            <span className="text-[13px] text-ink-faint">
+              {contract.number}
+              {customer ? (
+                <>
+                  {' · '}
+                  <Link to={`/kunden/${contract.customerId}`} className="text-copper-text">
+                    {text(customer, 'name')}
+                  </Link>
+                </>
+              ) : null}
+            </span>
           </>
         }
         actions={
@@ -443,6 +466,7 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
       ) : null}
 
       <RecordColumns
+        sideWidth={340}
         main={
           <div className="flex flex-col gap-3">
             <Panel title="Enthaltene Leistungen">
@@ -458,44 +482,23 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
                 </ul>
               )}
             </Panel>
-            <Panel title="Wartungen">
-              <div className="flex flex-col gap-2.5">
-                <ul className="flex flex-col">
-                  {next !== null && !made.some((job) => job['maintenanceDueOn'] === next) ? (
-                    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-row py-2 text-[14px]">
-                      <span className="numeric w-[96px]">{date(next)}</span>
-                      <span className="text-ink-faint">noch nicht angelegt</span>
-                    </li>
-                  ) : null}
-                  {made.map((job) => {
-                    const jobId = text(job, 'id')
-                    const invoice = invoiceOf(jobId)
-
-                    return (
-                      <li
-                        key={jobId}
-                        className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-row py-2 text-[14px] last:border-b-0"
-                      >
-                        <span className="numeric w-[96px]">
-                          {date(text(job, 'maintenanceDueOn'))}
-                        </span>
-                        <Link to={`/auftraege/${jobId}`} className="text-copper-text">
-                          {maybeText(job, 'number') ?? 'Serviceauftrag'}
-                        </Link>
-                        <Status tone={jobStatusOf(job) === 'completed' ? 'done' : 'waiting'}>
-                          {jobStatusLabel[jobStatusOf(job)]}
-                        </Status>
-                        {invoice ? (
-                          <Link to={`/belege/${text(invoice, 'id')}`} className="text-copper-text">
-                            {documentStatusOf(invoice) === 'draft'
-                              ? 'Rechnung, Entwurf'
-                              : (maybeText(invoice, 'number') ?? 'Rechnung')}
-                          </Link>
-                        ) : null}
-                      </li>
-                    )
-                  })}
-                </ul>
+            <TablePanel
+              title="Wartungen"
+              caption="Die Wartungen des Vertrags"
+              grow={false}
+              cards={[
+                ...(upcoming
+                  ? [{ key: 'next', title: date(upcoming), sub: 'noch nicht angelegt' }]
+                  : []),
+                ...made.map((job) => ({
+                  key: text(job, 'id'),
+                  title: date(text(job, 'maintenanceDueOn')),
+                  sub: [maybeText(job, 'number'), jobStatusLabel[jobStatusOf(job)]]
+                    .filter(Boolean)
+                    .join(', '),
+                })),
+              ]}
+              note={
                 <p className="text-[13px] leading-[1.4] text-ink-muted">
                   Rechtzeitig vor einer Wartung entsteht ein Serviceauftrag mit den Anlagen des
                   Vertrags. Er steht auf der Plantafel unter „Ohne Termin“, mit dem Tag der Wartung
@@ -504,8 +507,56 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
                     ? 'Die Rechnung aus seinem Regiebericht trägt die Pauschale.'
                     : 'Die Rechnung kommt aus seinem Regiebericht.'}
                 </p>
-              </div>
-            </Panel>
+              }
+            >
+              <thead>
+                <tr>
+                  <Column className="w-[120px]">Fällig am</Column>
+                  <Column>Serviceauftrag</Column>
+                  <Column className="w-[150px]">Stand</Column>
+                  <Column className="w-[150px]">Rechnung</Column>
+                </tr>
+              </thead>
+              <tbody>
+                {upcoming ? (
+                  <tr>
+                    <Cell>{date(upcoming)}</Cell>
+                    <Cell className="text-ink-faint">noch nicht angelegt</Cell>
+                    <Cell>{null}</Cell>
+                    <Cell>{null}</Cell>
+                  </tr>
+                ) : null}
+                {made.map((job) => {
+                  const jobId = text(job, 'id')
+                  const invoice = invoiceOf(jobId)
+
+                  return (
+                    <tr key={jobId}>
+                      <Cell>{date(text(job, 'maintenanceDueOn'))}</Cell>
+                      <Cell>
+                        <Link to={`/auftraege/${jobId}`} className="text-copper-text">
+                          {maybeText(job, 'number') ?? 'Serviceauftrag'}
+                        </Link>
+                      </Cell>
+                      <Cell>
+                        <Status tone={jobStatusOf(job) === 'completed' ? 'done' : 'waiting'}>
+                          {jobStatusLabel[jobStatusOf(job)]}
+                        </Status>
+                      </Cell>
+                      <Cell>
+                        {invoice ? (
+                          <Link to={`/belege/${text(invoice, 'id')}`} className="text-copper-text">
+                            {documentStatusOf(invoice) === 'draft'
+                              ? 'Entwurf'
+                              : (maybeText(invoice, 'number') ?? 'Rechnung')}
+                          </Link>
+                        ) : null}
+                      </Cell>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </TablePanel>
             <Panel title="Anlagen">
               {covered.length === 0 ? (
                 <p className="text-[13px] text-ink-muted">Der Vertrag nennt keine Anlage.</p>
@@ -515,7 +566,7 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
                     installation ? (
                       <li
                         key={text(installation, 'id')}
-                        className="border-b border-row py-[7px] last:border-b-0"
+                        className="flex items-center gap-2.5 border-b border-row py-[7px] last:border-b-0"
                       >
                         <Link
                           to={`/anlagen/${text(installation, 'id')}`}
@@ -523,6 +574,10 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
                         >
                           {text(installation, 'designation')}
                         </Link>
+                        <span className="grow" />
+                        <span className="text-[13px] text-ink-faint">
+                          {installationKindLabel[installationKindOf(installation)]}
+                        </span>
                       </li>
                     ) : (
                       <li key={index} className="py-[7px] text-[13px] text-ink-faint">
@@ -1013,7 +1068,12 @@ function ContractForm({
                             }))
                           }}
                         />
-                        {text(installation, 'designation')}
+                        <span>
+                          {text(installation, 'designation')}
+                          <span className="block text-[13px] text-ink-muted">
+                            {installationKindLabel[installationKindOf(installation)]}
+                          </span>
+                        </span>
                       </label>
                     )
                   })

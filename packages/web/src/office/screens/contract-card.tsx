@@ -84,11 +84,13 @@ export function ContractsCard({
 }
 
 /**
- * Beside the successors of an issued quote (#294): "Wartungsvertrag anlegen",
- * or the way to the contract that came out of it, one per quote. For whoever
- * issues documents, since a contract binds the business like one.
+ * The card "Wartungsvertrag" beside an issued quote (#294): "Wartungsvertrag
+ * anlegen", or the way to the contract that came out of it, one per quote.
+ * For whoever issues documents, since a contract binds the business like
+ * one. A card and not a button in the head: the head of an issued quote
+ * already holds its successors, and a fifth button squeezed its title.
  */
-export function QuoteContractAction({ quoteId }: { readonly quoteId: string }) {
+export function QuoteContractCard({ quoteId }: { readonly quoteId: string }) {
   const issues = useMay('document.issue')
   const { online } = useSyncStatus()
   const look = useButtonLook()
@@ -104,14 +106,27 @@ export function QuoteContractAction({ quoteId }: { readonly quoteId: string }) {
 
   const contract = taken.data[0]
 
-  return contract ? (
-    <Link to={`/wartungsvertraege/${contract.id}`} className={look}>
-      {`Wartungsvertrag ${contract.number}`}
-    </Link>
-  ) : (
-    <Link to={`/wartungsvertraege/neu/${quoteId}`} className={look}>
-      <Plus size={16} strokeWidth={2.2} aria-hidden="true" />
-      Wartungsvertrag anlegen
-    </Link>
+  return (
+    <Panel title="Wartungsvertrag">
+      {contract ? (
+        <Link
+          to={`/wartungsvertraege/${contract.id}`}
+          className="text-[14px] font-medium text-copper-text underline underline-offset-2"
+        >
+          {`${contract.number} ${contract.designation}`}
+        </Link>
+      ) : (
+        <div className="flex flex-col items-start gap-2.5">
+          <p className="text-[13px] leading-[1.4] text-ink-muted">
+            Ein Angebot mit Wartungsleistungen wird zum Wartungsvertrag, mit Kunde, Objekt und den
+            Positionen als Leistungen.
+          </p>
+          <Link to={`/wartungsvertraege/neu/${quoteId}`} className={look}>
+            <Plus size={16} strokeWidth={2.2} aria-hidden="true" />
+            Wartungsvertrag anlegen
+          </Link>
+        </div>
+      )}
+    </Panel>
   )
 }
