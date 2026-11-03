@@ -411,6 +411,8 @@ export function SiteDefectScreen() {
   const status = statusOf(steps)
   const next = nextDefectSteps[status]
   const due = maybeText(defect, 'remedyDueOn')
+  // A remedied defect waits for the customer's signature, on this device.
+  const signing = writes && status === 'resolved'
 
   async function step(to: 'in_progress' | 'resolved' | 'accepted') {
     setTrouble(null)
@@ -472,6 +474,26 @@ export function SiteDefectScreen() {
         </div>
       </Panel>
 
+      {/* What the customer signs comes first, as the board "Mangel abnehmen lassen" has it. */}
+      {signing ? (
+        <Panel title="Abnahme durch den Kunden">
+          <div className="flex flex-col gap-3">
+            <SiteText size={16}>
+              Mit der Unterschrift bestätigt der Kunde, dass der Mangel beseitigt ist. Danach ändert
+              sich der Mangel nicht mehr.
+            </SiteText>
+            <Field
+              label="Name"
+              value={signer}
+              onChange={(event) => {
+                setSigner(event.target.value)
+              }}
+            />
+            <SignaturePad label="Unterschriftsfeld" onChange={setPath} />
+          </div>
+        </Panel>
+      ) : null}
+
       <Panel title="Fotos">
         <div className="flex flex-col gap-2.5">
           <AttachmentList
@@ -495,24 +517,7 @@ export function SiteDefectScreen() {
         <DefectHistory defect={defect} steps={steps} origin={origin} />
       </Panel>
 
-      {writes && status === 'resolved' ? (
-        <Panel title="Abnahme durch den Kunden">
-          <div className="flex flex-col gap-3">
-            <SiteText size={16}>
-              Mit der Unterschrift bestätigt der Kunde, dass der Mangel beseitigt ist. Danach ändert
-              sich der Mangel nicht mehr.
-            </SiteText>
-            <Field
-              label="Name"
-              value={signer}
-              onChange={(event) => {
-                setSigner(event.target.value)
-              }}
-            />
-            <SignaturePad label="Unterschriftsfeld" onChange={setPath} />
-          </div>
-        </Panel>
-      ) : (
+      {signing ? null : (
         <SiteText muted size={15}>
           {status === 'accepted'
             ? 'Der Mangel ist abgenommen und ändert sich nicht mehr.'

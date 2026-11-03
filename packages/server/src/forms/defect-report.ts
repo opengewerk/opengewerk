@@ -73,6 +73,8 @@ const reportStyle = `
 .facts { margin-top: 1.5mm; border-collapse: collapse; }
 .facts th { width: 38mm; text-align: left; font-weight: 400; color: #5b6573; padding: 0.5mm 2mm 0.5mm 0; vertical-align: top; }
 .facts td { padding: 0.5mm 0; vertical-align: top; }
+/* Label and value without the lines of the papers' tables, as the board draws them. */
+.facts th, .facts td { border: 0; }
 .steps { margin: 1.5mm 0 0; padding-left: 4.5mm; color: #3d4652; }
 .signed { margin-top: 1.5mm; }
 .signed svg { display: block; width: 45mm; height: 18mm; }

@@ -593,6 +593,7 @@ export function DefectScreen() {
   const defect = useRecord('defects', defectId)
   const job = useRecord('jobs', maybeText(defect, 'jobId') ?? undefined)
   const installation = useRecord('installations', maybeText(defect, 'installationId') ?? undefined)
+  const site = useRecord('sites', maybeText(installation, 'siteId') ?? undefined)
   const customer = useRecord('customers', maybeText(job, 'customerId') ?? undefined)
   const steps = useDefectSteps(defectId)
   const photos = useDefectPhotos(defectId)
@@ -816,6 +817,21 @@ export function DefectScreen() {
             <Panel title="Anlage">
               <FactList
                 facts={[
+                  ...(site
+                    ? [
+                        {
+                          label: 'Objekt',
+                          value: (
+                            <Link
+                              to={`/objekte/${String(site['id'])}`}
+                              className="text-copper-text underline underline-offset-2"
+                            >
+                              {text(site, 'designation')}
+                            </Link>
+                          ),
+                        },
+                      ]
+                    : []),
                   { label: 'Hersteller', value: text(installation, 'manufacturer') },
                   { label: 'Typ', value: text(installation, 'model') },
                   ...(window
