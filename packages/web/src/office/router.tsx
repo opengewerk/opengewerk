@@ -43,6 +43,7 @@ import { PaymentTermScreen } from './screens/payment-term.js'
 import { PlanningScreen } from './screens/planning.js'
 import { TagsScreen } from './screens/tags.js'
 import { ProtocolScreen } from './screens/protocols.js'
+import { DefectScreen } from './screens/defects.js'
 import { ReportFieldsScreen } from './screens/report-fields.js'
 import { SiteList, SiteScreen } from './screens/sites.js'
 import { StaffScreen } from './screens/staff.js'
@@ -186,6 +187,12 @@ const routes = [
     getParentRoute: () => office,
     path: '/pruefprotokolle/$recordId',
     component: ProtocolScreen,
+  }),
+  // A defect or complaint (#311), at its job or its installation.
+  createRoute({
+    getParentRoute: () => office,
+    path: '/maengel/$defectId',
+    component: DefectScreen,
   }),
   createRoute({ getParentRoute: () => office, path: '/auftraege', component: JobList }),
   createRoute({ getParentRoute: () => office, path: '/plantafel', component: PlanningScreen }),

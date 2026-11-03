@@ -9,6 +9,18 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Mängel und Reklamationen mit Status und Mängelbericht (#311), nach der Feature-Gliederung v2.61 und den Tafeln
+  aus Version 123 des Canvas: Ein Mangel hängt an einem Auftrag, an einer Anlage oder an beiden, mit Beschreibung,
+  wer ihn gemeldet hat und wann, der Frist des Kunden zur Beseitigung und Fotos, die bei den Dateien des Auftrags
+  oder der Anlage liegen und dem Mangel zugeordnet sind (Migration 0119). Auf der Baustelle entsteht er am Auftrag
+  ohne Netz, im Büro auch als Reklamation an einer Anlage. Jeder Schritt (in Bearbeitung, behoben, abgenommen) ist
+  ein eigener Eintrag mit Person und Uhrzeit; abgenommen ist ein Mangel erst mit Name und Unterschrift des Kunden
+  auf dem Gerät, danach ändert er sich nicht mehr. Die Vorbehalte eines unterschriebenen Abnahmeprotokolls werden
+  von der Datenbank zu Mängeln, eine Zeile je Mangel. Ein Mangel nach der Abnahme zeigt, ob der Tag seiner Meldung in
+  der Gewährleistung liegt. Aus der Frist des Kunden wird die neue Frist „Mangel beseitigen“, und je Auftrag gibt es
+  den Mängelbericht als PDF mit Verlauf, Unterschrift und Fotos. Warum: Bisher standen Mängel nur als Text im
+  Abnahmeprotokoll, ohne Stand, ohne Frist und ohne Nachweis, wann sie beseitigt und abgenommen wurden.
+
 - Abnahmeprotokoll nach § 640 BGB mit Gewährleistungsfrist ab Abnahme (#310), nach der Feature-Gliederung v2.60 und
   den Tafeln aus Version 121 des Canvas: Die Abnahme ist ein Formular am Auftrag, auf dem Gerät ausgefüllt und
   vorbelegt aus Kunde und Auftrag, mit dem Ergebnis (abgenommen, mit Vorbehalten, verweigert), den Vorbehalten wegen

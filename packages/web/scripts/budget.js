@@ -12,11 +12,16 @@ import { checkBudgets } from '@opengewerk/platform-web/tools/budget'
  * office sits at a desk on a cable. If it ever has to be raised, that is a
  * decision worth a sentence in the pull request, which is the whole point of
  * having it.
+ *
+ * Raised once, from 450 to 500 kB, with the defects of #311: the office had
+ * grown to 451.7 kB with every screen in its first bundle, and nothing of it
+ * was a careless import. Loading the screens of the office on demand is the
+ * way to bring the figure down again (#831).
  */
 checkBudgets({
   dist: resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist'),
   budgets: [
     { name: 'Baustelle', document: 'm/index.html', limit: 300 * 1024 },
-    { name: 'Büro', document: 'index.html', limit: 450 * 1024 },
+    { name: 'Büro', document: 'index.html', limit: 500 * 1024 },
   ],
 })

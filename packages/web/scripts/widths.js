@@ -50,5 +50,9 @@ await checkWidths({
     'Abwesenheit eintragen',
     'Anspruch und Übertrag',
     'Urlaub beantragen',
+    // A defect and a complaint (#311): a form in the card in the office, a
+    // screen of its own on site.
+    'Mangel erfassen',
+    'Reklamation erfassen',
   ],
 })

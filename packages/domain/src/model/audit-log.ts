@@ -87,6 +87,8 @@ const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
   ],
   installations: [
     { table: 'distribution_boards', column: 'installation_id' },
+    // The defects and complaints at an installation (#311).
+    { table: 'defects', column: 'installation_id' },
     { table: 'inverters', column: 'installation_id' },
     { table: 'installation_labels', column: 'installation_id' },
   ],
@@ -95,7 +97,10 @@ const auditParts: Readonly<Record<string, readonly AuditPart[]>> = {
   jobs: [
     { table: 'job_notes', column: 'job_id' },
     { table: 'job_assignments', column: 'job_id' },
+    { table: 'defects', column: 'job_id' },
   ],
+  // A defect with its steps (#311).
+  defects: [{ table: 'defect_steps', column: 'defect_id' }],
   documents: [
     { table: 'document_lines', column: 'document_id' },
     { table: 'document_signatures', column: 'document_id' },
@@ -146,6 +151,8 @@ const auditReferences: Readonly<Record<string, string>> = {
   import_id: 'article_imports',
   person_id: 'people',
   own_kind_id: 'qualification_kinds',
+  defect_id: 'defects',
+  acceptance_record_id: 'form_records',
 }
 
 /** Fields that hold the id of a person, beside those of the foundation. */
@@ -226,6 +233,9 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   appliances: ['designation'],
   document_signatures: ['signer_name'],
   job_notes: ['text'],
+  // A defect by what is wrong, a step by the step (#311).
+  defects: ['description'],
+  defect_steps: ['step'],
   payments: ['received_on'],
   document_files: ['purpose'],
   document_instruction_choices: ['variant'],
@@ -266,6 +276,7 @@ export const auditVocabulary: AuditVocabulary = {
       site_id: 'Objekt',
       installation_id: 'Anlage',
       job_id: 'Auftrag',
+      defect_id: 'Mangel',
     },
     contacts: {
       customer_id: 'Kunde',

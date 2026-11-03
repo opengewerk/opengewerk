@@ -30,6 +30,7 @@ import { createContext, useContext, useMemo, useState } from 'react'
 
 import { DocumentState } from '../../app/document-state.js'
 import { JobAcceptance } from './acceptance.js'
+import { JobDefects } from './defects.js'
 import { addressLine } from '../../app/format.js'
 import {
   documentKindOf,
@@ -602,7 +603,13 @@ export function SiteJobScreen() {
   const lineage = <JobLineage job={job} />
   // What happened on site (#220), under what the office wants done, as the
   // board "Auftrag, ganze Seite" puts the two together.
-  const notes = <JobNotes job={job} />
+  const notes = (
+    <>
+      <JobNotes job={job} />
+      {/* What is wrong with the work, under what happened (#311). */}
+      <JobDefects job={job} />
+    </>
+  )
   const time = <JobTime job={job} />
   const writing = (
     <>

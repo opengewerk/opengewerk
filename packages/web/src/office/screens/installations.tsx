@@ -35,6 +35,7 @@ import { BoardsSection, ChartButton } from './boards.js'
 import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
 import { ProtocolsSection } from './protocols.js'
+import { InstallationDefectsSection } from './defects.js'
 import {
   asGridOperatorLink,
   GridOperatorFact,
@@ -302,6 +303,8 @@ export function InstallationScreen() {
               <BoardsSection installationId={installationId} />
             )}
             <ProtocolsSection installationId={installationId} />
+            {/* The defects and complaints at the installation, with the warranty (#311). */}
+            <InstallationDefectsSection installationId={installationId} />
             {/* The papers for the operator below the protocols, as the board "PV-Anlage" has them (#305). */}
             {pv ? <PvDocumentsSection installationId={installationId} /> : null}
             {/* The papers for the grid operator and the help for the register below them (#306). */}

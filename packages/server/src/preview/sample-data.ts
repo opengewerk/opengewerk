@@ -661,6 +661,59 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
     throw new Error(`The sample notes were not all taken: ${JSON.stringify(unwritten)}`)
   }
 
+  // Two defects at the cabinet (#311): one reported on site this morning with
+  // the customer's deadline, one in progress since this morning. The
+  // reservation of the acceptance above is a defect of its own, written by
+  // the database when the protocol was signed.
+  const hinge = newId<'defect'>()
+  const labels = newId<'defect'>()
+  const recorded = await post('/sync', {
+    deviceId: 'vorschau-tablet',
+    operations: [
+      {
+        entity: 'defects',
+        recordId: hinge,
+        values: {
+          jobId: renewal,
+          installationId: cabinet,
+          description: 'Tür des Zählerschranks schließt nicht bündig, das Scharnier ist verzogen.',
+          reportedAt: hoursAgo(3),
+          remedyDueOn: addDays(today, 10),
+        },
+      },
+      {
+        entity: 'defects',
+        recordId: labels,
+        values: {
+          jobId: renewal,
+          installationId: cabinet,
+          description: 'Beschriftung der Sicherungen im Feld 2 fehlt.',
+          reportedAt: hoursAgo(25),
+        },
+      },
+      {
+        entity: 'defect_steps',
+        recordId: newId<'defect-step'>(),
+        values: { defectId: labels, step: 'in_progress', takenAt: hoursAgo(4) },
+      },
+    ].map(({ entity, recordId, values }) => ({
+      id: newId<'operation'>(),
+      entity,
+      recordId,
+      kind: 'create',
+      baseVersion: null,
+      patches: Object.entries(values).map(([field, to]) => ({ field, from: null, to })),
+      recordedAt: new Date().toISOString(),
+    })),
+  })
+  const unrecorded = (
+    (recorded['receipts'] ?? []) as { outcome?: string; reason?: string | null }[]
+  ).filter((taken) => taken.outcome !== 'applied')
+
+  if (unrecorded.length > 0) {
+    throw new Error(`The sample defects were not all taken: ${JSON.stringify(unrecorded)}`)
+  }
+
   await plantBoards(post, cabinet, today)
   await plantAppliances(post, estate, today)
   await plantPhotovoltaic(post, berg, house, today)

@@ -8,7 +8,17 @@ import {
 } from '@opengewerk/platform-server'
 import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
-import { check, date, foreignKey, index, integer, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
+import {
+  check,
+  date,
+  foreignKey,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  unique,
+} from 'drizzle-orm/pg-core'
 
 import { appliances } from './appliances.js'
 import { installations } from './installations.js'
@@ -50,6 +60,8 @@ export const formRecords = pgTable(
   },
   (table) => [
     tenantIsolation(table.tenantId),
+    // What a defect out of an acceptance names (#311), over the business.
+    unique('form_records_tenant_id_key').on(table.tenantId, table.id),
     foreignKey({
       columns: [table.tenantId, table.installationId],
       foreignColumns: [installations.tenantId, installations.id],

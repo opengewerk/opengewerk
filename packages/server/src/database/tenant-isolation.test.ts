@@ -418,6 +418,9 @@ describe('without a tenant', () => {
 /** The key of the lines, which the trigger in front of it keeps from the list. */
 const lineKey = 'document_lines_document_in_tenant'
 
+/** The key of the photo of a defect (#311), behind the trigger that holds where the photo lies. */
+const defectPhotoKey = 'attachments_defect_in_tenant'
+
 /**
  * The keys of the search over the catalogue (#461, ADR 0015), which the
  * application cannot write at all: its triggers write it as the owner, from
@@ -721,6 +724,31 @@ const crossings: readonly {
       sql`insert into job_notes (tenant_id, job_id, text, written_at)
             select ${own.tenant}, ${other.job}, 'Zähler getauscht.', now()
               from (select set_config('app.user_id', ${own.user}, true)) as acting`,
+  },
+  // A defect and its steps (#311), recorded on a device as inserts.
+  {
+    key: 'defects_job_in_tenant',
+    write: (own, other) =>
+      sql`insert into defects (tenant_id, job_id, description, reported_at)
+            values (${own.tenant}, ${other.job}, 'Abdeckung verkratzt.', now())`,
+  },
+  {
+    key: 'defects_installation_in_tenant',
+    write: (own, other) =>
+      sql`insert into defects (tenant_id, installation_id, description, reported_at)
+            values (${own.tenant}, ${other.installation}, 'Abdeckung verkratzt.', now())`,
+  },
+  {
+    key: 'defects_acceptance_in_tenant',
+    write: (own, other) =>
+      sql`insert into defects (tenant_id, job_id, description, reported_at, acceptance_record_id, acceptance_line)
+            values (${own.tenant}, ${own.job}, 'Abdeckung verkratzt.', now(), ${other.acceptance}, 1)`,
+  },
+  {
+    key: 'defect_steps_defect_in_tenant',
+    write: (own, other) =>
+      sql`insert into defect_steps (tenant_id, defect_id, step, taken_at)
+            values (${own.tenant}, ${other.defect}, 'in_progress', now())`,
   },
   {
     key: 'time_entries_correction_in_tenant',
@@ -1223,6 +1251,7 @@ describe('a reference to a record of another business', () => {
     const tested = new Set([
       ...crossings.map((crossing) => crossing.key),
       lineKey,
+      defectPhotoKey,
       ...pvLinks.map((link) => link.key),
       ...searchKeys.map((search) => search.key),
     ])
@@ -1259,6 +1288,37 @@ describe('a reference to a record of another business', () => {
       ]),
     )
     expect(pastEveryPolicy).toEqual({ code: foreignKeyViolation, constraint: lineKey })
+  })
+
+  it('is refused for the photo of a defect before the key is asked, and by the key behind that', async () => {
+    // Through the application the trigger that keeps the photo of a defect
+    // among the files of its job or installation finds no defect of another
+    // business and refuses first (#311).
+    const throughTheApplication = await refusedBy(
+      database.forTenant({ tenantId: north.id }, (tx) =>
+        tx.execute(repoint('attachments', 'defect_id', own.attachment, other.defect)),
+      ),
+    )
+    expect(throughTheApplication.code).toBe('OG011')
+
+    // Past the trigger, switched off for this one statement and nothing else,
+    // what is left is the key, and it holds.
+    const client = await admin.connect()
+
+    try {
+      await client.query('begin')
+      await client.query('alter table attachments disable trigger attachments_defect_at_its_place')
+      const pastTheTrigger = await refusedBy(
+        client.query('update attachments set defect_id = $1 where id = $2', [
+          other.defect,
+          own.attachment,
+        ]),
+      )
+      expect(pastTheTrigger).toEqual({ code: foreignKeyViolation, constraint: defectPhotoKey })
+    } finally {
+      await client.query('rollback')
+      client.release()
+    }
   })
 
   it.each(searchKeys)(
@@ -1386,6 +1446,9 @@ interface Planted {
   /** A grid operator of the business (#306). */
   readonly gridOperator: string
   readonly fundingProgram: string
+  /** An acceptance at the job above, a draft, and a defect at the job (#311). */
+  readonly acceptance: string
+  readonly defect: string
 }
 
 /**
@@ -1619,6 +1682,15 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
       `insert into funding_programs (tenant_id, name, kinds, evidence)
        values ($1, 'Ladeinfrastruktur 2026', '{wallbox}', '[{"source":"invoice","label":"Rechnung"}]')`,
       [tenant],
+    ),
+    acceptance: await one(
+      `insert into form_records (tenant_id, definition_key, definition_version, job_id, performed_on)
+       values ($1, 'acceptance', 1, $2, '2026-11-05')`,
+      [tenant, job],
+    ),
+    defect: await one(
+      "insert into defects (tenant_id, job_id, description, reported_at) values ($1, $2, 'Abdeckung verkratzt.', now())",
+      [tenant, job],
     ),
   }
 }

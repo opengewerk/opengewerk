@@ -1,5 +1,9 @@
 import {
   applianceProblems,
+  defectDescriptionProblem,
+  defectHomeProblem,
+  defectMomentProblem,
+  defectSignatureProblem,
   correctionProblem,
   countryProblem,
   deviceInfoProblem,
@@ -14,6 +18,7 @@ import {
   lumpSumPriceBaseProblem,
   noteTimeProblem,
   priceBaseProblem,
+  remedyDueProblem,
   jobTermsProblem,
   pvSystemLinkProblem,
   ratingProblem,
@@ -241,6 +246,24 @@ const rules: RecordRules = {
   job_notes: [
     { fields: ['text'], problem: (at) => jobNoteProblem(at('text')) },
     { fields: ['writtenAt'], problem: (at) => noteTimeProblem(at('writtenAt')) },
+  ],
+  // A defect and its steps (#311). Whether a step follows the one the defect
+  // stands at, the database answers, which holds the defect while it moves on.
+  defects: [
+    { fields: ['description'], problem: (at) => defectDescriptionProblem(at('description')) },
+    { fields: ['reportedAt'], problem: (at) => defectMomentProblem(at('reportedAt')) },
+    { fields: ['remedyDueOn'], problem: (at) => remedyDueProblem(at('remedyDueOn')) },
+    {
+      fields: ['jobId', 'installationId'],
+      problem: (at) => defectHomeProblem(at('jobId'), at('installationId')),
+    },
+  ],
+  defect_steps: [
+    { fields: ['takenAt'], problem: (at) => defectMomentProblem(at('takenAt')) },
+    {
+      fields: ['step', 'signerName', 'signaturePath'],
+      problem: (at) => defectSignatureProblem(at('step'), at('signerName'), at('signaturePath')),
+    },
   ],
 }
 

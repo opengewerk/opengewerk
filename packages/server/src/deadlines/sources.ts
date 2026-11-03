@@ -21,9 +21,17 @@ import {
   warrantyTerms,
 } from '@opengewerk/domain'
 import { type SourceQuery, stockLevels } from '@opengewerk/platform-server'
-import { and, desc, eq, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
 
-import { documents, formRecords, gridOperators, jobs } from '../database/schema/index.js'
+import {
+  defects,
+  documents,
+  formRecords,
+  gridOperators,
+  installations,
+  jobs,
+  sites,
+} from '../database/schema/index.js'
 import { tradeForms } from '../forms/registry.js'
 
 /**
@@ -532,6 +540,70 @@ export const warrantiesRunningOut: SourceQuery<DeadlineValues> = async (tx) => {
   })
 }
 
+/** The words of a defect a task names it by: the first line, and not more than a title holds. */
+function defectLabel(description: string): string {
+  const first = description.split('\n')[0]?.trim() ?? ''
+
+  return first.length > 80 ? `${first.slice(0, 79).trimEnd()}…` : first
+}
+
+/**
+ * The days by which customers want defects remedied (#311): one source for
+ * each defect still to be remedied, reported or in progress, that has one,
+ * named by what is wrong and the number of its job, due on that day and
+ * counted from the day it was reported. Remedied, accepted or removed, it drops.
+ */
+export const defectsToRemedy: SourceQuery<DeadlineValues> = async (tx) => {
+  const rows = await tx
+    .select({
+      id: defects.id,
+      description: defects.description,
+      reportedAt: defects.reportedAt,
+      remedyDueOn: defects.remedyDueOn,
+      jobId: defects.jobId,
+      installationId: defects.installationId,
+      number: jobs.number,
+      jobCustomerId: jobs.customerId,
+      jobSiteId: jobs.siteId,
+      installationSiteId: installations.siteId,
+      siteCustomerId: sites.customerId,
+    })
+    .from(defects)
+    .leftJoin(jobs, eq(jobs.id, defects.jobId))
+    .leftJoin(installations, eq(installations.id, defects.installationId))
+    .leftJoin(sites, eq(sites.id, installations.siteId))
+    .where(
+      and(
+        isNull(defects.deletedAt),
+        inArray(defects.status, ['reported', 'in_progress']),
+        isNotNull(defects.remedyDueOn),
+      ),
+    )
+
+  return rows.flatMap((row) =>
+    row.remedyDueOn === null
+      ? []
+      : [
+          {
+            sourceId: row.id,
+            sourceLabel: [defectLabel(row.description), row.number]
+              .filter((part) => part !== null && part !== '')
+              .join(', '),
+            anchorOn: berlinClock(row.reportedAt).day,
+            namedDueOn: row.remedyDueOn as IsoDate,
+            naturalUserId: null,
+            values: {
+              documentId: null,
+              installationId: row.installationId as InstallationId | null,
+              customerId: (row.jobCustomerId ?? row.siteCustomerId) as CustomerId | null,
+              siteId: (row.jobSiteId ?? row.installationSiteId) as SiteId | null,
+              jobId: row.jobId as JobId | null,
+            },
+          },
+        ],
+  )
+}
+
 /** Every source there is, by the name a kind gives it. */
 export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
   {
@@ -542,4 +614,5 @@ export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<
     appliance_inspection: appliancesDue,
     installer_registration: installerRegistrationsRunningOut,
     acceptance: warrantiesRunningOut,
+    defect: defectsToRemedy,
   }

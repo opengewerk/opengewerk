@@ -3,16 +3,22 @@ import { sql } from 'drizzle-orm'
 import { check, foreignKey, index } from 'drizzle-orm/pg-core'
 
 import { customers } from './customers.js'
+import { defects } from './defects.js'
 import { installations } from './installations.js'
 import { jobs } from './jobs.js'
 import { sites } from './sites.js'
 
-/** What a file of this application hangs on: a customer, a site, an installation and a job. */
+/**
+ * What a file of this application hangs on: a customer, a site, an
+ * installation and a job; and the defect it shows (#311), which is not a place
+ * of its own but one of the places' defects.
+ */
 const attachmentHomes = {
   customerId: reference<'customer'>('customer_id'),
   siteId: reference<'site'>('site_id'),
   installationId: reference<'installation'>('installation_id'),
   jobId: reference<'job'>('job_id'),
+  defectId: reference<'defect'>('defect_id'),
 }
 
 /** The columns this application gives its files. */
@@ -66,5 +72,13 @@ export const { attachments, attachmentVersions } = attachmentsSchema({
     index('attachments_site_idx').on(table.tenantId, table.siteId),
     index('attachments_installation_idx').on(table.tenantId, table.installationId),
     index('attachments_job_idx').on(table.tenantId, table.jobId),
+    // A photo of a defect lies among the files of its job or installation; a
+    // trigger (migration 0119) holds that it is one of the defect's.
+    foreignKey({
+      columns: [table.tenantId, table.defectId],
+      foreignColumns: [defects.tenantId, defects.id],
+      name: 'attachments_defect_in_tenant',
+    }).onDelete('restrict'),
+    index('attachments_defect_idx').on(table.tenantId, table.defectId),
   ],
 })
