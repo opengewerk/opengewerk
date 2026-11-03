@@ -152,6 +152,7 @@ export const scopedEntities: readonly string[] = [
   'defects',
   'defect_steps',
   'early_start_requests',
+  'on_call_shifts',
   'appointments',
   'appointment_people',
   'customers',
@@ -243,6 +244,9 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
       where job_id in ${jobs} or installation_id in ${installations})`,
     // The requests for an early start of its jobs (#292), signed at the door.
     early_start_requests: sql`${column('job_id')} in ${jobs}`,
+    // The times of the on-call plan of its own person (#293), which decide
+    // whether it may make a service call; nobody else's.
+    on_call_shifts: sql`${column('user_id')} = ${scope.userId}`,
     customers: sql`${column('id')} in ${customers}`,
     // The tags of every customer and site the device holds, those its person
     // created without a job among them.

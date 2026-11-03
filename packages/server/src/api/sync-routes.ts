@@ -88,6 +88,18 @@ export function permissionFor(
     return 'job.progress'
   }
 
+  // A service call taken on call (#293): the narrow right of whoever is on
+  // call. The sync asks besides whether a time of that person's plan covers
+  // its moment (`onCall` in `database/sync.ts`); whoever holds `job.write`
+  // holds this one too and makes any job at any time.
+  if (
+    entity === 'jobs' &&
+    kind === 'create' &&
+    patches.some((patch) => patch.field === 'kind' && patch.to === 'service')
+  ) {
+    return 'job.on_call'
+  }
+
   // What happened on site (#220), which is the progress of the job and not
   // what the job is: the technician on it writes it.
   if (entity === 'job_notes' && kind === 'create') {

@@ -108,6 +108,14 @@ export const permissions = [
    * technician in the office reads what the office reads.
    */
   'job.read.all',
+  /**
+   * Making a service call while on call (#293, decided on 27.09.2026): the
+   * narrow right of whoever takes the call at night, without `job.write`.
+   * The sync lets it through only for a service call whose moment lies in
+   * a time of the on-call plan of that person; the office has `job.write`
+   * anyway and makes any job at any time.
+   */
+  'job.on_call',
   'document.read',
   'document.write',
   /**
@@ -291,6 +299,7 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'job.write': 'Aufträge bearbeiten',
   'job.progress': 'Aufträge abschließen und Notizen schreiben',
   'job.read.all': 'Alle Aufträge des Betriebs auf dem Gerät halten',
+  'job.on_call': 'Serviceeinsätze in der Bereitschaft anlegen',
   'document.read': 'Belege ansehen',
   'document.write': 'Belege bearbeiten',
   'document.issue': 'Belege festschreiben',
@@ -392,6 +401,7 @@ const officePermissions: readonly Permission[] = [
   'job.write',
   'job.progress',
   'job.read.all',
+  'job.on_call',
   'document.read',
   'document.write',
   'document.issue',
@@ -440,6 +450,8 @@ const technicianPermissions: readonly Permission[] = [
   'job.read',
   // Finishing the job and writing down what happened, not what it is.
   'job.progress',
+  // A call taken at night, while the on-call plan says so (#293).
+  'job.on_call',
   'document.read',
   'document.write',
   // What turns up on site and has to be done later, and what the office

@@ -861,6 +861,13 @@ const crossings: readonly {
     write: (own, other) =>
       repoint('mail_outbox', 'early_start_request_id', own.mail, other.earlyStart),
   },
+  // A time of the on-call plan, made at the route as an insert (#293).
+  {
+    key: 'on_call_shifts_person_works_here',
+    write: (own, other) =>
+      sql`insert into on_call_shifts (tenant_id, user_id, starts_at, ends_at)
+            values (${own.tenant}, ${other.user}, now(), now() + interval '1 day')`,
+  },
   // A request for an early start, signed on a device and inserted (#292).
   {
     key: 'early_start_requests_job_in_tenant',

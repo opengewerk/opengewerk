@@ -211,6 +211,11 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    */
   early_start_requests: { create: true, change: 'never', reserved: ['createdBy'] },
   /**
+   * The times of the on-call plan (#293), kept in the office at its routes;
+   * a device reads those of its person and writes none.
+   */
+  on_call_shifts: { create: false, change: 'never' },
+  /**
    * Which reports a collective invoice was made out of (#135), one row each.
    * Made by the route that makes the invoice, in the same transaction, and
    * released by the database when the invoice is cancelled or its draft is

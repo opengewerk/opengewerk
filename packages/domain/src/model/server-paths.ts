@@ -43,6 +43,8 @@ export const serverPaths = [
   'time-account',
   // The appointments of the planning board (#290).
   'appointments',
+  // The on-call plan (#293).
+  'on-call-shifts',
   // The own appointments in the own calendar, and the address of it (#291).
   'calendar',
   // The grid operators and the entry of the business in their directories (#306).

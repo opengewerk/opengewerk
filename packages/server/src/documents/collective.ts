@@ -19,6 +19,7 @@ import {
 } from '../database/schema/index.js'
 import { articlePricesOn, pricedFromArticle } from './article-prices.js'
 import { choicesOf } from './instructions.js'
+import { surchargeLineFor } from '../service-calls/on-call.js'
 
 type DocumentRow = typeof documents.$inferSelect
 type LineRow = typeof documentLines.$inferSelect
@@ -266,6 +267,26 @@ export async function makeCollectiveInvoice(
         articleId: line.articleId,
       })),
     )
+  }
+
+  // An emergency call billed over its reports carries its surcharge once,
+  // as the last line (#293).
+  const surcharge = await surchargeLineFor(tx, jobId, copied)
+
+  if (surcharge) {
+    await tx.insert(documentLines).values({
+      tenantId,
+      documentId: created.id,
+      kind: 'item',
+      position: copied.length + 1,
+      designation: surcharge.designation,
+      description: surcharge.description,
+      quantityMilli: surcharge.quantityMilli,
+      unit: surcharge.unit,
+      unitPriceCents: surcharge.unitPriceCents,
+      vatRate: 'standard',
+      netCents: surcharge.netCents,
+    })
   }
 
   await tx.insert(documentSources).values(

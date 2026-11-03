@@ -313,6 +313,15 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       signature_path: 'Unterschrift',
     },
   },
+  on_call_shifts: {
+    label: 'Bereitschaft',
+    fields: {
+      user_id: 'Person',
+      starts_at: 'Beginn',
+      ends_at: 'Ende',
+      note: 'Notiz',
+    },
+  },
   early_start_requests: {
     label: 'Verlangen auf vorzeitigen Beginn',
     fields: {
@@ -340,6 +349,7 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       vob_agreed: 'VOB/B vereinbart',
       building_work: 'Bauwerk',
       urgent_repair: 'Dringende Reparatur',
+      emergency_at: 'Notdiensteinsatz am',
     },
   },
   letterheads: {

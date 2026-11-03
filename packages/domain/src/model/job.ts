@@ -68,6 +68,14 @@ export interface Job extends Synced {
    * is not covered by it.
    */
   readonly urgentRepair: boolean
+  /**
+   * When the customer called for an emergency (#293): set by whoever takes
+   * the call on call, on the device, or by the office. Out of it comes the
+   * kind of the call, at night, at the weekend or on a public holiday
+   * (`emergencyKindAt`), and the surcharge on the invoice out of its report.
+   * Null for every call that is no emergency.
+   */
+  readonly emergencyAt: Date | null
 }
 
 /**
@@ -181,6 +189,17 @@ export function followUpProblem(
  * What is wrong with the terms of a job (#310), or nothing: the VOB/B is
  * agreed or not, and the work is a building, is none, or not decided yet.
  */
+/** What is wrong with the moment of an emergency call (#293): a moment, or none. */
+export function emergencyAtProblem(emergencyAt: unknown): string | null {
+  if (emergencyAt === undefined || emergencyAt === null) {
+    return null
+  }
+
+  const moment = emergencyAt instanceof Date ? emergencyAt : new Date(String(emergencyAt))
+
+  return Number.isNaN(moment.getTime()) ? 'Der Notdiensteinsatz braucht Tag und Uhrzeit des Anrufs.' : null
+}
+
 /** What is wrong with the mark of an urgent repair (#292): it is yes or no. */
 export function urgentRepairProblem(urgentRepair: unknown): string | null {
   return urgentRepair !== undefined && typeof urgentRepair !== 'boolean'

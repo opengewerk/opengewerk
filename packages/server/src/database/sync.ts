@@ -33,6 +33,7 @@ import {
 import type { FoundIdentity } from '../api/identity.js'
 import { signatureRefusal } from '../documents/signing.js'
 import { earlyStartRefusal } from '../service-calls/instructions.js'
+import { onCallRefusal } from '../service-calls/on-call.js'
 import { consentGiven, correctionRefusal } from '../time/entries.js'
 import { proposedTreatment } from '../documents/treatment.js'
 import { pvLinkRefusal } from '../electrical/structure.js'
@@ -101,6 +102,20 @@ const earlyStart: Check = async ({ tx, operation, values }) => {
   }
 
   const refusal = await earlyStartRefusal(tx, values)
+
+  return refusal ? { kind: 'conflict', reason: refusal.reason, fields: refusal.fields } : null
+}
+
+/**
+ * A service call made on call (#293) by somebody without `job.write`: only
+ * in a time of that person's on-call plan, or refused as a conflict.
+ */
+const onCall: Check = async ({ tx, operation, values, sender }) => {
+  if (operation.entity !== 'jobs' || operation.kind !== 'create' || isAllowed(sender, 'job.write')) {
+    return null
+  }
+
+  const refusal = await onCallRefusal(tx, sender.userId, values)
 
   return refusal ? { kind: 'conflict', reason: refusal.reason, fields: refusal.fields } : null
 }
@@ -482,6 +497,7 @@ export const sync = serverSync<FoundIdentity>({
   checks: [
     signature,
     earlyStart,
+    onCall,
     paymentTerm,
     assignee,
     reveal,

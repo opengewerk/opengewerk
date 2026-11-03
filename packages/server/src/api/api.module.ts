@@ -76,6 +76,7 @@ import { FundingPapersController } from './funding-papers.controller.js'
 import { AcceptanceRequestController } from './acceptance-request.controller.js'
 import { DefectReportController } from './defect-report.controller.js'
 import { CallInstructionsController } from './call-instructions.controller.js'
+import { OnCallController } from './on-call.controller.js'
 import { FundingProgramsController } from './funding-programs.controller.js'
 import { FormRecordsController } from './form-records.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
@@ -319,6 +320,7 @@ export class ApiModule {
         AcceptanceRequestController,
         DefectReportController,
         CallInstructionsController,
+        OnCallController,
         JobsController,
         CollectiveInvoicesController,
         TasksController,

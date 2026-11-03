@@ -2158,6 +2158,38 @@ describe('the roles before 0116', () => {
   })
 })
 
+describe('the roles before 0121', () => {
+  const before = () => readMigrationIndex().findIndex((entry) => entry.tag === '0121_on_call')
+
+  it('give the owner, the office and the technician the right to make a call on call (#293)', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+         values ($1, 'owner', 'Inhaber', '{job.write}', true, true),
+                ($1, 'office', 'Büro', '{job.write}', false, false),
+                ($1, 'technician', 'Monteur', '{job.progress}', false, false),
+                ($1, 'apprentice', 'Azubi', '{job.read}', false, false)`,
+      [tenant.id],
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows: roles } = await admin.query<{ key: string; onCall: boolean }>(
+      `select key, 'job.on_call' = any(rights) as "onCall" from tenant_roles order by key`,
+    )
+    expect(roles).toEqual([
+      { key: 'apprentice', onCall: false },
+      { key: 'office', onCall: true },
+      { key: 'owner', onCall: true },
+      { key: 'technician', onCall: true },
+    ])
+  })
+})
+
 /**
  * The rollback of 0116 (#306): a grid operator is what the office typed in,
  * with the entry of the business in its directory. The rollback deletes none,
