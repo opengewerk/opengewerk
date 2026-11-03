@@ -347,10 +347,10 @@ export function OnCallScreen() {
             In den nächsten acht Wochen hat niemand Bereitschaft.
           </p>
         ) : (
-          <ul className="flex flex-col">
+          <ul className="@container flex flex-col">
             <li
               aria-hidden="true"
-              className="hidden pb-1.5 text-[12px] font-semibold text-ink-muted sm:grid sm:grid-cols-[180px_190px_190px_minmax(0,1fr)] sm:gap-x-2"
+              className="hidden pb-1.5 text-[12px] font-semibold text-ink-muted @min-[58rem]:grid @min-[58rem]:grid-cols-[160px_170px_170px_minmax(0,1fr)] @min-[58rem]:gap-x-2"
             >
               <span>Person</span>
               <span>Beginn</span>
@@ -370,20 +370,20 @@ export function OnCallScreen() {
                     }}
                   />
                 ) : (
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:grid sm:grid-cols-[180px_190px_190px_minmax(0,1fr)_auto]">
-                    <b className="w-full text-[14px] font-semibold sm:w-auto">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 @min-[58rem]:grid @min-[58rem]:grid-cols-[160px_170px_170px_minmax(0,1fr)_auto]">
+                    <b className="w-full text-[14px] font-semibold @min-[58rem]:w-auto">
                       {names.get(shift.userId) ?? 'Unbekannt'}
                     </b>
                     <span className="numeric text-[14px]">{whenOf(shift.startsAt)}</span>
                     <span className="numeric text-[14px]">
-                      <span className="sm:hidden">bis </span>
+                      <span className="@min-[58rem]:hidden">bis </span>
                       {whenOf(shift.endsAt)}
                     </span>
-                    <span className="w-full text-[14px] text-ink-muted sm:w-auto">
+                    <span className="w-full text-[14px] text-ink-muted @min-[58rem]:w-auto">
                       {shift.note ?? ''}
                     </span>
                     {writes ? (
-                      <span className="flex flex-wrap gap-1.5 sm:flex-nowrap sm:justify-end">
+                      <span className="flex flex-wrap gap-1.5 @min-[58rem]:flex-nowrap @min-[58rem]:justify-end">
                         <Button
                           icon={Pencil}
                           onClick={() => {
