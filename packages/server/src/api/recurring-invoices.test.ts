@@ -22,6 +22,12 @@ import { invoiceable, readyToInvoice } from './test-invoice.js'
 
 const north = newId<'tenant'>() as TenantId
 const today = berlinClock(new Date()).day
+/**
+ * A time of today after the morning the engine waits for before it acts
+ * (`morningMinute`), so that a run between midnight and six in German time
+ * does the same as one at noon.
+ */
+const morning = new Date(`${today}T09:00:00Z`)
 
 let admin: Pool
 let database: Database
@@ -101,7 +107,7 @@ async function invoicesOf(contractId: string) {
 
 async function run(times: number) {
   for (let pass = 0; pass < times; pass += 1) {
-    await runDeadlinesOf({ database }, north, new Date())
+    await runDeadlinesOf({ database }, north, morning)
   }
 }
 
