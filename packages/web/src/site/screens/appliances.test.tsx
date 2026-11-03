@@ -18,7 +18,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
 import { SiteAppliancesScreen, SiteNewApplianceScreen } from './appliances.js'
-import { SiteJobScreen } from './jobs.js'
+import { SiteJobScreen } from './job.js'
 import { SiteProtocolScreen } from './protocol.js'
 
 /**

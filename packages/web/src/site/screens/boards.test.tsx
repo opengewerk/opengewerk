@@ -17,7 +17,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
 import { SiteBoardScreen, SiteCircuitScreen } from './boards.js'
-import { SiteJobScreen } from './jobs.js'
+import { SiteJobScreen } from './job.js'
 
 /**
  * #70 on site: a technician in front of a board reads what is written down

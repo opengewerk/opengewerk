@@ -15,13 +15,14 @@ import { checkBudgets } from '@opengewerk/platform-web/tools/budget'
  *
  * Raised once, from 450 to 500 kB, with the defects of #311: the office had
  * grown to 451.7 kB with every screen in its first bundle, and nothing of it
- * was a careless import. Loading the screens of the office on demand is the
- * way to bring the figure down again (#831).
+ * was a careless import. Back at 450 kB since the screens of both entries are
+ * loaded when somebody opens them (#831): what is measured is the first page
+ * and its shell, at 372.6 kB for the office and 231.1 kB on site then.
  */
 checkBudgets({
   dist: resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist'),
   budgets: [
     { name: 'Baustelle', document: 'm/index.html', limit: 300 * 1024 },
-    { name: 'Büro', document: 'index.html', limit: 500 * 1024 },
+    { name: 'Büro', document: 'index.html', limit: 450 * 1024 },
   ],
 })

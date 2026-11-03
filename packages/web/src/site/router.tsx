@@ -1,26 +1,71 @@
 import { ConflictScreen } from '@opengewerk/platform-web/site'
-import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+} from '@tanstack/react-router'
 
-import { SiteBoardScreen, SiteCircuitScreen } from './screens/boards.js'
-import { SiteInverterScreen, SitePvStringScreen } from './screens/pv.js'
-import { SiteScannerScreen } from './screens/scanner.js'
-import { SiteInstallationScreen } from './screens/installation.js'
-import { SiteLabelScanScreen } from './screens/label-scanner.js'
-import { SiteFilesScreen } from './screens/files.js'
-import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './screens/jobs.js'
-import { SiteNoteScreen } from './screens/notes.js'
-import { SiteDefectScreen, SiteNewDefectScreen } from './screens/defects.js'
-import { SiteInstructionsScreen } from './screens/call-instructions.js'
-import { SiteInvoiceScreen } from './screens/invoice.js'
-import { SiteNewCallScreen } from './screens/on-call.js'
-import { SiteProtocolScreen } from './screens/protocol.js'
-import { SiteAppliancesScreen, SiteNewApplianceScreen } from './screens/appliances.js'
-import { SiteReportScreen } from './screens/report.js'
-import { SiteLeaveRequestScreen, SiteLeaveScreen } from './screens/leave.js'
+import { SiteJobList, SiteJobsLayout } from './screens/jobs.js'
 import { SiteTimeEntryScreen, SiteTimeScreen } from './screens/time.js'
-import { SiteTimeAccountScreen } from './screens/time-account.js'
-import { SiteAppointmentsScreen } from './screens/appointments.js'
 import { SiteShell } from './shell.js'
+
+/**
+ * The screens that come when somebody opens them, not with the first page
+ * (#831). The first page on site is the list of open jobs, and the budget of
+ * ADR 0004 measures what the phone fetches before it shows it: the shell with
+ * its stopwatch and the list. A job and everything that opens from it are
+ * parts of their own. The service worker holds every part from the first
+ * visit on, so a screen opens without a network all the same, and the router
+ * waits for the part before it draws the screen.
+ */
+const screens = {
+  job: () => import('./screens/job.js'),
+  boards: () => import('./screens/boards.js'),
+  pv: () => import('./screens/pv.js'),
+  scanner: () => import('./screens/scanner.js'),
+  installation: () => import('./screens/installation.js'),
+  labelScanner: () => import('./screens/label-scanner.js'),
+  files: () => import('./screens/files.js'),
+  notes: () => import('./screens/notes.js'),
+  defects: () => import('./screens/defects.js'),
+  callInstructions: () => import('./screens/call-instructions.js'),
+  invoice: () => import('./screens/invoice.js'),
+  onCall: () => import('./screens/on-call.js'),
+  protocol: () => import('./screens/protocol.js'),
+  appliances: () => import('./screens/appliances.js'),
+  report: () => import('./screens/report.js'),
+  leave: () => import('./screens/leave.js'),
+  timeAccount: () => import('./screens/time-account.js'),
+  appointments: () => import('./screens/appointments.js'),
+}
+
+const SiteJobScreen = lazyRouteComponent(screens.job, 'SiteJobScreen')
+const SiteBoardScreen = lazyRouteComponent(screens.boards, 'SiteBoardScreen')
+const SiteCircuitScreen = lazyRouteComponent(screens.boards, 'SiteCircuitScreen')
+const SiteInverterScreen = lazyRouteComponent(screens.pv, 'SiteInverterScreen')
+const SitePvStringScreen = lazyRouteComponent(screens.pv, 'SitePvStringScreen')
+const SiteScannerScreen = lazyRouteComponent(screens.scanner, 'SiteScannerScreen')
+const SiteInstallationScreen = lazyRouteComponent(screens.installation, 'SiteInstallationScreen')
+const SiteLabelScanScreen = lazyRouteComponent(screens.labelScanner, 'SiteLabelScanScreen')
+const SiteFilesScreen = lazyRouteComponent(screens.files, 'SiteFilesScreen')
+const SiteNoteScreen = lazyRouteComponent(screens.notes, 'SiteNoteScreen')
+const SiteDefectScreen = lazyRouteComponent(screens.defects, 'SiteDefectScreen')
+const SiteNewDefectScreen = lazyRouteComponent(screens.defects, 'SiteNewDefectScreen')
+const SiteInstructionsScreen = lazyRouteComponent(
+  screens.callInstructions,
+  'SiteInstructionsScreen',
+)
+const SiteInvoiceScreen = lazyRouteComponent(screens.invoice, 'SiteInvoiceScreen')
+const SiteNewCallScreen = lazyRouteComponent(screens.onCall, 'SiteNewCallScreen')
+const SiteProtocolScreen = lazyRouteComponent(screens.protocol, 'SiteProtocolScreen')
+const SiteAppliancesScreen = lazyRouteComponent(screens.appliances, 'SiteAppliancesScreen')
+const SiteNewApplianceScreen = lazyRouteComponent(screens.appliances, 'SiteNewApplianceScreen')
+const SiteReportScreen = lazyRouteComponent(screens.report, 'SiteReportScreen')
+const SiteLeaveRequestScreen = lazyRouteComponent(screens.leave, 'SiteLeaveRequestScreen')
+const SiteLeaveScreen = lazyRouteComponent(screens.leave, 'SiteLeaveScreen')
+const SiteTimeAccountScreen = lazyRouteComponent(screens.timeAccount, 'SiteTimeAccountScreen')
+const SiteAppointmentsScreen = lazyRouteComponent(screens.appointments, 'SiteAppointmentsScreen')
 
 /**
  * The routes of the site entry.

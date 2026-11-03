@@ -47,6 +47,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   auf dem Telefon des Monteurs stehen, und ein Verbraucher, der ohne Angebot beauftragt, hat dieselben Rechte wie
   einer mit Angebot.
 
+### Geändert
+
+- Büro und Baustelle laden einen Bildschirm erst, wenn ihn jemand öffnet (#831). Das erste Bündel hält nur die Hülle
+  und die erste Seite, im Büro die Liste der Kunden, auf der Baustelle die offenen Aufträge; der einzelne Auftrag der
+  Baustelle ist dafür ein eigenes Modul geworden. Der Service Worker hält jeden Teil vom ersten Besuch an, sodass ein
+  Bildschirm auch ohne Netz aufgeht. Beim ersten Laden kommen jetzt im Büro 372,6 statt 463,1 kB gzip, auf der
+  Baustelle 231,1 statt 296,8 kB, und die Grenze des Büros ist von 500 wieder auf 450 kB gesunken. Warum: Jedes Issue
+  bringt eigene Bildschirme mit, und die Baustelle hatte bis zur Grenze von 300 kB aus ADR 0004 noch gut 3 kB Luft.
+
 ### Behoben
 
 - Die Rechnung vor Ort aus #292 schreibt die Einheit einer Position kurz wie das gedruckte Dokument, „1 Std.“ statt
