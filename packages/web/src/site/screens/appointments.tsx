@@ -70,6 +70,42 @@ function dayHeading(on: IsoDate): string {
   return `${prefix}${longDays[weekdayIndex(on)]}, ${dayMonth(on)}`
 }
 
+/**
+ * The next appointment of one's own at a job, on top of its sheet (#292): when,
+ * and whether it is confirmed, from the device and so also without a network.
+ */
+export function JobAppointmentCard({ jobId }: { readonly jobId: string }) {
+  const now = today()
+  const days = useMyDays(now, addDays(now, ahead))
+  const next = days.find((day) => day.appointment.jobId === jobId)
+
+  if (!next) {
+    return null
+  }
+
+  const { line, until } = whenOnDay(next)
+
+  return (
+    <Panel title="Termin">
+      <div className="flex flex-col gap-1.5">
+        <p className="text-[15px] font-semibold text-ink-faint">{dayHeading(next.on)}</p>
+        <div className="flex items-center gap-2">
+          <span className="flex-1 text-[19px] font-bold tabular-nums">{line}</span>
+          {next.confirmed ? (
+            <Status tone="done" icon={Check}>
+              Bestätigt
+            </Status>
+          ) : (
+            <Status tone="waiting">Noch nicht bestätigt</Status>
+          )}
+        </div>
+        {until ? <p className="text-[16px] font-semibold tabular-nums">{until}</p> : null}
+        <SiteLink to="/termine">Alle Termine</SiteLink>
+      </div>
+    </Panel>
+  )
+}
+
 /** "Deine Termine" on top of the open jobs: today and tomorrow, and the way to all of them. */
 export function AppointmentsCard() {
   const now = today()

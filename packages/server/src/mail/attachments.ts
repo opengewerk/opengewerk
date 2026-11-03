@@ -103,9 +103,14 @@ export function withCallInstructions(
     }
 
     if (row.jobId === null) {
-      throw new MailDeliveryError('Der Nachricht fehlt der Auftrag, um den es geht.', 'EDOCUMENT', null, {
-        permanent: true,
-      })
+      throw new MailDeliveryError(
+        'Der Nachricht fehlt der Auftrag, um den es geht.',
+        'EDOCUMENT',
+        null,
+        {
+          permanent: true,
+        },
+      )
     }
 
     const jobId = row.jobId

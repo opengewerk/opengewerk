@@ -289,11 +289,7 @@ async function start(): Promise<void> {
       connect: mail.connect,
       key: mail.key,
       origin,
-      attachments: withCallInstructions(
-        printing,
-        database,
-        documentAttachments(printing),
-      ),
+      attachments: withCallInstructions(printing, database, documentAttachments(printing)),
       invitationLinks: invitationLinks(database, origin),
     })
   }

@@ -95,7 +95,9 @@ export function signedContentFingerprint(content: SignedContent): string {
     .map((line) => [line.kind, line.designation, line.description, line.quantityMilli, line.unit])
   const fields = content.fields === '{}' ? null : (content.fields ?? null)
   return textFingerprint(
-    JSON.stringify(fields === null ? [content.introText, lines] : [content.introText, lines, fields]),
+    JSON.stringify(
+      fields === null ? [content.introText, lines] : [content.introText, lines, fields],
+    ),
   )
 }
 

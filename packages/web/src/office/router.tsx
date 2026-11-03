@@ -36,6 +36,7 @@ import {
 import { LabelLandingScreen } from './screens/label-landing.js'
 import { InstructionsScreen } from './screens/instructions.js'
 import { JobList, JobScreen } from './screens/jobs.js'
+import { NewServiceCallScreen } from './screens/service-call.js'
 import { LetterheadScreen } from './screens/letterhead.js'
 import { NumberRangesScreen } from './screens/number-ranges.js'
 import { MarkupSettingScreen } from './screens/markup-setting.js'
@@ -195,6 +196,11 @@ const routes = [
     component: DefectScreen,
   }),
   createRoute({ getParentRoute: () => office, path: '/auftraege', component: JobList }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/auftraege/service',
+    component: NewServiceCallScreen,
+  }),
   createRoute({ getParentRoute: () => office, path: '/plantafel', component: PlanningScreen }),
   createRoute({ getParentRoute: () => office, path: '/auftraege/$jobId', component: JobScreen }),
   createRoute({ getParentRoute: () => office, path: '/aufgaben', component: TaskListScreen }),

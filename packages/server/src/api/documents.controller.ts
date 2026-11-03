@@ -447,9 +447,7 @@ export class DocumentsController {
         const [predecessor] = await tx
           .select()
           .from(documents)
-          .where(
-            and(eq(documents.id, existing.predecessorDocumentId), isNull(documents.deletedAt)),
-          )
+          .where(and(eq(documents.id, existing.predecessorDocumentId), isNull(documents.deletedAt)))
           .for('update')
 
         if (predecessor && isSignedReport(predecessor)) {
@@ -560,7 +558,10 @@ export class DocumentsController {
       // invoice out of it is made on site, as a draft (#292); the report gets
       // its number when the invoice is issued. Any other predecessor is
       // issued first.
-      if (predecessor.status !== 'issued' && !(kind === 'final_invoice' && isSignedReport(predecessor))) {
+      if (
+        predecessor.status !== 'issued' &&
+        !(kind === 'final_invoice' && isSignedReport(predecessor))
+      ) {
         throw new ConflictException(
           predecessor.status === 'draft'
             ? 'Ein Folgebeleg entsteht aus einem festgeschriebenen Beleg, und dieser ist noch ein ' +
@@ -1062,7 +1063,6 @@ export class DocumentsController {
     })
   }
 }
-
 
 type DocumentRow = typeof documents.$inferSelect
 

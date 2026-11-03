@@ -353,7 +353,10 @@ export class DocumentFiles {
       : null
 
     try {
-      return await this.render(callInstructionsJob(facts, { logo, durabilityLabel: null }), printedFor)
+      return await this.render(
+        callInstructionsJob(facts, { logo, durabilityLabel: null }),
+        printedFor,
+      )
     } catch (error) {
       if (error instanceof RendererUnavailableError) {
         throw new ServiceUnavailableException(error.message)

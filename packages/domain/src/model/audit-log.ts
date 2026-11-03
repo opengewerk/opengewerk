@@ -291,6 +291,9 @@ export const auditVocabulary: AuditVocabulary = {
       document_id: 'Beleg',
       attachment: 'Anhang',
       deadline_id: 'Frist',
+      // The instructions of a service call and the request signed at the door (#292).
+      job_id: 'Auftrag',
+      early_start_request_id: 'Verlangen auf vorzeitigen Beginn',
     },
     deadlines: {
       document_id: 'Beleg',

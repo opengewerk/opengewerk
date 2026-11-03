@@ -760,6 +760,73 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   await changeOnDevice(post, 'documents', vanReport.id, { storeId: van })
   await signOnDevice(post, vanReport, fromTheVan)
 
+  // A call taken on the phone this morning (#292): a new customer, an urgent
+  // repair, the appointment of whoever looks at the preview today, and the
+  // report the customer signed, out of which the invoice is made on site.
+  const lehmann = idOf(
+    await post('/customers', {
+      kind: 'private',
+      name: 'Klaus Lehmann',
+      phone: '040 778 412 00',
+      email: 'klaus.lehmann@example.com',
+      street: 'Eppendorfer Weg',
+      houseNumber: '112',
+      postalCode: '20259',
+      city: 'Hamburg',
+    }),
+  )
+  const flat = idOf(
+    await post('/sites', {
+      customerId: lehmann,
+      designation: 'Eppendorfer Weg 112',
+      street: 'Eppendorfer Weg',
+      houseNumber: '112',
+      postalCode: '20259',
+      city: 'Hamburg',
+    }),
+  )
+  const kitchen = idOf(
+    await post('/jobs', {
+      customerId: lehmann,
+      siteId: flat,
+      kind: 'service',
+      status: 'active',
+      designation: 'Sicherung Küche löst aus',
+      description:
+        'Seit heute Morgen löst die Sicherung der Küche aus, sobald der Herd eingeschaltet wird. Der Kunde ist ab 13 Uhr zu Hause.',
+      urgentRepair: true,
+    }),
+  )
+
+  await post('/appointments', {
+    jobId: kitchen,
+    startsAt: berlinInstant(today, 13 * 60 + 30).toISOString(),
+    endsAt: berlinInstant(today, 15 * 60).toISOString(),
+    note: null,
+    rrule: null,
+    exdates: [],
+    userIds: [previewUser.id],
+  })
+
+  const kitchenWork =
+    'Herdanschlussdose getauscht, Leitungsschutzschalter B16 der Küche ersetzt, Isolationswiderstand gemessen.'
+  const kitchenReport = await document(
+    {
+      customerId: lehmann,
+      jobId: kitchen,
+      siteId: flat,
+      kind: 'time_and_material_report',
+      subject: 'Sicherung Küche löst aus',
+      introText: kitchenWork,
+    },
+    [
+      item('Arbeitszeit Elektriker', 1500, 'hour', 0),
+      { ...item('Leitungsschutzschalter B16, 1-polig', 1000, 'piece', 0), articleId: breaker },
+    ],
+  )
+
+  await signOnDevice(post, kitchenReport, kitchenWork, 'Klaus Lehmann')
+
   // A report of today still in draft, with material taken from an article
   // (#296): the walk of the check of widths opens "Material eintragen" on it
   // on site, and its article counts as used lately on every device.
@@ -817,6 +884,7 @@ async function signOnDevice(
   post: (path: string, body: unknown) => Promise<Answer>,
   report: { readonly id: string; readonly lines: readonly Answer[] },
   introText: string,
+  signerName = 'Erika Berg',
 ): Promise<void> {
   const signed = await post('/sync', {
     deviceId: 'vorschau-tablet',
@@ -829,7 +897,7 @@ async function signOnDevice(
         baseVersion: null,
         patches: Object.entries({
           documentId: report.id,
-          signerName: 'Erika Berg',
+          signerName,
           signedAt: new Date().toISOString(),
           deviceInfo: 'Tablet der Vorschau',
           path: sampleSignature,

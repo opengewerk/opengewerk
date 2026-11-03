@@ -10,6 +10,8 @@ import { SiteFilesScreen } from './screens/files.js'
 import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './screens/jobs.js'
 import { SiteNoteScreen } from './screens/notes.js'
 import { SiteDefectScreen, SiteNewDefectScreen } from './screens/defects.js'
+import { SiteInstructionsScreen } from './screens/call-instructions.js'
+import { SiteInvoiceScreen } from './screens/invoice.js'
 import { SiteProtocolScreen } from './screens/protocol.js'
 import { SiteAppliancesScreen, SiteNewApplianceScreen } from './screens/appliances.js'
 import { SiteReportScreen } from './screens/report.js'
@@ -142,6 +144,17 @@ const routes = [
     getParentRoute: () => root,
     path: '/auftraege/$jobId/maengel/$defectId',
     component: SiteDefectScreen,
+  }),
+  // The instructions at the door and the invoice made on site of a service call (#292).
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/belehrung',
+    component: SiteInstructionsScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/rechnungen/$documentId',
+    component: SiteInvoiceScreen,
   }),
   createRoute({ getParentRoute: () => root, path: '/zeiten', component: SiteTimeScreen }),
   // One's own leave, under "Zeiten" (#288).

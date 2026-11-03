@@ -5,7 +5,11 @@ import {
   type Synced,
 } from '@opengewerk/platform-domain'
 
-import { documentInstructions, type InstructionGap, type ShippedWording } from '../rules/instructions.js'
+import {
+  documentInstructions,
+  type InstructionGap,
+  type ShippedWording,
+} from '../rules/instructions.js'
 import { shippedWordings } from '../rules/instructions.js'
 import type { IssuerContent } from './document-content.js'
 import { textFingerprint } from './document-signature.js'
@@ -94,19 +98,27 @@ export function jobInstructions(
   )
   const { contents, gaps } = documentInstructions(
     chosen,
-    { variant: 'service', switchedOn: chosen.map((instruction) => instruction.id), switchedOff: [] },
+    {
+      variant: 'service',
+      switchedOn: chosen.map((instruction) => instruction.id),
+      switchedOff: [],
+    },
     { kind: 'order_confirmation', documentDate: on, recipientIsBusiness: false },
     issuer,
     wordings,
   )
   const sheets = contents.flatMap((content) =>
-    content.model ? [{ template: content.model.template, title: content.title, text: content.text }] : [],
+    content.model
+      ? [{ template: content.model.template, title: content.title, text: content.text }]
+      : [],
   )
   const early = contents.find((content) => content.model?.template === 'early_start')
 
   return {
     sheets,
-    request: early ? requestOnDevice(early.text, early.model?.changed ?? false, on, issuer, wordings) : null,
+    request: early
+      ? requestOnDevice(early.text, early.model?.changed ?? false, on, issuer, wordings)
+      : null,
     gaps,
   }
 }

@@ -2,7 +2,6 @@ import {
   type DocumentKind,
   documentKinds,
   type InstructionTemplate,
-  instructionBlocks,
   instructionPlaceholders,
   normalizedWording,
 } from '@opengewerk/domain'
@@ -16,6 +15,7 @@ import { useId, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
 import { documentKindLabel } from '../../app/labels.js'
+import { InstructionText } from '../../app/service-calls.js'
 import { useMay } from '../../app/queries.js'
 import {
   createInstruction,
@@ -109,43 +109,6 @@ const fixedNote =
   'Gestaltung und Wortlaut gibt die EU vor (Durchführungsverordnung (EU) 2025/1960, Anhang I). ' +
   'Die Mitteilung lässt sich nicht bearbeiten und steht im PDF auf einer eigenen A4-Seite, ohne ' +
   'Briefkopf und ohne Fußzeile.'
-
-/**
- * The words of an instruction the way they are printed: headings, paragraphs,
- * points and lines to write on. Placeholders stay as they are, because here
- * the words are looked at before any document fills them.
- */
-export function InstructionText({ text }: { readonly text: string }) {
-  return (
-    <div className="flex flex-col gap-2 text-body">
-      {instructionBlocks(text).map((block, index) => {
-        switch (block.kind) {
-          case 'heading':
-            return (
-              <h3 key={index} className="mt-2 font-semibold">
-                {block.text}
-              </h3>
-            )
-          case 'item':
-            return (
-              <p key={index} className="flex gap-2">
-                <span aria-hidden="true">•</span>
-                <span className="whitespace-pre-line">{block.text}</span>
-              </p>
-            )
-          case 'line':
-            return <div key={index} className="h-5 border-b border-line-strong" />
-          case 'paragraph':
-            return (
-              <p key={index} className="whitespace-pre-line">
-                {block.text}
-              </p>
-            )
-        }
-      })}
-    </div>
-  )
-}
 
 /** Which kinds, whom and whether it goes out with the document, in two sentences. */
 function Summary({ instruction }: { readonly instruction: InstructionView }) {

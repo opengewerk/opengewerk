@@ -79,6 +79,7 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   manufacturerWarrantyEndsOn: 'Herstellergarantie bis',
   vobAgreed: 'VOB/B vereinbart',
   buildingWork: 'Bauwerk',
+  urgentRepair: 'Dringende Reparatur',
   yieldForecastKwh: 'Ertragsprognose',
   yieldForecastSource: 'Quelle der Ertragsprognose',
   gridOperatorId: 'Netzbetreiber',

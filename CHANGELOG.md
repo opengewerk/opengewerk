@@ -7,6 +7,27 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- Serviceaufträge mit Schnellerfassung, Dispatch und Abrechnung vor Ort (#292), nach der Feature-Gliederung v2.62
+  und den Tafeln aus Version 124 des Canvas: Im Büro wird ein Anruf auf einem Bildschirm zu Serviceeinsatz und
+  Termin. Gefragt wird, wer anruft (ein Kunde, den die Suche nach Name, Telefon oder Ort findet, oder ein neuer mit
+  wenigen Feldern), wo (ein Objekt des Kunden oder eine Anschrift, aus der eines wird), was los ist und wann und wer;
+  wer den Termin bekommt, steht am Auftrag und bekommt ihn per Web-Push. Am Auftrag im Büro stehen seine Termine.
+  Der Auftragszettel auf der Baustelle zeigt bei einem Serviceeinsatz den Termin und das Anliegen zuerst.
+  Eine dringende Reparatur, die der Kunde ausdrücklich angefordert hat, trägt ein Kennzeichen mit dem Hinweis, dass
+  für sie kein Widerrufsrecht besteht (§ 312g Abs. 2 Nr. 11 BGB, Migration 0120). Ein Verbraucher bekommt die
+  Belehrungen auch ohne Angebot: Widerrufsbelehrung, Hinweise zum Erlöschen, Muster-Widerrufsformular und der
+  Vordruck für den vorzeitigen Beginn, in der Fassung des Betriebs. An der Tür zeigt sie das Gerät, der Kunde
+  unterschreibt das Verlangen auf vorzeitigen Beginn wie einen Regiebericht, auch ohne Netz, und bekommt danach alles
+  als PDF per E-Mail; der Server nimmt die Unterschrift nur unter der Fassung, die der Kunde gelesen hat. Für einen
+  Auftrag am Telefon schickt das Büro die Belehrungen vom Auftrag aus, bis die Bestätigungsmail aus #315 sie
+  mitnimmt, oder druckt sie. Aus dem unterschriebenen Regiebericht legt der Monteur vor Ort den Entwurf der Rechnung
+  an, mit den Preisen von heute; festgeschrieben und verschickt wird sie im Büro, und der Bericht bekommt dabei
+  zuerst seine Nummer. Warum: Ein Serviceauftrag kommt per Telefon und muss Sekunden später auf einem Bildschirm und
+  auf dem Telefon des Monteurs stehen, und ein Verbraucher, der ohne Angebot beauftragt, hat dieselben Rechte wie
+  einer mit Angebot.
+
 ## [0.7.0] - 2026-11-03
 
 Die siebte Fassung bringt den größten Teil von Phase 2, dem Kern für Elektro und PV. Zu den Prüfungen kommen das

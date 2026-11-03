@@ -1,5 +1,5 @@
 import type { JobKind, JobStatus, RecordState } from '@opengewerk/domain'
-import { followUpProblem, jobKinds, jobStatuses } from '@opengewerk/domain'
+import { followUpProblem, jobKinds, jobStatuses, urgentRepairNote } from '@opengewerk/domain'
 import {
   Button,
   Field,
@@ -42,7 +42,7 @@ import {
 import type { FormField } from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { Calendar, Pencil, UserRound } from 'lucide-react'
+import { Calendar, Pencil, TriangleAlert, UserRound } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
@@ -58,6 +58,8 @@ import { JobWithdrawals } from './job-stock.js'
 import { JobTimeSection } from './time.js'
 import { AcceptanceSection } from './acceptance.js'
 import { JobDefectsSection } from './defects.js'
+import { CallInstructionsSection } from './call-instructions.js'
+import { JobAppointmentsPanel } from './job-appointments.js'
 import { buildingWorkOf } from '../../app/acceptance.js'
 
 const kindOptions = jobKinds.map((kind) => ({ value: kind, label: jobKindLabel[kind] }))
@@ -88,6 +90,13 @@ const jobFields: readonly FormField[] = [
     options: [...yesOrNo],
     hint: 'Dann vier Jahre bei einem Bauwerk, für wartungsbedürftige Teile ohne übertragene Wartung zwei.',
   },
+  // An urgent repair the customer asked for has no right of withdrawal (#292).
+  {
+    name: 'urgentRepair',
+    label: 'Dringende Reparatur, vom Kunden ausdrücklich angefordert',
+    options: [...yesOrNo],
+    hint: urgentRepairNote,
+  },
 ]
 
 function asJob(values: Record<string, string>) {
@@ -99,6 +108,7 @@ function asJob(values: Record<string, string>) {
     buildingWork:
       values['buildingWork'] === 'true' ? true : values['buildingWork'] === 'false' ? false : null,
     vobAgreed: asBoolean(values['vobAgreed']),
+    urgentRepair: asBoolean(values['urgentRepair']),
   }
 }
 
@@ -167,6 +177,8 @@ export function JobList() {
   const jobs = useRecords('jobs')
   const customers = useRecords('customers')
   const crews = useCrews()
+  const navigate = useNavigate()
+  const takesCalls = useMay('job.write')
 
   const names = useMemo(
     () => new Map(customers.map((customer) => [String(customer['id']), text(customer, 'name')])),
@@ -212,6 +224,17 @@ export function JobList() {
       rows={jobs}
       columns={columns}
       hrefFor={(row) => `/auftraege/${String(row['id'])}`}
+      // A call taken on the phone becomes a service call on one screen (#292).
+      primary={
+        takesCalls
+          ? {
+              label: 'Serviceeinsatz erfassen',
+              onPress: () => {
+                void navigate({ to: '/auftraege/service' })
+              },
+            }
+          : undefined
+      }
       searchLabel="Aufträge durchsuchen"
       searchPlaceholder="Nummer, Bezeichnung, Kunde …"
       filters={[
@@ -343,6 +366,10 @@ function JobRecord({ job }: { readonly job: RecordState }) {
   const notes = <JobNotesPanel jobId={jobId} />
   const acceptance = (
     <>
+      {/* What a service call is about once it was taken, first (#292): its
+          instructions for a consumer and its appointments. */}
+      <CallInstructionsSection jobId={jobId} />
+      <JobAppointmentsPanel jobId={jobId} />
       {/* What is wrong with the work, over the acceptance its reservations come out of (#311). */}
       <JobDefectsSection jobId={jobId} />
       <AcceptanceSection jobId={jobId} />
@@ -393,6 +420,11 @@ function JobRecord({ job }: { readonly job: RecordState }) {
           <>
             {number ? <NumberBadge>{number}</NumberBadge> : null}
             <JobState job={job} />
+            {job['urgentRepair'] === true ? (
+              <Status tone="conflict" icon={TriangleAlert}>
+                Dringende Reparatur
+              </Status>
+            ) : null}
           </>
         }
         sub={sub}
@@ -598,6 +630,9 @@ function JobFacts({ job }: { readonly job: RecordState }) {
         },
         { label: 'Bauwerk', value: buildingFact(job) },
         { label: 'VOB/B', value: job['vobAgreed'] === true ? 'vereinbart' : 'nicht vereinbart' },
+        ...(job['urgentRepair'] === true
+          ? [{ label: 'Dringend', value: 'ja, vom Kunden ausdrücklich angefordert' }]
+          : []),
         { label: 'Beschreibung', value: maybeText(job, 'description') },
         ...(predecessor
           ? [

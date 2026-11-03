@@ -17,7 +17,14 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import type { InstructionSheet, JobId } from '@opengewerk/domain'
-import { accountsOf, Database, isMailAddress, MAIL, type MailContext, pick } from '@opengewerk/platform-server'
+import {
+  accountsOf,
+  Database,
+  isMailAddress,
+  MAIL,
+  type MailContext,
+  pick,
+} from '@opengewerk/platform-server'
 import { asc, and, eq, isNull } from 'drizzle-orm'
 import type { Response } from 'express'
 
@@ -126,7 +133,9 @@ export class CallInstructionsController {
       return { held, signed, mails: await messagesAboutCall(tx, call.id) }
     })
 
-    const askers = [...new Set(found.mails.flatMap((row) => (row.requestedBy ? [row.requestedBy] : [])))]
+    const askers = [
+      ...new Set(found.mails.flatMap((row) => (row.requestedBy ? [row.requestedBy] : []))),
+    ]
     const names = await accountsOf(this.database, askers, identity.userId)
 
     return {

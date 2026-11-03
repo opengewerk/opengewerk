@@ -589,6 +589,8 @@ const pageStyle = `
   .report-fields td { padding: 0.6mm 0; white-space: pre-line; }
   .closing { margin-top: 8mm; break-inside: avoid; }
   .instruction { break-before: page; }
+  /* The first sheet of the instructions of a service call stands under its heading (#292). */
+  .instruction.leading { break-before: auto; margin-top: 6mm; }
   .legal-page { break-before: page; height: 1px; }
   .durability { break-before: page; }
   .durability h2 { font-size: 13pt; font-weight: 600; margin: 0 0 1mm; }
@@ -984,7 +986,6 @@ ${draft ? '<div class="draft">ENTWURF</div>' : ''}
   return { html, footerHtml: footer(content), margin }
 }
 
-
 /** What the instructions of a service call print (#292): for whom, about which call, the sheets, and a request signed at the door. */
 export interface CallInstructionsPrint {
   readonly issuer: IssuerContent
@@ -1024,13 +1025,15 @@ export function callInstructionsJob(
     facts.call.number ?? facts.call.designation,
   )}</td></tr><tr><th>Datum</th><td>${day(facts.on)}</td></tr></table>`
   const signed = facts.signed
-  const sheets = facts.sheets.map((sheet) => {
+  const sheets = facts.sheets.map((sheet, index) => {
+    const kind = index === 0 ? 'instruction leading' : 'instruction'
+
     if (sheet.template === 'early_start' && signed) {
       const picture = signaturePathIsValid(signed.path)
         ? `<svg class="signature-picture" viewBox="0 0 ${String(signatureBox.width)} ${String(signatureBox.height)}" aria-hidden="true"><path d="${signed.path}" fill="none" stroke="#1b2430" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
         : ''
 
-      return `<section class="instruction">
+      return `<section class="${kind}">
     <p class="annex">Zum ${text(about)}, „${text(facts.call.designation)}“</p>
     <h2>${text(sheet.title)}</h2>
     ${instructionBody(signed.request)}
@@ -1041,7 +1044,7 @@ export function callInstructionsJob(
   </section>`
     }
 
-    return `<section class="instruction">
+    return `<section class="${kind}">
     <p class="annex">Zum ${text(about)}, „${text(facts.call.designation)}“</p>
     <h2>${text(sheet.title)}</h2>
     ${instructionBody(sheet.text)}

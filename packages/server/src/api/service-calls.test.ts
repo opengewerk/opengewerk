@@ -277,7 +277,9 @@ beforeAll(async () => {
 beforeEach(async () => {
   // What earlier tests left waiting is taken off the queue, marked and not
   // deleted: the rows tell the job a request was told already.
-  await admin.query("update mail_outbox set status = 'sent', sent_at = now() where status = 'pending'")
+  await admin.query(
+    "update mail_outbox set status = 'sent', sent_at = now() where status = 'pending'",
+  )
   printed.length = 0
 })
 
@@ -302,7 +304,9 @@ describe('the instructions of a service call (#292)', () => {
     ])
     expect(view.sheets[0]?.text).toContain('Elektro Nord GmbH')
     expect(view.sheets[0]?.text).toContain('040 123456')
-    expect(view.request).toMatch(/^Ich verlange ausdrücklich, dass Elektro Nord GmbH mit der Ausführung/)
+    expect(view.request).toMatch(
+      /^Ich verlange ausdrücklich, dass Elektro Nord GmbH mit der Ausführung/,
+    )
     expect(view.request).not.toContain('___')
     expect(view.fingerprint).toBe(instructionSheetsFingerprint(view.sheets, view.request))
     expect(view.gaps).toEqual([])
@@ -367,9 +371,9 @@ describe('a request for an early start signed at the door', () => {
     const { job } = await aCall()
     const sent = await push(app, technician(), [aRequest(job, 'fnv1a32:00000000:0').operation])
 
-    expect(sent.receipts.map((receipt) => [receipt.outcome, receipt.reason, receipt.fields])).toEqual([
-      ['conflict', 'changed_elsewhere', ['contentFingerprint']],
-    ])
+    expect(
+      sent.receipts.map((receipt) => [receipt.outcome, receipt.reason, receipt.fields]),
+    ).toEqual([['conflict', 'changed_elsewhere', ['contentFingerprint']]])
   })
 
   it('is refused as a conflict for a job that is no service call for a consumer', async () => {
@@ -378,9 +382,9 @@ describe('a request for an early start signed at the door', () => {
     const project = await aCall({ kind: 'project' })
     const sent = await push(app, technician(), [aRequest(project.job, fingerprint).operation])
 
-    expect(sent.receipts.map((receipt) => [receipt.outcome, receipt.reason, receipt.fields])).toEqual([
-      ['conflict', 'changed_elsewhere', ['jobId']],
-    ])
+    expect(
+      sent.receipts.map((receipt) => [receipt.outcome, receipt.reason, receipt.fields]),
+    ).toEqual([['conflict', 'changed_elsewhere', ['jobId']]])
   })
 
   it('is refused by the database for a project, whichever way it comes in', async () => {
@@ -463,7 +467,9 @@ describe('the instructions by mail', () => {
     expect(ours).toHaveLength(1)
     expect(ours[0]?.to).toEqual({ name: 'Klaus Lehmann', address: 'klaus.lehmann@example.com' })
     expect(ours[0]?.text).toContain('auf unserem Gerät unterschrieben hat')
-    expect(ours[0]?.attachments?.map((attachment) => attachment.filename)).toEqual(['Belehrungen.pdf'])
+    expect(ours[0]?.attachments?.map((attachment) => attachment.filename)).toEqual([
+      'Belehrungen.pdf',
+    ])
 
     const html = printed.map((job) => job.html).join('\n')
 
@@ -535,7 +541,9 @@ describe('the instructions by mail', () => {
       .send({})
       .expect(422)
 
-    expect((refused.body as { message: string }).message).toContain('keine E-Mail-Adresse')
+    expect((refused.body as { message: string }).message).toContain(
+      'Für diesen Kunden ist keine E-Mail-Adresse hinterlegt',
+    )
 
     const project = await aCall({ kind: 'project' })
 
@@ -592,7 +600,11 @@ describe('the invoice made on site out of a signed report', () => {
   it('is made by the technician as a draft, and the report stays signed', async () => {
     const { customer, job } = await aCall()
     const report = await aSignedReport(customer, job)
-    const invoice = await post(`/documents/${report}/successors`, { kind: 'final_invoice' }, technician())
+    const invoice = await post(
+      `/documents/${report}/successors`,
+      { kind: 'final_invoice' },
+      technician(),
+    )
 
     expect(await statusOf(invoice)).toEqual({ status: 'draft', number: null })
     expect(await statusOf(report)).toEqual({ status: 'signed', number: null })
@@ -609,7 +621,12 @@ describe('the invoice made on site out of a signed report', () => {
     const { customer, job } = await aCall()
     const draft = await post(
       '/documents',
-      { customerId: customer, jobId: job, kind: 'time_and_material_report', documentDate: '2026-11-03' },
+      {
+        customerId: customer,
+        jobId: job,
+        kind: 'time_and_material_report',
+        documentDate: '2026-11-03',
+      },
       technician(),
     )
 
@@ -631,11 +648,16 @@ describe('the invoice made on site out of a signed report', () => {
   it('is issued in the office, which issues the report first, and not by the technician', async () => {
     const { customer, job } = await aCall()
     const report = await aSignedReport(customer, job)
-    const invoice = await post(`/documents/${report}/successors`, { kind: 'final_invoice' }, technician())
+    const invoice = await post(
+      `/documents/${report}/successors`,
+      { kind: 'final_invoice' },
+      technician(),
+    )
 
-    await admin.query('update document_lines set unit_price_cents = 6800, net_cents = 10200 where document_id = $1', [
-      invoice,
-    ])
+    await admin.query(
+      'update document_lines set unit_price_cents = 6800, net_cents = 10200 where document_id = $1',
+      [invoice],
+    )
 
     await http()
       .post(`/documents/${invoice}/issue`)
@@ -643,7 +665,11 @@ describe('the invoice made on site out of a signed report', () => {
       .send({})
       .expect(403)
 
-    await http().post(`/documents/${invoice}/issue`).set('x-test-identity', office()).send({}).expect(201)
+    await http()
+      .post(`/documents/${invoice}/issue`)
+      .set('x-test-identity', office())
+      .send({})
+      .expect(201)
 
     const fixedReport = await statusOf(report)
     const fixedInvoice = await statusOf(invoice)
