@@ -3,6 +3,7 @@ import {
   type BlockCircuit,
   type BlockField,
   circuitBlocks,
+  dayHint,
   dayLabel,
   type FieldValue,
   fieldsOf,
@@ -310,6 +311,8 @@ export function SiteProtocolScreen() {
     'appliances',
     record ? text(record, 'applianceId') || undefined : undefined,
   )
+  // Or the job alone, which an acceptance hangs on (#310).
+  const job = useRecord('jobs', record && !installation && !appliance ? jobId : undefined)
 
   if (!record || !recordId || !jobId) {
     return (
@@ -326,13 +329,20 @@ export function SiteProtocolScreen() {
     ? text(installation, 'designation')
     : appliance
       ? applianceName(appliance)
-      : ''
+      : job
+        ? text(job, 'designation')
+        : ''
+  const purpose = definitionOf(record)?.purpose
 
   return (
     <SiteScreen>
       <SiteHeader
         title={
-          definitionOf(record)?.purpose === 'commissioning' ? 'Inbetriebsetzung' : 'Prüfprotokoll'
+          purpose === 'commissioning'
+            ? 'Inbetriebsetzung'
+            : purpose === 'acceptance'
+              ? 'Abnahme'
+              : 'Prüfprotokoll'
         }
         sub={[kindOfProtocol(record), place].filter((part) => part !== '').join(', ')}
       />
@@ -539,7 +549,7 @@ function Overview({
         <Field
           label={dayLabel(definition)}
           type="date"
-          hint="Nach diesem Tag richten sich die Grenzwerte."
+          hint={dayHint(definition)}
           value={protocol.performedOn}
           onChange={(event) => {
             protocol.setPerformedOn(event.target.value)

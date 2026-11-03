@@ -3,12 +3,15 @@ import {
   type BlockCircuit,
   type BlockField,
   circuitBlocks,
+  coreForms,
+  dayHint,
   dayLabel,
   type FieldValue,
   fieldsOf,
   type FormDefinition,
   type FormField,
   formRecordProblem,
+  formRegistry,
   formValuesText,
   type FormValue,
   type FormValues,
@@ -38,7 +41,7 @@ import {
   testsPart,
   tripCharacteristicLabel,
 } from '@opengewerk/domain'
-import { elektroRegistry, elektroRules } from '@opengewerk/gewerk-elektro'
+import { elektroForms, elektroRules } from '@opengewerk/gewerk-elektro'
 import {
   Button,
   Field,
@@ -87,8 +90,11 @@ import { useBlockStrings, useInstallationStructure } from './photovoltaic.js'
  * outbox twice for every figure.
  */
 
-/** The forms this build fills in and reads, those of the trade packages; the server asks the same. */
-export const protocolRegistry = elektroRegistry
+/**
+ * The forms this build fills in and reads, those of the core and of the trade
+ * packages (#310); the server asks the same.
+ */
+export const protocolRegistry = formRegistry([...coreForms, ...elektroForms])
 
 /** The limits the verdicts are asked of, the day of the test deciding which apply. */
 export const protocolRules = elektroRules
@@ -1090,11 +1096,19 @@ function SignatureText({
   )
 }
 
-/** The pictures of an installation, for the field that takes a photo. */
+/**
+ * The pictures of an installation, for the field that takes a photo, or of
+ * the job for a protocol at the job alone (#310).
+ */
 function usePhotos(
   installationId: string,
+  jobId: string,
 ): readonly { readonly value: string; readonly label: string }[] {
-  const attachments = useRelated('attachments', 'installationId', installationId)
+  const attachments = useRelated(
+    'attachments',
+    installationId ? 'installationId' : 'jobId',
+    installationId || jobId,
+  )
 
   return useMemo(
     () =>
@@ -1158,7 +1172,7 @@ export function useProtocolDraft(record: RecordState): ProtocolDraft {
   const definition = definitionOf(record)
   const installationId = text(record, 'installationId')
   const circuits = useBlockCircuits(installationId)
-  const photos = usePhotos(installationId)
+  const photos = usePhotos(installationId, text(record, 'jobId'))
   const applianceId = text(record, 'applianceId') || null
   const appliance = applianceFactsOf(useRecord('appliances', applianceId ?? undefined))
   const editable = !isSigned(record)
@@ -1314,7 +1328,7 @@ export function ProtocolSheet({
         <Field
           label={dayLabel(definition)}
           type="date"
-          hint="Nach diesem Tag richten sich die Grenzwerte."
+          hint={dayHint(definition)}
           value={performedOn}
           onChange={(event) => {
             setPerformedOn(event.target.value)

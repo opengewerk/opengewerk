@@ -9,6 +9,7 @@ import {
 import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import {
+  boolean,
   check,
   foreignKey,
   index,
@@ -53,6 +54,10 @@ export const jobs = pgTable(
     // When the job was completed or cancelled (#140), kept by a trigger of
     // migration 0042; a technician's device keeps a closed job thirty days.
     closedAt: timestamp('closed_at', { withTimezone: true }),
+    // Whether the VOB/B is agreed as a whole and whether the work is a building (#310);
+    // null for the second while the business has not said, and the job suggests one.
+    vobAgreed: boolean('vob_agreed').notNull().default(false),
+    buildingWork: boolean('building_work'),
     ...timestamps,
     ...syncColumns,
   },

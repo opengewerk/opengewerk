@@ -51,6 +51,7 @@ import {
   warrantyText,
 } from './sites.js'
 import { FundingSection } from './funding-programs.js'
+import { useInstallationWarranty } from '../../app/acceptance.js'
 import {
   CompanionsSection,
   InvertersSection,
@@ -204,6 +205,8 @@ export function InstallationScreen() {
   const gridFields = useGridOperatorFields(installation ?? null)
   const writes = useMay('installation.write')
   const readsFunding = useMay('funding_program.read')
+  // The warranty out of the acceptance of a job at the installation (#310).
+  const acceptedWarranty = useInstallationWarranty(installationId)
   const createsJobs = useMay('job.write')
   const [editing, setEditing] = useState(false)
   const [addingJob, setAddingJob] = useState(false)
@@ -449,7 +452,18 @@ export function InstallationScreen() {
                         ? date(installation['commissionedOn'])
                         : null,
                     },
-                    { label: 'Gewährleistung', value: warrantyText(installation) },
+                    {
+                      label: 'Gewährleistung',
+                      value: acceptedWarranty?.terms
+                        ? `bis ${date(acceptedWarranty.terms.whole.endsOn)}, aus der Abnahme vom ${date(acceptedWarranty.acceptedOn)}`
+                        : warrantyText(installation),
+                    },
+                    {
+                      label: 'Herstellergarantie',
+                      value: maybeText(installation, 'manufacturerWarrantyEndsOn')
+                        ? `bis ${date(installation['manufacturerWarrantyEndsOn'])}`
+                        : null,
+                    },
                     { label: 'Notizen', value: maybeText(installation, 'notes') },
                   ]}
                 />

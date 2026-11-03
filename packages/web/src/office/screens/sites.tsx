@@ -78,8 +78,10 @@ export const installationFields: readonly FormField[] = [
     name: 'warrantyEndsOn',
     label: 'Gewährleistung bis',
     kind: 'date',
-    hint: 'Die Fristen-Engine wacht später darüber.',
+    hint: 'Steht eine Abnahme an einem Auftrag der Anlage, folgt das Ende aus ihr.',
   },
+  // The guarantee of the manufacturer, apart from the warranty of the business (#310).
+  { name: 'manufacturerWarrantyEndsOn', label: 'Herstellergarantie bis', kind: 'date' },
   // What a PV system is planned to yield, from its planning with its source (#305).
   {
     name: 'yieldForecastKwh',
@@ -200,6 +202,7 @@ export function asInstallation(values: Record<string, string>) {
     serialNumber: asTextOrNull(values['serialNumber']),
     commissionedOn: asTextOrNull(values['commissionedOn']),
     warrantyEndsOn: asTextOrNull(values['warrantyEndsOn']),
+    manufacturerWarrantyEndsOn: asTextOrNull(values['manufacturerWarrantyEndsOn']),
     yieldForecastKwh: yieldForecastOf(values['yieldForecastKwh']) ?? null,
     yieldForecastSource: asTextOrNull(values['yieldForecastSource']),
     usableCapacityWh: ratingOf(values['usableCapacityWh']) ?? null,

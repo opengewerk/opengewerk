@@ -2,10 +2,12 @@ import type { IsoDate } from '@opengewerk/domain'
 import { describe, expect, it } from 'vitest'
 
 import {
+  chargingApprovalText,
   type GridPapers,
   gridSections,
   marketRegisterDueOn,
   marketRegisterSections,
+  sheetJob,
 } from './grid-documents.js'
 import { tradeRules } from './registry.js'
 
@@ -58,6 +60,7 @@ function papers(over: Partial<GridPapers> = {}): GridPapers {
     batteries: [],
     meters: [],
     wallboxes: [],
+    charging: null,
     strings: [{ azimuthDeg: 180, tiltDeg: 30, modules: 24, ratedPowerW: 9600 }],
     commissionedOn: '2026-11-02' as IsoDate,
     protocols: [],
@@ -194,5 +197,36 @@ describe('the application and the completion', () => {
     const rows = gridSections(unknown, false).flatMap((section) => section.rows)
 
     expect(rows.find(([asked]) => asked === 'Wechselrichterleistung zusammen')?.[1]).toBeNull()
+  })
+})
+
+describe('the consent of the grid operator to wallboxes (#307, § 19 Abs. 2 NAV)', () => {
+  const limit = 12_000
+
+  it('is needed above 12 kVA of all wallboxes at the site, and a notice is enough up to them', () => {
+    expect(chargingApprovalText({ totalW: 22_000, approvalAboveW: limit })).toBe(
+      'nötig: 22 kVA Summen-Bemessungsleistung der Wallboxen am Objekt, über 12 kVA (§ 19 Abs. 2 NAV)',
+    )
+    expect(chargingApprovalText({ totalW: 12_000, approvalAboveW: limit })).toBe(
+      'nicht nötig, die Mitteilung reicht: 12 kVA Summen-Bemessungsleistung der Wallboxen am Objekt, bis 12 kVA (§ 19 Abs. 2 NAV)',
+    )
+  })
+
+  it('is a line to write on where a wallbox names no power, and stands only where the papers name a wallbox', () => {
+    expect(chargingApprovalText({ totalW: null, approvalAboveW: limit })).toBeNull()
+    expect(chargingApprovalText(null)).toBeNull()
+  })
+})
+
+describe('a sheet of the office (#310)', () => {
+  it('brings the typeface of every report into its page, without which the renderer leaves out the footer', () => {
+    const job = sheetJob(
+      'Aufforderung zur Abnahme',
+      '<p>Text</p>',
+      'Aufforderung zur Abnahme, 03.11.2026',
+    )
+
+    expect(job.html).toContain('@font-face')
+    expect(job.footerHtml).toContain('Aufforderung zur Abnahme, 03.11.2026')
   })
 })

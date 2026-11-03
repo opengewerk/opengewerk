@@ -36,6 +36,18 @@
       "responsible": "lead",
       "actions": ["task"],
       "taskTitle": "Qualifikation erneuern: {quelle}"
+    },
+    {
+      "key": "warranty.expiry",
+      "trade": null,
+      "title": "Gewährleistung endet",
+      "about": "Kommt aus dem letzten unterschriebenen Abnahmeprotokoll eines Auftrags, das nicht verweigert ist: die Gewährleistung endet nach der Frist des Regelpakets, gezählt ab dem Tag der Abnahme (§ 634a BGB, § 13 Abs. 4 VOB/B). Bei VOB/B ohne übertragene Wartung kommt eine zweite für die wartungsbedürftigen Teile dazu. Rechtzeitig davor entsteht eine Aufgabe, die Leistung noch einmal anzusehen. Ein neues Protokoll verschiebt die Frist, mit dem Auftrag entfällt sie.",
+      "source": "acceptance",
+      "intervalDays": null,
+      "leadDays": 90,
+      "responsible": "lead",
+      "actions": ["task", "reminder"],
+      "taskTitle": "Gewährleistung endet: {quelle}"
     }
   ]
 }

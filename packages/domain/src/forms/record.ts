@@ -83,8 +83,22 @@ export function formRecordProblem(
  */
 export function formSubjectProblem(
   definition: FormDefinition | null,
-  subject: { readonly installationId: unknown; readonly applianceId: unknown },
+  subject: {
+    readonly installationId: unknown
+    readonly applianceId: unknown
+    readonly jobId?: unknown
+  },
 ): string | null {
+  // A form of a job hangs on the job alone (#310), as `form_records_one_subject` holds.
+  if (
+    definition?.attachesTo === 'job' &&
+    (typeof subject.jobId !== 'string' ||
+      typeof subject.installationId === 'string' ||
+      typeof subject.applianceId === 'string')
+  ) {
+    return 'Dieses Formular gehört an einen Auftrag.'
+  }
+
   if (definition?.attachesTo === 'appliance' && typeof subject.applianceId !== 'string') {
     return 'Dieses Formular gehört an ein Gerät.'
   }

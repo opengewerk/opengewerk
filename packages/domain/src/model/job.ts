@@ -48,6 +48,18 @@ export interface Job extends Synced {
    * it, then lets it go.
    */
   readonly closedAt: Date | null
+  /**
+   * Whether the VOB/B is agreed as a whole (#310): then its periods of
+   * warranty apply instead of those of the BGB, four years for a building.
+   */
+  readonly vobAgreed: boolean
+  /**
+   * Whether the work is a building, as the business decides it (#310): five
+   * years of warranty and not two. Null while it has not, and then the job
+   * suggests one (`suggestedBuildingWork`). The acceptance takes both as what
+   * it starts with.
+   */
+  readonly buildingWork: boolean | null
 }
 
 /**
@@ -155,4 +167,18 @@ export function followUpProblem(
   }
 
   return null
+}
+
+/**
+ * What is wrong with the terms of a job (#310), or nothing: the VOB/B is
+ * agreed or not, and the work is a building, is none, or not decided yet.
+ */
+export function jobTermsProblem(vobAgreed: unknown, buildingWork: unknown): string | null {
+  if (vobAgreed !== undefined && typeof vobAgreed !== 'boolean') {
+    return 'Ob die VOB/B vereinbart ist, heißt ja oder nein.'
+  }
+
+  return buildingWork !== undefined && buildingWork !== null && typeof buildingWork !== 'boolean'
+    ? 'Ob die Leistung ein Bauwerk ist, heißt ja, nein oder noch offen.'
+    : null
 }

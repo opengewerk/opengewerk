@@ -28,6 +28,7 @@ import type { ListColumn } from '@opengewerk/platform-web/office'
 import {
   RecordForm,
   RequestRefused,
+  asBoolean,
   asTextOrNull,
   maybeText,
   refusalFor,
@@ -36,6 +37,7 @@ import {
   useRecords,
   useRelated,
   useSync,
+  yesOrNo,
 } from '@opengewerk/platform-web/sync'
 import type { FormField } from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
@@ -54,6 +56,8 @@ import { DocumentChainCard, JobDocumentsPanel, useJobDocuments } from './documen
 import { TasksSection } from './tasks.js'
 import { JobWithdrawals } from './job-stock.js'
 import { JobTimeSection } from './time.js'
+import { AcceptanceSection } from './acceptance.js'
+import { buildingWorkOf } from '../../app/acceptance.js'
 
 const kindOptions = jobKinds.map((kind) => ({ value: kind, label: jobKindLabel[kind] }))
 const statusOptions = jobStatuses.map((status) => ({
@@ -66,6 +70,23 @@ const jobFields: readonly FormField[] = [
   { name: 'kind', label: 'Art', options: kindOptions, required: true },
   { name: 'status', label: 'Status', options: statusOptions, required: true },
   { name: 'description', label: 'Beschreibung' },
+  // Building or not and the VOB/B decide the warranty that runs from the acceptance (#310).
+  {
+    name: 'buildingWork',
+    label: 'Bauwerk',
+    options: [
+      { value: '', label: 'Noch offen, Vorschlag nach der Art' },
+      { value: 'true', label: 'Ja' },
+      { value: 'false', label: 'Nein' },
+    ],
+    hint: 'Vorschlag bei einem Projekt: ja, bei einem Serviceauftrag: nein. Eine PV-Anlage kann im Einzelfall ein Bauwerk sein (BGH, VII ZR 348/13). Bestimmt die Gewährleistung: fünf Jahre statt zwei.',
+  },
+  {
+    name: 'vobAgreed',
+    label: 'VOB/B als Ganzes vereinbart',
+    options: [...yesOrNo],
+    hint: 'Dann vier Jahre bei einem Bauwerk, für wartungsbedürftige Teile ohne übertragene Wartung zwei.',
+  },
 ]
 
 function asJob(values: Record<string, string>) {
@@ -74,7 +95,21 @@ function asJob(values: Record<string, string>) {
     kind: values['kind'] ?? 'service',
     status: values['status'] ?? 'draft',
     description: asTextOrNull(values['description']),
+    buildingWork:
+      values['buildingWork'] === 'true' ? true : values['buildingWork'] === 'false' ? false : null,
+    vobAgreed: asBoolean(values['vobAgreed']),
   }
+}
+
+/** "ja", "nein", or what the kind suggests while it is open (#310). */
+function buildingFact(job: RecordState): string {
+  const said = job['buildingWork']
+
+  return typeof said === 'boolean'
+    ? said
+      ? 'ja'
+      : 'nein'
+    : `noch offen, Vorschlag: ${buildingWorkOf(job) ? 'ja' : 'nein'}`
 }
 
 /**
@@ -305,6 +340,7 @@ function JobRecord({ job }: { readonly job: RecordState }) {
   ) : null
   const documents = <JobDocumentsPanel state={documentsState} />
   const notes = <JobNotesPanel jobId={jobId} />
+  const acceptance = <AcceptanceSection jobId={jobId} />
   const time = <JobTimeSection jobId={jobId} />
   const files = (
     <FilesPanel
@@ -425,6 +461,7 @@ function JobRecord({ job }: { readonly job: RecordState }) {
               <>
                 {followUp}
                 {facts}
+                {acceptance}
                 {chain}
                 {notes}
                 {people}
@@ -447,6 +484,7 @@ function JobRecord({ job }: { readonly job: RecordState }) {
             main={
               <>
                 {followUp}
+                {acceptance}
                 {documents}
                 {notes}
                 {time}
@@ -551,6 +589,8 @@ function JobFacts({ job }: { readonly job: RecordState }) {
             ? link(`/anlagen/${String(installation['id'])}`, text(installation, 'designation'))
             : null,
         },
+        { label: 'Bauwerk', value: buildingFact(job) },
+        { label: 'VOB/B', value: job['vobAgreed'] === true ? 'vereinbart' : 'nicht vereinbart' },
         { label: 'Beschreibung', value: maybeText(job, 'description') },
         ...(predecessor
           ? [

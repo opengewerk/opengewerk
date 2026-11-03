@@ -73,6 +73,7 @@ import { PvDocumentsController } from './pv-documents.controller.js'
 import { GridDocumentsController } from './grid-documents.controller.js'
 import { GridOperatorsController } from './grid-operators.controller.js'
 import { FundingPapersController } from './funding-papers.controller.js'
+import { AcceptanceRequestController } from './acceptance-request.controller.js'
 import { FundingProgramsController } from './funding-programs.controller.js'
 import { FormRecordsController } from './form-records.controller.js'
 import { IDENTITY_SOURCE, type IdentitySource } from './identity.js'
@@ -313,6 +314,7 @@ export class ApiModule {
         GridDocumentsController,
         FundingProgramsController,
         FundingPapersController,
+        AcceptanceRequestController,
         JobsController,
         CollectiveInvoicesController,
         TasksController,

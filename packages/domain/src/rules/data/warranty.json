@@ -1,0 +1,51 @@
+{
+  "package": "warranty",
+  "note": "Die Verjährungsfristen für Mängelansprüche aus einem Werkvertrag, für die Gewährleistung ab der Abnahme (#310). Geprüft am 02.11.2026 am Text von § 634a BGB bei gesetze-im-internet.de und von § 13 Abs. 4 VOB/B bei dejure.org. Die Frist beginnt mit der Abnahme (§ 634a Abs. 2 BGB, § 13 Abs. 4 Nr. 3 VOB/B). Die VOB/B gilt nur, wenn sie als Ganzes vereinbart ist, und nur ohne andere Frist im Vertrag; eine vereinbarte Frist kennt die Engine nicht. Die Gültigkeit ab 2002 ist die des Schuldrechts in dieser Form; frühere Fassungen der VOB/B sind nicht abgebildet. Die fachkundige Abnahme steht aus wie bei den Regelpaketen in #31.",
+  "records": [
+    {
+      "key": "warranty.bgb.building",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 5,
+      "source": "§ 634a Abs. 1 Nr. 2 BGB",
+      "note": "Bei einem Bauwerk und bei Planung und Überwachung dafür."
+    },
+    {
+      "key": "warranty.bgb.other",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 2,
+      "source": "§ 634a Abs. 1 Nr. 1 BGB",
+      "note": "Bei einem Werk, dessen Erfolg in der Herstellung, Wartung oder Veränderung einer Sache besteht."
+    },
+    {
+      "key": "warranty.vob.building",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 4,
+      "source": "§ 13 Abs. 4 Nr. 1 Satz 1 VOB/B",
+      "note": "Wenn der Vertrag keine Frist für Mängelansprüche vereinbart."
+    },
+    {
+      "key": "warranty.vob.other",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 2,
+      "source": "§ 13 Abs. 4 Nr. 1 Satz 1 VOB/B",
+      "note": "Für andere Werke, deren Erfolg in der Herstellung, Wartung oder Veränderung einer Sache besteht."
+    },
+    {
+      "key": "warranty.vob.unmaintained_parts",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 2,
+      "source": "§ 13 Abs. 4 Nr. 2 VOB/B",
+      "note": "Für Teile maschineller und elektrotechnischer oder elektronischer Anlagen, bei denen die Wartung Einfluss auf Sicherheit und Funktionsfähigkeit hat, wenn der Auftraggeber die Wartung für die Dauer der Frist nicht dem Auftragnehmer übertragen hat."
+    }
+  ]
+}

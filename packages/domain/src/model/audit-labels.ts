@@ -230,6 +230,7 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
     fields: {
       commissioned_on: 'In Betrieb seit',
       warranty_ends_on: 'Gewährleistung bis',
+      manufacturer_warranty_ends_on: 'Herstellergarantie bis',
       pv_system_id: 'Gehört zu PV-Anlage',
       inverter_id: 'Am Wechselrichter',
       yield_forecast_kwh: 'Ertragsprognose',
@@ -302,6 +303,8 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       number: 'Nummer',
       description: 'Was zu tun ist',
       closed_at: 'Abgeschlossen am',
+      vob_agreed: 'VOB/B vereinbart',
+      building_work: 'Bauwerk',
     },
   },
   letterheads: {

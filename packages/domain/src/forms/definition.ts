@@ -80,9 +80,10 @@ export interface FormDefinition extends GeneralFormDefinition<TradeFormTerms> {
   /**
    * What a filled form hangs on: an installation, for a test protocol; a
    * appliance of the register, for its test after DGUV Vorschrift 3 (#303); a
-   * document, for the fields a business gives its report.
+   * document, for the fields a business gives its report; a job, for its
+   * acceptance after § 640 BGB (#310).
    */
-  readonly attachesTo: 'installation' | 'appliance' | 'document'
+  readonly attachesTo: 'installation' | 'appliance' | 'document' | 'job'
   /**
    * The kinds of installation the form is for, where it is not for every one:
    * the protocol after VDE-AR-N 4105 is for a PV system and a battery (#304).
@@ -93,7 +94,7 @@ export interface FormDefinition extends GeneralFormDefinition<TradeFormTerms> {
    * of a site names as its last test (#302), or its commissioning, which the
    * report leaves out (#304). A test where the definition says nothing.
    */
-  readonly purpose?: 'test' | 'commissioning'
+  readonly purpose?: 'test' | 'commissioning' | 'acceptance'
   /**
    * The form tests a part of the installation, always: the DC side of a PV
    * system (#305). Like a first inspection after an extension (#814), the
@@ -115,7 +116,18 @@ export interface FormDefinition extends GeneralFormDefinition<TradeFormTerms> {
 
 /** How the screens name the day of a filled form: the day of the test, or of the commissioning (#304). */
 export function dayLabel(definition: FormDefinition): string {
-  return definition.purpose === 'commissioning' ? 'Tag der Inbetriebsetzung' : 'Tag der Prüfung'
+  return definition.purpose === 'commissioning'
+    ? 'Tag der Inbetriebsetzung'
+    : definition.purpose === 'acceptance'
+      ? 'Tag der Abnahme'
+      : 'Tag der Prüfung'
+}
+
+/** What the day of a protocol decides (#310): the limits of a test, or the start of the warranty for an acceptance. */
+export function dayHint(definition: FormDefinition): string {
+  return definition.purpose === 'acceptance'
+    ? 'Mit diesem Tag beginnt die Gewährleistung (§ 634a Abs. 2 BGB).'
+    : 'Nach diesem Tag richten sich die Grenzwerte.'
 }
 
 /**
@@ -164,7 +176,10 @@ function ownProblems(definition: FormDefinition): readonly string[] {
     )
   }
 
-  if (definition.purpose !== undefined && !['test', 'commissioning'].includes(definition.purpose)) {
+  if (
+    definition.purpose !== undefined &&
+    !['test', 'commissioning', 'acceptance'].includes(definition.purpose)
+  ) {
     problems.push(`${definition.key}: der Zweck ${String(definition.purpose)} ist unbekannt.`)
   }
 

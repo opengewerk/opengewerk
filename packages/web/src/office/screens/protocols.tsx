@@ -13,6 +13,7 @@ import type {
 } from '@opengewerk/domain'
 import {
   circuitBlocks,
+  dayHint,
   dayLabel,
   formatMeasured,
   formValuesText,
@@ -111,11 +112,25 @@ export function ProtocolScreen() {
     'appliances',
     record ? text(record, 'applianceId') || undefined : undefined,
   )
+  // Or the job alone, which an acceptance hangs on (#310).
+  const job = useRecord(
+    'jobs',
+    record && !installation && !appliance ? text(record, 'jobId') || undefined : undefined,
+  )
   const site = useRecord(
     'sites',
-    installation ? text(installation, 'siteId') : appliance ? text(appliance, 'siteId') : undefined,
+    installation
+      ? text(installation, 'siteId')
+      : appliance
+        ? text(appliance, 'siteId')
+        : job
+          ? text(job, 'siteId') || undefined
+          : undefined,
   )
-  const customer = useRecord('customers', site ? text(site, 'customerId') : undefined)
+  const customer = useRecord(
+    'customers',
+    site ? text(site, 'customerId') : job ? text(job, 'customerId') : undefined,
+  )
 
   if (!record || !recordId) {
     return (
@@ -146,6 +161,7 @@ export function ProtocolScreen() {
           { to: `/geraete/${String(appliance['id'])}`, label: text(appliance, 'designation') },
         ]
       : []),
+    ...(job ? [{ to: `/auftraege/${String(job['id'])}`, label: text(job, 'designation') }] : []),
   ]
 
   return <OfficeProtocol key={recordId} record={record} crumbs={crumbs} />
@@ -395,7 +411,11 @@ function PerformedOn({ protocol }: { readonly protocol: ProtocolDraft }) {
     <Field
       label={label}
       type="date"
-      hint="Nach diesem Tag richten sich die Grenzwerte."
+      hint={
+        protocol.definition
+          ? dayHint(protocol.definition)
+          : 'Nach diesem Tag richten sich die Grenzwerte.'
+      }
       value={protocol.performedOn}
       onChange={(event) => {
         protocol.setPerformedOn(event.target.value)

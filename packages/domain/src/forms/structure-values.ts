@@ -31,6 +31,12 @@ export const structureFigures = [
   'rated_power',
   /** What a battery delivers of its charge. */
   'usable_capacity',
+  /** The job a form of a job starts at: its designation and number (#310). */
+  'job_work',
+  /** Whether the work of the job is a building, as the job says or suggests. */
+  'job_building',
+  /** Whether the VOB/B is agreed for the job as a whole. */
+  'job_vob',
 ] as const
 
 export type StructureFigure = (typeof structureFigures)[number]
@@ -53,6 +59,9 @@ export const structureFigureFields: Readonly<
   installation: { kind: 'text' },
   rated_power: { kind: 'number', units: ['kilowatt', 'kilovoltampere'] },
   usable_capacity: { kind: 'number', units: ['kilowatt_hour'] },
+  job_work: { kind: 'text' },
+  job_building: { kind: 'yes_no' },
+  job_vob: { kind: 'yes_no' },
 }
 
 /** An inverter, a battery or a meter as the structure has it. */
@@ -78,6 +87,16 @@ export interface InstallationStructure {
    * wallbox with its rated power, a battery with its capacity in watt hours.
    */
   readonly installation?: (StructurePart & { readonly usableCapacityWh?: number | null }) | null
+  /**
+   * The job a form of a job starts at (#310), with building already decided
+   * or suggested, so that the form takes a yes or a no.
+   */
+  readonly job?: {
+    readonly designation: string
+    readonly number: string | null
+    readonly building: boolean
+    readonly vob: boolean
+  } | null
 }
 
 function filled(value: string | null | undefined): value is string {
@@ -169,6 +188,17 @@ export function structureValue(
       return wholeOrNothing(structure.installation?.ratedPowerW)
     case 'usable_capacity':
       return wholeOrNothing(structure.installation?.usableCapacityWh)
+    case 'job_work': {
+      const job = structure.job
+
+      return job && filled(job.designation)
+        ? [job.designation.trim(), job.number].filter(filled).join(', ')
+        : undefined
+    }
+    case 'job_building':
+      return structure.job ? structure.job.building : undefined
+    case 'job_vob':
+      return structure.job ? structure.job.vob : undefined
   }
 }
 

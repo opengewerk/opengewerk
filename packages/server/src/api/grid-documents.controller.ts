@@ -225,6 +225,22 @@ async function papersOf(
         ).sort((left, right) => left.designation.localeCompare(right.designation, 'de'))
       : []
   const batteries = companions.filter((entry) => entry.kind === 'battery')
+  // The wallboxes of the whole site count towards the limit of § 19 Abs. 2 NAV, one connection.
+  const chargesHere =
+    installation.kind === 'wallbox' || companions.some((entry) => entry.kind === 'wallbox')
+  const siteWallboxes = chargesHere
+    ? await tx
+        .select({ ratedPowerW: installations.ratedPowerW })
+        .from(installations)
+        .where(
+          and(
+            eq(installations.siteId, installation.siteId),
+            eq(installations.kind, 'wallbox'),
+            isNull(installations.deletedAt),
+          ),
+        )
+    : []
+  const approvalRule = tradeRules.at('elektro.charging.approval_above', on)
   const commissioning = await commissioningOf(tx, [
     installation.id,
     ...batteries.map((entry) => entry.id),
@@ -325,6 +341,17 @@ async function papersOf(
       batteries: batteries.map(part),
       meters: companions.filter((entry) => entry.kind === 'meter').map(part),
       wallboxes: companions.filter((entry) => entry.kind === 'wallbox').map(part),
+      charging: chargesHere
+        ? {
+            totalW: siteWallboxes.some((entry) => entry.ratedPowerW === null)
+              ? null
+              : siteWallboxes.reduce((sum, entry) => sum + (entry.ratedPowerW ?? 0), 0),
+            approvalAboveW:
+              approvalRule?.unit === 'kilowatts' && typeof approvalRule.value === 'number'
+                ? approvalRule.value * 1000
+                : null,
+          }
+        : null,
       strings: strings.map((entry) => {
         const own = modules.filter((module) => module.pvStringId === entry.id)
 

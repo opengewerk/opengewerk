@@ -95,6 +95,7 @@ export const deadlineSources = [
   'inspection',
   'appliance_inspection',
   'installer_registration',
+  'acceptance',
 ] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
@@ -299,6 +300,16 @@ export const sourceWords: Readonly<
       hint: 'Fällig am letzten Tag, an dem die Eintragung im Installateurverzeichnis gilt.',
     },
     anchor: 'dem letzten Tag',
+  },
+  // Due on the last day of the warranty that runs from an acceptance (#310),
+  // without an interval: its length comes from the rules. The owner answers for it.
+  acceptance: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig am letzten Tag der Gewährleistung, gezählt ab dem Tag der Abnahme.',
+    },
+    anchor: 'der Abnahme',
   },
 }
 

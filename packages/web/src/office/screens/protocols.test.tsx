@@ -752,3 +752,42 @@ describe('the commissioning protocol after VDE-AR-N 4105 in the office (#304)', 
     expect(screen.getByLabelText('Maximale Wirkleistung PAmax in kW')).toHaveProperty('value', '8')
   })
 })
+
+describe('an acceptance at a job alone in the office (#310)', () => {
+  it('offers the files of the job as its photo and says that its day starts the warranty', async () => {
+    server.put('jobs', {
+      id: 'j-1',
+      customerId: 'c-1',
+      siteId: 's-1',
+      installationId: 'i-1',
+      kind: 'project',
+      status: 'completed',
+      number: 'AU-2026-0001',
+      designation: 'Zählerschrank erneuern',
+    })
+    server.put('attachments', { id: 'd-1', jobId: 'j-1', title: 'Abdeckung' })
+    server.put('attachments', { id: 'd-2', installationId: 'i-1', title: 'Typenschild' })
+    server.put('form_records', {
+      id: 'a-1',
+      definitionKey: 'acceptance',
+      definitionVersion: 1,
+      installationId: null,
+      applianceId: null,
+      jobId: 'j-1',
+      performedOn: '2026-10-14',
+      status: 'draft',
+      values: JSON.stringify({ client: 'Familie Berg', building_work: true, vob_agreed: false }),
+    })
+    await mount('/pruefprotokolle/a-1')
+
+    const photo = await screen.findByLabelText('Foto')
+    const offered = within(photo)
+      .getAllByRole('option')
+      .map((option) => option.textContent)
+
+    expect(offered).toEqual(['keines', 'Abdeckung'])
+    expect(
+      screen.getByText('Mit diesem Tag beginnt die Gewährleistung (§ 634a Abs. 2 BGB).'),
+    ).toBeTruthy()
+  })
+})

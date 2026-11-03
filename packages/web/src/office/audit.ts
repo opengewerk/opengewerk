@@ -9,10 +9,10 @@ import {
   rcdTypeLabel,
   tripCharacteristicLabel,
 } from '@opengewerk/domain'
-import { elektroRegistry } from '@opengewerk/gewerk-elektro'
 import type { AuditScreenWords } from '@opengewerk/platform-web/office'
 
 import { documentStateLabel } from '../app/document-state.js'
+import { protocolRegistry } from '../app/protocols.js'
 import {
   customerKindLabel,
   documentKindLabel,
@@ -46,9 +46,9 @@ const numberRangeWords: Readonly<Record<NumberRangeKey, string>> = {
   invoice: 'Rechnungen',
 }
 
-/** The forms of the trade packages by their key, "Prüfprotokoll Erstprüfung nach DIN VDE 0100-600". */
+/** The forms of the core and the trade packages by their key, "Prüfprotokoll Erstprüfung nach DIN VDE 0100-600". */
 const formWords: Words = Object.fromEntries(
-  elektroRegistry.current().map((definition) => [definition.key, definition.title]),
+  protocolRegistry.current().map((definition) => [definition.key, definition.title]),
 )
 
 /** Where a record is opened in the office, for the records that have a screen. */

@@ -42,6 +42,7 @@ const writableFields = [
   'serialNumber',
   'commissionedOn',
   'warrantyEndsOn',
+  'manufacturerWarrantyEndsOn',
   'notes',
   'pvSystemId',
   'inverterId',

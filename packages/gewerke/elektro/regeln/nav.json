@@ -1,0 +1,15 @@
+{
+  "package": "elektro.nav",
+  "note": "Werte der Niederspannungsanschlussverordnung für die Unterlagen an den Netzbetreiber (#306, #307). Geprüft am 03.11.2026 am Text von § 19 NAV bei gesetze-im-internet.de. Die fachkundige Abnahme steht aus wie bei den Regelpaketen in #31.",
+  "records": [
+    {
+      "key": "elektro.charging.approval_above",
+      "validFrom": "2021-12-01",
+      "validUntil": null,
+      "unit": "kilowatts",
+      "value": 12,
+      "source": "§ 19 Abs. 2 Satz 2 NAV",
+      "note": "Jede Ladeeinrichtung für Elektrofahrzeuge ist dem Netzbetreiber vor der Inbetriebnahme mitzuteilen. Überschreitet die Summen-Bemessungsleistung der Ladeeinrichtungen je elektrischer Anlage 12 kVA, braucht ihre Inbetriebnahme seine vorherige Zustimmung. Eine Ladeeinrichtung arbeitet mit Leistungsfaktor 1, ihre Bemessungsleistung in kW ist dieselbe Zahl in kVA. Gültig ab dem Tag, seit dem die Unterlagen den Wert lesen; die Regel selbst ist älter."
+    }
+  ]
+}

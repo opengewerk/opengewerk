@@ -239,8 +239,55 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       kind: 'service',
       status: 'completed',
       designation: 'Unterverteilung Keller nachrüsten',
+      // A sub distribution built into the house is a building (#310), decided by the office.
+      buildingWork: true,
     }),
   )
+  // Its acceptance, signed on site twenty days ago with one reservation (#310), and the warranty from it.
+  const acceptedOn = addDays(today, -20)
+  const signedAt = `${acceptedOn}T15:30:00.000Z`
+  const accepted = await post('/sync', {
+    deviceId: 'vorschau-rechner',
+    operations: [
+      {
+        id: newId<'operation'>(),
+        entity: 'form_records',
+        recordId: newId<'form-record'>(),
+        kind: 'create',
+        baseVersion: null,
+        patches: Object.entries({
+          definitionKey: 'acceptance',
+          definitionVersion: 1,
+          jobId: basement,
+          installationId: null,
+          applianceId: null,
+          performedOn: acceptedOn,
+          status: 'signed',
+          values: JSON.stringify({
+            client: 'Familie Berg, Lindenweg 3, 22301 Hamburg',
+            work: 'Unterverteilung Keller nachrüsten',
+            present: 'Thomas Berg, Anna Weber (Elektro Nord GmbH)',
+            result: 'accepted_with_reservations',
+            reservations: 'Abdeckung der Unterverteilung fehlt, wird nachgeliefert.',
+            penalty_reserved: false,
+            building_work: true,
+            vob_agreed: false,
+            client_signature: { name: 'Thomas Berg', path: sampleSignature, signedAt },
+            contractor_signature: { name: 'Anna Weber', path: sampleSignature, signedAt },
+          }),
+        }).map(([field, to]) => ({ field, from: null, to })),
+        recordedAt: new Date().toISOString(),
+      },
+    ],
+  })
+
+  if (
+    ((accepted['receipts'] ?? []) as { outcome?: string }[]).some(
+      (receipt) => receipt.outcome !== 'applied',
+    )
+  ) {
+    throw new Error(`The sample acceptance was not taken: ${JSON.stringify(accepted)}`)
+  }
 
   const wallbox = idOf(
     await post('/jobs', {
