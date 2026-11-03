@@ -5,17 +5,16 @@ import {
   InstanceTenantsScreen,
 } from '@opengewerk/platform-web/instance'
 import { AuditLogScreen, SettingsScreen, SyncScreen } from '@opengewerk/platform-web/office'
-import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+  Outlet,
+} from '@tanstack/react-router'
 
 import { InstanceShell } from './instance/shell.js'
 import { OfficeShell } from './shell.js'
-import { AccountScreen } from './screens/account.js'
-import {
-  ArticleListScreen,
-  ArticleScreen,
-  EditArticleScreen,
-  NewArticleScreen,
-} from './screens/articles.js'
 import { BackupScreen } from './screens/backup.js'
 import {
   CustomerList,
@@ -23,61 +22,130 @@ import {
   EditCustomerScreen,
   NewCustomerScreen,
 } from './screens/customers.js'
-import { DeadlineSettingsScreen } from './screens/deadline-settings.js'
-import { DeadlineListScreen } from './screens/deadlines.js'
-import { DocumentList } from './screens/document-list.js'
-import { DocumentScreen } from './screens/documents.js'
-import { InstallationList, InstallationScreen } from './screens/installations.js'
-import {
-  ApplianceRegisterScreen,
-  ApplianceScreen,
-  NewApplianceScreen,
-} from './screens/appliances.js'
-import { LabelLandingScreen } from './screens/label-landing.js'
-import { InstructionsScreen } from './screens/instructions.js'
-import { JobList, JobScreen } from './screens/jobs.js'
-import { NewServiceCallScreen } from './screens/service-call.js'
-import { EmergencySurchargesScreen } from './screens/emergency-surcharges.js'
-import { OnCallScreen } from './screens/on-call.js'
-import { LetterheadScreen } from './screens/letterhead.js'
-import { NumberRangesScreen } from './screens/number-ranges.js'
-import { MarkupSettingScreen } from './screens/markup-setting.js'
-import { PaymentTermScreen } from './screens/payment-term.js'
-import { PlanningScreen } from './screens/planning.js'
-import { TagsScreen } from './screens/tags.js'
-import { ProtocolScreen } from './screens/protocols.js'
-import { DefectScreen } from './screens/defects.js'
-import { ReportFieldsScreen } from './screens/report-fields.js'
-import { SiteList, SiteScreen } from './screens/sites.js'
-import { StaffScreen } from './screens/staff.js'
-import {
-  EditSupplierScreen,
-  NewSupplierScreen,
-  SupplierList,
-  SupplierScreen,
-} from './screens/suppliers.js'
-import { ImportScreen, NewImportScreen } from './screens/imports.js'
-import { StockList, StockStoreScreen } from './screens/stock.js'
-import { NewPersonFileScreen, PeopleList, PersonFileScreen } from './screens/people.js'
-import { BoardScreen, CircuitScreen } from './screens/structure.js'
-import { InverterScreen, PvStringScreen } from './screens/pv-structure.js'
-import { TaskListScreen } from './screens/tasks.js'
-import { AbsencePersonScreen, AbsencesScreen } from './screens/absences.js'
-import { HolidaysScreen } from './screens/holidays.js'
-import { MailSettingsScreen } from './screens/mail-settings.js'
-import { TaxScreen } from './screens/taxes.js'
-import { TextSnippetScreen } from './screens/text-snippets.js'
-import {
-  GridOperatorList,
-  GridOperatorScreen,
-  NewGridOperatorScreen,
-} from './screens/grid-operators.js'
-import {
-  FundingProgramList,
-  FundingProgramScreen,
-  NewFundingProgramScreen,
-} from './screens/funding-programs.js'
-import { TimeScreen } from './screens/time.js'
+
+/**
+ * The screens that come when somebody opens them, not with the first page
+ * (#831). The first bundle holds the shell and the list of customers, the
+ * first page, with what that list takes along; every other screen is a part
+ * of its own. Until then every screen came with the first page, and with the
+ * defects of #311 the office went past its budget. The service worker holds
+ * every part from the first visit on, so a screen opens without a network as
+ * well, and the router waits for the part before it draws the screen.
+ */
+const screens = {
+  account: () => import('./screens/account.js'),
+  articles: () => import('./screens/articles.js'),
+  deadlineSettings: () => import('./screens/deadline-settings.js'),
+  deadlines: () => import('./screens/deadlines.js'),
+  documentList: () => import('./screens/document-list.js'),
+  documents: () => import('./screens/documents.js'),
+  installations: () => import('./screens/installations.js'),
+  appliances: () => import('./screens/appliances.js'),
+  labelLanding: () => import('./screens/label-landing.js'),
+  instructions: () => import('./screens/instructions.js'),
+  jobs: () => import('./screens/jobs.js'),
+  serviceCall: () => import('./screens/service-call.js'),
+  emergencySurcharges: () => import('./screens/emergency-surcharges.js'),
+  onCall: () => import('./screens/on-call.js'),
+  letterhead: () => import('./screens/letterhead.js'),
+  numberRanges: () => import('./screens/number-ranges.js'),
+  markupSetting: () => import('./screens/markup-setting.js'),
+  paymentTerm: () => import('./screens/payment-term.js'),
+  planning: () => import('./screens/planning.js'),
+  tags: () => import('./screens/tags.js'),
+  protocols: () => import('./screens/protocols.js'),
+  defects: () => import('./screens/defects.js'),
+  reportFields: () => import('./screens/report-fields.js'),
+  sites: () => import('./screens/sites.js'),
+  staff: () => import('./screens/staff.js'),
+  suppliers: () => import('./screens/suppliers.js'),
+  imports: () => import('./screens/imports.js'),
+  stock: () => import('./screens/stock.js'),
+  people: () => import('./screens/people.js'),
+  structure: () => import('./screens/structure.js'),
+  pvStructure: () => import('./screens/pv-structure.js'),
+  tasks: () => import('./screens/tasks.js'),
+  absences: () => import('./screens/absences.js'),
+  holidays: () => import('./screens/holidays.js'),
+  mailSettings: () => import('./screens/mail-settings.js'),
+  taxes: () => import('./screens/taxes.js'),
+  textSnippets: () => import('./screens/text-snippets.js'),
+  gridOperators: () => import('./screens/grid-operators.js'),
+  fundingPrograms: () => import('./screens/funding-programs.js'),
+  time: () => import('./screens/time.js'),
+}
+
+const AccountScreen = lazyRouteComponent(screens.account, 'AccountScreen')
+const ArticleListScreen = lazyRouteComponent(screens.articles, 'ArticleListScreen')
+const ArticleScreen = lazyRouteComponent(screens.articles, 'ArticleScreen')
+const EditArticleScreen = lazyRouteComponent(screens.articles, 'EditArticleScreen')
+const NewArticleScreen = lazyRouteComponent(screens.articles, 'NewArticleScreen')
+const DeadlineSettingsScreen = lazyRouteComponent(
+  screens.deadlineSettings,
+  'DeadlineSettingsScreen',
+)
+const DeadlineListScreen = lazyRouteComponent(screens.deadlines, 'DeadlineListScreen')
+const DocumentList = lazyRouteComponent(screens.documentList, 'DocumentList')
+const DocumentScreen = lazyRouteComponent(screens.documents, 'DocumentScreen')
+const InstallationList = lazyRouteComponent(screens.installations, 'InstallationList')
+const InstallationScreen = lazyRouteComponent(screens.installations, 'InstallationScreen')
+const ApplianceRegisterScreen = lazyRouteComponent(screens.appliances, 'ApplianceRegisterScreen')
+const ApplianceScreen = lazyRouteComponent(screens.appliances, 'ApplianceScreen')
+const NewApplianceScreen = lazyRouteComponent(screens.appliances, 'NewApplianceScreen')
+const LabelLandingScreen = lazyRouteComponent(screens.labelLanding, 'LabelLandingScreen')
+const InstructionsScreen = lazyRouteComponent(screens.instructions, 'InstructionsScreen')
+const JobList = lazyRouteComponent(screens.jobs, 'JobList')
+const JobScreen = lazyRouteComponent(screens.jobs, 'JobScreen')
+const NewServiceCallScreen = lazyRouteComponent(screens.serviceCall, 'NewServiceCallScreen')
+const EmergencySurchargesScreen = lazyRouteComponent(
+  screens.emergencySurcharges,
+  'EmergencySurchargesScreen',
+)
+const OnCallScreen = lazyRouteComponent(screens.onCall, 'OnCallScreen')
+const LetterheadScreen = lazyRouteComponent(screens.letterhead, 'LetterheadScreen')
+const NumberRangesScreen = lazyRouteComponent(screens.numberRanges, 'NumberRangesScreen')
+const MarkupSettingScreen = lazyRouteComponent(screens.markupSetting, 'MarkupSettingScreen')
+const PaymentTermScreen = lazyRouteComponent(screens.paymentTerm, 'PaymentTermScreen')
+const PlanningScreen = lazyRouteComponent(screens.planning, 'PlanningScreen')
+const TagsScreen = lazyRouteComponent(screens.tags, 'TagsScreen')
+const ProtocolScreen = lazyRouteComponent(screens.protocols, 'ProtocolScreen')
+const DefectScreen = lazyRouteComponent(screens.defects, 'DefectScreen')
+const ReportFieldsScreen = lazyRouteComponent(screens.reportFields, 'ReportFieldsScreen')
+const SiteList = lazyRouteComponent(screens.sites, 'SiteList')
+const SiteScreen = lazyRouteComponent(screens.sites, 'SiteScreen')
+const StaffScreen = lazyRouteComponent(screens.staff, 'StaffScreen')
+const EditSupplierScreen = lazyRouteComponent(screens.suppliers, 'EditSupplierScreen')
+const NewSupplierScreen = lazyRouteComponent(screens.suppliers, 'NewSupplierScreen')
+const SupplierList = lazyRouteComponent(screens.suppliers, 'SupplierList')
+const SupplierScreen = lazyRouteComponent(screens.suppliers, 'SupplierScreen')
+const ImportScreen = lazyRouteComponent(screens.imports, 'ImportScreen')
+const NewImportScreen = lazyRouteComponent(screens.imports, 'NewImportScreen')
+const StockList = lazyRouteComponent(screens.stock, 'StockList')
+const StockStoreScreen = lazyRouteComponent(screens.stock, 'StockStoreScreen')
+const NewPersonFileScreen = lazyRouteComponent(screens.people, 'NewPersonFileScreen')
+const PeopleList = lazyRouteComponent(screens.people, 'PeopleList')
+const PersonFileScreen = lazyRouteComponent(screens.people, 'PersonFileScreen')
+const BoardScreen = lazyRouteComponent(screens.structure, 'BoardScreen')
+const CircuitScreen = lazyRouteComponent(screens.structure, 'CircuitScreen')
+const InverterScreen = lazyRouteComponent(screens.pvStructure, 'InverterScreen')
+const PvStringScreen = lazyRouteComponent(screens.pvStructure, 'PvStringScreen')
+const TaskListScreen = lazyRouteComponent(screens.tasks, 'TaskListScreen')
+const AbsencePersonScreen = lazyRouteComponent(screens.absences, 'AbsencePersonScreen')
+const AbsencesScreen = lazyRouteComponent(screens.absences, 'AbsencesScreen')
+const HolidaysScreen = lazyRouteComponent(screens.holidays, 'HolidaysScreen')
+const MailSettingsScreen = lazyRouteComponent(screens.mailSettings, 'MailSettingsScreen')
+const TaxScreen = lazyRouteComponent(screens.taxes, 'TaxScreen')
+const TextSnippetScreen = lazyRouteComponent(screens.textSnippets, 'TextSnippetScreen')
+const GridOperatorList = lazyRouteComponent(screens.gridOperators, 'GridOperatorList')
+const GridOperatorScreen = lazyRouteComponent(screens.gridOperators, 'GridOperatorScreen')
+const NewGridOperatorScreen = lazyRouteComponent(screens.gridOperators, 'NewGridOperatorScreen')
+const FundingProgramList = lazyRouteComponent(screens.fundingPrograms, 'FundingProgramList')
+const FundingProgramScreen = lazyRouteComponent(screens.fundingPrograms, 'FundingProgramScreen')
+const NewFundingProgramScreen = lazyRouteComponent(
+  screens.fundingPrograms,
+  'NewFundingProgramScreen',
+)
+const TimeScreen = lazyRouteComponent(screens.time, 'TimeScreen')
 
 /**
  * The routes of the office, written out rather than generated from file names.
