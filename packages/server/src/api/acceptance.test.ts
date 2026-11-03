@@ -308,6 +308,12 @@ describe('the request to accept a job (#310)', () => {
       expect(refusal(answer)).toBe('Die Frist zur Abnahme ist ein Tag, heute oder später.')
     }
 
+    // Given twice, the parameter is an array and no day.
+    await http()
+      .get(`/jobs/${job}/acceptance-request?until=${until}&until=${until}`)
+      .set('x-test-identity', office())
+      .expect(422)
+
     await http()
       .get(`/jobs/${job}/acceptance-request?until=${todayInGermany()}`)
       .set('x-test-identity', office())

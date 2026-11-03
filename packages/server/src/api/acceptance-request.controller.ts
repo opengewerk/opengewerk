@@ -72,7 +72,8 @@ export class AcceptanceRequestController {
 
     const on = todayInGermany()
 
-    if (!isDay(until) || until < on) {
+    // A text and nothing else: a parameter given twice arrives as an array.
+    if (typeof until !== 'string' || !isDay(until) || until < on) {
       throw new UnprocessableEntityException(
         'Die Frist zur Abnahme ist ein Tag, heute oder später.',
       )
