@@ -559,7 +559,10 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       assignee_user_id: 'Verantwortlich',
     },
   },
-  text_snippets: { label: 'Textbaustein', fields: { purpose: 'Zweck' } },
+  text_snippets: {
+    label: 'Textbaustein',
+    fields: { purpose: 'Zweck', mail_occasion: 'Anlass der E-Mail' },
+  },
   working_times: {
     label: 'Vereinbarte Arbeitszeit',
     fields: {

@@ -16,6 +16,12 @@ import {
 } from './notify.js'
 import { callInstructionsMail, signedEarlyStartMail, signedEarlyStarts } from './call-mail.js'
 import {
+  appointmentConfirmationMail,
+  changedAppointments,
+  jobReceivedMail,
+  receivedServiceCalls,
+} from './confirmation-mail.js'
+import {
   pushAppointment,
   pushDeadlineDue,
   pushLeaveDecision,
@@ -97,6 +103,17 @@ export const occasions = occasionsOf<Notification, NotificationExtra>({
     raise: { mail: (database, tenantId, now) => signedEarlyStarts(database, tenantId, now) },
     mail: (database, tenantId, notification) =>
       signedEarlyStartMail(database, tenantId, notification),
+  },
+  appointment_confirmation: {
+    causeOf,
+    raise: { mail: (database, tenantId, now) => changedAppointments(database, tenantId, now) },
+    mail: (database, tenantId, notification) =>
+      appointmentConfirmationMail(database, tenantId, notification),
+  },
+  job_received: {
+    causeOf,
+    raise: { mail: (database, tenantId, now) => receivedServiceCalls(database, tenantId, now) },
+    mail: (database, tenantId, notification) => jobReceivedMail(database, tenantId, notification),
   },
 })
 

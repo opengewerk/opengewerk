@@ -1,6 +1,7 @@
 import { mailOutboxSchema, reference } from '@opengewerk/platform-server'
 import { foreignKey, index, pgEnum } from 'drizzle-orm/pg-core'
 
+import { appointments } from './appointments.js'
 import { deadlines } from './deadlines.js'
 import { documents } from './documents.js'
 import { earlyStartRequests } from './early-start-requests.js'
@@ -21,6 +22,10 @@ export const mailKinds = [
   'passkey_added',
   // The instructions of a service call to its customer (#292).
   'job_instructions',
+  // The confirmations to a customer (#315): an appointment arranged, moved or
+  // cancelled, with its calendar file, and a service call the office took.
+  'appointment_confirmation',
+  'job_received',
 ] as const
 
 /**
@@ -50,6 +55,10 @@ export const { mailKind, mailStatus, mailOutbox } = mailOutboxSchema({
     // early start signed at the door that comes along, if one did (#292).
     jobId: reference<'job'>('job_id'),
     earlyStartRequestId: reference<'early-start-request'>('early_start_request_id'),
+    // The appointment a confirmation is about (#315), whose calendar file is
+    // made when the mail goes out. For a service call that came in, `job_id`
+    // names the job, and `attachment` set to `pdf` means its instructions go along.
+    appointmentId: reference<'appointment'>('appointment_id'),
   },
   constraints: (table) => [
     foreignKey({
@@ -82,5 +91,11 @@ export const { mailKind, mailStatus, mailOutbox } = mailOutboxSchema({
     index('mail_outbox_deadline_idx').on(table.tenantId, table.deadlineId),
     index('mail_outbox_job_idx').on(table.tenantId, table.jobId),
     index('mail_outbox_early_start_request_idx').on(table.tenantId, table.earlyStartRequestId),
+    foreignKey({
+      columns: [table.tenantId, table.appointmentId],
+      foreignColumns: [appointments.tenantId, appointments.id],
+      name: 'mail_outbox_appointment_in_tenant',
+    }).onDelete('restrict'),
+    index('mail_outbox_appointment_idx').on(table.tenantId, table.appointmentId),
   ],
 })

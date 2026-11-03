@@ -57,10 +57,18 @@ const sentences = {
 
 /**
  * The files a message carries, made or read now. A message about a document
- * carries one, and so does one with the instructions of a service call (#292).
+ * carries one, and so does one with the instructions of a service call (#292),
+ * the confirmation of an appointment its calendar file and the confirmation
+ * of a service call for a consumer its instructions (#315).
  */
 async function attachmentsOf(job: MailJob, row: OutboxRow): Promise<readonly MailAttachment[]> {
-  if (row.kind !== 'document' && row.kind !== 'job_instructions') {
+  const carries =
+    row.kind === 'document' ||
+    row.kind === 'job_instructions' ||
+    row.kind === 'appointment_confirmation' ||
+    (row.kind === 'job_received' && row.attachment === 'pdf')
+
+  if (!carries) {
     return []
   }
 

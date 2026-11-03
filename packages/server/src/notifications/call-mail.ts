@@ -5,7 +5,7 @@ import {
   type TenantId,
 } from '@opengewerk/domain'
 import type { Database, TenantTransaction } from '@opengewerk/platform-server'
-import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull, or, sql } from 'drizzle-orm'
 
 import { earlyStartRequests, mailOutbox } from '../database/schema/index.js'
 import { issuerOf } from '../documents/content.js'
@@ -39,6 +39,22 @@ export interface CallMailRow {
  * here and not in the route, so that the outbox is touched where messages are
  * written and where they are sent (`mail/boundaries.test.ts`).
  */
+/**
+ * A message that carries the instructions of a call: the office's own
+ * sending, the one after a request at the door, and the confirmation of a
+ * service call for a consumer (#315). A confirmation of an appointment at the
+ * same job carries none.
+ */
+function carriesInstructions(jobId: JobId) {
+  return and(
+    eq(mailOutbox.jobId, jobId),
+    or(
+      eq(mailOutbox.kind, 'job_instructions'),
+      and(eq(mailOutbox.kind, 'job_received'), eq(mailOutbox.attachment, 'pdf')),
+    ),
+  )
+}
+
 export async function messagesAboutCall(
   tx: TenantTransaction,
   jobId: JobId,
@@ -55,7 +71,7 @@ export async function messagesAboutCall(
       earlyStartRequestId: mailOutbox.earlyStartRequestId,
     })
     .from(mailOutbox)
-    .where(eq(mailOutbox.jobId, jobId))
+    .where(carriesInstructions(jobId))
     .orderBy(desc(mailOutbox.createdAt), desc(mailOutbox.id))
 }
 
@@ -74,7 +90,7 @@ export async function callMailWaiting(
     .from(mailOutbox)
     .where(
       and(
-        eq(mailOutbox.jobId, jobId),
+        carriesInstructions(jobId),
         eq(mailOutbox.recipientAddress, address),
         eq(mailOutbox.status, 'pending'),
       ),

@@ -1,15 +1,17 @@
 import type { TenantOwned } from '@opengewerk/platform-domain'
+import type { MailOccasion } from './confirmation-mail.js'
 import type { TextSnippetId } from './identifier.js'
 
 /**
- * Where a snippet goes: into a position, or into the text above or below the
- * lines of a document.
+ * Where a snippet goes: into a position, into the text above or below the
+ * lines of a document, or into a confirmation mail (#315), as its subject and
+ * text.
  *
  * Three lists rather than one, because they are picked from in three places.
  * A description of how a meter cabinet is replaced has no business in the
  * list somebody opens to write "Vielen Dank für Ihre Anfrage".
  */
-export const snippetPurposes = ['line', 'intro', 'closing'] as const
+export const snippetPurposes = ['line', 'intro', 'closing', 'mail'] as const
 
 export type SnippetPurpose = (typeof snippetPurposes)[number]
 
@@ -31,7 +33,9 @@ export type SnippetPurpose = (typeof snippetPurposes)[number]
 export interface TextSnippet extends TenantOwned {
   readonly id: TextSnippetId
   readonly purpose: SnippetPurpose
-  /** What the snippet is called in the list; for a position, its designation. */
+  /** What the snippet is called in the list; for a position, its designation; for a mail, its subject. */
   readonly title: string
   readonly text: string
+  /** For a mail, the occasion it is the text of; one snippet for each at most. Null otherwise. */
+  readonly mailOccasion: MailOccasion | null
 }
