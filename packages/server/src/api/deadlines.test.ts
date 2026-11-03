@@ -461,6 +461,15 @@ describe('the settings of each kind', () => {
         responsible: 'lead',
         actions: ['task', 'reminder'],
       }),
+      // The customer's deadline to remedy a defect (#311), 7 days ahead, for the lead.
+      expect.objectContaining({
+        key: 'defect.remedy',
+        title: 'Mangel beseitigen',
+        intervalDays: null,
+        leadDays: 7,
+        responsible: 'lead',
+        actions: ['task', 'reminder'],
+      }),
       // The recurring inspection of the package Elektro (#301), for whoever signed the last protocol.
       expect.objectContaining({
         key: 'elektro.recurring_inspection',

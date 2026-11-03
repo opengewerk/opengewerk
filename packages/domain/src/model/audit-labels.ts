@@ -291,6 +291,28 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
     fields: { code: 'Code', blocked_at: 'Gesperrt am' },
   },
   job_assignments: { label: 'Einteilung auf einen Auftrag' },
+  defects: {
+    label: 'Mangel',
+    fields: {
+      description: 'Beschreibung',
+      reported_at: 'Gemeldet am',
+      created_by: 'Gemeldet von',
+      remedy_due_on: 'Frist des Kunden zur Beseitigung',
+      acceptance_record_id: 'Abnahmeprotokoll',
+      acceptance_line: 'Zeile der Vorbehalte',
+    },
+  },
+  defect_steps: {
+    label: 'Schritt eines Mangels',
+    fields: {
+      defect_id: 'Mangel',
+      step: 'Schritt',
+      taken_at: 'Eingetragen am',
+      created_by: 'Eingetragen von',
+      signer_name: 'Unterschrieben von',
+      signature_path: 'Unterschrift',
+    },
+  },
   job_notes: {
     label: 'Notiz zu einem Auftrag',
     fields: { written_at: 'Geschrieben am', created_by: 'Geschrieben von' },

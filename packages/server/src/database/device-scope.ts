@@ -149,6 +149,8 @@ export const scopedEntities: readonly string[] = [
   'jobs',
   'job_assignments',
   'job_notes',
+  'defects',
+  'defect_steps',
   'appointments',
   'appointment_people',
   'customers',
@@ -233,6 +235,11 @@ export function narrowedTo(scope: DeviceScope, entity: string): SQL | undefined 
     appointments: sql`${column('job_id')} in ${jobs}`,
     appointment_people: sql`${column('appointment_id')} in (select id from appointments where job_id = any(${ids}))`,
     job_notes: sql`${column('job_id')} in ${jobs}`,
+    // The defects of its jobs and of the installations it holds (#311), with
+    // their steps: recorded and taken on site without a network.
+    defects: sql`(${column('job_id')} in ${jobs} or ${column('installation_id')} in ${installations})`,
+    defect_steps: sql`${column('defect_id')} in (select id from defects
+      where job_id in ${jobs} or installation_id in ${installations})`,
     customers: sql`${column('id')} in ${customers}`,
     // The tags of every customer and site the device holds, those its person
     // created without a job among them.

@@ -48,6 +48,18 @@
       "responsible": "lead",
       "actions": ["task", "reminder"],
       "taskTitle": "Gewährleistung endet: {quelle}"
+    },
+    {
+      "key": "defect.remedy",
+      "trade": null,
+      "title": "Mangel beseitigen",
+      "about": "Kommt aus der Frist, die der Kunde zur Beseitigung eines Mangels gesetzt hat und die am Mangel steht: fällig an diesem Tag. Rechtzeitig davor entsteht eine Aufgabe. Ist der Mangel behoben, entfällt die Frist, mit dem Mangel ebenso.",
+      "source": "defect",
+      "intervalDays": null,
+      "leadDays": 7,
+      "responsible": "lead",
+      "actions": ["task", "reminder"],
+      "taskTitle": "Mangel beseitigen: {quelle}"
     }
   ]
 }

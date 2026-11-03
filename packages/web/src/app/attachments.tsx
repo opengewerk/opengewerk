@@ -36,6 +36,8 @@ export interface AttachmentHome {
   readonly siteId?: string | null
   readonly installationId?: string | null
   readonly jobId?: string | null
+  /** The defect a photo shows (#311), beside the places it lies among. */
+  readonly defectId?: string | null
 }
 
 /** A new file at a place, through the outbox. The sentence to show, or null when it is queued. */
@@ -45,7 +47,9 @@ export function addAttachment(
   file: File,
   keepOriginal: boolean,
 ): Promise<string | null> {
-  return fileAttachment(client, tradeAttachments.homesOf(home), file, {
+  const shows = home.defectId ? { defectId: home.defectId } : {}
+
+  return fileAttachment(client, { ...tradeAttachments.homesOf(home), ...shows }, file, {
     keepOriginal,
     shrink: shrinkPicture,
   })

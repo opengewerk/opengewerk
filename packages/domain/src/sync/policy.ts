@@ -184,6 +184,26 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    */
   job_notes: { create: true, change: 'never', reserved: ['createdBy'] },
   /**
+   * A defect (#311), recorded on site without a network and corrected there
+   * until it is accepted: field work, merged field by field. Where it stands
+   * the database writes out of its steps, so `status` is the server's, and so
+   * are who reported it and the reservation of an acceptance it came out of,
+   * which only the signing of the acceptance writes.
+   */
+  defects: {
+    create: true,
+    change: 'merge',
+    onlyWhile: { field: 'status', values: ['reported', 'in_progress', 'resolved'] },
+    reserved: ['status', 'createdBy', 'acceptanceRecordId', 'acceptanceLine'],
+    createdAs: { status: 'reported' },
+  },
+  /**
+   * A step of a defect (#311), taken on site and never changed afterwards,
+   * like a note: `change: 'never'` and a database that grants reading and
+   * inserting and checks that the step follows. Who took it, the server writes.
+   */
+  defect_steps: { create: true, change: 'never', reserved: ['createdBy'] },
+  /**
    * Which reports a collective invoice was made out of (#135), one row each.
    * Made by the route that makes the invoice, in the same transaction, and
    * released by the database when the invoice is cancelled or its draft is

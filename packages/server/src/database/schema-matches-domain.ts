@@ -31,6 +31,8 @@ import type {
   Appointment,
   AppointmentPerson,
   JobNote,
+  Defect,
+  DefectStepEntry,
   Letterhead,
   Membership,
   NumberRange,
@@ -98,6 +100,8 @@ import type {
   appointments,
   appointmentPeople,
   jobNotes,
+  defects,
+  defectSteps,
   jobs,
   letterheads,
   memberships,
@@ -225,6 +229,8 @@ export type SiteAccessRevealMatches = Assert<
   Exact<typeof siteAccessReveals.$inferSelect, SiteAccessReveal>
 >
 export type JobNoteMatches = Assert<Exact<typeof jobNotes.$inferSelect, JobNote>>
+export type DefectMatches = Assert<Exact<typeof defects.$inferSelect, Defect>>
+export type DefectStepMatches = Assert<Exact<typeof defectSteps.$inferSelect, DefectStepEntry>>
 export type DocumentMatches = Assert<Exact<typeof documents.$inferSelect, Document>>
 export type DocumentLineMatches = Assert<Exact<typeof documentLines.$inferSelect, DocumentLine>>
 export type DocumentSnapshotMatches = Assert<

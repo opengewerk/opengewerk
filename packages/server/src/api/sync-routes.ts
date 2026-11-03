@@ -94,6 +94,13 @@ export function permissionFor(
     return 'job.progress'
   }
 
+  // A defect and its steps (#311) are what turned up on site and what became
+  // of it: the technician on the job records them, like a note. Correcting or
+  // removing a defect asks for the right on the job itself, below.
+  if ((entity === 'defects' || entity === 'defect_steps') && kind === 'create') {
+    return 'job.progress'
+  }
+
   const subject: Record<string, Permission> = {
     customers: 'customer.write',
     contacts: 'customer.write',
@@ -155,6 +162,10 @@ export function permissionFor(
     // A note is never changed (#220); a change sent anyway asks for the
     // right on the job itself, and the policy answers it `online_only`.
     job_notes: 'job.write',
+    // A defect is corrected or removed in the office (#311); a step is never
+    // changed, and the policy answers a change sent anyway `online_only`.
+    defects: 'job.write',
+    defect_steps: 'job.write',
     // A test protocol is measured at an installation and belongs to it (#79):
     // whoever may record its structure may record its test.
     form_records: 'installation.write',

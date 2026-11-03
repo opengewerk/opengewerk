@@ -87,6 +87,11 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  * - `installer_registration`: the entry of the business in the installer
  *   directory of a grid operator (#306), due on its last day. A later day moves
  *   it; a grid operator removed, or an entry without a last day, lets it drop.
+ * - `acceptance`: the last signed acceptance of a job (#310), due on the last
+ *   day of the warranty that runs from it. A newer protocol moves it; with the
+ *   job it drops.
+ * - `defect`: the day by which a customer wants a defect remedied (#311),
+ *   as it stands at the defect. It drops once the defect is remedied.
  */
 export const deadlineSources = [
   'quote',
@@ -96,6 +101,7 @@ export const deadlineSources = [
   'appliance_inspection',
   'installer_registration',
   'acceptance',
+  'defect',
 ] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
@@ -310,6 +316,16 @@ export const sourceWords: Readonly<
       hint: 'Fällig am letzten Tag der Gewährleistung, gezählt ab dem Tag der Abnahme.',
     },
     anchor: 'der Abnahme',
+  },
+  // Due on the day the customer set to remedy a defect (#311), without an
+  // interval. The owner answers for it, as for the warranty it belongs to.
+  defect: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig an dem Tag, bis zu dem der Kunde den Mangel beseitigt haben will.',
+    },
+    anchor: 'der Frist des Kunden',
   },
 }
 

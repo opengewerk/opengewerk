@@ -1,5 +1,5 @@
 import { type AttachmentRecord, attachmentRules } from '@opengewerk/platform-domain'
-import type { CustomerId, InstallationId, JobId, SiteId } from './identifier.js'
+import type { CustomerId, DefectId, InstallationId, JobId, SiteId } from './identifier.js'
 
 /**
  * A file in the business's records, hung on what it is about (#77, 4.10).
@@ -15,12 +15,17 @@ import type { CustomerId, InstallationId, JobId, SiteId } from './identifier.js'
  * application's. The bytes are not here and not on this row's versions
  * either. They lie in the content addressed store from ADR 0007, and a
  * version names them by their SHA-256.
+ *
+ * The photo of a defect (#311) names the defect beside its places. A defect is
+ * not a place of its own: the photo lies among the files of the defect's job
+ * or installation, which a trigger in the database holds.
  */
 export interface Attachment extends AttachmentRecord {
   readonly customerId: CustomerId | null
   readonly siteId: SiteId | null
   readonly installationId: InstallationId | null
   readonly jobId: JobId | null
+  readonly defectId: DefectId | null
 }
 
 /**

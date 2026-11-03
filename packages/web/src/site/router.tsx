@@ -9,6 +9,7 @@ import { SiteLabelScanScreen } from './screens/label-scanner.js'
 import { SiteFilesScreen } from './screens/files.js'
 import { SiteJobList, SiteJobScreen, SiteJobsLayout } from './screens/jobs.js'
 import { SiteNoteScreen } from './screens/notes.js'
+import { SiteDefectScreen, SiteNewDefectScreen } from './screens/defects.js'
 import { SiteProtocolScreen } from './screens/protocol.js'
 import { SiteAppliancesScreen, SiteNewApplianceScreen } from './screens/appliances.js'
 import { SiteReportScreen } from './screens/report.js'
@@ -130,6 +131,17 @@ const routes = [
     getParentRoute: () => root,
     path: '/auftraege/$jobId/notiz',
     component: SiteNoteScreen,
+  }),
+  // A defect of the job and a new one (#311).
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/maengel/neu',
+    component: SiteNewDefectScreen,
+  }),
+  createRoute({
+    getParentRoute: () => root,
+    path: '/auftraege/$jobId/maengel/$defectId',
+    component: SiteDefectScreen,
   }),
   createRoute({ getParentRoute: () => root, path: '/zeiten', component: SiteTimeScreen }),
   // One's own leave, under "Zeiten" (#288).

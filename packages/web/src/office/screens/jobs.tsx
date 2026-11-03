@@ -57,6 +57,7 @@ import { TasksSection } from './tasks.js'
 import { JobWithdrawals } from './job-stock.js'
 import { JobTimeSection } from './time.js'
 import { AcceptanceSection } from './acceptance.js'
+import { JobDefectsSection } from './defects.js'
 import { buildingWorkOf } from '../../app/acceptance.js'
 
 const kindOptions = jobKinds.map((kind) => ({ value: kind, label: jobKindLabel[kind] }))
@@ -340,7 +341,13 @@ function JobRecord({ job }: { readonly job: RecordState }) {
   ) : null
   const documents = <JobDocumentsPanel state={documentsState} />
   const notes = <JobNotesPanel jobId={jobId} />
-  const acceptance = <AcceptanceSection jobId={jobId} />
+  const acceptance = (
+    <>
+      {/* What is wrong with the work, over the acceptance its reservations come out of (#311). */}
+      <JobDefectsSection jobId={jobId} />
+      <AcceptanceSection jobId={jobId} />
+    </>
+  )
   const time = <JobTimeSection jobId={jobId} />
   const files = (
     <FilesPanel

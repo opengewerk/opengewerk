@@ -34,7 +34,8 @@ describe('the foundation in this database', () => {
     // or the supplier, with the check that it is exactly one; and what a file
     // of the records hangs on (opengewerk-haustechnik#97): the customer, the
     // site, the installation and the job, with the check that it is at least
-    // one. The one
+    // one; and the defect a photo shows (#311), with the trigger that keeps
+    // it among the files of the defect's job or installation. The one
     // trigger that used to be named here, the log of the instance watching
     // `tenants` (#188), is the foundation's since the area of the instance
     // moved there.
@@ -57,6 +58,7 @@ describe('the foundation in this database', () => {
         'attachments.site_id',
         'attachments.installation_id',
         'attachments.job_id',
+        'attachments.defect_id',
       ],
       constraints: [
         'mail_outbox.mail_outbox_task_in_tenant',
@@ -77,6 +79,7 @@ describe('the foundation in this database', () => {
         'attachments.attachments_installation_in_tenant',
         'attachments.attachments_job_in_tenant',
         'attachments.attachments_have_a_home',
+        'attachments.attachments_defect_in_tenant',
       ],
       indexes: [
         'mail_outbox.mail_outbox_task_idx',
@@ -92,7 +95,9 @@ describe('the foundation in this database', () => {
         'attachments.attachments_site_idx',
         'attachments.attachments_installation_idx',
         'attachments.attachments_job_idx',
+        'attachments.attachments_defect_idx',
       ],
+      triggers: ['attachments.attachments_defect_at_its_place'],
     })
 
     expect(deviations).toEqual([])

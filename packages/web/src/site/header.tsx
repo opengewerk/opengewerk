@@ -17,6 +17,8 @@ export function useWayBack(): WayBack | null {
   const onProtocol = matchRoute({ to: '/auftraege/$jobId/pruefprotokolle/$recordId' })
   const onFiles = matchRoute({ to: '/auftraege/$jobId/dateien' })
   const onNote = matchRoute({ to: '/auftraege/$jobId/notiz' })
+  // A defect, a new one as well, below its job (#311).
+  const onDefect = matchRoute({ to: '/auftraege/$jobId/maengel/$defectId' })
   // The appliances of the site of a job, and a new one among them (#303).
   const onAppliances = matchRoute({ to: '/auftraege/$jobId/geraete' })
   const onNewAppliance = matchRoute({ to: '/auftraege/$jobId/geraete/neu' })
@@ -99,7 +101,8 @@ export function useWayBack(): WayBack | null {
 
   // Everything else below a job back to the job, the job back to the list,
   // and the installation a label opened back to the camera.
-  const underJob = onReport || onDeliveryNote || onProtocol || onFiles || onNote || onAppliances
+  const underJob =
+    onReport || onDeliveryNote || onProtocol || onFiles || onNote || onAppliances || onDefect
 
   if (underJob) {
     return { to: `/auftraege/${underJob.jobId}`, label: 'Zurück zum Auftrag' }
