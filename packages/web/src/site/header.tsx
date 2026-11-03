@@ -22,6 +22,8 @@ export function useWayBack(): WayBack | null {
   // The instructions at the door and an invoice made on site, below the job (#292).
   const onInstructions = matchRoute({ to: '/auftraege/$jobId/belehrung' })
   const onInvoice = matchRoute({ to: '/auftraege/$jobId/rechnungen/$documentId' })
+  // A call taken on call, from the open jobs (#293).
+  const onNewCall = matchRoute({ to: '/einsatz/neu' })
   // The appliances of the site of a job, and a new one among them (#303).
   const onAppliances = matchRoute({ to: '/auftraege/$jobId/geraete' })
   const onNewAppliance = matchRoute({ to: '/auftraege/$jobId/geraete/neu' })
@@ -121,6 +123,10 @@ export function useWayBack(): WayBack | null {
 
   if (onInstallation) {
     return { to: '/scannen', label: 'Zurück zum Scannen' }
+  }
+
+  if (onNewCall) {
+    return { to: '/', label: 'Zurück zu den Aufträgen' }
   }
 
   return onJob ? { to: '/', label: 'Zurück zu den Aufträgen' } : null

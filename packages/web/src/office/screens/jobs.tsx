@@ -12,7 +12,7 @@ import {
   useBand,
 } from '@opengewerk/platform-web'
 import type { StatusTone } from '@opengewerk/platform-web'
-import { date } from '@opengewerk/platform-web/format'
+import { date, moment } from '@opengewerk/platform-web/format'
 import {
   ChangesButton,
   Empty,
@@ -630,6 +630,9 @@ function JobFacts({ job }: { readonly job: RecordState }) {
         },
         { label: 'Bauwerk', value: buildingFact(job) },
         { label: 'VOB/B', value: job['vobAgreed'] === true ? 'vereinbart' : 'nicht vereinbart' },
+        ...(maybeText(job, 'emergencyAt')
+          ? [{ label: 'Notdienst', value: `Anruf ${moment(maybeText(job, 'emergencyAt'))} Uhr` }]
+          : []),
         ...(job['urgentRepair'] === true
           ? [{ label: 'Dringend', value: 'ja, vom Kunden ausdrücklich angefordert' }]
           : []),

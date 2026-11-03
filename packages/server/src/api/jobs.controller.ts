@@ -11,7 +11,12 @@ import {
   Put,
   UnprocessableEntityException,
 } from '@nestjs/common'
-import { emergencyAtProblem, type JobId, jobTermsProblem, urgentRepairProblem } from '@opengewerk/domain'
+import {
+  emergencyAtProblem,
+  type JobId,
+  jobTermsProblem,
+  urgentRepairProblem,
+} from '@opengewerk/domain'
 import {
   Database,
   isUuid,
@@ -63,6 +68,13 @@ function requireTerms(values: Readonly<Record<string, unknown>>): void {
   if (problem !== null) {
     throw new UnprocessableEntityException(problem)
   }
+}
+
+/** The moment of a call as its column takes it (#293): JSON brings a string. */
+function asWritten(values: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const at = values['emergencyAt']
+
+  return typeof at === 'string' ? { ...values, emergencyAt: new Date(at) } : { ...values }
 }
 
 /**
@@ -137,7 +149,7 @@ export class JobsController {
       return tx
         .insert(jobs)
         .values({
-          ...(values as typeof jobs.$inferInsert),
+          ...(asWritten(values) as typeof jobs.$inferInsert),
           tenantId: identity.tenantId,
           number: await assignNumber(tx, identity.tenantId, 'job', new Date()),
         })
@@ -172,7 +184,7 @@ export class JobsController {
 
       return tx
         .update(jobs)
-        .set(values as Partial<typeof jobs.$inferInsert>)
+        .set(asWritten(values) as Partial<typeof jobs.$inferInsert>)
         .where(and(eq(jobs.id, id as JobId), isNull(jobs.deletedAt)))
         .returning()
     })

@@ -50,7 +50,10 @@ export async function onCallRefusal(
   values: Readonly<Record<string, unknown>>,
   now: Date = new Date(),
 ): Promise<OnCallRefusal | null> {
-  if (values['kind'] !== 'service' || (values['status'] !== undefined && values['status'] !== 'active')) {
+  if (
+    values['kind'] !== 'service' ||
+    (values['status'] !== undefined && values['status'] !== 'active')
+  ) {
     return { reason: 'record_is_fixed', fields: ['kind', 'status'] }
   }
 

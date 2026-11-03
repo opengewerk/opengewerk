@@ -1,6 +1,6 @@
 import type { RecordState } from '@opengewerk/domain'
 import { Button, Confirm, Panel, useBand } from '@opengewerk/platform-web'
-import { date, today } from '@opengewerk/platform-web/format'
+import { date, moment, today } from '@opengewerk/platform-web/format'
 import {
   NotSent,
   SiteAnchor,
@@ -54,6 +54,7 @@ import { shownStatus } from './report.js'
 import { SiteAccessPanel } from './access.js'
 import { JobAppointmentCard } from './appointments.js'
 import { JobInstructionsCard } from './call-instructions.js'
+import { OnCallCard } from './on-call.js'
 import { JobTasks, MyTasks } from './tasks.js'
 import { JobTime, TodayTime } from './time.js'
 import { SiteHeader } from '../header.js'
@@ -187,6 +188,9 @@ export function SiteJobList() {
         title="Offene Aufträge"
         right={<TitleCount count={open.length} label="offen" />}
       />
+
+      {/* While on call, until when and the way to a new call (#293). */}
+      <OnCallCard />
 
       <AppointmentsCard />
 
@@ -502,6 +506,14 @@ export function SiteJobScreen() {
                       {address}
                     </SiteAnchor>
                   ),
+                },
+              ]
+            : []),
+          ...(maybeText(job, 'emergencyAt')
+            ? [
+                {
+                  label: 'Notdiensteinsatz',
+                  value: `Anruf ${moment(maybeText(job, 'emergencyAt'))} Uhr`,
                 },
               ]
             : []),

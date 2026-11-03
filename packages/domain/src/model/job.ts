@@ -197,7 +197,9 @@ export function emergencyAtProblem(emergencyAt: unknown): string | null {
 
   const moment = emergencyAt instanceof Date ? emergencyAt : new Date(String(emergencyAt))
 
-  return Number.isNaN(moment.getTime()) ? 'Der Notdiensteinsatz braucht Tag und Uhrzeit des Anrufs.' : null
+  return Number.isNaN(moment.getTime())
+    ? 'Der Notdiensteinsatz braucht Tag und Uhrzeit des Anrufs.'
+    : null
 }
 
 /** What is wrong with the mark of an urgent repair (#292): it is yes or no. */

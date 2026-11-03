@@ -34,8 +34,10 @@ import {
   useSyncStatus,
 } from '@opengewerk/platform-web/sync'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import clsx from 'clsx'
 import {
+  BellRing,
   Check,
   ChevronLeft,
   Clock,
@@ -80,6 +82,7 @@ import {
   createAppointment,
   removeAppointment,
 } from '../../session/appointments.js'
+import { type OnCallShift, onCallKey, onCallShifts } from '../../session/on-call.js'
 
 /**
  * The planning board (#290, Feature-Gliederung 4.3): a row for everybody who
@@ -174,11 +177,26 @@ export function PlanningScreen() {
   const jobRecords = useRecords('jobs')
   const customerRecords = useRecords('customers')
   const { people: staff } = usePeople()
+  const navigate = useNavigate()
   const facts = useQuery({
     queryKey: [...boardKey, start, to],
     queryFn: () => boardFacts(start, to),
     retry: false,
   })
+  // Who is on call in the days on the board (#293).
+  const onCall = useQuery({
+    queryKey: [...onCallKey, start, to],
+    queryFn: () =>
+      onCallShifts(
+        berlinInstant(start, 0).toISOString(),
+        berlinInstant(addDays(to, 1), 0).toISOString(),
+      ),
+    retry: false,
+  })
+  const staffNames = useMemo(
+    () => new Map(staff.map((person) => [person.userId, person.name])),
+    [staff],
+  )
   const [asking, setAsking] = useState<Asking | null>(null)
   const [trouble, setTrouble] = useState<{ title: string; detail: string | null } | null>(null)
   const [target, setTarget] = useState<{ userId: string; day: IsoDate } | null>(null)
@@ -433,6 +451,14 @@ export function PlanningScreen() {
                 </Button>
               ))}
             </div>
+            <Button
+              icon={BellRing}
+              onClick={() => {
+                void navigate({ to: '/plantafel/bereitschaft' })
+              }}
+            >
+              Rufbereitschaft
+            </Button>
             {mayWrite ? (
               <Button
                 tone="primary"
@@ -454,6 +480,13 @@ export function PlanningScreen() {
             className="overflow-hidden rounded-[6px] border border-line bg-surface"
           >
             <HeadRow start={start} days={days} compact={compact} holidays={holidays} />
+            <OnCallRow
+              start={start}
+              days={days}
+              compact={compact}
+              shifts={onCall.data ?? []}
+              names={staffNames}
+            />
             {shownPeople.map((person) => (
               <PersonRow
                 key={person.userId}
@@ -558,6 +591,79 @@ export function PlanningScreen() {
         />
       ) : null}
     </Screen>
+  )
+}
+
+/**
+ * Who is on call on each day of the board (#293), in a row of its own over the
+ * people: the names, and the hour where a time begins or ends that day. The
+ * plan itself is kept under "Rufbereitschaft".
+ */
+function OnCallRow({
+  start,
+  days,
+  compact,
+  shifts,
+  names,
+}: {
+  readonly start: IsoDate
+  readonly days: number
+  readonly compact: boolean
+  readonly shifts: readonly OnCallShift[]
+  readonly names: ReadonlyMap<string, string>
+}) {
+  return (
+    <div
+      className="grid border-b border-line"
+      style={{ gridTemplateColumns: columnsOf(start, days) }}
+    >
+      <div className="flex items-center gap-1.5 border-r border-line bg-surface px-2 py-1.5 text-[13px] font-semibold text-copper-text">
+        <BellRing size={14} strokeWidth={2.2} aria-hidden="true" />
+        {compact ? null : 'Bereitschaft'}
+      </div>
+      {Array.from({ length: days }, (_, n) => {
+        const on = addDays(start, n)
+        const dayStart = berlinInstant(on, 0).getTime()
+        const dayEnd = berlinInstant(addDays(on, 1), 0).getTime()
+        const covering = shifts.filter(
+          (shift) =>
+            new Date(shift.startsAt).getTime() < dayEnd &&
+            new Date(shift.endsAt).getTime() > dayStart,
+        )
+
+        return (
+          <div
+            key={on}
+            className={clsx(
+              'min-w-0 border-l border-row px-2 py-1.5 text-[12px] leading-[1.3]',
+              covering.length > 0 && 'bg-waiting-fill',
+            )}
+          >
+            {covering.map((shift) => {
+              const begins = new Date(shift.startsAt).getTime() > dayStart
+              const ends = new Date(shift.endsAt).getTime() < dayEnd
+              const name = names.get(shift.userId) ?? 'Unbekannt'
+
+              return (
+                <div key={shift.id} title={name}>
+                  <div className="truncate font-semibold">{name}</div>
+                  {!compact && (begins || ends) ? (
+                    <div className="text-ink-muted">
+                      {[
+                        begins ? `ab ${clockOf(shift.startsAt)}` : null,
+                        ends ? `bis ${clockOf(shift.endsAt)}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(', ')}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

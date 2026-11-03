@@ -18,6 +18,7 @@ import {
   List,
   Mail,
   Percent,
+  BellRing,
   Server,
   Shield,
   Signature,
@@ -74,6 +75,14 @@ const settings = [
     title: 'Aufschlag auf Material',
     about: 'Was auf den Einkaufspreis eines Artikels kommt, damit sein Verkaufspreis entsteht.',
     icon: Percent,
+    right: 'settings.read',
+  },
+  {
+    key: 'notdienst',
+    to: '/einstellungen/notdienst',
+    title: 'Notdienstzuschläge',
+    about: 'Was ein Einsatz nachts, am Wochenende oder am Feiertag den Kunden zusätzlich kostet.',
+    icon: BellRing,
     right: 'settings.read',
   },
   {

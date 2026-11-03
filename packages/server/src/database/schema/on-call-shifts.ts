@@ -1,10 +1,5 @@
 import { longestOnCallNote } from '@opengewerk/domain'
-import {
-  primaryId,
-  syncColumns,
-  tenantIsolation,
-  timestamps,
-} from '@opengewerk/platform-server'
+import { primaryId, syncColumns, tenantIsolation, timestamps } from '@opengewerk/platform-server'
 import { memberships, tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { check, foreignKey, index, pgTable, text, timestamp } from 'drizzle-orm/pg-core'

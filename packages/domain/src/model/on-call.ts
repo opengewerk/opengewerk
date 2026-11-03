@@ -25,7 +25,11 @@ export const longestOnCallNote = 200
 export const longestOnCallDays = 28
 
 /** What is wrong with a time of the plan, or null when nothing is. */
-export function onCallShiftProblem(startsAt: unknown, endsAt: unknown, note: unknown): string | null {
+export function onCallShiftProblem(
+  startsAt: unknown,
+  endsAt: unknown,
+  note: unknown,
+): string | null {
   const start = startsAt instanceof Date ? startsAt : new Date(String(startsAt))
   const end = endsAt instanceof Date ? endsAt : new Date(String(endsAt))
 
@@ -41,7 +45,11 @@ export function onCallShiftProblem(startsAt: unknown, endsAt: unknown, note: unk
     return `Eine Bereitschaft dauert höchstens ${String(longestOnCallDays)} Tage. Für einen längeren Plan mehrere eintragen.`
   }
 
-  if (note !== null && note !== undefined && (typeof note !== 'string' || note.length > longestOnCallNote)) {
+  if (
+    note !== null &&
+    note !== undefined &&
+    (typeof note !== 'string' || note.length > longestOnCallNote)
+  ) {
     return `Die Notiz hat höchstens ${String(longestOnCallNote)} Zeichen.`
   }
 
@@ -149,7 +157,9 @@ export function emergencySurchargeLine(
 
   if (surcharge.basisPoints > 0) {
     const cents = Math.round((hourNetCents * surcharge.basisPoints) / 10_000)
-    const percent = (surcharge.basisPoints / 100).toLocaleString('de-DE', { maximumFractionDigits: 2 })
+    const percent = (surcharge.basisPoints / 100).toLocaleString('de-DE', {
+      maximumFractionDigits: 2,
+    })
 
     return {
       designation,

@@ -187,6 +187,9 @@ export function permissionFor(
     // A request for an early start is never changed (#292); the policy
     // answers a change sent anyway `online_only`.
     early_start_requests: 'job.write',
+    // The on-call plan is kept at its routes (#293); the policy answers a time
+    // sent anyway `online_only`.
+    on_call_shifts: 'job.write',
     // A test protocol is measured at an installation and belongs to it (#79):
     // whoever may record its structure may record its test.
     form_records: 'installation.write',

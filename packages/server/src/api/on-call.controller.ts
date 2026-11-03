@@ -13,7 +13,13 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import { type OnCallShiftId, onCallShiftProblem } from '@opengewerk/domain'
-import { Database, isUuid, pick, stillWorks, type TenantTransaction } from '@opengewerk/platform-server'
+import {
+  Database,
+  isUuid,
+  pick,
+  stillWorks,
+  type TenantTransaction,
+} from '@opengewerk/platform-server'
 import { memberships } from '@opengewerk/platform-server/schema'
 import { and, asc, eq, gt, isNull, lt } from 'drizzle-orm'
 
@@ -45,9 +51,15 @@ function shown(row: Row): OnCallShiftView {
 const fields = ['userId', 'startsAt', 'endsAt', 'note'] as const
 
 /** The values of a time as the form sends them, checked, or refused with the sentence of the form. */
-function valuesOf(body: unknown): { userId: string; startsAt: Date; endsAt: Date; note: string | null } {
+function valuesOf(body: unknown): {
+  userId: string
+  startsAt: Date
+  endsAt: Date
+  note: string | null
+} {
   const values = pick(body ?? {}, fields)
-  const note = typeof values.note === 'string' && values.note.trim() !== '' ? values.note.trim() : null
+  const note =
+    typeof values.note === 'string' && values.note.trim() !== '' ? values.note.trim() : null
   const problem = onCallShiftProblem(values.startsAt, values.endsAt, note)
 
   if (typeof values.userId !== 'string' || values.userId === '') {

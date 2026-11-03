@@ -1969,27 +1969,38 @@ describe('the progress of a job from the site', () => {
   })
 
   it('does not create a job either; the office takes the order', async () => {
-    const refused = await http()
-      .post('/sync')
-      .set('x-test-identity', technician())
-      .send({
-        deviceId: 'telefon-anna',
-        operations: [
-          change({
-            entity: 'jobs',
-            recordId: newId<'job'>(),
-            kind: 'create',
-            patches: [
-              { field: 'customerId', from: null, to: customerId },
-              { field: 'kind', from: null, to: 'service' },
-              { field: 'designation', from: null, to: 'Notdienst' },
-            ],
-          }),
-        ],
-      })
-      .expect(400)
+    const send = (kind: string, expected: number) =>
+      http()
+        .post('/sync')
+        .set('x-test-identity', technician())
+        .send({
+          deviceId: 'telefon-anna',
+          operations: [
+            change({
+              entity: 'jobs',
+              recordId: newId<'job'>(),
+              kind: 'create',
+              patches: [
+                { field: 'customerId', from: null, to: customerId },
+                { field: 'kind', from: null, to: kind },
+                { field: 'designation', from: null, to: 'Notdienst' },
+              ],
+            }),
+          ],
+        })
+        .expect(expected)
 
-    expect(refused.body.message).toBe(missingPermission('job.write'))
+    const project = await send('project', 400)
+
+    expect(project.body.message).toBe(missingPermission('job.write'))
+
+    // A service call only while on call, with the moment of the call (#293).
+    const service = await send('service', 201)
+
+    expect(service.body.receipts[0]).toMatchObject({
+      outcome: 'conflict',
+      reason: 'record_is_fixed',
+    })
   })
 })
 

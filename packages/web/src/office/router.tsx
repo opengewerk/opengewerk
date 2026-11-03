@@ -37,6 +37,8 @@ import { LabelLandingScreen } from './screens/label-landing.js'
 import { InstructionsScreen } from './screens/instructions.js'
 import { JobList, JobScreen } from './screens/jobs.js'
 import { NewServiceCallScreen } from './screens/service-call.js'
+import { EmergencySurchargesScreen } from './screens/emergency-surcharges.js'
+import { OnCallScreen } from './screens/on-call.js'
 import { LetterheadScreen } from './screens/letterhead.js'
 import { NumberRangesScreen } from './screens/number-ranges.js'
 import { MarkupSettingScreen } from './screens/markup-setting.js'
@@ -202,6 +204,11 @@ const routes = [
     component: NewServiceCallScreen,
   }),
   createRoute({ getParentRoute: () => office, path: '/plantafel', component: PlanningScreen }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/plantafel/bereitschaft',
+    component: OnCallScreen,
+  }),
   createRoute({ getParentRoute: () => office, path: '/auftraege/$jobId', component: JobScreen }),
   createRoute({ getParentRoute: () => office, path: '/aufgaben', component: TaskListScreen }),
   createRoute({ getParentRoute: () => office, path: '/fristen', component: DeadlineListScreen }),
@@ -344,6 +351,11 @@ const routes = [
     getParentRoute: () => office,
     path: '/einstellungen/aufschlag',
     component: MarkupSettingScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/einstellungen/notdienst',
+    component: EmergencySurchargesScreen,
   }),
   createRoute({
     getParentRoute: () => office,

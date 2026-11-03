@@ -111,7 +111,11 @@ const earlyStart: Check = async ({ tx, operation, values }) => {
  * in a time of that person's on-call plan, or refused as a conflict.
  */
 const onCall: Check = async ({ tx, operation, values, sender }) => {
-  if (operation.entity !== 'jobs' || operation.kind !== 'create' || isAllowed(sender, 'job.write')) {
+  if (
+    operation.entity !== 'jobs' ||
+    operation.kind !== 'create' ||
+    isAllowed(sender, 'job.write')
+  ) {
     return null
   }
 

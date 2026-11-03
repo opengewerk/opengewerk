@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { signedContentFingerprint, type TenantId } from '@opengewerk/domain'
+import { type LineUnit, signedContentFingerprint, type TenantId } from '@opengewerk/domain'
 import { Database, FileStore, newId, type Renderer } from '@opengewerk/platform-server'
 import type { Pool } from 'pg'
 import request from 'supertest'
@@ -33,6 +33,7 @@ const standIn: Renderer = () => Promise.resolve(new TextEncoder().encode('%PDF-1
 const office = () => as(north.id, 'office')
 const owner = () => as(north.id, 'owner')
 const jonas = () => JSON.stringify({ userId: 'jonas', tenantId: north.id, roles: ['technician'] })
+const lena = () => JSON.stringify({ userId: 'lena', tenantId: north.id, roles: ['technician'] })
 const scribble = 'M100,300L200,120L300,280'
 
 /** Wednesday 28.10.2026, 02:14 in Germany. */
@@ -66,7 +67,12 @@ function aCall(fields: Record<string, unknown> = {}) {
   }
 }
 
-async function aSignedReport(jobId: string) {
+async function aSignedReport(
+  jobId: string,
+  lines: readonly Record<string, unknown>[] = [
+    { designation: 'Arbeitszeit', quantityMilli: 1000, unit: 'hour', unitPriceCents: 0 },
+  ],
+) {
   const report = (
     await post('/documents', {
       customerId: customer,
@@ -76,21 +82,20 @@ async function aSignedReport(jobId: string) {
     })
   ).id
 
-  await post(`/documents/${report}/lines`, {
-    designation: 'Arbeitszeit',
-    quantityMilli: 1000,
-    unit: 'hour',
-    unitPriceCents: 0,
-  })
+  for (const line of lines) {
+    await post(`/documents/${report}/lines`, line)
+  }
 
   const { rows } = await admin.query<{
     id: string
     position: number
     designation: string
     quantity_milli: string
-  }>('select id, position, designation, quantity_milli from document_lines where document_id = $1', [
-    report,
-  ])
+    unit: LineUnit
+  }>(
+    'select id, position, designation, quantity_milli, unit from document_lines where document_id = $1',
+    [report],
+  )
   const sent = await push(app, office(), [
     created('document_signatures', newId<'document-signature'>(), {
       documentId: report,
@@ -107,7 +112,7 @@ async function aSignedReport(jobId: string) {
           designation: row.designation,
           description: null,
           quantityMilli: Number(row.quantity_milli),
-          unit: 'hour',
+          unit: row.unit,
         })),
       }),
     }),
@@ -119,7 +124,11 @@ async function aSignedReport(jobId: string) {
 }
 
 async function linesOf(documentId: string) {
-  const { rows } = await admin.query<{ designation: string; unit_price_cents: number; unit: string }>(
+  const { rows } = await admin.query<{
+    designation: string
+    unit_price_cents: number
+    unit: string
+  }>(
     'select designation, unit_price_cents, unit from document_lines where document_id = $1 order by position',
     [documentId],
   )
@@ -162,7 +171,8 @@ beforeAll(async () => {
   app = built.createNestApplication()
   await app.init()
 
-  customer = (await post('/customers', { kind: 'private', name: 'Familie Arslan', ...invoiceable })).id
+  customer = (await post('/customers', { kind: 'private', name: 'Familie Arslan', ...invoiceable }))
+    .id
   shift = (
     await post('/on-call-shifts', {
       userId: 'jonas',
@@ -188,6 +198,14 @@ describe('the on-call plan (#293)', () => {
       .expect(200)
 
     expect(answer.body).toMatchObject([{ id: shift, userId: 'jonas', note: 'Woche 44' }])
+
+    // The week after it is over.
+    const after = await http()
+      .get('/on-call-shifts?from=2026-11-03T00:00:00.000Z&to=2026-11-10T00:00:00.000Z')
+      .set('x-test-identity', jonas())
+      .expect(200)
+
+    expect(after.body).toEqual([])
   })
 
   it('is not kept by a technician', async () => {
@@ -202,7 +220,11 @@ describe('the on-call plan (#293)', () => {
   it('takes only somebody who works here, and an end after the beginning', async () => {
     const stranger = await post(
       '/on-call-shifts',
-      { userId: 'niemand', startsAt: '2026-11-10T16:00:00.000Z', endsAt: '2026-11-11T06:00:00.000Z' },
+      {
+        userId: 'niemand',
+        startsAt: '2026-11-10T16:00:00.000Z',
+        endsAt: '2026-11-11T06:00:00.000Z',
+      },
       office(),
       422,
     )
@@ -244,6 +266,51 @@ describe('the on-call plan (#293)', () => {
     await post(`/on-call-shifts/${shift}/swap`, { with: later })
     await http().delete(`/on-call-shifts/${later}`).set('x-test-identity', office()).expect(200)
   })
+
+  it('reaches the device of the person it names, and no other technician', async () => {
+    const hers = (
+      await post('/on-call-shifts', {
+        userId: 'lena',
+        startsAt: '2026-11-23T16:00:00.000Z',
+        endsAt: '2026-11-30T06:00:00.000Z',
+      })
+    ).id
+    const pulled = async (who: string) => {
+      const answer = await http().get('/sync?since=0').set('x-test-identity', who).expect(200)
+      const changes = (answer.body as { changes: { entity: string; rows: { id: string }[] }[] })
+        .changes
+
+      return (
+        changes.find((change) => change.entity === 'on_call_shifts')?.rows.map((row) => row.id) ??
+        []
+      )
+    }
+
+    expect(await pulled(jonas())).toContain(shift)
+    expect(await pulled(jonas())).not.toContain(hers)
+    expect(await pulled(lena())).toContain(hers)
+    expect(await pulled(lena())).not.toContain(shift)
+    expect(await pulled(office())).toEqual(expect.arrayContaining([shift, hers]))
+
+    await http().delete(`/on-call-shifts/${hers}`).set('x-test-identity', office()).expect(200)
+  })
+
+  it('is not written over the sync, by the office neither', async () => {
+    const id = newId<'on-call-shift'>()
+    const sent = await push(app, office(), [
+      created('on_call_shifts', id, {
+        userId: 'jonas',
+        startsAt: '2026-12-01T16:00:00.000Z',
+        endsAt: '2026-12-02T06:00:00.000Z',
+        note: null,
+      }),
+    ])
+
+    expect(sent.receipts[0]).toMatchObject({ outcome: 'conflict', reason: 'online_only' })
+    expect((await admin.query('select id from on_call_shifts where id = $1', [id])).rows).toEqual(
+      [],
+    )
+  })
 })
 
 describe('a service call made on call', () => {
@@ -253,28 +320,90 @@ describe('a service call made on call', () => {
 
     expect(sent.receipts.map((receipt) => receipt.outcome)).toEqual(['applied'])
 
-    const { rows } = await admin.query('select kind, emergency_at from jobs where id = $1', [call.id])
+    const { rows } = await admin.query('select kind, emergency_at from jobs where id = $1', [
+      call.id,
+    ])
 
     expect(rows).toEqual([{ kind: 'service', emergency_at: new Date(atNight) }])
   })
 
   it('is refused as a conflict outside every time of the plan of that person', async () => {
-    const sent = await push(app, jonas(), [aCall({ emergencyAt: '2026-10-20T01:00:00.000Z' }).operation])
+    const before = await push(app, jonas(), [
+      aCall({ emergencyAt: '2026-10-20T01:00:00.000Z' }).operation,
+    ])
+    // Jonas is on call that night, Lena is not.
+    const somebodyElses = await push(app, lena(), [aCall().operation])
 
-    expect(sent.receipts.map((receipt) => [receipt.outcome, receipt.reason, receipt.fields])).toEqual([
+    expect(
+      [...before.receipts, ...somebodyElses.receipts].map((receipt) => [
+        receipt.outcome,
+        receipt.reason,
+        receipt.fields,
+      ]),
+    ).toEqual([
+      ['conflict', 'record_is_fixed', ['emergencyAt']],
       ['conflict', 'record_is_fixed', ['emergencyAt']],
     ])
   })
 
+  it('is refused in a time the office took back', async () => {
+    const taken = (
+      await post('/on-call-shifts', {
+        userId: 'lena',
+        startsAt: '2026-10-19T16:00:00.000Z',
+        endsAt: '2026-10-20T06:00:00.000Z',
+      })
+    ).id
+
+    await http().delete(`/on-call-shifts/${taken}`).set('x-test-identity', office()).expect(200)
+
+    const sent = await push(app, lena(), [
+      aCall({ emergencyAt: '2026-10-20T01:00:00.000Z' }).operation,
+    ])
+
+    expect(sent.receipts.map((receipt) => receipt.outcome)).toEqual(['conflict'])
+  })
+
   it('is refused without the moment of the call, and with one ahead of the clock', async () => {
+    const now = (
+      await post('/on-call-shifts', {
+        userId: 'jonas',
+        startsAt: new Date(Date.now() - 3_600_000).toISOString(),
+        endsAt: new Date(Date.now() + 86_400_000).toISOString(),
+      })
+    ).id
     const without = await push(app, jonas(), [aCall({ emergencyAt: null }).operation])
     const ahead = await push(app, jonas(), [
       aCall({ emergencyAt: new Date(Date.now() + 3_600_000).toISOString() }).operation,
     ])
+    // A clock that runs a minute fast is no reason to refuse.
+    const fast = await push(app, jonas(), [
+      aCall({ emergencyAt: new Date(Date.now() + 60_000).toISOString() }).operation,
+    ])
 
-    expect([...without.receipts, ...ahead.receipts].map((receipt) => receipt.outcome)).toEqual([
-      'conflict',
-      'conflict',
+    expect(
+      [...without.receipts, ...ahead.receipts, ...fast.receipts].map((receipt) => receipt.outcome),
+    ).toEqual(['conflict', 'conflict', 'applied'])
+
+    await http().delete(`/on-call-shifts/${now}`).set('x-test-identity', office()).expect(200)
+  })
+
+  it('is a running call of its own, no follow-up and nothing finished', async () => {
+    const first = aCall()
+
+    await push(app, office(), [first.operation])
+
+    const finished = await push(app, jonas(), [aCall({ status: 'completed' }).operation])
+    const followUp = await push(app, jonas(), [aCall({ predecessorJobId: first.id }).operation])
+
+    expect(
+      [...finished.receipts, ...followUp.receipts].map((receipt) => [
+        receipt.outcome,
+        receipt.reason,
+      ]),
+    ).toEqual([
+      ['conflict', 'record_is_fixed'],
+      ['conflict', 'record_is_fixed'],
     ])
   })
 
@@ -282,6 +411,38 @@ describe('a service call made on call', () => {
     const refused = await push(app, jonas(), [aCall({ kind: 'project' }).operation], 400)
 
     expect(refused.message).toContain('darf dieser Zugang nicht')
+  })
+
+  it('has a day and a time of the call, at the route and in the sync', async () => {
+    const sentence = 'Der Notdiensteinsatz braucht Tag und Uhrzeit des Anrufs.'
+    const atRoute = await post(
+      '/jobs',
+      { customerId: customer, kind: 'service', designation: 'Licht', emergencyAt: 'gestern' },
+      office(),
+      422,
+    )
+    const inSync = await push(app, office(), [aCall({ emergencyAt: 'gestern' }).operation], 400)
+
+    expect([atRoute.message, inSync.message]).toEqual([sentence, sentence])
+  })
+
+  it('is marked at the route of the office, and changed there', async () => {
+    const made = await post('/jobs', {
+      customerId: customer,
+      kind: 'service',
+      designation: 'Licht im Treppenhaus',
+      emergencyAt: atNight,
+    })
+
+    await http()
+      .patch(`/jobs/${made.id}`)
+      .set('x-test-identity', office())
+      .send({ emergencyAt: inTheDay })
+      .expect(200)
+
+    const { rows } = await admin.query('select emergency_at from jobs where id = $1', [made.id])
+
+    expect(rows).toEqual([{ emergency_at: new Date(inTheDay) }])
   })
 
   it('is made by the office at any time, without a time of the plan', async () => {
@@ -309,17 +470,44 @@ describe('the surcharge of an emergency call', () => {
     })
   })
 
+  it('comes as a percentage on the working time and on nothing else', async () => {
+    await setting('emergency.weekend_basis_points', 5000)
+
+    // Saturday 24.10.2026 at 10:00 in Germany.
+    const call = aCall({ emergencyAt: '2026-10-24T08:00:00.000Z' })
+
+    await push(app, office(), [call.operation])
+
+    const report = await aSignedReport(call.id, [
+      { designation: 'Arbeitszeit', quantityMilli: 2000, unit: 'hour', unitPriceCents: 6000 },
+      { designation: 'Kabel', quantityMilli: 1000, unit: 'piece', unitPriceCents: 10_000 },
+    ])
+    const invoice = (await post(`/documents/${report}/successors`, { kind: 'final_invoice' })).id
+
+    expect((await linesOf(invoice)).at(-1)).toEqual({
+      designation: 'Notdienstzuschlag Wochenende',
+      unit_price_cents: 6000,
+      unit: 'flat_rate',
+    })
+  })
+
   it('is no line for a call in ordinary hours, nor for a job that is no emergency', async () => {
     const day = aCall({ emergencyAt: inTheDay })
 
     await push(app, office(), [day.operation])
 
-    const ordinary = await post('/jobs', { customerId: customer, kind: 'service', designation: 'Steckdose' })
+    const ordinary = await post('/jobs', {
+      customerId: customer,
+      kind: 'service',
+      designation: 'Steckdose',
+    })
     const fromTheDay = (
       await post(`/documents/${await aSignedReport(day.id)}/successors`, { kind: 'final_invoice' })
     ).id
     const fromOrdinary = (
-      await post(`/documents/${await aSignedReport(ordinary.id)}/successors`, { kind: 'final_invoice' })
+      await post(`/documents/${await aSignedReport(ordinary.id)}/successors`, {
+        kind: 'final_invoice',
+      })
     ).id
 
     expect((await linesOf(fromTheDay)).map((line) => line.designation)).toEqual(['Arbeitszeit'])

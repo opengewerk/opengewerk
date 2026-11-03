@@ -23,8 +23,12 @@ describe('the kind of an emergency call (#293)', () => {
   })
 
   it('follows the night the business sets', () => {
-    expect(emergencyKindAt(wednesday('19:30'), new Set(), { fromMinute: 19 * 60, untilMinute: 7 * 60 })).toBe('night')
-    expect(emergencyKindAt(wednesday('06:30'), new Set(), { fromMinute: 19 * 60, untilMinute: 7 * 60 })).toBe('night')
+    expect(
+      emergencyKindAt(wednesday('19:30'), new Set(), { fromMinute: 19 * 60, untilMinute: 7 * 60 }),
+    ).toBe('night')
+    expect(
+      emergencyKindAt(wednesday('06:30'), new Set(), { fromMinute: 19 * 60, untilMinute: 7 * 60 }),
+    ).toBe('night')
   })
 
   it('is the weekend on Saturday and Sunday, at any hour', () => {
@@ -58,7 +62,9 @@ describe('the surcharge line', () => {
   })
 
   it('comes as a percentage on the working time, rounded to the cent', () => {
-    expect(emergencySurchargeLine('weekend', { flatCents: 0, basisPoints: 5000 }, 10_201)).toMatchObject({
+    expect(
+      emergencySurchargeLine('weekend', { flatCents: 0, basisPoints: 5000 }, 10_201),
+    ).toMatchObject({
       designation: 'Notdienstzuschlag Wochenende',
       description: '50 % auf die Arbeitszeit',
       unitPriceCents: 5101,
@@ -73,11 +79,19 @@ describe('the surcharge line', () => {
 
 describe('a time of the on-call plan', () => {
   it('has an end after its beginning, at most four weeks long, and a short note', () => {
-    expect(onCallShiftProblem('2026-11-02T16:00:00Z', '2026-11-09T06:00:00Z', 'Woche 45')).toBeNull()
-    expect(onCallShiftProblem('2026-11-09T06:00:00Z', '2026-11-02T16:00:00Z', null)).toContain('nach ihrem Beginn')
-    expect(onCallShiftProblem('2026-11-01T00:00:00Z', '2026-12-15T00:00:00Z', null)).toContain('höchstens 28 Tage')
+    expect(
+      onCallShiftProblem('2026-11-02T16:00:00Z', '2026-11-09T06:00:00Z', 'Woche 45'),
+    ).toBeNull()
+    expect(onCallShiftProblem('2026-11-09T06:00:00Z', '2026-11-02T16:00:00Z', null)).toContain(
+      'nach ihrem Beginn',
+    )
+    expect(onCallShiftProblem('2026-11-01T00:00:00Z', '2026-12-15T00:00:00Z', null)).toContain(
+      'höchstens 28 Tage',
+    )
     expect(onCallShiftProblem('x', '2026-11-02T16:00:00Z', null)).toContain('Beginn und Ende')
-    expect(onCallShiftProblem('2026-11-02T16:00:00Z', '2026-11-09T06:00:00Z', 'x'.repeat(201))).toContain('200')
+    expect(
+      onCallShiftProblem('2026-11-02T16:00:00Z', '2026-11-09T06:00:00Z', 'x'.repeat(201)),
+    ).toContain('200')
   })
 
   it('covers a moment from its beginning up to but not including its end', () => {
@@ -108,6 +122,8 @@ describe('a call taken on call and the rest period (#293)', () => {
       work('2026-10-28T07:00:00+01:00', '2026-10-28T16:00:00+01:00'),
     ]
 
-    expect(workingTimeWarnings(entries, '2026-10-28', shippedRules).map((warning) => warning.kind)).toContain('rest')
+    expect(
+      workingTimeWarnings(entries, '2026-10-28', shippedRules).map((warning) => warning.kind),
+    ).toContain('rest')
   })
 })
