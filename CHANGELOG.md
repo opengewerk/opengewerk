@@ -38,6 +38,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   auf dem Telefon des Monteurs stehen, und ein Verbraucher, der ohne Angebot beauftragt, hat dieselben Rechte wie
   einer mit Angebot.
 
+### Behoben
+
+- Die Rechnung vor Ort aus #292 schreibt die Einheit einer Position kurz wie das gedruckte Dokument, „1 Std.“ statt
+  „1 Stunden“ (#293). Warum: Neben einer Menge stand die ausgeschriebene Einheit der Auswahlliste, die nur im Plural
+  passt.
+
 ## [0.7.0] - 2026-11-03
 
 Die siebte Fassung bringt den größten Teil von Phase 2, dem Kern für Elektro und PV. Zu den Prüfungen kommen das
