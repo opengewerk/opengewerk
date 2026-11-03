@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { aTenantChoice } from '../../session/test-tenants.js'
 import { SyncClient } from '../../sync/client.js'
 import { SiteDefectScreen, SiteNewDefectScreen } from './defects.js'
-import { SiteJobScreen } from './jobs.js'
+import { SiteJobScreen } from './job.js'
 
 /**
  * Defects on site (#311): the card at the job, recording one without a

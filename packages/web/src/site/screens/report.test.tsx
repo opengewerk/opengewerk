@@ -20,7 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { aTenantChoice } from '../../session/test-tenants.js'
 import { SyncClient } from '../../sync/client.js'
-import { SiteJobScreen } from './jobs.js'
+import { SiteJobScreen } from './job.js'
 import { SiteReportScreen } from './report.js'
 
 /**

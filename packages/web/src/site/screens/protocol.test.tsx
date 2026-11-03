@@ -23,7 +23,7 @@ import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
-import { SiteJobScreen } from './jobs.js'
+import { SiteJobScreen } from './job.js'
 import { shortLimit, SiteProtocolScreen } from './protocol.js'
 import { aTenantChoice } from '../../session/test-tenants.js'
 

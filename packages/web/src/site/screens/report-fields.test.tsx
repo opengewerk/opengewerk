@@ -22,7 +22,7 @@ import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { SyncClient } from '../../sync/client.js'
-import { SiteJobScreen } from './jobs.js'
+import { SiteJobScreen } from './job.js'
 import { SiteReportScreen } from './report.js'
 
 /**

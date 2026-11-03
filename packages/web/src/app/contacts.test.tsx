@@ -23,7 +23,7 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CustomerScreen } from '../office/screens/customers.js'
-import { SiteJobScreen } from '../site/screens/jobs.js'
+import { SiteJobScreen } from '../site/screens/job.js'
 import { SyncClient } from '../sync/client.js'
 import { NewContactForm } from './contacts.js'
 import { titleOf } from './naming.js'

@@ -19,7 +19,7 @@ import { aTenantChoice } from '../../session/test-tenants.js'
 import { SyncClient } from '../../sync/client.js'
 import { SiteInstructionsScreen } from './call-instructions.js'
 import { SiteInvoiceScreen } from './invoice.js'
-import { SiteJobScreen } from './jobs.js'
+import { SiteJobScreen } from './job.js'
 import { SiteReportScreen } from './report.js'
 
 /**
