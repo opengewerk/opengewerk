@@ -7,6 +7,29 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-03
+
+Die siebte Fassung bringt den größten Teil von Phase 2, dem Kern für Elektro und PV. Zu den Prüfungen kommen das
+Protokoll der Wiederholungsprüfung nach DIN VDE 0105-100, das Geräteverzeichnis mit der Prüfung nach DGUV Vorschrift
+3, die Prüfung der Elektroinstallation als Prüfbericht je Objekt und die Prüffrist der Erstprüfung, jeweils mit der
+Frist der nächsten Prüfung. Für PV, Wallbox und Speicher gibt es das Inbetriebsetzungsprotokoll nach VDE-AR-N 4105,
+die PV-Anlagendokumentation, die Netzbetreiber mit Anmeldung, Fertigmeldung und der Ausfüllhilfe für das
+Marktstammdatenregister, die Inbetriebnahme von Wallbox und Speicher und die Förderunterlagen. Am Auftrag stehen
+jetzt das Abnahmeprotokoll mit der Gewährleistungsfrist, die Aufforderung zur Abnahme und die Mängel mit Status und
+Mängelbericht.
+
+Dazu kommen Material und Lager: Verkaufspreise aus Einkaufspreis und Aufschlag, der Metallzuschlag, der Import aus
+DATANORM mit eigenen Bildschirmen, die Kennzeichnung einer Haltbarkeitsgarantie des Herstellers, Lagerorte und
+Fahrzeuge mit Bestand, der Lieferschein und das Scannen von Material auf der Baustelle. Für die Leute im Betrieb
+gibt es die Mitarbeiterakte, Urlaub und Krankheit mit den gesetzlichen Feiertagen, das Zeitkonto, die Plantafel und
+das Kalender-Abo. Entwürfe lassen sich löschen, im Büro und auf der Baustelle.
+
+Noch nicht dabei sind aus Phase 2 die Serviceaufträge, der Notdienst, Wartungsverträge mit Dauerrechnung, die
+Erinnerungen an Kunden, Leads und die Kommunikationshistorie, die DSGVO-Funktionen, die Hilfe und der Import aus
+Messgeräten. Ein Update braucht keinen eigenen Schritt, die neuen Migrationen laufen beim Start. Vor dem produktiven
+Einsatz stehen weiter die fachliche Abnahme der Regelpakete und Grenzwerte (#31) und der Praxistest der E-Rechnung
+bei einem echten Empfänger (#133).
+
 ### Hinzugefügt
 
 - Mängel und Reklamationen mit Status und Mängelbericht (#311), nach der Feature-Gliederung v2.61 und den Tafeln
