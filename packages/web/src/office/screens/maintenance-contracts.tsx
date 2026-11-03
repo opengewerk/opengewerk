@@ -450,7 +450,7 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
         actions={
           writes ? (
             <>
-              {visits.length === 0 ? (
+              {visits.length === 0 && billed.length === 0 ? (
                 <Button
                   icon={Trash2}
                   onClick={() => {

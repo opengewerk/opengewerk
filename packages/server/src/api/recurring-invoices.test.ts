@@ -183,6 +183,12 @@ describe('the recurring invoices of a contract (#295)', () => {
     )
 
     expect(rows).toEqual([{ due_on: addMonths(startsOn, 3) }])
+
+    // Billed once, the contract stays and is given notice instead.
+    await request(app.getHttpServer())
+      .delete(`/maintenance-contracts/${made}`)
+      .set('x-test-identity', office())
+      .expect(409)
   })
 
   it('stay drafts without the wish of the contract, and so does a period cut short by its end', async () => {

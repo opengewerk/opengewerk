@@ -475,8 +475,9 @@ export class MaintenanceContractsController {
   }
 
   /**
-   * A contract entered by mistake: deleted for real while no service job
-   * names it. Once a maintenance was made, it stays and is given notice.
+   * A contract entered by mistake: deleted for real while no service job and
+   * no invoice names it. Once a maintenance or a period was made, it stays
+   * and is given notice.
    */
   @Delete(':id')
   @RequiresPermission('document.issue')
@@ -497,9 +498,16 @@ export class MaintenanceContractsController {
         .where(eq(jobs.maintenanceContractId, existing.id))
         .limit(1)
 
-      if (made) {
+      // And no invoice of a period (#295), deleted drafts included: the key holds them.
+      const [billed] = await tx
+        .select({ id: documents.id })
+        .from(documents)
+        .where(eq(documents.maintenanceContractId, existing.id))
+        .limit(1)
+
+      if (made || billed) {
         throw new ConflictException(
-          'Zu diesem Vertrag gibt es schon einen Serviceauftrag. Er bleibt und lässt sich kündigen.',
+          'Zu diesem Vertrag gibt es schon einen Serviceauftrag oder eine Rechnung. Er bleibt und lässt sich kündigen.',
         )
       }
 
