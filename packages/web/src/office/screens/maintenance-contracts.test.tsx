@@ -62,11 +62,23 @@ const contract = {
   priceKind: 'flat',
   flatCents: 48_000,
   paymentRhythm: 'visit',
+  issueByItself: false,
   cancelledOn: null,
   endsOn: null,
   createdAt: '2026-01-01T08:00:00Z',
   updatedAt: '2026-01-01T08:00:00Z',
 }
+
+// The same contract paid by the month, issued by itself from the second invoice on (#295).
+const monthly = {
+  ...contract,
+  id: 'wv-2',
+  paymentRhythm: 'monthly',
+  flatCents: 3_900,
+  issueByItself: true,
+  createdAt: `${startsOn}T08:00:00Z`,
+}
+const billedFrom = addMonths(on, -1)
 
 const rows: Readonly<Record<string, RecordState[]>> = {
   customers: [
@@ -102,6 +114,18 @@ const rows: Readonly<Record<string, RecordState[]>> = {
       number: 'AN-2026-0436',
       documentDate: '2026-10-28',
       subject: 'Wartung PV-Anlage',
+    },
+    {
+      id: 'r-1',
+      customerId: 'c-1',
+      siteId: 's-1',
+      kind: 'recurring_invoice',
+      status: 'issued',
+      number: 'RE-2026-0241',
+      documentDate: billedFrom,
+      serviceFrom: billedFrom,
+      serviceUntil: addDays(on, -1),
+      maintenanceContractId: 'wv-2',
     },
   ],
   document_lines: [
@@ -247,6 +271,10 @@ beforeEach(() => {
       return answer(200, contract)
     }
 
+    if (path === '/maintenance-contracts/wv-2') {
+      return answer(200, monthly)
+    }
+
     return answer(404, {})
   })
 })
@@ -324,9 +352,9 @@ describe('the maintenance contracts of the office (#294)', () => {
     expect((screen.getByLabelText('Enthaltene Leistungen') as HTMLTextAreaElement).value).toBe(
       'Sichtprüfung der Module\nWartung PV-Anlage, je Wartung',
     )
-    expect((screen.getByLabelText('Pauschale netto in Euro') as HTMLInputElement).value).toBe(
-      '189,00',
-    )
+    expect(
+      (screen.getByLabelText('Pauschale netto je Wartung in Euro') as HTMLInputElement).value,
+    ).toBe('189,00')
     expect(screen.queryByRole('note')).toBeNull()
 
     const term = screen.getByLabelText(/Laufzeit in Monaten/)
@@ -353,6 +381,37 @@ describe('the maintenance contracts of the office (#294)', () => {
         priceKind: 'flat',
         flatCents: 18_900,
       },
+    })
+  })
+
+  it('bills a contract by the month with an invoice per month, the next one still to come', async () => {
+    await mount('/wartungsvertraege/wv-2')
+
+    const invoices = await screen.findByRole('table', { name: 'Die Rechnungen der Zeiträume' })
+
+    expect(within(invoices).getByRole('link', { name: 'RE-2026-0241' })).toBeTruthy()
+    expect(within(invoices).getByText('noch nicht angelegt')).toBeTruthy()
+    expect(
+      screen.getByText('monatlich, zu Beginn des Monats; ab der zweiten Rechnung ohne Zutun'),
+    ).toBeTruthy()
+    expect(screen.getByText('39,00 € netto je Monat, Pauschale')).toBeTruthy()
+  })
+
+  it('takes a rhythm and the wish to issue by itself, only with a flat price', async () => {
+    const user = userEvent.setup()
+    await mount('/wartungsvertraege/neu/q-2')
+
+    await user.selectOptions(await screen.findByLabelText('Abrechnung'), 'monthly')
+
+    expect(screen.queryByRole('radio', { name: /Nach Aufwand/ })).toBeNull()
+
+    await user.click(
+      screen.getByRole('checkbox', { name: /Ab der zweiten Rechnung ohne Zutun festschreiben/ }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    expect(posted[0]).toMatchObject({
+      body: { paymentRhythm: 'monthly', issueByItself: true, priceKind: 'flat', flatCents: 18_900 },
     })
   })
 

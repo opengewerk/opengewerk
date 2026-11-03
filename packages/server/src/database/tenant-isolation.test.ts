@@ -495,6 +495,14 @@ const crossings: readonly {
             maintenance_contract_id = ${other.maintenanceContract} where id = ${own.job}`,
   },
   {
+    // The contract a recurring invoice bills a period of (#295), with the kind
+    // and the period its check asks for.
+    key: 'documents_maintenance_contract_in_tenant',
+    write: (own, other) =>
+      sql`update documents set kind = 'recurring_invoice', service_from = '2026-11-01',
+            maintenance_contract_id = ${other.maintenanceContract} where id = ${own.document}`,
+  },
+  {
     key: 'maintenance_contracts_customer_in_tenant',
     write: (own, other) =>
       repoint('maintenance_contracts', 'customer_id', own.maintenanceContract, other.customer),
