@@ -62,7 +62,10 @@ export const syncPolicies: Readonly<Record<string, SyncPolicy>> = {
    * from the job number range when the job is created, and a device that set
    * one could hand out a number the range never gave, or another job's.
    */
-  jobs: { ...fieldWork, reserved: ['number', 'closedAt'] },
+  jobs: {
+    ...fieldWork,
+    reserved: ['number', 'closedAt', 'maintenanceContractId', 'maintenanceDueOn'],
+  },
   /**
    * A document may be written offline while it is a draft, and not one moment
    * longer. Issuing is not in this list at all: it hands out a number and

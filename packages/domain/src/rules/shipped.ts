@@ -1,5 +1,6 @@
 import baseRate from './data/base-rate.json' with { type: 'json' }
 import cashAccounting from './data/cash-accounting.json' with { type: 'json' }
+import contract from './data/contract.json' with { type: 'json' }
 import eInvoice from './data/e-invoice.json' with { type: 'json' }
 import holidays from './data/holidays.json' with { type: 'json' }
 import invoice from './data/invoice.json' with { type: 'json' }
@@ -52,6 +53,7 @@ export const rulePackages: readonly RulePackage[] = [
   workingTime as RulePackage,
   holidays as RulePackage,
   warranty as RulePackage,
+  contract as RulePackage,
 ]
 
 /**

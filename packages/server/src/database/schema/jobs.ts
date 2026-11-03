@@ -11,6 +11,7 @@ import { sql } from 'drizzle-orm'
 import {
   boolean,
   check,
+  date,
   foreignKey,
   index,
   pgEnum,
@@ -22,6 +23,7 @@ import {
 
 import { customers } from './customers.js'
 import { installations } from './installations.js'
+import { maintenanceContracts } from './maintenance-contracts.js'
 import { sites } from './sites.js'
 
 export const jobKind = pgEnum('job_kind', jobKinds)
@@ -62,6 +64,11 @@ export const jobs = pgTable(
     urgentRepair: boolean('urgent_repair').notNull().default(false),
     // When the customer called for an emergency (#293), null for any other call.
     emergencyAt: timestamp('emergency_at', { withTimezone: true }),
+    // The maintenance contract whose deadline made this service job, and the day
+    // that maintenance is due (#294); written by the deadline engine, one job per
+    // contract and day, and kept when the job is deleted so the day is not made again.
+    maintenanceContractId: reference<'maintenance-contract'>('maintenance_contract_id'),
+    maintenanceDueOn: date('maintenance_due_on'),
     ...timestamps,
     ...syncColumns,
   },
@@ -93,7 +100,18 @@ export const jobs = pgTable(
       foreignColumns: [table.tenantId, table.id],
       name: 'jobs_predecessor_in_tenant',
     }).onDelete('restrict'),
+    foreignKey({
+      columns: [table.tenantId, table.maintenanceContractId],
+      foreignColumns: [maintenanceContracts.tenantId, maintenanceContracts.id],
+      name: 'jobs_maintenance_contract_in_tenant',
+    }).onDelete('restrict'),
     check('jobs_not_own_predecessor', sql`${table.predecessorJobId} <> ${table.id}`),
+    check(
+      'jobs_maintenance_visit',
+      sql`(${table.maintenanceContractId} is null) = (${table.maintenanceDueOn} is null)
+        and (${table.maintenanceContractId} is null or ${table.kind} = 'service')`,
+    ),
+    unique('jobs_maintenance_visit_key').on(table.maintenanceContractId, table.maintenanceDueOn),
     index('jobs_customer_idx').on(table.tenantId, table.customerId),
     index('jobs_site_idx').on(table.tenantId, table.siteId),
     index('jobs_parent_idx').on(table.parentJobId),

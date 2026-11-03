@@ -31,6 +31,8 @@ export interface BusinessDeadlineEntry extends Omit<DeadlineEntry, 'source'> {
     readonly label: string
     readonly documentId: DocumentId | null
     readonly installationId: InstallationId | null
+    /** The maintenance contract a deadline of a contract follows (#294), so the list leads to it. */
+    readonly contractId: string | null
   }
   readonly customer: { readonly id: CustomerId; readonly name: string } | null
   readonly siteId: SiteId | null
@@ -113,6 +115,9 @@ export const deadlineRules: DeadlineRules<DeadlineKind, ApplicationDeadlineColum
           label: row.sourceLabel,
           documentId: row.documentId,
           installationId: row.installationId,
+          contractId: deadlineKinds.kind(row.kind)?.source.startsWith('maintenance_')
+            ? row.sourceId
+            : null,
         },
         customer:
           row.customerId !== null && name !== undefined ? { id: row.customerId, name } : null,

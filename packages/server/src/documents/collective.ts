@@ -19,6 +19,7 @@ import {
 } from '../database/schema/index.js'
 import { articlePricesOn, pricedFromArticle } from './article-prices.js'
 import { choicesOf } from './instructions.js'
+import { contractFlatLineFor } from '../contracts/invoice.js'
 import { surchargeLineFor } from '../service-calls/on-call.js'
 
 type DocumentRow = typeof documents.$inferSelect
@@ -242,12 +243,23 @@ export async function makeCollectiveInvoice(
     lines.map((line) => line.articleId),
     created.documentDate,
   )
-  const copied = reports.flatMap((report) =>
-    underItsTitle(
-      report,
-      lines.filter((line) => line.documentId === report.id),
-    ).map((line) => pricedFromArticle(line, prices)),
-  )
+  // A maintenance at a flat price is billed with that price as the one line
+  // instead of what its reports write down (#294).
+  const flat = await contractFlatLineFor(tx, jobId)
+  const copied = flat
+    ? []
+    : reports.flatMap((report) =>
+        underItsTitle(
+          report,
+          lines.filter((line) => line.documentId === report.id),
+        ).map((line) => pricedFromArticle(line, prices)),
+      )
+
+  if (flat) {
+    await tx
+      .insert(documentLines)
+      .values({ tenantId, documentId: created.id, position: 1, ...flat })
+  }
 
   if (copied.length > 0) {
     await tx.insert(documentLines).values(

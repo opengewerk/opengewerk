@@ -2,11 +2,15 @@ import {
   type CustomerId,
   type DeadlineKind,
   type DeadlineRegistry,
+  type InstallationId,
+  type IsoDate,
   type JobId,
+  type MaintenanceContractId,
   sharesTasksBySite,
   type SiteId,
   taskTitleOf,
   type TenantId,
+  visitDescription,
 } from '@opengewerk/domain'
 import {
   type Database,
@@ -23,7 +27,7 @@ import { and, eq, isNull, ne, sql } from 'drizzle-orm'
 
 import { assignNumber } from '../database/number-ranges.js'
 import type { ApplicationDeadlineColumns } from '../database/schema/deadlines.js'
-import { deadlines, jobs, sites, tasks } from '../database/schema/index.js'
+import { deadlines, jobs, maintenanceContracts, sites, tasks } from '../database/schema/index.js'
 import { deadlineKinds } from './registry.js'
 import { deadlineSourceQueries, type DeadlineValues } from './sources.js'
 
@@ -73,7 +77,10 @@ const sentences = {
  *   day, so that the appliances of a customer due together are one task;
  *   once it is done, so are all of them.
  * - `service_job`: a service job in draft at the customer and site of the
- *   source, for the office to plan.
+ *   source, for the office to plan. The maintenance of a contract (#294)
+ *   names the contract and its day, which is the proposal on the planning
+ *   board, takes the contract's name and installation and lists the
+ *   services the contract includes.
  * - `status`: the handler the kind names.
  *
  * And a deadline whose reminder made a task that is done is done as well:
@@ -158,13 +165,36 @@ function bound(
           return
         }
 
+        const [contract] =
+          kind.source === 'maintenance_visit'
+            ? await tx
+                .select({
+                  id: maintenanceContracts.id,
+                  number: maintenanceContracts.number,
+                  designation: maintenanceContracts.designation,
+                  services: maintenanceContracts.services,
+                })
+                .from(maintenanceContracts)
+                .where(
+                  eq(maintenanceContracts.id, String(deadline.sourceId) as MaintenanceContractId),
+                )
+            : []
+
         await tx.insert(jobs).values({
           tenantId,
           customerId: deadline.customerId as CustomerId,
           siteId: deadline.siteId as SiteId | null,
           kind: 'service',
-          designation: `${kind.title}: ${deadline.sourceLabel}`,
+          designation: contract?.designation ?? `${kind.title}: ${deadline.sourceLabel}`,
           number: await assignNumber(tx, tenantId, 'job', now),
+          ...(contract
+            ? {
+                installationId: deadline.installationId as InstallationId | null,
+                description: visitDescription(contract, deadline.dueOn as IsoDate),
+                maintenanceContractId: contract.id,
+                maintenanceDueOn: deadline.dueOn,
+              }
+            : {}),
         })
       },
       status: async ({ tx, kind, deadline }) => {

@@ -1,5 +1,11 @@
 import type { Id, Synced } from '@opengewerk/platform-domain'
-import type { CustomerId, InstallationId, JobId, SiteId } from './identifier.js'
+import type {
+  CustomerId,
+  InstallationId,
+  JobId,
+  MaintenanceContractId,
+  SiteId,
+} from './identifier.js'
 
 /**
  * A job is either a project or a service call. The concept keeps them apart
@@ -76,6 +82,13 @@ export interface Job extends Synced {
    * Null for every call that is no emergency.
    */
   readonly emergencyAt: Date | null
+  /**
+   * The maintenance contract whose deadline made this service job (#294), and
+   * the day that maintenance is due: the proposal on the planning board. Set
+   * by the server and only there, never by a device.
+   */
+  readonly maintenanceContractId: MaintenanceContractId | null
+  readonly maintenanceDueOn: string | null
 }
 
 /**

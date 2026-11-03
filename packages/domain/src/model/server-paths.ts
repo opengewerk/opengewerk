@@ -51,4 +51,5 @@ export const serverPaths = [
   'grid-operators',
   // The funding programmes as templates of the office (#307).
   'funding-programs',
+  'maintenance-contracts',
 ] as const

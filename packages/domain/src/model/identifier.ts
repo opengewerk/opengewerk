@@ -21,6 +21,7 @@ export type DocumentFileId = Id<'document-file'>
 export type TextSnippetId = Id<'text-snippet'>
 export type GridOperatorId = Id<'grid-operator'>
 export type FundingProgramId = Id<'funding-program'>
+export type MaintenanceContractId = Id<'maintenance-contract'>
 export type DocumentSignatureId = Id<'document-signature'>
 export type TaskId = Id<'task'>
 export type InstructionId = Id<'instruction'>

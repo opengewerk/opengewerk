@@ -16,6 +16,9 @@ import type { NumberRangeId } from './identifier.js'
  * number the office, the site and the customer on the phone name a job by.
  * Nothing legal hangs on it either, and it is drawn the same way all the same,
  * inside the transaction that creates the job, so that it has no holes.
+ *
+ * Maintenance contracts have one as well (#294), for the same reason: the
+ * number the office and the customer name a contract by.
  */
 export const numberRangeKeys = [
   'job',
@@ -24,6 +27,7 @@ export const numberRangeKeys = [
   'delivery_note',
   'report',
   'invoice',
+  'contract',
 ] as const
 
 export type NumberRangeKey = (typeof numberRangeKeys)[number]
@@ -67,4 +71,5 @@ export const defaultPatterns: Readonly<Record<NumberRangeKey, string>> = {
   delivery_note: 'LS-{year}-{number:4}',
   report: 'RB-{year}-{number:4}',
   invoice: 'RE-{year}-{number:4}',
+  contract: 'WV-{year}-{number:4}',
 }

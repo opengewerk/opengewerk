@@ -241,6 +241,31 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       rated_power_w: 'Bemessungsleistung',
     },
   },
+  // The maintenance contracts of the office (#294).
+  maintenance_contracts: {
+    label: 'Wartungsvertrag',
+    fields: {
+      number: 'Nummer',
+      designation: 'Bezeichnung',
+      customer_id: 'Kunde',
+      site_id: 'Objekt',
+      quote_id: 'Angebot',
+      installation_ids: 'Anlagen',
+      services: 'Enthaltene Leistungen',
+      starts_on: 'Beginn',
+      first_visit_on: 'Erste Wartung',
+      interval_months: 'Intervall in Monaten',
+      term_months: 'Laufzeit in Monaten',
+      renewal: 'Danach',
+      renewal_months: 'Verlängert sich um Monate',
+      notice_months: 'Kündigungsfrist in Monaten',
+      price_kind: 'Preis',
+      flat_cents: 'Pauschale',
+      payment_rhythm: 'Abrechnung',
+      cancelled_on: 'Kündigung eingegangen am',
+      ends_on: 'Endet am',
+    },
+  },
   // The funding programmes as templates of the office (#307).
   funding_programs: {
     label: 'Förderprogramm',
@@ -350,6 +375,8 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       building_work: 'Bauwerk',
       urgent_repair: 'Dringende Reparatur',
       emergency_at: 'Notdiensteinsatz am',
+      maintenance_contract_id: 'Wartungsvertrag',
+      maintenance_due_on: 'Wartung fällig am',
     },
   },
   letterheads: {

@@ -67,6 +67,7 @@ import {
 } from '../database/schema/index.js'
 import { articlePricesOn, type PriceOfDay, pricedFromArticle } from '../documents/article-prices.js'
 import { contentAndGapsOf, issuerOf } from '../documents/content.js'
+import { contractFlatLineFor } from '../contracts/invoice.js'
 import { surchargeLineFor } from '../service-calls/on-call.js'
 import { deductionsFor, paymentsOfADraft, showsReceivedPayments } from '../documents/deductions.js'
 import { choicesOf } from '../documents/instructions.js'
@@ -645,6 +646,22 @@ export class DocumentsController {
         await tx
           .insert(documentInstructionChoices)
           .values({ tenantId: identity.tenantId, documentId: created.id, variant })
+      }
+
+      // The invoice out of the report of a maintenance whose contract has a
+      // flat price per maintenance carries that price as its one line (#294);
+      // what came on top the office adds to the draft.
+      const flat =
+        predecessor.kind === 'time_and_material_report'
+          ? await contractFlatLineFor(tx, predecessor.jobId)
+          : null
+
+      if (flat) {
+        await tx
+          .insert(documentLines)
+          .values({ tenantId: identity.tenantId, documentId: created.id, position: 1, ...flat })
+
+        return created
       }
 
       const lines = await tx

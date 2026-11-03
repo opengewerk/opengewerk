@@ -82,6 +82,8 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   buildingWork: 'Bauwerk',
   urgentRepair: 'Dringende Reparatur',
   emergencyAt: 'Notdiensteinsatz am',
+  maintenanceContractId: 'Wartungsvertrag',
+  maintenanceDueOn: 'Wartung fällig am',
   yieldForecastKwh: 'Ertragsprognose',
   yieldForecastSource: 'Quelle der Ertragsprognose',
   gridOperatorId: 'Netzbetreiber',

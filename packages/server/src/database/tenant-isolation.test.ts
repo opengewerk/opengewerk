@@ -487,6 +487,29 @@ const crossings: readonly {
     write: (own, other) => repoint('jobs', 'installation_id', own.job, other.installation),
   },
   {
+    // The contract whose deadline made a service job (#294), with its day and
+    // the kind its check asks for, so that only the key is left to refuse.
+    key: 'jobs_maintenance_contract_in_tenant',
+    write: (own, other) =>
+      sql`update jobs set kind = 'service', maintenance_due_on = '2026-11-15',
+            maintenance_contract_id = ${other.maintenanceContract} where id = ${own.job}`,
+  },
+  {
+    key: 'maintenance_contracts_customer_in_tenant',
+    write: (own, other) =>
+      repoint('maintenance_contracts', 'customer_id', own.maintenanceContract, other.customer),
+  },
+  {
+    key: 'maintenance_contracts_site_in_tenant',
+    write: (own, other) =>
+      repoint('maintenance_contracts', 'site_id', own.maintenanceContract, other.site),
+  },
+  {
+    key: 'maintenance_contracts_quote_in_tenant',
+    write: (own, other) =>
+      repoint('maintenance_contracts', 'quote_id', own.maintenanceContract, other.document),
+  },
+  {
     key: 'jobs_parent_in_tenant',
     write: (own, other) => repoint('jobs', 'parent_job_id', own.job, other.job),
   },
@@ -1476,6 +1499,7 @@ interface Planted {
   /** A grid operator of the business (#306). */
   readonly gridOperator: string
   readonly fundingProgram: string
+  readonly maintenanceContract: string
   /** An acceptance at the job above, a draft, and a defect at the job (#311). */
   readonly acceptance: string
   readonly defect: string
@@ -1723,6 +1747,12 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
       `insert into funding_programs (tenant_id, name, kinds, evidence)
        values ($1, 'Ladeinfrastruktur 2026', '{wallbox}', '[{"source":"invoice","label":"Rechnung"}]')`,
       [tenant],
+    ),
+    maintenanceContract: await one(
+      `insert into maintenance_contracts (tenant_id, number, designation, customer_id, quote_id, starts_on, first_visit_on,
+         interval_months, term_months, renewal, notice_months, price_kind)
+       values ($1, 'WV-2026-0001', 'Wartung', $2, $3, '2026-11-01', '2026-11-15', 12, 12, 'none', 0, 'effort')`,
+      [tenant, customer, document],
     ),
     acceptance: await one(
       `insert into form_records (tenant_id, definition_key, definition_version, job_id, performed_on)
