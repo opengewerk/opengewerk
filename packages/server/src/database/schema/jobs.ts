@@ -60,6 +60,8 @@ export const jobs = pgTable(
     buildingWork: boolean('building_work'),
     // An urgent repair the customer asked for (#292): no right of withdrawal for it.
     urgentRepair: boolean('urgent_repair').notNull().default(false),
+    // When the customer called for an emergency (#293), null for any other call.
+    emergencyAt: timestamp('emergency_at', { withTimezone: true }),
     ...timestamps,
     ...syncColumns,
   },

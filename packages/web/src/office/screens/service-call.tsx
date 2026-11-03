@@ -189,6 +189,16 @@ export function NewServiceCallScreen() {
   const [designation, setDesignation] = useState('')
   const [description, setDescription] = useState('')
   const [urgent, setUrgent] = useState(false)
+  // An emergency call taken in the office (#293): when the customer called.
+  const [emergency, setEmergency] = useState(false)
+  const [calledOn, setCalledOn] = useState<IsoDate>(today())
+  const [calledAt, setCalledAt] = useState(() =>
+    new Date().toLocaleTimeString('de-DE', {
+      timeZone: 'Europe/Berlin',
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+  )
   const [day, setDay] = useState<IsoDate>(today())
   const [start, setStart] = useState('08:00')
   const [minutes, setMinutes] = useState(60)
@@ -333,6 +343,7 @@ export function NewServiceCallScreen() {
         designation: designation.trim(),
         description: description.trim() || null,
         urgentRepair: urgent,
+        emergencyAt: emergency ? berlinInstant(calledOn, minuteOf(calledAt)).toISOString() : null,
       })
 
       if (job.outcome === 'refused') {
@@ -618,6 +629,36 @@ export function NewServiceCallScreen() {
         checked={urgent}
         onChange={setUrgent}
       />
+      <Box
+        label="Notdiensteinsatz"
+        hint="Mit dem Zeitpunkt des Anrufs. Nachts, am Wochenende oder am Feiertag bekommt die Rechnung den Notdienstzuschlag aus den Einstellungen."
+        checked={emergency}
+        onChange={setEmergency}
+      />
+      {emergency ? (
+        <div className="flex flex-wrap gap-2.5 pl-6">
+          <div className="w-[150px]">
+            <Field
+              label="Anruf am"
+              type="date"
+              value={calledOn}
+              onChange={(event) => {
+                setCalledOn(event.target.value as IsoDate)
+              }}
+            />
+          </div>
+          <div className="w-[110px]">
+            <Field
+              label="um"
+              type="time"
+              value={calledAt}
+              onChange={(event) => {
+                setCalledAt(event.target.value)
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
     </Step>
   )
 

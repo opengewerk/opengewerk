@@ -83,6 +83,7 @@ describe('the settings', () => {
       '/einstellungen/nummernkreise',
       '/einstellungen/zahlungsziel',
       '/einstellungen/aufschlag',
+      '/einstellungen/notdienst',
       '/einstellungen/tags',
       '/einstellungen/fristen',
       '/einstellungen/feiertage',
@@ -109,7 +110,7 @@ describe('the settings', () => {
 
     expect(screen.queryByRole('link', { name: /Zugänge/ })).toBeNull()
     expect(screen.queryByRole('link', { name: /Änderungsprotokoll/ })).toBeNull()
-    expect(screen.getAllByRole('link')).toHaveLength(12)
+    expect(screen.getAllByRole('link')).toHaveLength(13)
   })
 
   it('offer a technician none of them', async () => {

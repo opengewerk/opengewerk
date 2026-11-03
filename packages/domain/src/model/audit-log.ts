@@ -239,6 +239,8 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   defect_steps: ['step'],
   // Signed at the door, by whoever signed (#292).
   early_start_requests: ['signer_name'],
+  // A time of the on-call plan by when it begins (#293).
+  on_call_shifts: ['starts_at'],
   payments: ['received_on'],
   document_files: ['purpose'],
   document_instruction_choices: ['variant'],

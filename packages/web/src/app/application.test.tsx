@@ -349,6 +349,7 @@ describe('what each entry hands to the foundation', () => {
       'nummernkreise',
       'zahlungsziel',
       'aufschlag',
+      'notdienst',
       'tags',
       'fristen',
       'feiertage',

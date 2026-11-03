@@ -46,6 +46,7 @@ import { Calendar, Pencil, TriangleAlert, UserRound } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 
+import { berlinMoment } from '../../app/appointments.js'
 import { JobNoteList, useJobNotes } from '../../app/job-notes.js'
 import { jobKindLabel, jobKindOf, jobStatusLabel, jobStatusOf } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
@@ -630,6 +631,9 @@ function JobFacts({ job }: { readonly job: RecordState }) {
         },
         { label: 'Bauwerk', value: buildingFact(job) },
         { label: 'VOB/B', value: job['vobAgreed'] === true ? 'vereinbart' : 'nicht vereinbart' },
+        ...(maybeText(job, 'emergencyAt')
+          ? [{ label: 'Notdienst', value: `Anruf ${berlinMoment(text(job, 'emergencyAt'))} Uhr` }]
+          : []),
         ...(job['urgentRepair'] === true
           ? [{ label: 'Dringend', value: 'ja, vom Kunden ausdrücklich angefordert' }]
           : []),

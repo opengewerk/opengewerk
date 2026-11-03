@@ -247,6 +247,26 @@ describe('a call taken on the phone (#292)', () => {
     )
   })
 
+  it('marks an emergency call with the moment of the call (#293)', async () => {
+    await mount('/auftraege/service')
+
+    await type('Kunde suchen', 'Berg')
+    await userEvent.click(await screen.findByRole('button', { name: /Familie Berg/ }))
+    await userEvent.click(screen.getByRole('radio', { name: /Einfamilienhaus Lindenweg/ }))
+    await type('Anliegen', 'Heizung ohne Strom')
+    await userEvent.click(screen.getByLabelText('Notdiensteinsatz', { exact: false }))
+    await type('Anruf am', '2026-10-28')
+    await type('um', '02:14')
+    await userEvent.click(screen.getByRole('button', { name: 'Serviceeinsatz anlegen' }))
+
+    await waitFor(() => {
+      expect(server.all('jobs')).toHaveLength(1)
+    })
+
+    // 02:14 in Germany on 28.10.2026, after the change to winter time.
+    expect(server.all('jobs')[0]?.['emergencyAt']).toBe('2026-10-28T01:14:00.000Z')
+  })
+
   it('marks whoever is away that day', async () => {
     await mount('/auftraege/service')
 

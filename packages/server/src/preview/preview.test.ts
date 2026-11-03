@@ -184,14 +184,14 @@ describe('the sample data', () => {
     ).toHaveLength(1)
     expect(byKind.get('cost_estimate')).toMatchObject({ status: 'draft' })
     // The reports signed on site and waiting in the office, one of them out of
-    // the transporter (#298) and one at the service call of this morning
-    // (#292), and the two days of work in the stairwell that one invoice can
-    // bill (#135).
+    // the transporter (#298), one at the service call of this morning (#292)
+    // and one at the emergency call of last night (#293), and the two days of
+    // work in the stairwell that one invoice can bill (#135).
     const reports = documents.filter((document) => document.kind === 'time_and_material_report')
 
     expect(
       reports.filter((report) => report.status === 'signed' && report.number === null),
-    ).toHaveLength(3)
+    ).toHaveLength(4)
     expect(reports.filter((report) => report.status === 'issued')).toHaveLength(2)
     // The newest two: a quote in draft with a price per 100 (#456), on which
     // the check of widths opens "Position hinzufügen", and today's report in
@@ -214,10 +214,21 @@ describe('the sample data', () => {
       status: 'issued',
       predecessorDocumentId: byKind.get('order_confirmation')?.id,
     })
-    expect(byKind.get('final_invoice')).toMatchObject({
-      status: 'draft',
-      predecessorDocumentId: byKind.get('progress_invoice')?.id,
-    })
+    const final = documents.find(
+      (document) =>
+        document.kind === 'final_invoice' &&
+        document.predecessorDocumentId === byKind.get('progress_invoice')?.id,
+    )
+
+    expect(final).toMatchObject({ status: 'draft' })
+    // And the invoice out of the report of the emergency call (#293), in draft.
+    expect(
+      documents.filter(
+        (document) =>
+          document.kind === 'final_invoice' &&
+          reports.some((report) => report.id === document.predecessorDocumentId),
+      ),
+    ).toMatchObject([{ status: 'draft' }])
     expect(byKind.get('recurring_invoice')).toMatchObject({ status: 'issued' })
 
     // Half of the progress invoice has come in, and the final invoice shows
@@ -226,7 +237,7 @@ describe('the sample data', () => {
       `/documents/${byKind.get('progress_invoice')?.id ?? ''}/payments`,
     )
     const [deduction] = await read<{ received: { grossCents: number } | null }[]>(
-      `/documents/${byKind.get('final_invoice')?.id ?? ''}/deductions`,
+      `/documents/${final?.id ?? ''}/deductions`,
     )
 
     expect(paid.receivedCents).toBe(Math.floor(paid.billedCents / 2))

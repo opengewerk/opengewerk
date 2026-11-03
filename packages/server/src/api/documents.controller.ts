@@ -67,6 +67,7 @@ import {
 } from '../database/schema/index.js'
 import { articlePricesOn, type PriceOfDay, pricedFromArticle } from '../documents/article-prices.js'
 import { contentAndGapsOf, issuerOf } from '../documents/content.js'
+import { surchargeLineFor } from '../service-calls/on-call.js'
 import { deductionsFor, paymentsOfADraft, showsReceivedPayments } from '../documents/deductions.js'
 import { choicesOf } from '../documents/instructions.js'
 import { proposedTreatment } from '../documents/treatment.js'
@@ -664,28 +665,48 @@ export class DocumentsController {
             created.documentDate,
           )
 
-      if (lines.length > 0) {
-        await tx.insert(documentLines).values(
-          lines.map((original) => {
-            const line = pricedFromArticle(original, prices)
+      const priced = lines.map((original) => pricedFromArticle(original, prices))
 
-            return {
-              tenantId: identity.tenantId,
-              documentId: created.id,
-              kind: line.kind,
-              position: line.position,
-              designation: line.designation,
-              description: line.description,
-              quantityMilli: line.quantityMilli,
-              unit: line.unit,
-              unitPriceCents: line.unitPriceCents,
-              priceBase: line.priceBase,
-              vatRate: line.vatRate,
-              netCents: line.netCents,
-              articleId: line.articleId,
-            }
-          }),
+      if (priced.length > 0) {
+        await tx.insert(documentLines).values(
+          priced.map((line) => ({
+            tenantId: identity.tenantId,
+            documentId: created.id,
+            kind: line.kind,
+            position: line.position,
+            designation: line.designation,
+            description: line.description,
+            quantityMilli: line.quantityMilli,
+            unit: line.unit,
+            unitPriceCents: line.unitPriceCents,
+            priceBase: line.priceBase,
+            vatRate: line.vatRate,
+            netCents: line.netCents,
+            articleId: line.articleId,
+          })),
         )
+      }
+
+      // The invoice out of the report of an emergency call carries the
+      // surcharge the business set for its kind (#293), as the last line.
+      if (predecessor.kind === 'time_and_material_report') {
+        const surcharge = await surchargeLineFor(tx, predecessor.jobId, priced)
+
+        if (surcharge) {
+          await tx.insert(documentLines).values({
+            tenantId: identity.tenantId,
+            documentId: created.id,
+            kind: 'item',
+            position: priced.reduce((last, line) => Math.max(last, line.position), 0) + 1,
+            designation: surcharge.designation,
+            description: surcharge.description,
+            quantityMilli: surcharge.quantityMilli,
+            unit: surcharge.unit,
+            unitPriceCents: surcharge.unitPriceCents,
+            vatRate: 'standard',
+            netCents: surcharge.netCents,
+          })
+        }
       }
 
       return created

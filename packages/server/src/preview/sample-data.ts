@@ -827,6 +827,83 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 
   await signOnDevice(post, kitchenReport, kitchenWork, 'Klaus Lehmann')
 
+  // The on-call service (#293): the surcharges of the business, the plan with
+  // the preview's own person on call this week and two colleagues after, and
+  // a call of last night with its signed report and the invoice out of it, as
+  // the boards of the canvas, version 125, draw them.
+  for (const [key, value] of [
+    ['emergency.night_flat_cents', 4500],
+    ['emergency.weekend_basis_points', 5000],
+    ['emergency.holiday_basis_points', 10_000],
+  ] as const) {
+    await post('/settings/parameters', { key, from: today, value })
+  }
+
+  for (const [userId, from, note] of [
+    [previewUser.id, -1, 'Diese Woche'],
+    ['preview-lena', 6, null],
+    ['preview-max', 13, null],
+  ] as const) {
+    await post('/on-call-shifts', {
+      userId,
+      startsAt: berlinInstant(addDays(today, from), 17 * 60).toISOString(),
+      endsAt: berlinInstant(addDays(today, from + 7), 7 * 60).toISOString(),
+      note,
+    })
+  }
+
+  const arslan = idOf(
+    await post('/customers', {
+      kind: 'private',
+      name: 'Familie Arslan',
+      phone: '040 553 210 77',
+      street: 'Lutterothstraße',
+      houseNumber: '48',
+      postalCode: '20255',
+      city: 'Hamburg',
+    }),
+  )
+  const heating = idOf(
+    await post('/jobs', {
+      customerId: arslan,
+      kind: 'service',
+      status: 'active',
+      designation: 'Heizung ohne Strom',
+      description: 'In der Nacht angerufen, die Heizung hat keinen Strom.',
+      urgentRepair: true,
+      emergencyAt: berlinInstant(today, 2 * 60 + 14).toISOString(),
+    }),
+  )
+
+  await post('/appointments', {
+    jobId: heating,
+    startsAt: berlinInstant(today, 2 * 60 + 40).toISOString(),
+    endsAt: berlinInstant(today, 3 * 60 + 45).toISOString(),
+    note: null,
+    rrule: null,
+    exdates: [],
+    userIds: [previewUser.id],
+  })
+
+  const heatingWork =
+    'Leitungsschutzschalter des Heizungskreises ersetzt, Heizung wieder in Betrieb genommen.'
+  const heatingReport = await document(
+    {
+      customerId: arslan,
+      jobId: heating,
+      kind: 'time_and_material_report',
+      subject: 'Heizung ohne Strom',
+      introText: heatingWork,
+    },
+    [
+      item('Arbeitszeit', 1000, 'hour', 6800),
+      { ...item('Leitungsschutzschalter B16', 1000, 'piece', 740), articleId: breaker },
+    ],
+  )
+
+  await signOnDevice(post, heatingReport, heatingWork, 'Ayse Arslan')
+  await post(`/documents/${heatingReport.id}/successors`, { kind: 'final_invoice' })
+
   // A report of today still in draft, with material taken from an article
   // (#296): the walk of the check of widths opens "Material eintragen" on it
   // on site, and its article counts as used lately on every device.

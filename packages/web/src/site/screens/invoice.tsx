@@ -17,11 +17,12 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { Euro } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
+import { berlinMoment } from '../../app/appointments.js'
 import { DocumentState } from '../../app/document-state.js'
 import {
   documentKindOf,
   documentStatusOf,
-  lineUnitLabel,
+  lineUnitShort,
   taxTreatmentOf,
   vatRateOf,
 } from '../../app/labels.js'
@@ -154,6 +155,8 @@ export function SiteInvoiceScreen() {
   const invoice = useRecord('documents', documentId)
   const customer = useRecord('customers', invoice ? String(invoice['customerId']) : undefined)
   const report = useRecord('documents', maybeText(invoice, 'predecessorDocumentId') ?? undefined)
+  const job = useRecord('jobs', maybeText(invoice, 'jobId') ?? undefined)
+  const calledAt = maybeText(job, 'emergencyAt')
   const records = useRelated('document_lines', 'documentId', documentId ?? '')
   const lines = useMemo(
     () =>
@@ -225,7 +228,7 @@ export function SiteInvoiceScreen() {
                       <b className="numeric">{euros(count(line, 'netCents'))}</b>
                     </div>
                     <p className="numeric mt-0.5 text-[15px] text-ink-muted">
-                      {`${amount(count(line, 'quantityMilli'))} ${lineUnitLabel[line['unit'] as keyof typeof lineUnitLabel] ?? ''}`}
+                      {`${amount(count(line, 'quantityMilli'))} ${lineUnitShort[line['unit'] as keyof typeof lineUnitShort] ?? ''}`}
                       {typeof price === 'number' ? ` zu ${euros(price)}` : ', ohne Preis'}
                     </p>
                   </li>
@@ -256,14 +259,20 @@ export function SiteInvoiceScreen() {
             ...(maybeText(invoice, 'serviceFrom')
               ? [{ label: 'Leistungsdatum', value: date(invoice['serviceFrom']) }]
               : []),
+            // The call the surcharge comes from (#293).
+            ...(calledAt
+              ? [{ label: 'Notdiensteinsatz', value: `Anruf ${berlinMoment(calledAt)} Uhr` }]
+              : []),
           ]}
         />
       </Panel>
 
       <p className="rounded-[6px] border border-line bg-surface-sunken px-3.5 py-3 text-[16px] leading-[1.45]">
-        {status === 'draft'
-          ? 'Ein Entwurf. Das Büro prüft ihn, schreibt die Rechnung fest und schickt sie dem Kunden; bis dahin hat sie keine Nummer.'
-          : 'Die Rechnung ist festgeschrieben und ändert sich nicht mehr.'}
+        {status === 'draft' && calledAt
+          ? 'Ein Entwurf; der Notdienstzuschlag kommt aus den Einstellungen des Betriebs. Das Büro prüft den Entwurf, schreibt die Rechnung fest und schickt sie dem Kunden; bis dahin hat sie keine Nummer.'
+          : status === 'draft'
+            ? 'Ein Entwurf. Das Büro prüft ihn, schreibt die Rechnung fest und schickt sie dem Kunden; bis dahin hat sie keine Nummer.'
+            : 'Die Rechnung ist festgeschrieben und ändert sich nicht mehr.'}
       </p>
     </SiteScreen>
   )

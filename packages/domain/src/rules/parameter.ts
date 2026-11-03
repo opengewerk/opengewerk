@@ -2,6 +2,7 @@ import type { Id, IsoDate, TenantId } from '@opengewerk/platform-domain'
 import type { RuleUnit } from '@opengewerk/platform-domain'
 
 import { markupProblem } from '../model/markup.js'
+import { emergencyParameterProblem } from '../model/on-call.js'
 import { paymentTermProblem } from '../model/payment-term.js'
 
 export type TenantParameterId = Id<'tenant-parameter'>
@@ -82,6 +83,26 @@ export const tenantParameterKeys = [
    * paper sent and not the other. Read on the day of the signature.
    */
   'delivery_note.mail_on_signature',
+  /**
+   * What an emergency call costs the customer extra (#293, decided on
+   * 27.09.2026: a surcharge on the invoice to the customer), for each kind of
+   * call a flat amount in cents or a percentage of the working time in basis
+   * points; the screen keeps one of the two at zero. Read on the day of the
+   * call (`emergencySurchargeLine`). Not set means no surcharge.
+   */
+  'emergency.night_flat_cents',
+  'emergency.night_basis_points',
+  'emergency.weekend_flat_cents',
+  'emergency.weekend_basis_points',
+  'emergency.holiday_flat_cents',
+  'emergency.holiday_basis_points',
+  /**
+   * When the night begins and ends for the surcharge (#293), as the minute of
+   * the day in German time; not set means 20:00 and 06:00
+   * (`defaultNight`).
+   */
+  'emergency.night_from_minute',
+  'emergency.night_until_minute',
 ] as const
 
 export type TenantParameterKey = (typeof tenantParameterKeys)[number]
@@ -100,6 +121,14 @@ export const tenantParameterNames: Readonly<Record<TenantParameterKey, string>> 
   'material.markup_basis_points': 'den Aufschlag auf Material',
   'material.markup_on_metal': 'den Aufschlag auf den Metallzuschlag',
   'delivery_note.mail_on_signature': 'den Lieferschein nach der Unterschrift',
+  'emergency.night_flat_cents': 'den Notdienstzuschlag in der Nacht',
+  'emergency.night_basis_points': 'den Notdienstzuschlag in der Nacht',
+  'emergency.weekend_flat_cents': 'den Notdienstzuschlag am Wochenende',
+  'emergency.weekend_basis_points': 'den Notdienstzuschlag am Wochenende',
+  'emergency.holiday_flat_cents': 'den Notdienstzuschlag an Feiertagen',
+  'emergency.holiday_basis_points': 'den Notdienstzuschlag an Feiertagen',
+  'emergency.night_from_minute': 'den Beginn der Nacht',
+  'emergency.night_until_minute': 'das Ende der Nacht',
 }
 
 export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>> = {
@@ -111,6 +140,14 @@ export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>
   'material.markup_basis_points': 'basis_points',
   'material.markup_on_metal': 'flag',
   'delivery_note.mail_on_signature': 'flag',
+  'emergency.night_flat_cents': 'cents',
+  'emergency.night_basis_points': 'basis_points',
+  'emergency.weekend_flat_cents': 'cents',
+  'emergency.weekend_basis_points': 'basis_points',
+  'emergency.holiday_flat_cents': 'cents',
+  'emergency.holiday_basis_points': 'basis_points',
+  'emergency.night_from_minute': 'minutes',
+  'emergency.night_until_minute': 'minutes',
 }
 
 /**
@@ -132,6 +169,10 @@ export function tenantParameterProblem(key: TenantParameterKey, value: number): 
 
   if (key === 'material.markup_basis_points') {
     return markupProblem(value)
+  }
+
+  if (key.startsWith('emergency.')) {
+    return emergencyParameterProblem(tenantParameterUnits[key], value)
   }
 
   if (tenantParameterUnits[key] === 'flag' && value !== 0 && value !== 1) {

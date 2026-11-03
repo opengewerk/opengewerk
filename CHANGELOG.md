@@ -9,6 +9,17 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Notdienst mit Rufbereitschaftsplan und Notdienstzuschlägen (#293), nach der Feature-Gliederung v2.63 und den Tafeln
+  aus Version 125 des Canvas: Unter der Plantafel steht die Rufbereitschaft, Zeiten mit Person, Beginn und Ende, die das
+  Büro einträgt, ändert, entfernt und tauscht; die Plantafel zeigt in einer Zeile über den Personen, wer an welchem Tag
+  Bereitschaft hat (Migration 0121). Der Bereitschaftsmonteur bekommt das neue Recht „Serviceeinsätze in der
+  Bereitschaft anlegen“ und legt den Einsatz auf dem Telefon an, auch ohne Netz, mit dem Zeitpunkt des Anrufs; der
+  Abgleich nimmt ihn nur in einer Zeit seines Plans und höchstens zwei Tage nach dem Anruf; den ganzen Plan sieht das
+  Büro, ein Monteur seine eigenen Zeiten. Das Büro kennzeichnet einen Auftrag in der Schnellerfassung als
+  Notdiensteinsatz. Unter „Einstellungen“ stellt der Betrieb für Nacht, Wochenende und Feiertag eine Pauschale oder
+  einen Aufschlag auf die Arbeitszeit ein, dazu Beginn und Ende der Nacht; die Rechnung aus dem Regiebericht des
+  Einsatzes und die Sammelrechnung bekommen den Zuschlag als letzte Position. Warum: Nachts ist das Büro nicht da, und
+  ein Einsatz außerhalb der Zeiten kostet den Kunden mehr, als die Rechnung sonst ausweist.
 - Serviceaufträge mit Schnellerfassung, Dispatch und Abrechnung vor Ort (#292), nach der Feature-Gliederung v2.62
   und den Tafeln aus Version 124 des Canvas: Im Büro wird ein Anruf auf einem Bildschirm zu Serviceeinsatz und
   Termin. Gefragt wird, wer anruft (ein Kunde, den die Suche nach Name, Telefon oder Ort findet, oder ein neuer mit
@@ -27,6 +38,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   zuerst seine Nummer. Warum: Ein Serviceauftrag kommt per Telefon und muss Sekunden später auf einem Bildschirm und
   auf dem Telefon des Monteurs stehen, und ein Verbraucher, der ohne Angebot beauftragt, hat dieselben Rechte wie
   einer mit Angebot.
+
+### Behoben
+
+- Die Rechnung vor Ort aus #292 schreibt die Einheit einer Position kurz wie das gedruckte Dokument, „1 Std.“ statt
+  „1 Stunden“ (#293). Warum: Neben einer Menge stand die ausgeschriebene Einheit der Auswahlliste, die nur im Plural
+  passt.
 
 ## [0.7.0] - 2026-11-03
 

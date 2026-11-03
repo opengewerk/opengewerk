@@ -28,6 +28,7 @@ import clsx from 'clsx'
 import { Check, MapPin, Signature, Smartphone, Zap } from 'lucide-react'
 import { createContext, useContext, useMemo, useState } from 'react'
 
+import { berlinMoment } from '../../app/appointments.js'
 import { DocumentState } from '../../app/document-state.js'
 import { JobAcceptance } from './acceptance.js'
 import { JobDefects } from './defects.js'
@@ -54,6 +55,7 @@ import { shownStatus } from './report.js'
 import { SiteAccessPanel } from './access.js'
 import { JobAppointmentCard } from './appointments.js'
 import { JobInstructionsCard } from './call-instructions.js'
+import { OnCallCard } from './on-call.js'
 import { JobTasks, MyTasks } from './tasks.js'
 import { JobTime, TodayTime } from './time.js'
 import { SiteHeader } from '../header.js'
@@ -187,6 +189,9 @@ export function SiteJobList() {
         title="Offene Aufträge"
         right={<TitleCount count={open.length} label="offen" />}
       />
+
+      {/* While on call, until when and the way to a new call (#293). */}
+      <OnCallCard />
 
       <AppointmentsCard />
 
@@ -502,6 +507,14 @@ export function SiteJobScreen() {
                       {address}
                     </SiteAnchor>
                   ),
+                },
+              ]
+            : []),
+          ...(maybeText(job, 'emergencyAt')
+            ? [
+                {
+                  label: 'Notdiensteinsatz',
+                  value: `Anruf ${berlinMoment(text(job, 'emergencyAt'))} Uhr`,
                 },
               ]
             : []),

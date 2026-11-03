@@ -22,6 +22,7 @@ import {
   remedyDueProblem,
   jobTermsProblem,
   urgentRepairProblem,
+  emergencyAtProblem,
   pvSystemLinkProblem,
   ratingProblem,
   servicePeriodProblem,
@@ -139,6 +140,7 @@ const rules: RecordRules = {
       problem: (at) => jobTermsProblem(at('vobAgreed'), at('buildingWork')),
     },
     { fields: ['urgentRepair'], problem: (at) => urgentRepairProblem(at('urgentRepair')) },
+    { fields: ['emergencyAt'], problem: (at) => emergencyAtProblem(at('emergencyAt')) },
   ],
   installations: [
     {

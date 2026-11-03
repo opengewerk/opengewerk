@@ -88,6 +88,18 @@ export function permissionFor(
     return 'job.progress'
   }
 
+  // A service call taken on call (#293): the narrow right of whoever is on
+  // call. The sync asks besides whether a time of that person's plan covers
+  // its moment (`onCall` in `database/sync.ts`); whoever holds `job.write`
+  // holds this one too and makes any job at any time.
+  if (
+    entity === 'jobs' &&
+    kind === 'create' &&
+    patches.some((patch) => patch.field === 'kind' && patch.to === 'service')
+  ) {
+    return 'job.on_call'
+  }
+
   // What happened on site (#220), which is the progress of the job and not
   // what the job is: the technician on it writes it.
   if (entity === 'job_notes' && kind === 'create') {
@@ -175,6 +187,9 @@ export function permissionFor(
     // A request for an early start is never changed (#292); the policy
     // answers a change sent anyway `online_only`.
     early_start_requests: 'job.write',
+    // The on-call plan is kept at its routes (#293); the policy answers a time
+    // sent anyway `online_only`.
+    on_call_shifts: 'job.write',
     // A test protocol is measured at an installation and belongs to it (#79):
     // whoever may record its structure may record its test.
     form_records: 'installation.write',
