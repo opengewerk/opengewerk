@@ -301,7 +301,8 @@ describe('the page of a defect (#311)', () => {
   it('says a complaint after the acceptance lies within the warranty of the job', async () => {
     await mount('/maengel/d-1', {
       form_records: [acceptance],
-      defects: [defect({ reportedAt: '2027-03-12T08:14:00.000Z' })],
+      // At the job alone: the warranty can only come from its acceptance.
+      defects: [defect({ installationId: null, reportedAt: '2027-03-12T08:14:00.000Z' })],
     })
 
     expect(
