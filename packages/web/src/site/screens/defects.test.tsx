@@ -222,7 +222,7 @@ describe('recording a defect on site (#311)', () => {
       screen.getByLabelText('Foto aufnehmen'),
       new File([new Uint8Array(5000).fill(1)], 'halter.jpg', { type: 'image/jpeg' }),
     )
-    expect(await screen.findByRole('img', { name: 'Foto 1' })).toBeTruthy()
+    expect(await screen.findByRole('img', { name: 'Foto 1: halter.jpg' })).toBeTruthy()
     await userEvent.click(screen.getByRole('button', { name: 'Mangel sichern' }))
 
     await waitFor(() => {

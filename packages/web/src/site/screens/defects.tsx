@@ -18,8 +18,15 @@ import {
 } from '@opengewerk/platform-web/site'
 import { maybeText, refusalFor, text, useRecord, useSync } from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
-import { Camera, Check, ChevronRight, Signature, TriangleAlert } from 'lucide-react'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  Camera,
+  Check,
+  ChevronRight,
+  Image as ImageIcon,
+  Signature,
+  TriangleAlert,
+} from 'lucide-react'
+import { useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { AddFiles, AttachmentList } from '../../app/attachments.js'
@@ -150,23 +157,21 @@ function Reported({
   )
 }
 
-/** A photo chosen for a defect that is not recorded yet, as a preview. */
+/**
+ * A photo chosen for a defect that is not recorded yet, as the board draws
+ * it: the symbol of a picture, named by its file. The bytes are not shown
+ * before they are filed; once the defect is recorded, its photos show with
+ * their previews among the files.
+ */
 function ChosenPhoto({ file, index }: { readonly file: File; readonly index: number }) {
-  const href = useMemo(() => URL.createObjectURL(file), [file])
-
-  useEffect(
-    () => () => {
-      URL.revokeObjectURL(href)
-    },
-    [href],
-  )
-
   return (
-    <img
-      src={href}
-      alt={`Foto ${String(index + 1)}`}
-      className="size-16 rounded-[6px] border border-line object-cover"
-    />
+    <span
+      role="img"
+      aria-label={`Foto ${String(index + 1)}: ${file.name}`}
+      className="flex size-16 items-center justify-center rounded-[6px] border border-line bg-surface-sunken text-ink-faint"
+    >
+      <ImageIcon size={24} strokeWidth={2} aria-hidden="true" />
+    </span>
   )
 }
 
