@@ -107,6 +107,12 @@ export const tenantParameterKeys = [
   'appointment.mail_to_customer',
   'service_call.mail_on_receipt',
   /**
+   * Whether a customer is reminded of an inspection or maintenance that comes
+   * within its lead (#316): by mail, or a call where they have no address.
+   * Read on the day the lead comes, like the confirmations.
+   */
+  'customer_reminder.mail',
+  /**
    * When the night begins and ends for the surcharge (#293), as the minute of
    * the day in German time; not set means 20:00 and 06:00
    * (`defaultNight`).
@@ -138,6 +144,7 @@ export const tenantParameterNames: Readonly<Record<TenantParameterKey, string>> 
   'emergency.holiday_flat_cents': 'den Notdienstzuschlag an Feiertagen',
   'appointment.mail_to_customer': 'die Bestätigung zum Termin',
   'service_call.mail_on_receipt': 'die Bestätigung zum Auftragseingang',
+  'customer_reminder.mail': 'die Erinnerung an Prüfungen und Wartungen',
   'emergency.holiday_basis_points': 'den Notdienstzuschlag an Feiertagen',
   'emergency.night_from_minute': 'den Beginn der Nacht',
   'emergency.night_until_minute': 'das Ende der Nacht',
@@ -159,6 +166,7 @@ export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>
   'emergency.holiday_flat_cents': 'cents',
   'appointment.mail_to_customer': 'flag',
   'service_call.mail_on_receipt': 'flag',
+  'customer_reminder.mail': 'flag',
   'emergency.holiday_basis_points': 'basis_points',
   'emergency.night_from_minute': 'minutes',
   'emergency.night_until_minute': 'minutes',

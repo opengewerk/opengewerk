@@ -14,6 +14,8 @@ const facts: MailFacts = {
   kunde: 'Klaus Lehmann',
   termin: 'Mittwoch, 04.11.2026, 13:30 bis 15:00 Uhr',
   auftrag: 'AU-2026-0233 Sicherung Küche löst aus',
+  frist: 'Wiederholungsprüfung der Anlage Elektroinstallation am Objekt Lindenweg 4',
+  datum: '20.01.2027',
   benutzer: 'Britta Kohm',
   briefkopf: 'Elektro Kohm GmbH\nHauptstraße 103',
 }
@@ -53,6 +55,15 @@ describe('the placeholders of a snippet for mails (#315)', () => {
     expect(filledMailText('{preis} und {kunde}', facts)).toBe('{preis} und Klaus Lehmann')
     expect(filledMailSubject('Von {briefkopf}', facts)).toBe(
       'Von Elektro Kohm GmbH, Hauptstraße 103',
+    )
+  })
+
+  it('remind of what is due and when (#316)', () => {
+    expect(filledMailSubject(shippedMails.due_reminder.subject, facts)).toBe(
+      'Fällig am 20.01.2027: Wiederholungsprüfung der Anlage Elektroinstallation am Objekt Lindenweg 4',
+    )
+    expect(filledMailText(shippedMails.due_reminder.text, facts)).toContain(
+      'am 20.01.2027 ist fällig: Wiederholungsprüfung der Anlage Elektroinstallation am Objekt Lindenweg 4.',
     )
   })
 

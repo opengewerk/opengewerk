@@ -26,6 +26,8 @@ export const mailKinds = [
   // cancelled, with its calendar file, and a service call the office took.
   'appointment_confirmation',
   'job_received',
+  // The reminders of a due inspection or maintenance to a customer (#316).
+  'customer_reminder',
 ] as const
 
 /**

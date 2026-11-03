@@ -500,8 +500,10 @@ describe('the package Elektro und PV', () => {
         intervalMonths: null,
         leadDays: 60,
         responsible: 'source',
-        actions: ['task', 'reminder'],
+        actions: ['task', 'reminder', 'customer_reminder'],
         taskTitle: 'Wiederholungsprüfung: {quelle}',
+        // The reminder to the customer (#316) names the inspection in their words.
+        customerTitle: 'Wiederholungsprüfung der Anlage {quelle}',
       }),
       // The test of an appliance (#303): one task for the appliances of a site due the same day.
       expect.objectContaining({
@@ -512,8 +514,9 @@ describe('the package Elektro und PV', () => {
         intervalMonths: null,
         leadDays: 30,
         responsible: 'source',
-        actions: ['task'],
+        actions: ['task', 'customer_reminder'],
         taskTitle: 'Geräte nach DGUV Vorschrift 3 prüfen am Objekt {objekt}',
+        customerTitle: 'Prüfung der Geräte nach DGUV Vorschrift 3 am Objekt {objekt}',
       }),
       // The entry in the installer directory of a grid operator (#306), the owner's.
       expect.objectContaining({

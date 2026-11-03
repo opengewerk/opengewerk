@@ -5,14 +5,15 @@
       "key": "elektro.appliance_inspection",
       "trade": "elektro",
       "title": "Prüfung eines Geräts nach DGUV Vorschrift 3",
-      "about": "Kommt aus dem letzten unterschriebenen Prüfprotokoll nach DGUV Vorschrift 3 an einem Gerät, das die Prüffrist bis zur nächsten Prüfung nennt. Ein neues Protokoll verschiebt die Frist, mit dem Gerät entfällt sie. Die Fristen eines Objekts, die am selben Tag für dieselbe Person anstehen, teilen sich eine Aufgabe.",
+      "about": "Kommt aus dem letzten unterschriebenen Prüfprotokoll nach DGUV Vorschrift 3 an einem Gerät, das die Prüffrist bis zur nächsten Prüfung nennt. Ein neues Protokoll verschiebt die Frist, mit dem Gerät entfällt sie. Die Fristen eines Objekts, die am selben Tag für dieselbe Person anstehen, teilen sich eine Aufgabe. Sind die Erinnerungen an Kunden eingeschaltet, bekommt der Kunde rechtzeitig davor eine E-Mail mit der Bitte um einen Termin, wo er erinnert werden darf.",
       "source": "appliance_inspection",
       "intervalDays": null,
       "intervalMonths": null,
       "leadDays": 30,
       "responsible": "source",
-      "actions": ["task"],
+      "actions": ["task", "customer_reminder"],
       "taskTitle": "Geräte nach DGUV Vorschrift 3 prüfen am Objekt {objekt}",
+      "customerTitle": "Prüfung der Geräte nach DGUV Vorschrift 3 am Objekt {objekt}",
       "reference": "DGUV Vorschrift 3, Durchführungsanweisungen zu § 5, Tabellen 1A und 1B"
     }
   ]

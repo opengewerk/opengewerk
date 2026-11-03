@@ -95,6 +95,15 @@ describe('the registry', () => {
     expect(kindProblems({ ...followUp, taskTitle: 'Nachfassen' })).toHaveLength(1)
     // A title may name the site instead, for a task the deadlines of a site share (#303).
     expect(kindProblems({ ...followUp, taskTitle: 'Geräte prüfen am Objekt {objekt}' })).toEqual([])
+    // A reminder to the customer says what is due in words for the customer (#316).
+    expect(kindProblems({ ...followUp, actions: ['task', 'customer_reminder'] })).toHaveLength(1)
+    expect(
+      kindProblems({
+        ...followUp,
+        actions: ['task', 'customer_reminder'],
+        customerTitle: 'Angebot {quelle}',
+      }),
+    ).toEqual([])
   })
 
   it('refuses a kind that does nothing', () => {
@@ -213,6 +222,12 @@ describe('the words of the settings', () => {
     expect(actionsSentence(['service_job'])).toBe('Bei Fälligkeit: ein Serviceauftrag im Entwurf.')
     expect(actionsSentence(['task', 'service_job', 'status'])).toBe(
       'Bei Fälligkeit: eine Aufgabe, ein Serviceauftrag im Entwurf und ein neuer Stand an der Quelle für die verantwortliche Person.',
+    )
+    expect(actionsSentence(['task', 'reminder', 'customer_reminder'])).toBe(
+      'Bei Fälligkeit: eine Aufgabe und eine Erinnerung per E-Mail und Push für die verantwortliche Person, dazu eine Erinnerung an den Kunden.',
+    )
+    expect(actionsSentence(['service_job', 'customer_reminder'])).toBe(
+      'Bei Fälligkeit: ein Serviceauftrag im Entwurf, dazu eine Erinnerung an den Kunden.',
     )
   })
 

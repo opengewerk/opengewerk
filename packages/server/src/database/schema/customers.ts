@@ -1,10 +1,12 @@
-import { customerKinds } from '@opengewerk/domain'
+import { customerKinds, reminderGrounds } from '@opengewerk/domain'
 import { primaryId, syncColumns, tenantIsolation, timestamps } from '@opengewerk/platform-server'
 import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import { boolean, check, date, pgEnum, pgTable, text, unique } from 'drizzle-orm/pg-core'
 
 export const customerKind = pgEnum('customer_kind', customerKinds)
+
+export const reminderGround = pgEnum('reminder_ground', reminderGrounds)
 
 /**
  * The customer. Tax attributes sit here because they decide how a document has
@@ -38,6 +40,11 @@ export const customers = pgTable(
     taxExemptionCertificateNumber: text('tax_exemption_certificate_number'),
     taxExemptionValidUntil: date('tax_exemption_valid_until'),
 
+    // What reminders of a due inspection or maintenance rest on without a
+    // contract (#316), and since when; null for only a contract's.
+    reminderGround: reminderGround('reminder_ground'),
+    reminderGroundOn: date('reminder_ground_on'),
+
     notes: text('notes'),
     ...timestamps,
     ...syncColumns,
@@ -48,5 +55,10 @@ export const customers = pgTable(
     // A code of ISO 3166-1 (#144), what `countryProblem` asks before anything
     // reaches this table, held here for every other way in.
     check('customers_country_code', sql`${table.country} ~ '^[A-Z]{2}$'`),
+    // A ground has the day it was given, and none has none (`reminderGroundProblem`).
+    check(
+      'customers_reminder_ground_on',
+      sql`(${table.reminderGround} is null) = (${table.reminderGroundOn} is null)`,
+    ),
   ],
 )

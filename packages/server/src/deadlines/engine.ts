@@ -29,6 +29,7 @@ import { contractInvoice } from '../contracts/recurring.js'
 import { assignNumber } from '../database/number-ranges.js'
 import type { ApplicationDeadlineColumns } from '../database/schema/deadlines.js'
 import { deadlines, jobs, maintenanceContracts, sites, tasks } from '../database/schema/index.js'
+import { remindCustomer } from '../notifications/customer-reminder.js'
 import { deadlineKinds } from './registry.js'
 import { deadlineSourceQueries, type DeadlineValues } from './sources.js'
 
@@ -85,6 +86,8 @@ const sentences = {
  *   board, takes the contract's name and installation and lists the
  *   services the contract includes.
  * - `status`: the handler the kind names.
+ * - `customer_reminder`: a mail to the customer of the source, or a task to
+ *   call them, where they may be reminded (#316, `remindCustomer`).
  *
  * And a deadline whose reminder made a task that is done is done as well:
  * whoever did the task has done what the deadline asked, and nobody should
@@ -208,6 +211,9 @@ function bound(
         }
 
         await handler(tx, deadline)
+      },
+      customer_reminder: async ({ tx, tenantId, kind, deadline, responsible, now }) => {
+        await remindCustomer(tx, { tenantId, kind, deadline, responsible, now })
       },
     },
     complete: async (tx, now) => {

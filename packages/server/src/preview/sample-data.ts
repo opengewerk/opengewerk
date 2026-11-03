@@ -153,6 +153,9 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       vatId: 'DE987654321',
       buyerReference: 'Objekt Elbchaussee 140',
       isBusiness: true,
+      // Reminded of inspections and maintenances as a customer of the business (#316).
+      reminderGround: 'existing_customer',
+      reminderGroundOn: '2024-03-12',
     }),
   )
 
@@ -353,6 +356,9 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   // The confirmation of an appointment switched on, the one of a service call
   // left off, as the board "Einstellungen, Bestätigungen per E-Mail" has them.
   await post('/settings/parameters', { key: 'appointment.mail_to_customer', from: today, value: 1 })
+  // The reminders of due inspections and maintenances (#316), as the board
+  // "Einstellungen, Erinnerungen per E-Mail" has them.
+  await post('/settings/parameters', { key: 'customer_reminder.mail', from: today, value: 1 })
 
   async function document(values: Record<string, unknown>, lines: readonly Line[]) {
     const id = idOf(await post('/documents', { documentDate: today, ...values }))
