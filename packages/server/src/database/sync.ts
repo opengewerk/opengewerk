@@ -164,6 +164,7 @@ const formRecord: Check = ({ operation, values, current }) => {
     formSubjectProblem(definitionOf(at('definitionKey'), at('definitionVersion')), {
       installationId: at('installationId'),
       applianceId: at('applianceId'),
+      jobId: at('jobId'),
     })
 
   return problem === null ? null : { kind: 'client', message: problem }

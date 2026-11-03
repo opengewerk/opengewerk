@@ -60,9 +60,11 @@ export const formRecords = pgTable(
       foreignColumns: [appliances.tenantId, appliances.id],
       name: 'form_records_appliance_in_tenant',
     }).onDelete('restrict'),
+    // An installation or an appliance, or a job alone for its acceptance (#310).
     check(
       'form_records_one_subject',
-      sql`num_nonnulls(${table.installationId}, ${table.applianceId}) = 1`,
+      sql`num_nonnulls(${table.installationId}, ${table.applianceId}) = 1
+        or (${table.installationId} is null and ${table.applianceId} is null and ${table.jobId} is not null)`,
     ),
     foreignKey({
       columns: [table.tenantId, table.jobId],
@@ -76,5 +78,6 @@ export const formRecords = pgTable(
     ),
     index('form_records_installation_idx').on(table.tenantId, table.installationId),
     index('form_records_appliance_idx').on(table.tenantId, table.applianceId),
+    index('form_records_job_idx').on(table.tenantId, table.jobId),
   ],
 )

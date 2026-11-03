@@ -1,0 +1,134 @@
+{
+  "key": "acceptance",
+  "version": 1,
+  "title": "Abnahmeprotokoll",
+  "attachesTo": "job",
+  "purpose": "acceptance",
+  "fromStructure": {
+    "client": "operator",
+    "work": "job_work",
+    "building_work": "job_building",
+    "vob_agreed": "job_vob"
+  },
+  "sections": [
+    {
+      "key": "acceptance",
+      "title": "Abnahme",
+      "hint": "Abnahme nach § 640 BGB. Was hier steht, unterschreiben Auftraggeber und Auftragnehmer; danach ändert es sich nicht mehr.",
+      "fields": [
+        {
+          "kind": "text",
+          "key": "client",
+          "label": "Auftraggeber",
+          "hint": "Name und Anschrift, vorbelegt aus dem Kunden des Auftrags.",
+          "multiline": true,
+          "required": true
+        },
+        {
+          "kind": "text",
+          "key": "work",
+          "label": "Leistung",
+          "hint": "Vorbelegt aus dem Auftrag.",
+          "required": true
+        },
+        {
+          "kind": "text",
+          "key": "present",
+          "label": "Anwesend",
+          "hint": "Wer bei der Abnahme dabei war, für wen.",
+          "multiline": true
+        },
+        {
+          "kind": "choice",
+          "key": "result",
+          "label": "Ergebnis",
+          "required": true,
+          "hint": "Eine verweigerte Abnahme startet keine Gewährleistung.",
+          "options": [
+            {
+              "value": "accepted",
+              "label": "Abgenommen"
+            },
+            {
+              "value": "accepted_with_reservations",
+              "label": "Mit Vorbehalten"
+            },
+            {
+              "value": "refused",
+              "label": "Verweigert"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "reservations",
+      "title": "Vorbehalte",
+      "fields": [
+        {
+          "kind": "text",
+          "key": "reservations",
+          "label": "Vorbehalte wegen bekannter Mängel",
+          "multiline": true,
+          "hint": "Eine Zeile je Mangel. Ohne Vorbehalt verliert der Auftraggeber für einen bekannten Mangel Nacherfüllung, Selbstvornahme und Rücktritt (§ 640 Abs. 3 BGB). Bei einer Verweigerung die Mängel, an denen sie hängt."
+        },
+        {
+          "kind": "yes_no",
+          "key": "penalty_reserved",
+          "label": "Vorbehalt einer Vertragsstrafe",
+          "hint": "Nur bei der Abnahme möglich (§ 341 Abs. 3 BGB)."
+        }
+      ]
+    },
+    {
+      "key": "warranty",
+      "title": "Gewährleistung",
+      "fields": [
+        {
+          "kind": "yes_no",
+          "key": "building_work",
+          "label": "Bauwerk",
+          "hint": "Vorbelegt aus dem Auftrag. Bei einem Bauwerk fünf Jahre, sonst zwei (§ 634a Abs. 1 BGB).",
+          "required": true
+        },
+        {
+          "kind": "yes_no",
+          "key": "vob_agreed",
+          "label": "VOB/B als Ganzes vereinbart",
+          "hint": "Vorbelegt aus dem Auftrag. Dann vier Jahre bei einem Bauwerk (§ 13 Abs. 4 Nr. 1 VOB/B).",
+          "required": true
+        },
+        {
+          "kind": "yes_no",
+          "key": "maintenance_transferred",
+          "label": "Wartung übertragen",
+          "hint": "Nur bei VOB/B: ob die Wartung der wartungsbedürftigen elektrotechnischen Teile für die Dauer der Frist übertragen ist. Wenn nicht, gelten für sie zwei Jahre (§ 13 Abs. 4 Nr. 2 VOB/B)."
+        }
+      ]
+    },
+    {
+      "key": "signatures",
+      "title": "Unterschriften",
+      "fields": [
+        {
+          "kind": "photo",
+          "key": "photo",
+          "label": "Foto",
+          "hint": "Ein Foto aus den Dateien des Auftrags."
+        },
+        {
+          "kind": "signature",
+          "key": "client_signature",
+          "label": "Unterschrift des Auftraggebers",
+          "required": true
+        },
+        {
+          "kind": "signature",
+          "key": "contractor_signature",
+          "label": "Unterschrift des Auftragnehmers",
+          "seals": true
+        }
+      ]
+    }
+  ]
+}

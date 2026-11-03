@@ -14,6 +14,7 @@ import {
   lumpSumPriceBaseProblem,
   noteTimeProblem,
   priceBaseProblem,
+  jobTermsProblem,
   pvSystemLinkProblem,
   ratingProblem,
   servicePeriodProblem,
@@ -122,6 +123,13 @@ const rules: RecordRules = {
       fields: ['cordLengthMilli'],
       problem: (at) =>
         applianceProblems({ cordLengthMilli: at('cordLengthMilli') })['cordLengthMilli'] ?? null,
+    },
+  ],
+  // The terms of a job are a yes or a no (#310), as the columns of `jobs` hold.
+  jobs: [
+    {
+      fields: ['vobAgreed', 'buildingWork'],
+      problem: (at) => jobTermsProblem(at('vobAgreed'), at('buildingWork')),
     },
   ],
   installations: [

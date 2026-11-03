@@ -60,7 +60,7 @@
           "key": "grid_notice",
           "label": "Mitteilung an den Netzbetreiber",
           "required": true,
-          "hint": "Jede Ladeeinrichtung ist vor der Inbetriebnahme mitzuteilen; über 12 kVA Summen-Bemessungsleistung je Anlage braucht sie die Zustimmung des Netzbetreibers (§ 19 Abs. 2 NAV).",
+          "hint": "Jede Ladeeinrichtung ist vor der Inbetriebnahme mitzuteilen; überschreitet die Summen-Bemessungsleistung der Ladeeinrichtungen je Anlage 12 kVA, braucht sie die vorherige Zustimmung des Netzbetreibers (§ 19 Abs. 2 NAV). Was gilt, rechnet die Anmeldung aus den Wallboxen am Objekt aus.",
           "options": [
             {
               "value": "notified",

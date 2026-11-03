@@ -452,6 +452,15 @@ describe('the settings of each kind', () => {
         responsible: 'lead',
         actions: ['task'],
       }),
+      // The warranty that runs from an acceptance (#310), 90 days ahead, for the lead.
+      expect.objectContaining({
+        key: 'warranty.expiry',
+        title: 'Gewährleistung endet',
+        intervalDays: null,
+        leadDays: 90,
+        responsible: 'lead',
+        actions: ['task', 'reminder'],
+      }),
       // The recurring inspection of the package Elektro (#301), for whoever signed the last protocol.
       expect.objectContaining({
         key: 'elektro.recurring_inspection',

@@ -55,8 +55,14 @@ export interface Installation extends Synced {
   readonly model: string | null
   readonly serialNumber: string | null
   readonly commissionedOn: IsoDate | null
-  /** End of the warranty period, watched by the deadline engine later. */
+  /**
+   * End of the warranty period as typed in, for an installation without an
+   * acceptance. Where a job at it has a signed acceptance, the warranty
+   * follows from that (#310) and the screens say so.
+   */
   readonly warrantyEndsOn: IsoDate | null
+  /** The last day of a guarantee of the manufacturer, apart from the warranty of the business (#310). */
+  readonly manufacturerWarrantyEndsOn: IsoDate | null
   readonly notes: string | null
   /**
    * The PV system a battery, meter or wallbox belongs to, at the same site

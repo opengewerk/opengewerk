@@ -61,6 +61,7 @@ describe('the package Elektro und PV', () => {
       'regeln/iec-62446-1.json',
       'regeln/mastr.json',
       'regeln/vde-0100-722.json',
+      'regeln/nav.json',
     ])
     expect(elektroManifest.deadlines).toEqual([
       'fristen/vde-0105-100.json',

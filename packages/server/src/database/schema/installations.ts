@@ -65,6 +65,8 @@ export const installations = pgTable(
     serialNumber: text('serial_number'),
     commissionedOn: date('commissioned_on'),
     warrantyEndsOn: date('warranty_ends_on'),
+    /** The guarantee of the manufacturer, apart from the warranty of the business (#310). */
+    manufacturerWarrantyEndsOn: date('manufacturer_warranty_ends_on'),
     notes: text('notes'),
     pvSystemId: reference<'installation'>('pv_system_id'),
     inverterId: reference<'inverter'>('inverter_id'),

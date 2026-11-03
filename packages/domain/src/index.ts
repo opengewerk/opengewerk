@@ -38,6 +38,7 @@ export * from './model/installation.js'
 export * from './model/appliance.js'
 export * from './model/instruction.js'
 export * from './model/job.js'
+export * from './model/acceptance.js'
 export * from './model/letterhead.js'
 export * from './model/mail-signature.js'
 export * from './model/membership.js'
@@ -63,6 +64,7 @@ export * from './model/text-snippet.js'
 // (opengewerk-haustechnik#28); the definitions come from the trade packages
 // under `packages/gewerke/`, and what is here binds the engine to the units,
 // circuits and limits of this application.
+export * from './forms/core.js'
 export * from './forms/definition.js'
 export * from './forms/limits.js'
 export * from './forms/next-inspection.js'

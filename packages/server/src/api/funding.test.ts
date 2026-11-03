@@ -258,6 +258,30 @@ describe('the capacity and the power an installation names (#307)', () => {
 
     await papers(`/installations/${wallbox}/grid-application`)
     expect(jobs[0]?.html).toContain('<th>Bemessungsleistung</th><td>11 kW</td>')
+    // One wallbox of 11 kVA at the site: a notice is enough (§ 19 Abs. 2 NAV).
+    expect(jobs[0]?.html).toContain(
+      '<th>Zustimmung des Netzbetreibers</th><td>nicht nötig, die Mitteilung reicht: 11 kVA',
+    )
+
+    // A second one at the same site, 11 kVA again: together above 12 kVA.
+    const second = await post('/installations', {
+      siteId: home,
+      kind: 'wallbox',
+      designation: 'Wallbox Carport',
+      ratedPowerW: 11_000,
+    })
+
+    try {
+      await papers(`/installations/${wallbox}/grid-application`)
+      expect(jobs[0]?.html).toContain(
+        '<th>Zustimmung des Netzbetreibers</th><td>nötig: 22 kVA Summen-Bemessungsleistung der Wallboxen am Objekt, über 12 kVA',
+      )
+      // The battery names no wallbox, so its papers do not ask.
+      await papers(`/installations/${battery}/grid-application`)
+      expect(jobs[0]?.html).not.toContain('Zustimmung des Netzbetreibers')
+    } finally {
+      await http().delete(`/installations/${second}`).set('x-test-identity', office()).expect(200)
+    }
 
     await papers(`/installations/${battery}/grid-application`)
     expect(jobs[0]?.html).toContain('<th>Nutzbare Speicherkapazität</th><td>7,68 kWh</td>')

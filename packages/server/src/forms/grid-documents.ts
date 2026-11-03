@@ -7,7 +7,7 @@ import {
   type OrientedString,
   type RuleSet,
 } from '@opengewerk/domain'
-import { type PrintJob, present, text } from '@opengewerk/platform-server'
+import { fontFaces, type PrintJob, present, text } from '@opengewerk/platform-server'
 
 import { day, reportFooter, reportMargin, reportStyle } from './appliance-report.js'
 
@@ -99,6 +99,16 @@ export interface GridPapers {
   readonly batteries: readonly GridPart[]
   readonly meters: readonly GridPart[]
   readonly wallboxes: readonly GridPart[]
+  /**
+   * The wallboxes at the site of the installation, for the question whether
+   * they need the consent of the grid operator (§ 19 Abs. 2 NAV): their rated
+   * power together, null where one names none, and the limit above which they
+   * need it, out of the package. Null where the papers name no wallbox.
+   */
+  readonly charging: {
+    readonly totalW: number | null
+    readonly approvalAboveW: number | null
+  } | null
   readonly strings: readonly OrientedString[]
   /** The day of the commissioning: the newest signed commissioning protocol, otherwise "In Betrieb seit". */
   readonly commissionedOn: IsoDate | null
@@ -126,6 +136,29 @@ export function kilowattHourText(wattHours: number): string {
 /** A power or a capacity as its line prints it, or null for a line to write on. */
 function ratingText(value: number | null, text: (value: number) => string): string | null {
   return value === null ? null : text(value)
+}
+
+/** "22 kVA": the rated power of charging points, at a power factor of one the same figure as in kW. */
+function kilovoltampereText(watts: number): string {
+  return `${kilowatts.format(watts / 1000)} kVA`
+}
+
+/**
+ * Whether the wallboxes at the site need the consent of the grid operator or
+ * a notice is enough (§ 19 Abs. 2 NAV), as a line of the papers; null for a
+ * line to write on, where a wallbox names no power or the package no limit.
+ */
+export function chargingApprovalText(charging: GridPapers['charging']): string | null {
+  if (charging === null || charging.totalW === null || charging.approvalAboveW === null) {
+    return null
+  }
+
+  const total = kilovoltampereText(charging.totalW)
+  const limit = kilovoltampereText(charging.approvalAboveW)
+
+  return charging.totalW > charging.approvalAboveW
+    ? `nötig: ${total} Summen-Bemessungsleistung der Wallboxen am Objekt, über ${limit} (§ 19 Abs. 2 NAV)`
+    : `nicht nötig, die Mitteilung reicht: ${total} Summen-Bemessungsleistung der Wallboxen am Objekt, bis ${limit} (§ 19 Abs. 2 NAV)`
 }
 
 /** "9,60 kWp". */
@@ -262,6 +295,10 @@ export function gridSections(papers: GridPapers, completion: boolean): readonly 
 
   if (installation.kind === 'wallbox') {
     plant.push(['Bemessungsleistung', ratingText(installation.ratingW, kilowattText)])
+  }
+
+  if (papers.charging !== null) {
+    plant.push(['Zustimmung des Netzbetreibers', chargingApprovalText(papers.charging)])
   }
 
   if (!completion) {
@@ -550,6 +587,7 @@ export function sheetJob(
 <meta charset="utf-8">
 <title>${text(title)}</title>
 <style>
+${fontFaces([400, 600])}
 ${sheetStyle}
 ${style}
 </style>

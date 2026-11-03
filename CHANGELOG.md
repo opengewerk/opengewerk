@@ -9,6 +9,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Abnahmeprotokoll nach § 640 BGB mit Gewährleistungsfrist ab Abnahme (#310), nach der Feature-Gliederung v2.60 und
+  den Tafeln aus Version 121 des Canvas: Die Abnahme ist ein Formular am Auftrag, auf dem Gerät ausgefüllt und
+  vorbelegt aus Kunde und Auftrag, mit dem Ergebnis (abgenommen, mit Vorbehalten, verweigert), den Vorbehalten wegen
+  bekannter Mängel, dem Vorbehalt einer Vertragsstrafe, Bauwerk, VOB/B und Wartung, Foto und den Unterschriften von
+  Auftraggeber und Auftragnehmer; danach ändert es sich nicht mehr. Bauwerk und VOB/B stehen am Auftrag, mit einem
+  Vorschlag nach der Art (Migration 0118). Aus dem letzten unterschriebenen Protokoll wird die neue Frist
+  „Gewährleistung endet“, fünf oder zwei Jahre nach § 634a BGB, vier nach § 13 Abs. 4 VOB/B und bei VOB/B ohne
+  übertragene Wartung zwei für die wartungsbedürftigen Teile, als Regelpaket `warranty`. Das PDF des Protokolls nennt
+  das Ende der Gewährleistung; die Aufforderung zur Abnahme mit Frist entsteht am Auftrag als Brief, bei einer
+  privaten Kundin mit dem Hinweis nach § 640 Abs. 2 Satz 2 BGB. An der Anlage folgt die Gewährleistung aus der
+  Abnahme, die Herstellergarantie hat ein eigenes Feld. Warum: Mit dem Tag der Abnahme beginnt die Gewährleistung,
+  und bisher hielt OpenGewerk weder den Tag noch die Frist.
+
 - Wallbox und Speicher: Inbetriebnahme, Förderunterlagen und Prüfintervalle (#307), nach der Feature-Gliederung v2.59
   und den Tafeln aus Version 120 des Canvas: Eine Wallbox bekommt ihr Inbetriebnahmeprotokoll als Erstprüfung nach
   DIN VDE 0100-600 mit den Anforderungen der DIN VDE 0100-722, mit RCD je Ladepunkt höchstens 30 mA, Schutz bei
@@ -320,6 +333,11 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Anmeldung beim Netzbetreiber sagt bei einer Wallbox, ob die Mitteilung reicht oder es seine Zustimmung braucht:
+  sie rechnet die Bemessungsleistungen der Wallboxen am Objekt zusammen und vergleicht mit 12 kVA (§ 19 Abs. 2 NAV,
+  Regel im Paket Elektro 0.10.0). Warum: Bisher stand nur der allgemeine Satz da, und ob eine Wallbox zustimmungspflichtig
+  ist, lässt sich aus den Daten der Anlage beantworten.
+
 - Eine Erstprüfung nach einer Erweiterung oder Änderung kann die Frist der Anlage verkürzen (#822, Feature-Gliederung
   v2.55): Nennt sie eine Prüffrist und endet die früher als die Frist der letzten Prüfung der ganzen Anlage, gilt ihr
   Tag, für die Erinnerung wie im Prüfbericht je Objekt, der unter der Prüfung nennt, welche Erweiterung oder Änderung
@@ -412,6 +430,10 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   mit Artikelsätzen lädt weiter alles, weil Nummer und EAN eines neuen Artikels gegen jeden Artikel geprüft werden.
 
 ### Behoben
+
+- Die Blätter der Unterlagen für den Netzbetreiber (#306), der Förderunterlagen (#307) und der Aufforderung zur Abnahme
+  kommen mit ihrer Fußzeile und in Barlow aus dem Renderer (#310). Warum: `sheetJob` brachte die Schrift nicht in die
+  Seite, und ohne sie ließ Chromium die Fußzeile mit der Seitenzahl ganz weg; gedruckt wurde in einer Ersatzschrift.
 
 - Wird ein Kunde oder ein Objekt entfernt, gehen seine Ansprechpartner mit, wie beim Lieferanten schon bisher (#555).
   Warum: sie blieben als lebende Zeilen stehen, `GET /contacts` lieferte sie weiter, und ein Gerät, das sie hielt,

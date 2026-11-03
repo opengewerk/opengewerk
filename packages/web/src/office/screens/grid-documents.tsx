@@ -139,7 +139,7 @@ export function GridSection({
             <p className="text-[13px] leading-[1.4] text-ink-muted">
               {registers
                 ? 'Anmeldung und Fertigmeldung sind vorausgefüllt aus Kunde, Objekt und PV-Struktur, mit der Eintragung des Betriebs im Installateurverzeichnis. Ins Marktstammdatenregister trägt der Betreiber die Anlage selbst ein, innerhalb eines Monats nach der Inbetriebnahme.'
-                : 'Anmeldung und Fertigmeldung sind vorausgefüllt aus Kunde, Objekt und Anlage, mit der Eintragung des Betriebs im Installateurverzeichnis. Eine Wallbox ist dem Netzbetreiber vor der Inbetriebnahme mitzuteilen.'}
+                : 'Anmeldung und Fertigmeldung sind vorausgefüllt aus Kunde, Objekt und Anlage, mit der Eintragung des Betriebs im Installateurverzeichnis. Eine Wallbox ist dem Netzbetreiber vor der Inbetriebnahme mitzuteilen, über 12 kVA je Anlage braucht sie seine Zustimmung; was gilt, sagt die Anmeldung.'}
             </p>
           </>
         ) : null}

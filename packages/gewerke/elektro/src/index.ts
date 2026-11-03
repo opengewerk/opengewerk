@@ -28,6 +28,7 @@ import vdeArN4105Values from '../regeln/vde-ar-n-4105.json' with { type: 'json' 
 import iec624461Limits from '../regeln/iec-62446-1.json' with { type: 'json' }
 import marketRegisterValues from '../regeln/mastr.json' with { type: 'json' }
 import vde0100722Limits from '../regeln/vde-0100-722.json' with { type: 'json' }
+import navValues from '../regeln/nav.json' with { type: 'json' }
 
 /**
  * The trade package Elektro und PV in the format of ADR 0008: a manifest, the
@@ -89,6 +90,7 @@ export const elektroRulePackages: readonly RulePackage[] = [
   iec624461Limits as RulePackage,
   marketRegisterValues as RulePackage,
   vde0100722Limits as RulePackage,
+  navValues as RulePackage,
 ]
 
 /**

@@ -11,7 +11,7 @@ import {
   Put,
   UnprocessableEntityException,
 } from '@nestjs/common'
-import type { JobId } from '@opengewerk/domain'
+import { type JobId, jobTermsProblem } from '@opengewerk/domain'
 import {
   Database,
   isUuid,
@@ -45,7 +45,18 @@ const writableFields = [
   'status',
   'designation',
   'description',
+  'vobAgreed',
+  'buildingWork',
 ] as const
+
+/** Refuses terms of a job that are no yes or no (#310), with the sentence of `jobTermsProblem`. */
+function requireTerms(values: Readonly<Record<string, unknown>>): void {
+  const problem = jobTermsProblem(values['vobAgreed'], values['buildingWork'])
+
+  if (problem !== null) {
+    throw new UnprocessableEntityException(problem)
+  }
+}
 
 /**
  * Refuses a write that would break a job's place among follow-ups (#170), with
@@ -110,6 +121,7 @@ export class JobsController {
   async create(@CurrentIdentity() identity: RequestIdentity, @Body() body: unknown) {
     const values = pick(body, writableFields)
     requireFields(values, ['customerId', 'kind', 'designation'])
+    requireTerms(values)
 
     const [created] = await this.database.forTenant(identity, async (tx) => {
       await requireReferences(tx, jobs, values, true)
@@ -137,6 +149,7 @@ export class JobsController {
   ) {
     const values = pick(body, writableFields)
     requireSomething(values)
+    requireTerms(values)
 
     const [updated] = await this.database.forTenant(identity, async (tx) => {
       await requireReferences(tx, jobs, values, false)

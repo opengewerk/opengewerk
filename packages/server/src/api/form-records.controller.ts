@@ -10,10 +10,14 @@ import {
   StreamableFile,
 } from '@nestjs/common'
 import {
+  acceptanceOf,
   applianceSubject,
   type FormRecordStatus,
   type IsoDate,
   readFormValues,
+  shippedRules,
+  warrantyTerms,
+  yearsText,
 } from '@opengewerk/domain'
 import {
   addressLines,
@@ -31,6 +35,7 @@ import {
   appliances,
   formRecords,
   installations,
+  jobs,
   letterheads,
   sites,
   tenants,
@@ -39,6 +44,31 @@ import { protocolPrintJob, type PrintedProtocol } from '../forms/protocol-print.
 import { tradeForms, tradeRules } from '../forms/registry.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
+
+/** "Gewährleistung bis 05.11.2031: fünf Jahre ab der Abnahme (§ 634a Abs. 1 Nr. 2 BGB)." and the parts, where they end sooner (#310). */
+export function warrantyNotes(
+  values: Parameters<typeof acceptanceOf>[0],
+  acceptedOn: IsoDate,
+): readonly string[] {
+  const acceptance = acceptanceOf(values)
+  const terms = acceptance ? warrantyTerms(acceptedOn, acceptance, shippedRules) : null
+  const day = (on: IsoDate) => `${on.slice(8, 10)}.${on.slice(5, 7)}.${on.slice(0, 4)}`
+
+  if (acceptance?.result === 'refused') {
+    return ['Abnahme verweigert: die Gewährleistung beginnt nicht.']
+  }
+
+  return terms === null
+    ? []
+    : [
+        `Gewährleistung bis ${day(terms.whole.endsOn)}: ${yearsText(terms.whole.years)} ab der Abnahme (${terms.whole.source}).`,
+        ...(terms.parts === null
+          ? []
+          : [
+              `Für wartungsbedürftige Teile ohne übertragene Wartung bis ${day(terms.parts.endsOn)}: ${yearsText(terms.parts.years)} (${terms.parts.source}).`,
+            ]),
+      ]
+}
 
 /**
  * The PDF of a filled form (#78), the test protocol of #79 first.
@@ -87,7 +117,12 @@ export class FormRecordsController {
         const [appliance] = record.applianceId
           ? await tx.select().from(appliances).where(eq(appliances.id, record.applianceId))
           : []
-        const siteId = installation?.siteId ?? appliance?.siteId
+        // A form of a job alone is its acceptance (#310): the job is what it is about.
+        const [job] =
+          !record.installationId && !record.applianceId && record.jobId
+            ? await tx.select().from(jobs).where(eq(jobs.id, record.jobId))
+            : []
+        const siteId = installation?.siteId ?? appliance?.siteId ?? job?.siteId
         const [site] = siteId ? await tx.select().from(sites).where(eq(sites.id, siteId)) : []
         const [letterhead] = await tx
           .select({ companyName: letterheads.companyName, phone: letterheads.phone })
@@ -105,7 +140,13 @@ export class FormRecordsController {
             name: present(companyName) ? companyName : (tenant?.name ?? ''),
             phone: letterhead?.phone ?? null,
           },
-          installation: installation?.designation ?? (appliance ? applianceSubject(appliance) : ''),
+          installation:
+            installation?.designation ??
+            (appliance
+              ? applianceSubject(appliance)
+              : job
+                ? [job.designation, job.number].filter(present).join(', ')
+                : ''),
           appliance: appliance
             ? {
                 protectionClass: appliance.protectionClass,
@@ -116,6 +157,10 @@ export class FormRecordsController {
             ? [site.designation, ...addressLines(site, 'DE')].filter(present).join(', ')
             : '',
           rules: tradeRules,
+          notes:
+            definition.purpose === 'acceptance'
+              ? warrantyNotes(readFormValues(record.values) ?? {}, record.performedOn as IsoDate)
+              : [],
         }
       },
     )

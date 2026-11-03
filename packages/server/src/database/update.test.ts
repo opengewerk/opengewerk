@@ -2338,3 +2338,69 @@ describe('the rollback of the funding programmes', () => {
     expect(await forced('installations')).toBe(true)
   })
 })
+
+/**
+ * The rollback of 0118 (#310): an acceptance is a signed form the business
+ * keeps as proof, and the terms of a job and the guarantee of an installation
+ * are what the office decided. The rollback deletes none of them.
+ */
+describe('the rollback of the acceptance', () => {
+  async function forced(table: string): Promise<boolean> {
+    const { rows } = await admin.query<{ forced: boolean }>(
+      'select relforcerowsecurity as forced from pg_class where relname = $1',
+      [table],
+    )
+
+    return rows[0]?.forced ?? false
+  }
+
+  it('deletes no acceptance and no terms, and stops while there is one', async () => {
+    const customer = newId<'customer'>()
+    const job = newId<'job'>()
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name) values ($1, $2, 'private', 'Familie Weber')",
+      [customer, tenant.id],
+    )
+    await admin.query(
+      `insert into jobs (id, tenant_id, customer_id, kind, designation, building_work)
+       values ($1, $2, $3, 'project', 'Wallbox Garage montieren', true)`,
+      [job, tenant.id, customer],
+    )
+
+    await expect(revertMigration(admin, '0118_acceptance')).rejects.toThrow(
+      'Die Rücknahme von 0118 löscht sie nicht',
+    )
+    expect((await admin.query('select building_work from jobs where id = $1', [job])).rows).toEqual(
+      [{ building_work: true }],
+    )
+    expect(await forced('jobs')).toBe(true)
+    expect(await forced('form_records')).toBe(true)
+
+    // An acceptance alone stops it as well.
+    await admin.query(
+      `begin; set local session_replication_role = replica; update jobs set building_work = null; commit;`,
+    )
+    await admin.query(
+      `insert into form_records (tenant_id, definition_key, definition_version, job_id, performed_on, values)
+       values ($1, 'acceptance', 1, $2, '2026-11-05', '{}')`,
+      [tenant.id, job],
+    )
+    await expect(revertMigration(admin, '0118_acceptance')).rejects.toThrow(
+      'Die Rücknahme von 0118 löscht sie nicht',
+    )
+
+    // Taken out by hand, as the sentence says, the rollback goes through.
+    await admin.query(
+      `begin; set local session_replication_role = replica; delete from form_records; commit;`,
+    )
+    await revertMigration(admin, '0118_acceptance')
+
+    expect(await columnNames(admin, 'jobs')).not.toContain('vob_agreed')
+    expect(await columnNames(admin, 'installations')).not.toContain('manufacturer_warranty_ends_on')
+    expect(await forced('jobs')).toBe(true)
+  })
+})

@@ -501,6 +501,8 @@ describe('the jobs as the boards draw them (#219)', () => {
       'true',
     )
     expect(screen.getByRole('region', { name: 'Auftrag' })).toBeDefined()
+    // The acceptance of the job (#310) on the overview, as on a computer under the facts.
+    expect(screen.getByRole('region', { name: 'Abnahme' })).toBeDefined()
     expect(screen.queryByRole('region', { name: 'Belege' })).toBeNull()
 
     await user.click(within(tabs).getByRole('tab', { name: 'Belege' }))

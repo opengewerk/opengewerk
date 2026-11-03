@@ -29,6 +29,7 @@ import { Check, MapPin, Signature, Smartphone, Zap } from 'lucide-react'
 import { createContext, useContext, useMemo, useState } from 'react'
 
 import { DocumentState } from '../../app/document-state.js'
+import { JobAcceptance } from './acceptance.js'
 import { addressLine } from '../../app/format.js'
 import {
   documentKindOf,
@@ -607,6 +608,8 @@ export function SiteJobScreen() {
     <>
       <JobReports job={job} />
       <JobDeliveryNotes job={job} />
+      {/* The acceptance of the job after § 640 BGB (#310). */}
+      <JobAcceptance job={job} />
     </>
   )
   const files = <JobFiles job={job} />

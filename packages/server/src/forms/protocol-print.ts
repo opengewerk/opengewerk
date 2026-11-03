@@ -65,6 +65,8 @@ export interface PrintedProtocol {
   readonly site: string
   /** The limits of the trade packages, asked on the day of the test. */
   readonly rules: RuleSet
+  /** Sentences under the head, the warranty an acceptance starts (#310). */
+  readonly notes?: readonly string[]
 }
 
 const margin: PageMargin = { top: '12mm', right: '12mm', bottom: '16mm', left: '12mm' }
@@ -391,9 +393,14 @@ ${pageStyle}
     <h1>${text(protocol.definition.title)}</h1>
     <p class="where">${text(protocol.installation)}${present(protocol.site) ? `, ${text(protocol.site)}` : ''}</p>
     <p class="where">${
-      // The day of a commissioning protocol is the day of the commissioning (#304).
-      protocol.definition.purpose === 'commissioning' ? 'In Betrieb gesetzt am' : 'Geprüft am'
+      // The day of a commissioning protocol is the day of the commissioning (#304), of an acceptance its day (#310).
+      protocol.definition.purpose === 'commissioning'
+        ? 'In Betrieb gesetzt am'
+        : protocol.definition.purpose === 'acceptance'
+          ? 'Abgenommen am'
+          : 'Geprüft am'
     } ${day(protocol.performedOn)}</p>
+    ${(protocol.notes ?? []).map((note) => `<p class="where">${text(note)}</p>`).join('')}
   </div>
   <div class="keeper">
     <div class="keeper-name">${text(protocol.keeper.name)}</div>

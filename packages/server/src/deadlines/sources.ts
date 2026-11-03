@@ -1,4 +1,6 @@
 import {
+  acceptanceFormKey,
+  acceptanceOf,
   applianceLabel,
   berlinClock,
   type CustomerId,
@@ -14,12 +16,14 @@ import {
   nextInspectionOn,
   readFormValues,
   type SignedTest,
+  shippedRules,
   type SiteId,
+  warrantyTerms,
 } from '@opengewerk/domain'
 import { type SourceQuery, stockLevels } from '@opengewerk/platform-server'
-import { and, eq, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
 
-import { documents, gridOperators } from '../database/schema/index.js'
+import { documents, formRecords, gridOperators, jobs } from '../database/schema/index.js'
 import { tradeForms } from '../forms/registry.js'
 
 /**
@@ -442,6 +446,92 @@ export const installerRegistrationsRunningOut: SourceQuery<DeadlineValues> = asy
   )
 }
 
+/**
+ * The warranty that runs from the acceptance of a job (#310): out of the last
+ * signed protocol of the acceptance of each living job, one source named by
+ * the job, as "Wallbox Garage montieren, AU-2026-0231", due on the last day
+ * of the warranty its rules give. Where the VOB/B is agreed and the
+ * maintenance not handed over, a second source for the parts that need it,
+ * named so and hanging on the protocol. A refused acceptance starts none; a
+ * newer protocol moves the deadline, and with the job it drops.
+ */
+export const warrantiesRunningOut: SourceQuery<DeadlineValues> = async (tx) => {
+  const rows = await tx
+    .select({
+      id: formRecords.id,
+      performedOn: formRecords.performedOn,
+      values: formRecords.values,
+      jobId: jobs.id,
+      designation: jobs.designation,
+      number: jobs.number,
+      customerId: jobs.customerId,
+      siteId: jobs.siteId,
+      installationId: jobs.installationId,
+    })
+    .from(formRecords)
+    .innerJoin(jobs, eq(jobs.id, formRecords.jobId))
+    .where(
+      and(
+        eq(formRecords.definitionKey, acceptanceFormKey),
+        eq(formRecords.status, 'signed'),
+        isNull(formRecords.deletedAt),
+        isNull(formRecords.installationId),
+        isNull(formRecords.applianceId),
+        isNull(jobs.deletedAt),
+      ),
+    )
+    .orderBy(desc(formRecords.performedOn), desc(formRecords.updatedAt), desc(formRecords.id))
+  const seen = new Set<string>()
+
+  return rows.flatMap((row) => {
+    if (seen.has(row.jobId)) {
+      return []
+    }
+
+    seen.add(row.jobId)
+
+    const performedOn = row.performedOn as IsoDate
+    const acceptance = acceptanceOf(readFormValues(row.values) ?? {})
+    const terms = acceptance ? warrantyTerms(performedOn, acceptance, shippedRules) : null
+
+    if (terms === null) {
+      return []
+    }
+
+    const label = [row.designation, row.number].filter((part) => part !== null).join(', ')
+    const values: DeadlineValues = {
+      documentId: null,
+      installationId: row.installationId as InstallationId | null,
+      customerId: row.customerId as CustomerId,
+      siteId: row.siteId as SiteId | null,
+      jobId: row.jobId as JobId,
+    }
+
+    return [
+      {
+        sourceId: row.jobId,
+        sourceLabel: label,
+        anchorOn: performedOn,
+        namedDueOn: terms.whole.endsOn,
+        naturalUserId: null,
+        values,
+      },
+      ...(terms.parts === null
+        ? []
+        : [
+            {
+              sourceId: row.id,
+              sourceLabel: `${label}, wartungsbedürftige Teile`,
+              anchorOn: performedOn,
+              namedDueOn: terms.parts.endsOn,
+              naturalUserId: null,
+              values,
+            },
+          ]),
+    ]
+  })
+}
+
 /** Every source there is, by the name a kind gives it. */
 export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
   {
@@ -451,4 +541,5 @@ export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<
     inspection: inspectionsDue,
     appliance_inspection: appliancesDue,
     installer_registration: installerRegistrationsRunningOut,
+    acceptance: warrantiesRunningOut,
   }
