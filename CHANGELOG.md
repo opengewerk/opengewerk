@@ -10,7 +10,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 ### Hinzugefügt
 
 - Mängel und Reklamationen mit Status und Mängelbericht (#311), nach der Feature-Gliederung v2.61 und den Tafeln
-  aus Version 122 des Canvas: Ein Mangel hängt an einem Auftrag, an einer Anlage oder an beiden, mit Beschreibung,
+  aus Version 123 des Canvas: Ein Mangel hängt an einem Auftrag, an einer Anlage oder an beiden, mit Beschreibung,
   wer ihn gemeldet hat und wann, der Frist des Kunden zur Beseitigung und Fotos, die bei den Dateien des Auftrags
   oder der Anlage liegen und dem Mangel zugeordnet sind (Migration 0119). Auf der Baustelle entsteht er am Auftrag
   ohne Netz, im Büro auch als Reklamation an einer Anlage. Jeder Schritt (in Bearbeitung, behoben, abgenommen) ist
