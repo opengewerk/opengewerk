@@ -1,4 +1,15 @@
-import { customerKinds, customerStandingLabel, type RecordState } from '@opengewerk/domain'
+import {
+  berlinClock,
+  customerKinds,
+  customerStandingLabel,
+  type IsoDate,
+  type RecordState,
+  type ReminderGround,
+  reminderGroundExplanation,
+  reminderGroundLabel,
+  reminderGrounds,
+  reminderGroundText,
+} from '@opengewerk/domain'
 import {
   Button,
   Cell,
@@ -95,8 +106,26 @@ function asCustomer(values: Record<string, string>) {
     buyerReference: asTextOrNull(values['buyerReference']),
     isBusiness: asBoolean(values['isBusiness']),
     isConstructionServiceRecipient: asBoolean(values['isConstructionServiceRecipient']),
+    // A ground has its day and none has none (#316), whatever the field held before.
+    reminderGround: values['reminderGround'] || null,
+    reminderGroundOn: values['reminderGround'] ? asTextOrNull(values['reminderGroundOn']) : null,
     notes: asTextOrNull(values['notes']),
   }
+}
+
+/** The grounds for reminders as the form offers them, none first (#316). */
+const groundOptions = [
+  { value: '', label: reminderGroundLabel.none },
+  ...reminderGrounds.map((ground) => ({ value: ground, label: reminderGroundLabel[ground] })),
+]
+
+/** The ground of a record, or null where it has none or one this version does not know. */
+function groundOf(customer: RecordState): ReminderGround | null {
+  const ground = customer['reminderGround']
+
+  return typeof ground === 'string' && (reminderGrounds as readonly string[]).includes(ground)
+    ? (ground as ReminderGround)
+    : null
 }
 
 /** "68159 Mannheim": where a customer or a site is, as a list shows it. */
@@ -711,6 +740,15 @@ function CustomerFacts({ customer }: { readonly customer: RecordState }) {
                 ? 'Ja, § 13b UStG'
                 : 'Nein, § 13b UStG',
           },
+          {
+            label: 'Erinnerungen',
+            value: reminderGroundText(
+              groundOf(customer),
+              typeof customer['reminderGroundOn'] === 'string'
+                ? (customer['reminderGroundOn'] as IsoDate)
+                : null,
+            ),
+          },
           { label: 'Notizen', value: maybeText(customer, 'notes') },
         ]}
       />
@@ -1024,6 +1062,8 @@ interface CustomerDraft {
   buyerReference: string
   isBusiness: string
   isConstructionServiceRecipient: string
+  reminderGround: string
+  reminderGroundOn: string
   notes: string
 }
 
@@ -1046,6 +1086,8 @@ function draftOf(customer: RecordState | null): CustomerDraft {
     isBusiness: customer?.['isBusiness'] === true ? 'true' : 'false',
     isConstructionServiceRecipient:
       customer?.['isConstructionServiceRecipient'] === true ? 'true' : 'false',
+    reminderGround: held('reminderGround'),
+    reminderGroundOn: held('reminderGroundOn'),
     notes: held('notes'),
   }
 }
@@ -1241,6 +1283,42 @@ function CustomerFormScreen({ customerId }: { readonly customerId: string | unde
               <div className="grid gap-3 sm:grid-cols-2">
                 {input('email', 'E-Mail', { type: 'email' })}
                 {input('phone', 'Telefon', { type: 'tel' })}
+              </div>
+            </FormPanel>
+            <FormPanel title="Erinnerungen an Prüfungen und Wartungen">
+              <div className="flex flex-col gap-[11px]">
+                <p className="text-[13px] text-ink-faint">
+                  Mit Wartungsvertrag gehört die Erinnerung zum Vertrag. Ohne ihn geht sie nur mit
+                  einer dieser Grundlagen hinaus.
+                </p>
+                <SelectField
+                  label="Grundlage"
+                  value={draft.reminderGround}
+                  options={groundOptions}
+                  onChange={(value) => {
+                    setDraft((current) => ({
+                      ...current,
+                      reminderGround: value,
+                      // A ground is given on a day; today, until somebody says otherwise.
+                      reminderGroundOn:
+                        value !== '' && current.reminderGroundOn === ''
+                          ? berlinClock(new Date()).day
+                          : current.reminderGroundOn,
+                    }))
+                  }}
+                  hint={
+                    reminderGroundExplanation[
+                      (draft.reminderGround || 'none') as ReminderGround | 'none'
+                    ]
+                  }
+                />
+                {draft.reminderGround !== ''
+                  ? input('reminderGroundOn', 'Seit', {
+                      type: 'date',
+                      required: true,
+                      hint: 'Der Tag der Einwilligung, des Hinweises oder der Abbestellung.',
+                    })
+                  : null}
               </div>
             </FormPanel>
           </div>

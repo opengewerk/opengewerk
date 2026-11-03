@@ -84,6 +84,21 @@ const receivedWords: SignedWords = {
   fromSnippets: true,
 }
 
+/** The reminders of a due inspection or maintenance (#316), where the customer may be reminded. */
+const reminderWords: SignedWords = {
+  setting: 'customer_reminder.mail',
+  title: 'Erinnerung an Prüfungen und Wartungen',
+  explanation:
+    'Rückt eine Wiederholungsprüfung, eine Prüfung von Geräten oder eine Wartung näher, bekommt ' +
+    'der Kunde eine E-Mail mit der Bitte um einen Termin, so früh, wie die Frist unter „Fristen“ ' +
+    'vorläuft. Ohne Adresse entsteht eine Aufgabe, ihn anzurufen. Ohne Wartungsvertrag geht eine ' +
+    'Erinnerung nur mit einer Einwilligung oder an einen Bestandskunden nach § 7 Abs. 3 UWG ' +
+    'hinaus, wie es beim Kunden steht.',
+  on: 'Kunden werden an fällige Prüfungen und Wartungen erinnert.',
+  off: 'Kunden werden nicht an Prüfungen und Wartungen erinnert.',
+  fromSnippets: true,
+}
+
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
 }
@@ -125,14 +140,16 @@ export function MailSettingsScreen() {
           {saidWhy(history.error, 'Die Einstellungen kamen nicht an.')}
         </SettingsText>
       ) : (
-        [reportWords, deliveryWords, appointmentWords, receivedWords].map((words) => (
-          <SignedSection
-            key={words.setting}
-            words={words}
-            periods={history.data.filter((period) => period.key === words.setting)}
-            mayWrite={mayWrite}
-          />
-        ))
+        [reportWords, deliveryWords, appointmentWords, receivedWords, reminderWords].map(
+          (words) => (
+            <SignedSection
+              key={words.setting}
+              words={words}
+              periods={history.data.filter((period) => period.key === words.setting)}
+              mayWrite={mayWrite}
+            />
+          ),
+        )
       )}
     </SettingsPage>
   )

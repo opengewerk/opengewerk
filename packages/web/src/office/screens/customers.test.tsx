@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto'
 
+import { berlinClock } from '@opengewerk/domain'
 import { SyncProvider, openLocalStore } from '@opengewerk/platform-web/sync'
 import { TestServer } from '@opengewerk/platform-web/testing'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -248,6 +249,7 @@ describe('the record of a customer', () => {
     const facts = screen.getByRole('region', { name: 'Stammdaten' })
 
     expect(within(facts).getByText('Nein, § 13b UStG')).toBeDefined()
+    expect(within(facts).getByText('Nur zu einem Wartungsvertrag')).toBeDefined()
 
     const sites = screen.getByRole('table', { name: 'Objekte des Kunden' })
 
@@ -255,6 +257,67 @@ describe('the record of a customer', () => {
     expect(
       within(screen.getByRole('table', { name: 'Aufträge des Kunden' })).getByText('Laufend'),
     ).toBeDefined()
+  })
+})
+
+describe('the reminders of a customer (#316)', () => {
+  it('show what they rest on among the facts', async () => {
+    server.put('customers', {
+      ...customer('c-1', 'Klaus Lehmann', 'private', 'Hamburg'),
+      reminderGround: 'existing_customer',
+      reminderGroundOn: '2024-03-12',
+    })
+    await mount('/kunden/c-1')
+
+    const facts = await screen.findByRole('region', { name: 'Stammdaten' })
+
+    expect(
+      within(facts).getByText('Bestandskunde nach § 7 Abs. 3 UWG, seit 12.03.2024'),
+    ).toBeDefined()
+  })
+
+  it('send a ground with its day, today until somebody says otherwise', async () => {
+    await mount('/kunden/neu')
+    const user = userEvent.setup()
+
+    await user.type(await screen.findByLabelText('Name'), 'Schreinerei Becker')
+    expect(screen.queryByLabelText('Seit')).toBeNull()
+    await user.selectOptions(screen.getByLabelText('Grundlage'), 'Einwilligung')
+    expect(screen.getByText(/ausdrücklich eingewilligt/)).toBeDefined()
+    expect((screen.getByLabelText('Seit') as HTMLInputElement).value).toBe(
+      berlinClock(new Date()).day,
+    )
+    await user.clear(screen.getByLabelText('Seit'))
+    await user.type(screen.getByLabelText('Seit'), '2025-05-02')
+    await user.click(screen.getByRole('button', { name: 'Kunde anlegen' }))
+
+    await waitFor(() => {
+      expect(server.all('customers')).toHaveLength(1)
+    })
+    expect(server.all('customers')[0]).toMatchObject({
+      reminderGround: 'consent',
+      reminderGroundOn: '2025-05-02',
+    })
+  })
+
+  it('send no day once the ground is none again', async () => {
+    await mount('/kunden/neu')
+    const user = userEvent.setup()
+
+    await user.type(await screen.findByLabelText('Name'), 'Familie Gruber')
+    await user.selectOptions(screen.getByLabelText('Grundlage'), 'Abbestellt')
+    await user.selectOptions(screen.getByLabelText('Grundlage'), 'Nur zu einem Wartungsvertrag')
+    expect(screen.queryByLabelText('Seit')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Kunde anlegen' }))
+
+    await waitFor(() => {
+      expect(server.all('customers')).toHaveLength(1)
+    })
+    // A new record leaves out what is empty; either way, no ground and no day.
+    const sent = server.all('customers')[0] ?? {}
+
+    expect(sent['reminderGround'] ?? null).toBeNull()
+    expect(sent['reminderGroundOn'] ?? null).toBeNull()
   })
 })
 

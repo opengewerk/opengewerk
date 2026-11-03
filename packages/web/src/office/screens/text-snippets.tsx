@@ -59,20 +59,28 @@ const occasionOptions = mailOccasions.map((occasion) => ({
  * The values the preview fills in, the story of the board "Textbaustein für
  * eine E-Mail" (#315): a call about a fuse, an appointment on a Wednesday.
  * An automatic mail has nobody who sends it, so `{benutzer}` stays empty.
+ * The reminder (#316) is about the inspection of his installation.
  */
 const exampleFacts: MailFacts = {
   kunde: 'Klaus Lehmann',
   termin: 'Mittwoch, 04.11.2026, 13:30 bis 15:00 Uhr',
   auftrag: 'AU-2026-0233 Sicherung Küche löst aus',
+  frist: 'Wiederholungsprüfung der Anlage Elektroinstallation am Objekt Lindenweg 4',
+  datum: '20.01.2027',
   benutzer: null,
   briefkopf: 'Elektro Nord GmbH',
 }
 
 /** What the mail of an occasion carries besides its text. */
 function attachmentOf(occasion: MailOccasion): string {
-  return occasion === 'job_received'
-    ? 'Für einen Verbraucher hängen die Belehrungen als PDF an, mit einem Satz dazu unter dem Text.'
-    : 'Dazu die Kalenderdatei Termin.ics.'
+  switch (occasion) {
+    case 'job_received':
+      return 'Für einen Verbraucher hängen die Belehrungen als PDF an, mit einem Satz dazu unter dem Text.'
+    case 'due_reminder':
+      return 'Zwischen Text und Signatur steht ein Satz dazu, worauf die Erinnerung beruht: der Wartungsvertrag, die Einwilligung oder das Widerspruchsrecht des Bestandskunden.'
+    default:
+      return 'Dazu die Kalenderdatei Termin.ics.'
+  }
 }
 
 /** The mail as a customer reads it, with example values, as the card "Vorschau" of the board has it. */
