@@ -229,7 +229,8 @@ function SnippetForm({
           <ul className="list-disc pl-[18px] leading-[1.55]">
             {mailPlaceholders.map((key) => (
               <li key={key}>
-                <code className="font-semibold">{`{${key}}`}</code> {mailPlaceholderLabel[key]}
+                <code className="font-semibold font-sans">{`{${key}}`}</code>{' '}
+                {mailPlaceholderLabel[key]}
               </li>
             ))}
           </ul>
