@@ -850,6 +850,24 @@ const crossings: readonly {
     key: 'mail_outbox_deadline_in_tenant',
     write: (own, other) => repoint('mail_outbox', 'deadline_id', own.mail, other.deadline),
   },
+  // The instructions of a service call by mail, and the request for an early
+  // start signed at the door that comes along (#292).
+  {
+    key: 'mail_outbox_job_in_tenant',
+    write: (own, other) => repoint('mail_outbox', 'job_id', own.mail, other.serviceCall),
+  },
+  {
+    key: 'mail_outbox_early_start_request_in_tenant',
+    write: (own, other) =>
+      repoint('mail_outbox', 'early_start_request_id', own.mail, other.earlyStart),
+  },
+  // A request for an early start, signed on a device and inserted (#292).
+  {
+    key: 'early_start_requests_job_in_tenant',
+    write: (own, other) =>
+      sql`insert into early_start_requests (tenant_id, job_id, signer_name, signed_at, path, content_fingerprint)
+            values (${own.tenant}, ${other.serviceCall}, 'Klaus Lehmann', now(), 'M10,10L20,20', 'fnv1a32:00000000:0')`,
+  },
   {
     key: 'push_subscriptions_person_works_here',
     write: (own, other) => repoint('push_subscriptions', 'user_id', own.pushDevice, other.user),
@@ -1449,6 +1467,9 @@ interface Planted {
   /** An acceptance at the job above, a draft, and a defect at the job (#311). */
   readonly acceptance: string
   readonly defect: string
+  /** A service call for a consumer, and a request for an early start signed at its door (#292). */
+  readonly serviceCall: string
+  readonly earlyStart: string
 }
 
 /**
@@ -1505,6 +1526,14 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
   const document = await one(
     "insert into documents (tenant_id, customer_id, kind, document_date) values ($1, $2, 'quote', '2026-09-22')",
     [tenant, customer],
+  )
+  const consumer = await one(
+    "insert into customers (tenant_id, kind, name) values ($1, 'private', 'Klaus Lehmann')",
+    [tenant],
+  )
+  const serviceCall = await one(
+    "insert into jobs (tenant_id, customer_id, kind, designation) values ($1, $2, 'service', 'Sicherung Küche')",
+    [tenant, consumer],
   )
   const fileHash = hash(`logo-${slug}`)
   const file = await one(
@@ -1691,6 +1720,12 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
     defect: await one(
       "insert into defects (tenant_id, job_id, description, reported_at) values ($1, $2, 'Abdeckung verkratzt.', now())",
       [tenant, job],
+    ),
+    serviceCall,
+    earlyStart: await one(
+      `insert into early_start_requests (tenant_id, job_id, signer_name, signed_at, path, content_fingerprint)
+       values ($1, $2, 'Klaus Lehmann', now(), 'M10,10L20,20', 'fnv1a32:00000000:0')`,
+      [tenant, serviceCall],
     ),
   }
 }

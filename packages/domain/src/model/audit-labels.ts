@@ -313,6 +313,18 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       signature_path: 'Unterschrift',
     },
   },
+  early_start_requests: {
+    label: 'Verlangen auf vorzeitigen Beginn',
+    fields: {
+      job_id: 'Auftrag',
+      signer_name: 'Unterschrieben von',
+      signed_at: 'Unterschrieben am',
+      device_info: 'Gerät',
+      path: 'Unterschrift',
+      content_fingerprint: 'Fingerabdruck der Belehrungen',
+      created_by: 'Auf dem Gerät von',
+    },
+  },
   job_notes: {
     label: 'Notiz zu einem Auftrag',
     fields: { written_at: 'Geschrieben am', created_by: 'Geschrieben von' },
@@ -327,6 +339,7 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       closed_at: 'Abgeschlossen am',
       vob_agreed: 'VOB/B vereinbart',
       building_work: 'Bauwerk',
+      urgent_repair: 'Dringende Reparatur',
     },
   },
   letterheads: {

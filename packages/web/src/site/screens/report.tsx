@@ -62,6 +62,7 @@ import {
 } from '../../app/labels.js'
 import { ArticleChoice, type StockOf } from '../article-choice.js'
 import { SiteHeader } from '../header.js'
+import { InvoiceOnSite } from './invoice.js'
 import { MaterialScan, type ScannedArticle } from '../material-scan.js'
 import { signedContentOf } from '../signing.js'
 
@@ -1387,6 +1388,9 @@ function SignedReport({
           </div>
         </Panel>
       ) : null}
+
+      {/* The invoice out of the signed report, made on site as a draft (#292). */}
+      {signature ? <InvoiceOnSite report={report} /> : null}
     </>
   )
 }

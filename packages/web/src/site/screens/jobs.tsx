@@ -44,6 +44,7 @@ import { useMay } from '../../app/queries.js'
 import { clockOf, useStopwatch } from '../../app/time.js'
 import { JobAppliances } from './appliances.js'
 import { InstallationPanel } from './installation.js'
+import { UrgentRepairNote } from '../../app/service-calls.js'
 import { AppointmentsCard } from './appointments.js'
 import { JobContacts } from './contacts.js'
 import { JobFiles } from './files.js'
@@ -51,6 +52,8 @@ import { JobNotes } from './notes.js'
 import { InstallationProtocols } from './protocol.js'
 import { shownStatus } from './report.js'
 import { SiteAccessPanel } from './access.js'
+import { JobAppointmentCard } from './appointments.js'
+import { JobInstructionsCard } from './call-instructions.js'
 import { JobTasks, MyTasks } from './tasks.js'
 import { JobTime, TodayTime } from './time.js'
 import { SiteHeader } from '../header.js'
@@ -541,8 +544,11 @@ export function SiteJobScreen() {
   // The appliances of the site after DGUV Vorschrift 3, under the installation (#303).
   const appliances = site ? <JobAppliances jobId={jobId} siteId={String(site['id'])} /> : null
 
+  // For a service call it is the request the call was about (#292), first on
+  // the sheet; for a project what the office wants done.
+  const service = jobKindOf(job) === 'service'
   const todo = maybeText(job, 'description') ? (
-    <Panel title="Was zu tun ist">
+    <Panel title={service ? 'Anliegen' : 'Was zu tun ist'}>
       <p className="text-[17px] leading-[1.45] whitespace-pre-line [overflow-wrap:anywhere]">
         {text(job, 'description')}
       </p>
@@ -599,6 +605,11 @@ export function SiteJobScreen() {
     </div>
   )
 
+  // The appointment, the mark of an urgent repair and the instructions of a
+  // service call (#292), the job sheet of the board "Auftragszettel".
+  const appointment = <JobAppointmentCard jobId={jobId} />
+  const urgent = job['urgentRepair'] === true ? <UrgentRepairNote site /> : null
+  const instructions = <JobInstructionsCard job={job} />
   const contacts = <JobContacts job={job} />
   const lineage = <JobLineage job={job} />
   // What happened on site (#220), under what the office wants done, as the
@@ -648,15 +659,19 @@ export function SiteJobScreen() {
         </div>
         <div className="grid grid-cols-1 items-start gap-3 @min-[40rem]:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-3">
+            {appointment}
+            {urgent}
+            {service ? todo : null}
             {where}
             {access}
+            {instructions}
             {plant}
             {appliances}
             {contacts}
             {lineage}
           </div>
           <div className="flex min-w-0 flex-col gap-3">
-            {todo}
+            {service ? null : todo}
             {notes}
             {writing}
             {time}
@@ -682,13 +697,17 @@ export function SiteJobScreen() {
         }
       />
 
+      {appointment}
+      {urgent}
+      {service ? todo : null}
       {where}
       {access}
+      {instructions}
       {contacts}
       {lineage}
       {plant}
       {appliances}
-      {todo}
+      {service ? null : todo}
       {notes}
       {time}
       {writing}

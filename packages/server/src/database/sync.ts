@@ -32,6 +32,7 @@ import {
 
 import type { FoundIdentity } from '../api/identity.js'
 import { signatureRefusal } from '../documents/signing.js'
+import { earlyStartRefusal } from '../service-calls/instructions.js'
 import { consentGiven, correctionRefusal } from '../time/entries.js'
 import { proposedTreatment } from '../documents/treatment.js'
 import { pvLinkRefusal } from '../electrical/structure.js'
@@ -85,6 +86,21 @@ const signature: Check = async ({ tx, operation, values }) => {
   }
 
   const refusal = await signatureRefusal(tx, values)
+
+  return refusal ? { kind: 'conflict', reason: refusal.reason, fields: refusal.fields } : null
+}
+
+/**
+ * The request for an early start at the door (#292), like a signature under a
+ * report: signed under the instructions this server shows for its job, or
+ * refused as a conflict.
+ */
+const earlyStart: Check = async ({ tx, operation, values }) => {
+  if (operation.kind !== 'create' || operation.entity !== 'early_start_requests') {
+    return null
+  }
+
+  const refusal = await earlyStartRefusal(tx, values)
 
   return refusal ? { kind: 'conflict', reason: refusal.reason, fields: refusal.fields } : null
 }
@@ -465,6 +481,7 @@ export const sync = serverSync<FoundIdentity>({
   tables: syncTables(schema),
   checks: [
     signature,
+    earlyStart,
     paymentTerm,
     assignee,
     reveal,

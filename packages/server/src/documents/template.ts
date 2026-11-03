@@ -5,11 +5,14 @@ import {
   type DurabilityContent,
   durabilityYears,
   instructionBlocks,
+  type InstructionSheet,
   type IsoDate,
+  type IssuerContent,
   isInvoice,
   type LineContent,
   type LineUnit,
   outlineRows,
+  type RecipientContent,
   paymentTermText,
   quantityFactor,
   showsPrices,
@@ -195,7 +198,20 @@ function durabilityReference(line: LineContent, annexes: ReadonlyMap<string, Ann
 }
 
 function head(content: DocumentContent, assets: PrintAssets): string {
-  const { issuer } = content
+  return letterHead(content.issuer, content.recipient, information(content), assets)
+}
+
+/**
+ * The head of a letter: the business with its logo, the window with sender
+ * and recipient, and the block of information beside it. A document and the
+ * instructions of a service call (#292) go into the same envelope.
+ */
+function letterHead(
+  issuer: IssuerContent,
+  to: Pick<RecipientContent, 'name' | 'street' | 'houseNumber' | 'postalCode' | 'city' | 'country'>,
+  informationRows: string,
+  assets: PrintAssets,
+): string {
   const logo = assets.logo
     ? `<img class="logo" alt="" src="data:${text(assets.logo.mediaType)};base64,${Buffer.from(
         assets.logo.bytes,
@@ -203,7 +219,7 @@ function head(content: DocumentContent, assets: PrintAssets): string {
     : ''
 
   const sender = [issuer.name, ...addressLines(issuer, issuer.country)].filter(present).join(' · ')
-  const recipient = [content.recipient.name, ...addressLines(content.recipient, issuer.country)]
+  const recipient = [to.name, ...addressLines(to, issuer.country)]
     .filter(present)
     .map(text)
     .join('<br>')
@@ -217,7 +233,7 @@ function head(content: DocumentContent, assets: PrintAssets): string {
       <div class="sender">${text(sender)}</div>
       <div class="recipient">${recipient}</div>
     </div>
-    <div class="information">${information(content)}</div>`
+    <div class="information">${informationRows}</div>`
 }
 
 function information(content: DocumentContent): string {
@@ -573,6 +589,8 @@ const pageStyle = `
   .report-fields td { padding: 0.6mm 0; white-space: pre-line; }
   .closing { margin-top: 8mm; break-inside: avoid; }
   .instruction { break-before: page; }
+  /* The first sheet of the instructions of a service call stands under its heading (#292). */
+  .instruction.leading { break-before: auto; margin-top: 6mm; }
   .legal-page { break-before: page; height: 1px; }
   .durability { break-before: page; }
   .durability h2 { font-size: 13pt; font-weight: 600; margin: 0 0 1mm; }
@@ -770,7 +788,11 @@ function legalPlaceholders(content: DocumentContent): string {
  * the regular weight to keep the job small.
  */
 function footer(content: DocumentContent): string {
-  const { issuer } = content
+  return issuerFooter(content.issuer)
+}
+
+/** The footer of a page with what a letter of the business carries, for any letter of it. */
+function issuerFooter(issuer: IssuerContent): string {
   const columns = [
     [issuer.name, ...addressLines(issuer, issuer.country)],
     [
@@ -962,4 +984,92 @@ ${draft ? '<div class="draft">ENTWURF</div>' : ''}
 </html>`
 
   return { html, footerHtml: footer(content), margin }
+}
+
+/** What the instructions of a service call print (#292): for whom, about which call, the sheets, and a request signed at the door. */
+export interface CallInstructionsPrint {
+  readonly issuer: IssuerContent
+  readonly recipient: Pick<
+    RecipientContent,
+    'name' | 'street' | 'houseNumber' | 'postalCode' | 'city' | 'country'
+  >
+  readonly call: { readonly number: string | null; readonly designation: string }
+  /** The day the words are of: the day of the signature, or today. */
+  readonly on: IsoDate
+  readonly sheets: readonly InstructionSheet[]
+  /** The words signed on the device, with the signature, or null for the sheets alone. */
+  readonly signed: {
+    readonly request: string
+    readonly signerName: string
+    readonly signedAt: string
+    readonly path: string
+  } | null
+}
+
+/**
+ * The instructions of a service call as one letter (#292): the head, then
+ * each sheet on a page of its own, the instruction on withdrawal first. With a
+ * request for an early start signed at the door, its sheet is the request as
+ * the customer signed it, with the signature under it and when; without one,
+ * the sheet to fill in on paper, as the business keeps it.
+ *
+ * The signature goes in only as a path that passes `signaturePathIsValid`, as
+ * under a report.
+ */
+export function callInstructionsJob(
+  facts: CallInstructionsPrint,
+  assets: PrintAssets,
+): Required<Omit<PrintJob, 'landscape' | 'size'>> {
+  const about = `Serviceeinsatz${facts.call.number === null ? '' : ` ${facts.call.number}`}`
+  const rows = `<table><tr><th>Zum Auftrag</th><td>${text(
+    facts.call.number ?? facts.call.designation,
+  )}</td></tr><tr><th>Datum</th><td>${day(facts.on)}</td></tr></table>`
+  const signed = facts.signed
+  const sheets = facts.sheets.map((sheet, index) => {
+    const kind = index === 0 ? 'instruction leading' : 'instruction'
+
+    if (sheet.template === 'early_start' && signed) {
+      const picture = signaturePathIsValid(signed.path)
+        ? `<svg class="signature-picture" viewBox="0 0 ${String(signatureBox.width)} ${String(signatureBox.height)}" aria-hidden="true"><path d="${signed.path}" fill="none" stroke="#1b2430" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+        : ''
+
+      return `<section class="${kind}">
+    <p class="annex">Zum ${text(about)}, „${text(facts.call.designation)}“</p>
+    <h2>${text(sheet.title)}</h2>
+    ${instructionBody(signed.request)}
+    <section class="signature">
+      ${picture}
+      <div class="signature-line">${text(signed.signerName)}, ${moments.format(new Date(signed.signedAt))} Uhr, auf dem Gerät des Betriebs unterschrieben</div>
+    </section>
+  </section>`
+    }
+
+    return `<section class="${kind}">
+    <p class="annex">Zum ${text(about)}, „${text(facts.call.designation)}“</p>
+    <h2>${text(sheet.title)}</h2>
+    ${instructionBody(sheet.text)}
+  </section>`
+  })
+
+  const html = `<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>${text(`Belehrungen zum ${about}, ${facts.issuer.name}`)}</title>
+<style>
+${fontFaces([400, 600])}
+${pageStyle}
+</style>
+</head>
+<body>
+<section class="first">${letterHead(facts.issuer, facts.recipient, rows, assets)}</section>
+<main>
+  <h1>Belehrungen</h1>
+  <p class="subject">${text(`${about}, ${facts.call.designation}`)}</p>
+  ${sheets.join('\n')}
+</main>
+</body>
+</html>`
+
+  return { html, footerHtml: issuerFooter(facts.issuer), margin }
 }

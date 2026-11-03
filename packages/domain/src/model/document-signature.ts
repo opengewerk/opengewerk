@@ -94,10 +94,20 @@ export function signedContentFingerprint(content: SignedContent): string {
     .sort((left, right) => left.position - right.position || left.id.localeCompare(right.id))
     .map((line) => [line.kind, line.designation, line.description, line.quantityMilli, line.unit])
   const fields = content.fields === '{}' ? null : (content.fields ?? null)
-  const text = JSON.stringify(
-    fields === null ? [content.introText, lines] : [content.introText, lines, fields],
+  return textFingerprint(
+    JSON.stringify(
+      fields === null ? [content.introText, lines] : [content.introText, lines, fields],
+    ),
   )
+}
 
+/**
+ * The mark of a text a customer signs under: FNV-1a with the length beside it,
+ * enough to notice an accident and not meant for more (see
+ * `signedContentFingerprint`). The request for an early start of #292 is
+ * marked the same way.
+ */
+export function textFingerprint(text: string): string {
   // FNV-1a over UTF-16 code units. `Math.imul` keeps the multiplication in
   // thirty-two bits, which is what makes the result the same in every engine.
   let hash = 0x811c9dc5

@@ -184,13 +184,14 @@ describe('the sample data', () => {
     ).toHaveLength(1)
     expect(byKind.get('cost_estimate')).toMatchObject({ status: 'draft' })
     // The reports signed on site and waiting in the office, one of them out of
-    // the transporter (#298), and the two days of work in the stairwell that
-    // one invoice can bill (#135).
+    // the transporter (#298) and one at the service call of this morning
+    // (#292), and the two days of work in the stairwell that one invoice can
+    // bill (#135).
     const reports = documents.filter((document) => document.kind === 'time_and_material_report')
 
     expect(
       reports.filter((report) => report.status === 'signed' && report.number === null),
-    ).toHaveLength(2)
+    ).toHaveLength(3)
     expect(reports.filter((report) => report.status === 'issued')).toHaveLength(2)
     // The newest two: a quote in draft with a price per 100 (#456), on which
     // the check of widths opens "Position hinzufügen", and today's report in
