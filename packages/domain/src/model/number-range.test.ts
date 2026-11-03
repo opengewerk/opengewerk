@@ -43,6 +43,7 @@ describe('the patterns a sequence starts with', () => {
       'LS-2026-0007',
       'RB-2026-0007',
       'RE-2026-0007',
+      'WV-2026-0007',
     ])
   })
 })

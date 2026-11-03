@@ -37,7 +37,7 @@ let meter = ''
 let lights = ''
 let elsewhere = ''
 let southern = ''
-let quotes: DocumentId[] = []
+const quotes: DocumentId[] = []
 
 function http() {
   return request(app.getHttpServer())
