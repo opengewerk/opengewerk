@@ -124,6 +124,12 @@ describe('the number ranges of a business', () => {
         nextValue: 1,
         next: `RE-${String(year)}-0001`,
       },
+      {
+        key: 'contract',
+        pattern: 'WV-{year}-{number:4}',
+        nextValue: 1,
+        next: `WV-${String(year)}-0001`,
+      },
     ])
   })
 

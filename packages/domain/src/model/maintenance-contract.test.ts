@@ -47,6 +47,8 @@ describe('the term of a maintenance contract (#294)', () => {
     expect(lastNoticeDay(day('2027-12-31'), 3)).toBe('2027-09-30')
     expect(lastNoticeDay(day('2027-12-31'), 0)).toBe('2027-12-31')
     expect(lastNoticeDay(day('2028-02-28'), 1)).toBe('2028-01-28')
+    // A term to the end of November leaves the whole of it: the notice comes by the end of October.
+    expect(lastNoticeDay(day('2027-11-30'), 1)).toBe('2027-10-31')
   })
 
   it('ends after a notice with the term the notice was in time for', () => {

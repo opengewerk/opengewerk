@@ -9,6 +9,21 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Wartungsverträge mit Intervall, Laufzeit und Kündigungsfrist (#294), nach der Feature-Gliederung v2.65 und den
+  Tafeln aus Version 129 des Canvas: Aus einem festgeschriebenen Angebot entsteht über „Wartungsvertrag anlegen“ ein
+  Vertrag mit eigener Nummer (WV-), Kunde und Objekt aus dem Angebot, den Anlagen des Objekts, den enthaltenen
+  Leistungen aus seinen Positionen und der Summe als Pauschale. Er hält Beginn, erste Wartung, Intervall,
+  Laufzeit, was danach geschieht (endet, verlängert sich um eine feste Zeit oder auf unbestimmte Zeit),
+  Kündigungsfrist und Preis, als Pauschale je Wartung oder nach Aufwand. Rechtzeitig vor jeder Wartung legt die
+  Frist „Wartung fällig“ einen Serviceauftrag mit den Anlagen und Leistungen an, einen je Vertrag und Tag, der auf
+  der Plantafel unter „Ohne Termin“ mit dem Tag der Wartung als Vorschlag wartet; die Rechnung aus seinem
+  Regiebericht trägt bei einer Pauschale diese als eine Position. Vor dem letzten Tag einer Kündigung erinnert die
+  Frist „Kündigungsfrist eines Wartungsvertrags“; eine Kündigung beendet den Vertrag mit der Laufzeit, für die sie
+  rechtzeitig kam, und danach entsteht keine Wartung mehr. Bei einem Verbraucher nennt das Formular, was § 309 Nr. 9
+  BGB in Allgemeinen Geschäftsbedingungen ausschließt, ohne zu sperren; die Grenzen stehen im neuen Regelpaket
+  `contract`. Die Karte „Wartungsverträge“ steht an Kunde, Objekt und Anlage. Anlegen, ändern und kündigen darf, wer
+  Belege festschreibt. Warum: Wartungsverträge sind ein Schwerpunkt von Phase 2, und ohne sie hängt jede Wartung
+  davon ab, dass jemand im Büro an sie denkt.
 - Bestätigungsmails zu Termin und Auftragseingang mit Textbausteinen für E-Mails (#315), nach der Feature-Gliederung
   v2.64 und den Tafeln aus Version 127 des Canvas: Unter „E-Mail-Einstellungen“ schaltet der Betrieb die Bestätigung
   zum Termin und die zum Auftragseingang einzeln ein. Wird ein Termin an einem Auftrag vereinbart, verschoben oder

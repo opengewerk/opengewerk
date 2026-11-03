@@ -345,7 +345,9 @@ describe('the tables', () => {
       // The grid operators (#306), kept at the desk; an installation carries only the key.
       name === 'grid_operators' ||
       // The funding programmes (#307), templates of the office no installation names.
-      name === 'funding_programs'
+      name === 'funding_programs' ||
+      // The maintenance contracts (#294), kept at the desk; a service job carries the key.
+      name === 'maintenance_contracts'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

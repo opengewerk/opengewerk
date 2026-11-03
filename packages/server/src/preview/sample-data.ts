@@ -535,6 +535,57 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 
   await post(`/documents/${maintenance.id}/issue`, {})
 
+  // A maintenance contract out of an issued quote (#294): the emergency
+  // lights of the estate twice a year at a flat price, the first maintenance
+  // within its lead, so that once the deadlines have run its service job
+  // waits on the planning board under "Ohne Termin".
+  const lights = idOf(
+    await post('/installations', {
+      siteId: estate,
+      kind: 'other',
+      designation: 'Notbeleuchtung Treppenhaus',
+    }),
+  )
+  const offer = await document(
+    { customerId: nordblick, siteId: estate, kind: 'quote', subject: 'Wartung der Notbeleuchtung' },
+    [
+      item('Sichtprüfung und Funktionstest aller Notleuchten', 1000, 'flat_rate', 0),
+      item('Prüfprotokoll nach DIN VDE 0108', 1000, 'flat_rate', 0),
+      item('Wartung der Notbeleuchtung, je Wartung', 1000, 'flat_rate', 38_000),
+    ],
+  )
+
+  await post(`/documents/${offer.id}/issue`, {})
+  await post('/maintenance-contracts', {
+    quoteId: offer.id,
+    designation: 'Wartung der Notbeleuchtung',
+    services: 'Sichtprüfung und Funktionstest aller Notleuchten\nPrüfprotokoll nach DIN VDE 0108',
+    installationIds: [lights],
+    startsOn: addDays(today, -170),
+    firstVisitOn: addDays(today, 10),
+    intervalMonths: 6,
+    termMonths: 24,
+    renewal: 'fixed',
+    renewalMonths: 12,
+    noticeMonths: 3,
+    priceKind: 'flat',
+    flatCents: 38_000,
+  })
+
+  // An issued quote for the maintenance of a PV system, to a consumer and
+  // without a contract yet: "Wartungsvertrag anlegen" stands beside its
+  // successors, and the form names § 309 Nr. 9 BGB for a long term.
+  const pvOffer = await document(
+    { customerId: berg, siteId: house, kind: 'quote', subject: 'Wartung der PV-Anlage' },
+    [
+      item('Sichtprüfung der Module und der Unterkonstruktion', 1000, 'flat_rate', 0),
+      item('Prüfung der Gleichstromseite nach DIN EN 62446-1', 1000, 'flat_rate', 0),
+      item('Wartung der PV-Anlage, je Wartung', 1000, 'flat_rate', 18_900),
+    ],
+  )
+
+  await post(`/documents/${pvOffer.id}/issue`, {})
+
   // Two days of work in the stairwell, a report for each, issued and not
   // billed yet: the job offers one invoice over both (#135).
   for (const [daysAgo, minutes] of [

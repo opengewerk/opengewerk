@@ -173,7 +173,8 @@ describe('the sample data', () => {
     expect(quote).toMatchObject({ kind: 'quote', status: 'issued' })
     expect(quote?.number).toMatch(/\d/)
     expect(confirmation).toMatchObject({ status: 'issued' })
-    // And a second quote that nothing has followed, for the list "Fristen" (#283).
+    // And a second quote that nothing has followed, for the list "Fristen" (#283),
+    // and two for maintenance (#294): one with its contract, one without.
     expect(
       documents.filter(
         (document) =>
@@ -181,7 +182,7 @@ describe('the sample data', () => {
           document.status === 'issued' &&
           !documents.some((other) => other.predecessorDocumentId === document.id),
       ),
-    ).toHaveLength(1)
+    ).toHaveLength(3)
     expect(byKind.get('cost_estimate')).toMatchObject({ status: 'draft' })
     // The reports signed on site and waiting in the office, one of them out of
     // the transporter (#298), one at the service call of this morning (#292)
