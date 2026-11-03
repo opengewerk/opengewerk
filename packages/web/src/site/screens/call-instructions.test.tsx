@@ -133,7 +133,7 @@ async function mount(
   }
 
   const client = await SyncClient.start({
-    store: await openLocalStore(`tuer${String((counter += 1))}`),
+    store: await openLocalStore(`door${String((counter += 1))}`),
     transport: server,
     writer: server,
     deviceId: 'telefon-jonas',

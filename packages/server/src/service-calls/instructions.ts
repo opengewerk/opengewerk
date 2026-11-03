@@ -12,7 +12,7 @@ import {
   type JobKind,
   type TenantId,
 } from '@opengewerk/domain'
-import type { TenantTransaction } from '@opengewerk/platform-server'
+import { isUuid, type TenantTransaction } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import { customers, earlyStartRequests, jobs } from '../database/schema/index.js'
@@ -57,6 +57,11 @@ export async function callOf(
   tx: TenantTransaction,
   jobId: JobId,
 ): Promise<CallForInstructions | null> {
+  // What is no identifier names no job: a 404 at the routes, not a fault of the database.
+  if (!isUuid(jobId)) {
+    return null
+  }
+
   const [call] = await tx
     .select({
       id: jobs.id,

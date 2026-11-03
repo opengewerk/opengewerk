@@ -322,6 +322,17 @@ describe('the instructions of a service call (#292)', () => {
     expect((await instructions(business.job)).refusal).toContain('kein Widerrufsrecht')
   })
 
+  it('are not found for what is no job, and not a fault of the database', async () => {
+    await http()
+      .get('/jobs/kein-auftrag/instructions')
+      .set('x-test-identity', technician())
+      .expect(404)
+    await http()
+      .get('/jobs/kein-auftrag/instructions/pdf')
+      .set('x-test-identity', office())
+      .expect(422)
+  })
+
   it('say what the letterhead lacks before they can go out', async () => {
     const { job } = await aCall({ tenant: south.id })
     const view = await instructions(job, technician(south.id))
