@@ -9,6 +9,16 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Erinnerungen an Kunden zu Prüfungen und Wartungen (#316), nach der Feature-Gliederung v2.67 und den Tafeln aus
+  Version 135 des Canvas: Rückt die Wiederholungsprüfung einer Anlage, die Prüfung der Geräte eines Objekts oder die
+  Wartung aus einem Vertrag näher, bekommt der Kunde eine E-Mail mit der Bitte um einen Termin, aus dem neuen Text für
+  E-Mails „Erinnerung an Prüfung oder Wartung“, einmal je Frist und Tag, die Geräte eines Objekts zusammen. Ohne
+  E-Mail-Adresse entsteht eine Aufgabe, ihn anzurufen. Mit Wartungsvertrag gehört die Erinnerung zum Vertrag; ohne
+  ihn braucht sie am Kunden eine Grundlage, eine Einwilligung oder Bestandskunde nach § 7 Abs. 3 UWG, und nennt dann
+  den Widerruf oder das Widerspruchsrecht. Als Bestandskunde wird niemand angerufen, ein abbestellter Kunde bekommt
+  keine Erinnerung mehr. Der Betrieb schaltet sie unter „E-Mail-Einstellungen“ ab einem Tag ein. Warum: Eine fällige
+  Prüfung ist Arbeit, die der Kunde sonst vergisst, und ohne Einwilligung darf eine solche E-Mail nur unter den
+  engen Voraussetzungen von § 7 UWG hinaus.
 - Dauerrechnung zu Wartungsverträgen (#295), nach der Feature-Gliederung v2.66 und den Tafeln aus Version 132 des
   Canvas: Ein Wartungsvertrag mit Pauschale lässt sich je Wartung, monatlich, vierteljährlich oder jährlich abrechnen;
   die Pauschale gilt dann je Zeitraum. Am ersten Tag jedes Zeitraums legt die Frist „Rechnung eines

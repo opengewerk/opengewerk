@@ -65,13 +65,14 @@
       "key": "maintenance.visit",
       "trade": null,
       "title": "Wartung fällig",
-      "about": "Kommt aus jedem Wartungsvertrag, der nicht beendet ist: fällig am Tag der nächsten Wartung, die erste und dann alle so vielen Monate, wie der Vertrag sagt. Rechtzeitig davor entsteht ein Serviceauftrag mit den Anlagen des Vertrags, einmal je Tag; auf der Plantafel steht er unter „Ohne Termin“. Danach rückt die Frist zur nächsten Wartung. Nach dem Tag, an dem eine Kündigung den Vertrag beendet, entsteht keine mehr.",
+      "about": "Kommt aus jedem Wartungsvertrag, der nicht beendet ist: fällig am Tag der nächsten Wartung, die erste und dann alle so vielen Monate, wie der Vertrag sagt. Rechtzeitig davor entsteht ein Serviceauftrag mit den Anlagen des Vertrags, einmal je Tag; auf der Plantafel steht er unter „Ohne Termin“. Danach rückt die Frist zur nächsten Wartung. Nach dem Tag, an dem eine Kündigung den Vertrag beendet, entsteht keine mehr. Sind die Erinnerungen an Kunden eingeschaltet, bekommt der Kunde rechtzeitig davor eine E-Mail mit der Bitte um einen Termin, wo er erinnert werden darf.",
       "source": "maintenance_visit",
       "intervalDays": null,
       "leadDays": 28,
       "responsible": "lead",
-      "actions": ["service_job"],
-      "taskTitle": "Wartung: {quelle}"
+      "actions": ["service_job", "customer_reminder"],
+      "taskTitle": "Wartung: {quelle}",
+      "customerTitle": "Wartung aus dem Vertrag {quelle}"
     },
     {
       "key": "maintenance.notice",

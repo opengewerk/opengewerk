@@ -137,6 +137,8 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       tax_exemption_certificate_number: 'Freistellungsbescheinigung',
       tax_exemption_valid_until: 'Freistellung gültig bis',
       buyer_reference: 'Käuferreferenz',
+      reminder_ground: 'Grundlage für Erinnerungen',
+      reminder_ground_on: 'Grundlage für Erinnerungen seit',
     },
   },
   document_files: {

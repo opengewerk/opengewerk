@@ -13,6 +13,7 @@ export const mailOccasions = [
   'appointment_moved',
   'appointment_cancelled',
   'job_received',
+  'due_reminder',
 ] as const
 
 export type MailOccasion = (typeof mailOccasions)[number]
@@ -22,6 +23,7 @@ export const mailOccasionLabel: Readonly<Record<MailOccasion, string>> = {
   appointment_moved: 'Termin verschoben',
   appointment_cancelled: 'Termin abgesagt',
   job_received: 'Auftragseingang',
+  due_reminder: 'Erinnerung an Prüfung oder Wartung',
 }
 
 /** A mail as a snippet holds it: the subject as its title, the text below. */
@@ -48,6 +50,10 @@ export const shippedMails: Readonly<Record<MailOccasion, MailText>> = {
     subject: 'Ihr Auftrag {auftrag}',
     text: 'Guten Tag {kunde},\n\nvielen Dank für Ihren Auftrag. Wir haben ihn unter {auftrag} aufgenommen und melden uns mit einem Termin.',
   },
+  due_reminder: {
+    subject: 'Fällig am {datum}: {frist}',
+    text: 'Guten Tag {kunde},\n\nam {datum} ist fällig: {frist}.\n\nGern vereinbaren wir dafür einen Termin mit Ihnen. Antworten Sie einfach auf diese E-Mail oder rufen Sie uns an.',
+  },
 }
 
 /**
@@ -59,7 +65,15 @@ export const instructionsSentence =
   'Im Anhang finden Sie die Widerrufsbelehrung mit dem Muster-Widerrufsformular und den Vordruck, mit dem Sie verlangen können, dass wir vor Ablauf der Widerrufsfrist beginnen.'
 
 /** The placeholders a snippet for mails may hold, in the order the screen explains them. */
-export const mailPlaceholders = ['kunde', 'termin', 'auftrag', 'benutzer', 'briefkopf'] as const
+export const mailPlaceholders = [
+  'kunde',
+  'termin',
+  'auftrag',
+  'frist',
+  'datum',
+  'benutzer',
+  'briefkopf',
+] as const
 
 export type MailPlaceholder = (typeof mailPlaceholders)[number]
 
@@ -67,6 +81,8 @@ export const mailPlaceholderLabel: Readonly<Record<MailPlaceholder, string>> = {
   kunde: 'der Name des Kunden',
   termin: 'Tag und Uhrzeit des Termins',
   auftrag: 'Nummer und Bezeichnung des Auftrags',
+  frist: 'was fällig ist, etwa die Wiederholungsprüfung einer Anlage',
+  datum: 'der Tag, an dem es fällig ist',
   benutzer: 'wer die E-Mail verschickt; bei automatischen E-Mails leer',
   briefkopf: 'der Briefkopf, wie in der Signatur',
 }

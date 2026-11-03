@@ -466,3 +466,27 @@ describe('the confirmations to a customer (#315)', () => {
     })
   })
 })
+
+describe('the reminders to a customer (#316)', () => {
+  it('are switched on from today, with the way to their text', async () => {
+    signedInAs('owner')
+    serverSays('GET', '/settings/parameters', [])
+    serverSays('POST', '/settings/parameters', {})
+    render(inQueries(<MailSettingsScreen />))
+
+    await screen.findByText('Aus: Kunden werden nicht an Prüfungen und Wartungen erinnert.')
+
+    const reminders = region('Erinnerung an Prüfungen und Wartungen')
+
+    expect(within(reminders).getByText(/§ 7 Abs. 3 UWG/)).toBeDefined()
+    expect(within(reminders).getByRole('link', { name: 'Textbausteine' })).toBeDefined()
+
+    await userEvent.setup().click(within(reminders).getByRole('button', { name: 'Einschalten' }))
+
+    await waitFor(() => {
+      expect(calls.filter((call) => call.method === 'POST').map((call) => call.body)).toEqual([
+        { key: 'customer_reminder.mail', from: '2026-09-22', value: 1, note: null },
+      ])
+    })
+  })
+})

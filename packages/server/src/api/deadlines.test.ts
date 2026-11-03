@@ -477,7 +477,7 @@ describe('the settings of each kind', () => {
         intervalDays: null,
         leadDays: 28,
         responsible: 'lead',
-        actions: ['service_job'],
+        actions: ['service_job', 'customer_reminder'],
       }),
       // The last day for a notice of a contract (#294), thirty days ahead.
       expect.objectContaining({
@@ -505,7 +505,7 @@ describe('the settings of each kind', () => {
         intervalDays: null,
         leadDays: 60,
         responsible: 'source',
-        actions: ['task', 'reminder'],
+        actions: ['task', 'reminder', 'customer_reminder'],
       }),
       // The test of an appliance (#303), one task for the appliances of a site due the same day.
       expect.objectContaining({
@@ -515,7 +515,7 @@ describe('the settings of each kind', () => {
         intervalDays: null,
         leadDays: 30,
         responsible: 'source',
-        actions: ['task'],
+        actions: ['task', 'customer_reminder'],
       }),
       // The entry of the business in an installer directory (#306), 90 days ahead, for the lead.
       expect.objectContaining({

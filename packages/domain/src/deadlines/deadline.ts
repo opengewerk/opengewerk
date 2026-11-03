@@ -57,8 +57,17 @@ import type {
  *   source, for the office to plan.
  * - `status`: a change of state at the source, done by the handler the kind
  *   names in the server.
+ * - `customer_reminder`: a reminder to the customer of the source (#316), by
+ *   mail or, without an address, a task to call them, where the customer may
+ *   be reminded and the business has switched it on.
  */
-export const deadlineActions = ['task', 'reminder', 'service_job', 'status'] as const
+export const deadlineActions = [
+  'task',
+  'reminder',
+  'service_job',
+  'status',
+  'customer_reminder',
+] as const
 
 export type DeadlineAction = (typeof deadlineActions)[number]
 
@@ -136,6 +145,12 @@ export interface DeadlineKind extends FoundationDeadlineKind<DeadlineSource, Dea
    * hundred appliances at a customer is one task and not a hundred.
    */
   readonly taskTitle: string
+  /**
+   * What the reminder to the customer calls what is due (#316), with
+   * `{quelle}` and `{objekt}` like the title of the task: "Wiederholungsprüfung
+   * der Anlage {quelle}". A kind with the action `customer_reminder` has one.
+   */
+  readonly customerTitle?: string
 }
 
 /**
@@ -207,6 +222,12 @@ const catalogue: DeadlineCatalogue<DeadlineKind> = {
       )
     }
 
+    if (kind.actions.includes('customer_reminder') && !kind.customerTitle) {
+      problems.push(
+        `${kind.key}: eine Erinnerung an den Kunden braucht einen Titel für ihn (customerTitle).`,
+      )
+    }
+
     return problems
   },
 }
@@ -243,6 +264,15 @@ export function taskTitleOf(
       : kind.taskTitle.replaceAll('{objekt}', site)
 
   return withSite.replaceAll('{quelle}', source)
+}
+
+/** What a reminder to the customer calls what is due, with its source and its site put in, as the task does. */
+export function customerTitleOf(
+  kind: DeadlineKind,
+  source: string,
+  site: string | null = null,
+): string {
+  return taskTitleOf({ ...kind, taskTitle: kind.customerTitle ?? kind.title }, source, site)
 }
 
 /** Whether the tasks of a kind are shared by the deadlines of a site, as `{objekt}` says. */
@@ -383,20 +413,28 @@ const actionWords: Readonly<Record<DeadlineAction, string>> = {
   reminder: 'eine Erinnerung per E-Mail und Push',
   service_job: 'ein Serviceauftrag im Entwurf',
   status: 'ein neuer Stand an der Quelle',
+  customer_reminder: 'eine Erinnerung an den Kunden',
 }
 
 /**
  * What a kind does when its lead comes, as the settings say it: "Bei
  * Fälligkeit: eine Aufgabe und eine Erinnerung per E-Mail und Push für die
- * verantwortliche Person."
+ * verantwortliche Person." The reminder to the customer comes after the
+ * rest, since the person is not who it goes to: "..., dazu eine Erinnerung an
+ * den Kunden."
  */
 export function actionsSentence(actions: readonly DeadlineAction[]): string {
-  const words = actions.map((action) => actionWords[action])
+  const own = actions.filter((action) => action !== 'customer_reminder')
+  const words = own.map((action) => actionWords[action])
   const listed =
     words.length <= 1
-      ? (words[0] ?? 'nichts')
+      ? (words[0] ?? (own.length < actions.length ? '' : 'nichts'))
       : `${words.slice(0, -1).join(', ')} und ${words[words.length - 1] ?? ''}`
-  const addressed = actions.some((action) => action === 'task' || action === 'reminder')
+  const addressed = own.some((action) => action === 'task' || action === 'reminder')
+  const toCustomer = own.length < actions.length ? actionWords.customer_reminder : ''
+  const sentence = [`${listed}${addressed ? ' für die verantwortliche Person' : ''}`, toCustomer]
+    .filter((part) => part !== '')
+    .join(', dazu ')
 
-  return `Bei Fälligkeit: ${listed}${addressed ? ' für die verantwortliche Person' : ''}.`
+  return `Bei Fälligkeit: ${sentence}.`
 }

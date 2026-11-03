@@ -170,6 +170,8 @@ export async function appointmentConfirmationMail(
       kunde: row.customerName,
       termin: appointmentWhen(row.startsAt, row.endsAt),
       auftrag: jobLabel(row),
+      frist: null,
+      datum: null,
       benutzer: null,
       briefkopf: letterheadSignature(issuer),
     }
@@ -265,6 +267,8 @@ export async function jobReceivedMail(
       kunde: call.customerName,
       termin: null,
       auftrag: jobLabel(call),
+      frist: null,
+      datum: null,
       benutzer: null,
       briefkopf: letterheadSignature(issuer),
     }

@@ -1,6 +1,7 @@
 import type { Address } from './address.js'
 import type { IsoDate, Synced } from '@opengewerk/platform-domain'
 import type { CustomerId } from './identifier.js'
+import type { ReminderGround } from './customer-reminder.js'
 
 /**
  * The four kinds the concept distinguishes. They differ in how a job reaches
@@ -47,6 +48,15 @@ export interface Customer extends Synced, Address {
   /** Exemption certificate under section 48b EStG, with its expiry date. */
   readonly taxExemptionCertificateNumber: string | null
   readonly taxExemptionValidUntil: IsoDate | null
+
+  /**
+   * What reminders of a due inspection or maintenance rest on when no
+   * contract brings them (#316): a consent, a customer of the business under
+   * § 7 Abs. 3 UWG, or that they stopped them; null for only a contract's.
+   * With the day it was given.
+   */
+  readonly reminderGround: ReminderGround | null
+  readonly reminderGroundOn: IsoDate | null
 
   readonly notes: string | null
 }

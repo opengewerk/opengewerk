@@ -8,8 +8,9 @@ import {
   Patch,
   Post,
   Put,
+  UnprocessableEntityException,
 } from '@nestjs/common'
-import type { CustomerId } from '@opengewerk/domain'
+import { type CustomerId, reminderGroundProblem } from '@opengewerk/domain'
 import { Database, pick, requireFields, requireSomething } from '@opengewerk/platform-server'
 import { and, eq, isNull } from 'drizzle-orm'
 
@@ -34,8 +35,27 @@ const writableFields = [
   'isConstructionServiceRecipient',
   'taxExemptionCertificateNumber',
   'taxExemptionValidUntil',
+  'reminderGround',
+  'reminderGroundOn',
   'notes',
 ] as const
+
+/**
+ * A ground for reminders comes with its day (#316), both at once as the form
+ * sends them, or neither: the one without the other is refused here with a
+ * sentence, before the check of the table refuses it without one.
+ */
+function requireReminderGround(values: Readonly<Record<string, unknown>>): void {
+  if (!('reminderGround' in values) && !('reminderGroundOn' in values)) {
+    return
+  }
+
+  const problem = reminderGroundProblem(values['reminderGround'], values['reminderGroundOn'])
+
+  if (problem !== null) {
+    throw new UnprocessableEntityException(problem)
+  }
+}
 
 @Controller('customers')
 export class CustomersController {
@@ -54,6 +74,7 @@ export class CustomersController {
   async create(@CurrentIdentity() identity: RequestIdentity, @Body() body: unknown) {
     const values = pick(body, writableFields)
     requireFields(values, ['kind', 'name'])
+    requireReminderGround(values)
 
     const [created] = await this.database.forTenant(identity, (tx) =>
       tx
@@ -77,6 +98,7 @@ export class CustomersController {
   ) {
     const values = pick(body, writableFields)
     requireSomething(values)
+    requireReminderGround(values)
 
     const [updated] = await this.database.forTenant(identity, (tx) =>
       tx
