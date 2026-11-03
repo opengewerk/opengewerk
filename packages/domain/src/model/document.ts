@@ -1,5 +1,12 @@
 import type { IsoDate, StoreId, Synced } from '@opengewerk/platform-domain'
-import type { CustomerId, DocumentId, InstallationId, JobId, SiteId } from './identifier.js'
+import type {
+  CustomerId,
+  DocumentId,
+  InstallationId,
+  JobId,
+  MaintenanceContractId,
+  SiteId,
+} from './identifier.js'
 
 /**
  * The document types of section 4.2. Estimate and quote are separate on
@@ -423,6 +430,12 @@ export interface Document extends Synced {
    */
   readonly serviceFrom: IsoDate | null
   readonly serviceUntil: IsoDate | null
+  /**
+   * The maintenance contract a recurring invoice bills a period of (#295),
+   * written by the server when the deadline makes it; one per contract and
+   * start of a period. Null for every other document.
+   */
+  readonly maintenanceContractId: MaintenanceContractId | null
   /** When it was fixed. Null while it is a draft. */
   readonly issuedAt: Date | null
   /**

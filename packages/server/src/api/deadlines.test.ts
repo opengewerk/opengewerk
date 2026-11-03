@@ -488,6 +488,15 @@ describe('the settings of each kind', () => {
         responsible: 'lead',
         actions: ['task', 'reminder'],
       }),
+      // The invoice of a period of a contract (#295), on its first day: a status the handler changes.
+      expect.objectContaining({
+        key: 'maintenance.invoice',
+        title: 'Rechnung eines Wartungsvertrags',
+        intervalDays: null,
+        leadDays: 0,
+        responsible: 'lead',
+        actions: ['status'],
+      }),
       // The recurring inspection of the package Elektro (#301), for whoever signed the last protocol.
       expect.objectContaining({
         key: 'elektro.recurring_inspection',

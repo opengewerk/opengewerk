@@ -8,11 +8,17 @@ import {
   type IsoDate,
   isInvoice,
   lastNoticeDay,
+  lastServiceDay,
   maintenanceContractProblems,
   monthsLabel,
+  nextPeriod,
+  type PaymentRhythm,
+  periodText,
+  priceUnitLabel,
   type RecordState,
   type RenewalKind,
   renewalLabel,
+  rhythmLabel,
   shippedRules,
   termEndOn,
 } from '@opengewerk/domain'
@@ -26,6 +32,7 @@ import {
   DialogActions,
   Field,
   Panel,
+  SelectField,
   Status,
   type StatusTone,
   TablePanel,
@@ -262,9 +269,11 @@ function termText(contract: MaintenanceContractEntry, on: IsoDate): string {
 }
 
 /** "480,00 € netto je Wartung, Pauschale", or "nach Aufwand laut Regiebericht". */
-function priceText(contract: Pick<MaintenanceContractEntry, 'priceKind' | 'flatCents'>): string {
+function priceText(
+  contract: Pick<MaintenanceContractEntry, 'priceKind' | 'flatCents' | 'paymentRhythm'>,
+): string {
   return contract.priceKind === 'flat' && contract.flatCents !== null
-    ? `${euros(contract.flatCents)} netto je Wartung, Pauschale`
+    ? `${euros(contract.flatCents)} netto ${priceUnitLabel[contract.paymentRhythm]}, Pauschale`
     : 'nach Aufwand laut Regiebericht'
 }
 
@@ -306,6 +315,10 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
   const installations = useRecords('installations')
   const visits = useRelated('jobs', 'maintenanceContractId', contract.id)
   const documents = useRecords('documents')
+  // The recurring invoices of a contract paid per period (#295), newest first.
+  const billed = useRelated('documents', 'maintenanceContractId', contract.id)
+    .filter((document) => document['deletedAt'] == null)
+    .sort((left, right) => String(right['serviceFrom']).localeCompare(String(left['serviceFrom'])))
   const [noticeOpen, setNoticeOpen] = useState(false)
   const [asking, setAsking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
@@ -322,6 +335,13 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
     .map((line) => line.trim())
     .filter((line) => line !== '')
   const end = contract.cancelledOn === null ? termEndOn(contract, on) : null
+  const lastBilledFrom = (maybeText(billed[0], 'serviceFrom') ?? null) as IsoDate | null
+  const nextBilled = nextPeriod(contract, {
+    lastBilledFrom,
+    notBefore:
+      lastBilledFrom === null ? (contract.createdAt.slice(0, 10) as IsoDate) : lastBilledFrom,
+    lastDay: lastServiceDay(contract),
+  })
   // The next maintenance whose service job is not made yet, the first line of the table.
   const upcoming =
     next !== null && !made.some((job) => job['maintenanceDueOn'] === next) ? next : null
@@ -383,7 +403,10 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
       value: `${intervalLabel(contract.intervalMonths)}, die erste am ${date(contract.firstVisitOn)}`,
     },
     { label: 'Preis', value: priceText(contract) },
-    { label: 'Abrechnung', value: 'je Wartung, nach der Ausführung' },
+    {
+      label: 'Abrechnung',
+      value: `${rhythmLabel[contract.paymentRhythm]}${contract.issueByItself ? '; ab der zweiten Rechnung ohne Zutun' : ''}`,
+    },
   ]
   const termFacts = [
     { label: 'Beginn', value: date(contract.startsOn) },
@@ -427,7 +450,7 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
         actions={
           writes ? (
             <>
-              {visits.length === 0 ? (
+              {visits.length === 0 && billed.length === 0 ? (
                 <Button
                   icon={Trash2}
                   onClick={() => {
@@ -482,6 +505,70 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
                 </ul>
               )}
             </Panel>
+            {contract.paymentRhythm !== 'visit' ? (
+              <TablePanel
+                title="Rechnungen"
+                caption="Die Rechnungen der Zeiträume"
+                grow={false}
+                cards={[
+                  ...(nextBilled
+                    ? [{ key: 'next', title: periodText(nextBilled), sub: 'noch nicht angelegt' }]
+                    : []),
+                  ...billed.map((document) => ({
+                    key: text(document, 'id'),
+                    title: periodText({
+                      from: text(document, 'serviceFrom') as IsoDate,
+                      until: text(document, 'serviceUntil') as IsoDate,
+                    }),
+                    sub: maybeText(document, 'number') ?? 'Entwurf',
+                  })),
+                ]}
+                note={
+                  <p className="text-[13px] leading-[1.4] text-ink-muted">
+                    {`Zu Beginn jedes Zeitraums entsteht eine Dauerrechnung über ihn, mit der Pauschale als einer Position. Die erste eines Vertrags wartet als Entwurf${contract.issueByItself ? '; danach schreibt OpenGewerk jede selbst fest und schickt sie per E-Mail.' : '.'}`}
+                  </p>
+                }
+              >
+                <thead>
+                  <tr>
+                    <Column className="w-[220px]">Leistungszeitraum</Column>
+                    <Column>Rechnung</Column>
+                    <Column className="w-[170px]">Stand</Column>
+                  </tr>
+                </thead>
+                <tbody>
+                  {nextBilled ? (
+                    <tr>
+                      <Cell>{periodText(nextBilled)}</Cell>
+                      <Cell className="text-ink-faint">noch nicht angelegt</Cell>
+                      <Cell>{null}</Cell>
+                    </tr>
+                  ) : null}
+                  {billed.map((document) => (
+                    <tr key={text(document, 'id')}>
+                      <Cell>
+                        {periodText({
+                          from: text(document, 'serviceFrom') as IsoDate,
+                          until: text(document, 'serviceUntil') as IsoDate,
+                        })}
+                      </Cell>
+                      <Cell>
+                        <Link to={`/belege/${text(document, 'id')}`} className="text-copper-text">
+                          {maybeText(document, 'number') ?? 'Dauerrechnung'}
+                        </Link>
+                      </Cell>
+                      <Cell>
+                        {documentStatusOf(document) === 'draft' ? (
+                          <Status tone="draft">Entwurf</Status>
+                        ) : (
+                          <Status tone="locked">Festgeschrieben</Status>
+                        )}
+                      </Cell>
+                    </tr>
+                  ))}
+                </tbody>
+              </TablePanel>
+            ) : null}
             <TablePanel
               title="Wartungen"
               caption="Die Wartungen des Vertrags"
@@ -503,9 +590,11 @@ function ContractView({ contract }: { readonly contract: MaintenanceContractEntr
                   Rechtzeitig vor einer Wartung entsteht ein Serviceauftrag mit den Anlagen des
                   Vertrags. Er steht auf der Plantafel unter „Ohne Termin“, mit dem Tag der Wartung
                   als Vorschlag.{' '}
-                  {contract.priceKind === 'flat'
-                    ? 'Die Rechnung aus seinem Regiebericht trägt die Pauschale.'
-                    : 'Die Rechnung kommt aus seinem Regiebericht.'}
+                  {contract.paymentRhythm !== 'visit'
+                    ? 'Die Wartung selbst stellt keine Rechnung, sie ist in der Pauschale enthalten.'
+                    : contract.priceKind === 'flat'
+                      ? 'Die Rechnung aus seinem Regiebericht trägt die Pauschale.'
+                      : 'Die Rechnung kommt aus seinem Regiebericht.'}
                 </p>
               }
             >
@@ -720,6 +809,8 @@ interface Draft {
   readonly noticeMonths: string
   readonly priceKind: ContractPriceKind
   readonly flat: string
+  readonly paymentRhythm: PaymentRhythm
+  readonly issueByItself: boolean
 }
 
 function draftOf(entry: MaintenanceContractEntry): Draft {
@@ -736,6 +827,8 @@ function draftOf(entry: MaintenanceContractEntry): Draft {
     noticeMonths: String(entry.noticeMonths),
     priceKind: entry.priceKind,
     flat: entry.flatCents === null ? '' : euros(entry.flatCents).replace(/\s*€$/, ''),
+    paymentRhythm: entry.paymentRhythm,
+    issueByItself: entry.issueByItself,
   }
 }
 
@@ -760,6 +853,8 @@ function valuesOf(draft: Draft): MaintenanceContractValues {
     noticeMonths: whole(draft.noticeMonths) as number,
     priceKind: draft.priceKind,
     flatCents: draft.priceKind === 'flat' ? flat : null,
+    paymentRhythm: draft.paymentRhythm,
+    issueByItself: draft.paymentRhythm !== 'visit' && draft.issueByItself,
   }
 }
 
@@ -839,6 +934,8 @@ export function NewMaintenanceContractScreen() {
         noticeMonths: '1',
         priceKind: 'flat',
         flat: total > 0 ? euros(total).replace(/\s*€$/, '') : '',
+        paymentRhythm: 'visit',
+        issueByItself: false,
       }}
     />
   )
@@ -918,7 +1015,7 @@ function ContractForm({
     event.preventDefault()
     setTrouble(null)
 
-    const found = maintenanceContractProblems({ ...values, paymentRhythm: 'visit' })
+    const found = maintenanceContractProblems(values)
 
     setProblems(
       draft.priceKind === 'flat' && parseEuros(draft.flat) === null && draft.flat.trim() !== ''
@@ -1180,32 +1277,50 @@ function ContractForm({
 
           <Panel title="Preis" roomy>
             <div className="flex flex-col gap-3">
-              <p className="text-[13px] leading-[1.4] text-ink-muted">
-                Abgerechnet wird je Wartung, nach der Ausführung.
-              </p>
-              <Choice<ContractPriceKind>
-                label="Preis"
-                value={draft.priceKind}
-                options={[
-                  {
-                    value: 'flat',
-                    label: 'Pauschale je Wartung',
-                    note: 'Die Rechnung nach der Wartung trägt sie als eine Position.',
-                  },
-                  {
-                    value: 'effort',
-                    label: 'Nach Aufwand',
-                    note: 'Die Rechnung kommt aus dem Regiebericht der Wartung.',
-                  },
-                ]}
-                onChange={(value) => {
-                  set('priceKind', value)
-                }}
-              />
+              <div className="sm:w-[360px]">
+                <SelectField
+                  label="Abrechnung"
+                  value={draft.paymentRhythm}
+                  hint="Je Zeitraum braucht es eine Pauschale."
+                  problem={problems['paymentRhythm']}
+                  options={(['visit', 'monthly', 'quarterly', 'yearly'] as const).map((rhythm) => ({
+                    value: rhythm,
+                    label: rhythmLabel[rhythm].replace(/^./, (first) => first.toUpperCase()),
+                  }))}
+                  onChange={(value) => {
+                    setDraft((current) => ({
+                      ...current,
+                      paymentRhythm: value as PaymentRhythm,
+                      ...(value === 'visit' ? {} : { priceKind: 'flat' as const }),
+                    }))
+                  }}
+                />
+              </div>
+              {draft.paymentRhythm === 'visit' ? (
+                <Choice<ContractPriceKind>
+                  label="Preis"
+                  value={draft.priceKind}
+                  options={[
+                    {
+                      value: 'flat',
+                      label: 'Pauschale je Wartung',
+                      note: 'Die Rechnung nach der Wartung trägt sie als eine Position.',
+                    },
+                    {
+                      value: 'effort',
+                      label: 'Nach Aufwand',
+                      note: 'Die Rechnung kommt aus dem Regiebericht der Wartung.',
+                    },
+                  ]}
+                  onChange={(value) => {
+                    set('priceKind', value)
+                  }}
+                />
+              ) : null}
               {draft.priceKind === 'flat' ? (
-                <div className="sm:w-[220px]">
+                <div className="sm:w-[260px]">
                   <Field
-                    label="Pauschale netto in Euro"
+                    label={`Pauschale netto ${priceUnitLabel[draft.paymentRhythm]} in Euro`}
                     inputMode="decimal"
                     value={draft.flat}
                     problem={problems['flatCents']}
@@ -1215,6 +1330,30 @@ function ContractForm({
                   />
                 </div>
               ) : null}
+              {draft.paymentRhythm !== 'visit' ? (
+                <label className="flex items-start gap-2 text-[14px]">
+                  <input
+                    type="checkbox"
+                    className="mt-[3px] size-4 accent-ink"
+                    checked={draft.issueByItself}
+                    onChange={(event) => {
+                      set('issueByItself', event.target.checked)
+                    }}
+                  />
+                  <span>
+                    Ab der zweiten Rechnung ohne Zutun festschreiben und per E-Mail verschicken
+                    <span className="block text-[13px] text-ink-muted">
+                      Die erste Rechnung eines Vertrags wartet immer als Entwurf. Ohne
+                      E-Mail-Adresse beim Kunden bleibt jede festgeschrieben im Büro liegen.
+                    </span>
+                  </span>
+                </label>
+              ) : null}
+              <p className="text-[13px] leading-[1.4] text-ink-muted">
+                {draft.paymentRhythm === 'visit'
+                  ? 'Abgerechnet wird je Wartung, nach der Ausführung.'
+                  : 'Zu Beginn jedes Zeitraums entsteht eine Dauerrechnung über ihn, mit dem Steuersatz, der dann gilt.'}
+              </p>
             </div>
           </Panel>
         </div>

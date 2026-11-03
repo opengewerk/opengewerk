@@ -88,8 +88,11 @@ export type Notification =
       readonly request: string
       readonly to: { readonly address: string; readonly name: string | null }
       readonly attachment: DocumentAttachment
-      /** Who asked, for the audit log and for the screen of the document. */
-      readonly requestedBy: string
+      /**
+       * Who asked, for the audit log and for the screen of the document; null
+       * for a recurring invoice of a contract sent by itself (#295).
+       */
+      readonly requestedBy: string | null
     }
   | {
       /**
@@ -535,10 +538,15 @@ export async function documentToCustomer(
   tenantId: TenantId,
   notification: Extract<Notification, { kind: 'document' }>,
 ): Promise<readonly string[]> {
-  const actor = { tenantId, userId: notification.requestedBy, reason: 'notification' }
+  const actor =
+    notification.requestedBy === null
+      ? { tenantId, reason: 'notification' }
+      : { tenantId, userId: notification.requestedBy, reason: 'notification' }
   // Whoever asked for it sends it: the office asked from this business, and
-  // its name takes the place of `{benutzer}` in the signature.
-  const sender = await nameOf(database, notification.requestedBy)
+  // its name takes the place of `{benutzer}` in the signature. Nobody, for a
+  // recurring invoice that went out by itself.
+  const sender =
+    notification.requestedBy === null ? null : await nameOf(database, notification.requestedBy)
 
   return database.forTenant(actor, async (tx) => {
     const [document] = await tx

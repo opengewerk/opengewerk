@@ -586,6 +586,35 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
 
   await post(`/documents/${pvOffer.id}/issue`, {})
 
+  // A contract paid by the month (#295), beginning today: its first invoice
+  // is made as a draft once the deadlines have run, and the next month waits.
+  const monthlyOffer = await document(
+    {
+      customerId: nordblick,
+      siteId: estate,
+      kind: 'quote',
+      subject: 'Wartung der Brandmeldeanlage',
+    },
+    [item('Wartung der Brandmeldeanlage, je Monat', 1000, 'flat_rate', 3_900)],
+  )
+
+  await post(`/documents/${monthlyOffer.id}/issue`, {})
+  await post('/maintenance-contracts', {
+    quoteId: monthlyOffer.id,
+    designation: 'Wartung der Brandmeldeanlage',
+    installationIds: [],
+    startsOn: today,
+    firstVisitOn: addDays(today, 30),
+    intervalMonths: 12,
+    termMonths: 12,
+    renewal: 'indefinite',
+    noticeMonths: 1,
+    priceKind: 'flat',
+    flatCents: 3_900,
+    paymentRhythm: 'monthly',
+    issueByItself: true,
+  })
+
   // Two days of work in the stairwell, a report for each, issued and not
   // billed yet: the job offers one invoice over both (#135).
   for (const [daysAgo, minutes] of [

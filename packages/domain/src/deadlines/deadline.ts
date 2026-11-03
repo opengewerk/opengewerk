@@ -100,6 +100,9 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  *   contract at the end of the term running now (#294). Only for a contract
  *   that renews and has no notice yet, and for one that runs on without end
  *   only before its first term ends.
+ * - `maintenance_period`: the start of the next period of a contract paid per
+ *   period that has no invoice yet (#295). One deadline per contract that
+ *   moves on to the next period once the invoice of this one exists.
  */
 export const deadlineSources = [
   'quote',
@@ -112,6 +115,7 @@ export const deadlineSources = [
   'defect',
   'maintenance_visit',
   'maintenance_notice',
+  'maintenance_period',
 ] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
@@ -353,6 +357,15 @@ export const sourceWords: Readonly<
     interval: {
       label: 'Fällig nach',
       hint: 'Fällig am letzten Tag, an dem eine Kündigung den Vertrag noch zum Ende der Laufzeit beendet.',
+    },
+    anchor: 'dem Beginn des Vertrags',
+  },
+  // Due on the first day of a period, without an interval (#295).
+  maintenance_period: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig am ersten Tag eines Zeitraums, den der Vertrag abrechnet.',
     },
     anchor: 'dem Beginn des Vertrags',
   },

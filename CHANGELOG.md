@@ -9,6 +9,15 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Dauerrechnung zu Wartungsverträgen (#295), nach der Feature-Gliederung v2.66 und den Tafeln aus Version 132 des
+  Canvas: Ein Wartungsvertrag mit Pauschale lässt sich je Wartung, monatlich, vierteljährlich oder jährlich abrechnen;
+  die Pauschale gilt dann je Zeitraum. Am ersten Tag jedes Zeitraums legt die Frist „Rechnung eines
+  Wartungsvertrags“ eine Dauerrechnung mit dem Zeitraum als Leistungszeitraum und der Pauschale als einer Position an,
+  einmal je Vertrag und Zeitraum, auch nach einem Ausfall nachgeholt, auf den Beginn des Zeitraums datiert und damit
+  mit dessen Steuersatz. Die erste eines Vertrags wartet als Entwurf; auf Wunsch schreibt OpenGewerk die folgenden
+  ohne Zutun fest und schickt sie per E-Mail an den Kunden, als E-Rechnung, wo er sie braucht. Ein Zeitraum über das
+  Ende des Vertrags hinaus bleibt Entwurf. Am Vertrag steht die Karte „Rechnungen“. Warum: Ein Wartungsvertrag mit
+  monatlicher Zahlung braucht sonst jeden Monat jemanden im Büro, der an die Rechnung denkt.
 - Wartungsverträge mit Intervall, Laufzeit und Kündigungsfrist (#294), nach der Feature-Gliederung v2.65 und den
   Tafeln aus Version 129 des Canvas: Aus einem festgeschriebenen Angebot entsteht über „Wartungsvertrag anlegen“ ein
   Vertrag mit eigener Nummer (WV-), Kunde und Objekt aus dem Angebot, den Anlagen des Objekts, den enthaltenen
@@ -73,6 +82,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Die Brotkrume „Kunden“ über einem Beleg ohne Auftrag führt zur Liste der Kunden (#295). Warum: Sie zeigte auf `/kunden`, eine Adresse ohne Seite; aufgefallen ist es an der ersten Dauerrechnung, dem ersten Beleg ohne Auftrag, den die Prüfung der Breiten erreichte.
 - Die Rechnung vor Ort aus #292 schreibt die Einheit einer Position kurz wie das gedruckte Dokument, „1 Std.“ statt
   „1 Stunden“ (#293). Warum: Neben einer Menge stand die ausgeschriebene Einheit der Auswahlliste, die nur im Plural
   passt.

@@ -40,9 +40,7 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /**
  * The fields the office writes. The customer and the site come from the
- * quote, the number from the range, and the notice from its own route; how
- * the customer pays is a maintenance at a time until the recurring invoice
- * (#295) comes.
+ * quote, the number from the range, and the notice from its own route.
  */
 const writableFields = [
   'designation',
@@ -57,6 +55,8 @@ const writableFields = [
   'noticeMonths',
   'priceKind',
   'flatCents',
+  'paymentRhythm',
+  'issueByItself',
 ] as const
 
 type Writable = (typeof writableFields)[number]
@@ -105,9 +105,15 @@ function checked(
     stored['flatCents'] = null
   }
 
+  // Paid per maintenance again, nothing goes out by itself.
+  if (stored['paymentRhythm'] === 'visit' && !('issueByItself' in stored)) {
+    stored['issueByItself'] = false
+  }
+
   const whole: Record<string, unknown> = {
     installationIds: [],
     paymentRhythm: 'visit',
+    issueByItself: false,
     ...(existing ?? {}),
     ...stored,
   }
@@ -469,8 +475,9 @@ export class MaintenanceContractsController {
   }
 
   /**
-   * A contract entered by mistake: deleted for real while no service job
-   * names it. Once a maintenance was made, it stays and is given notice.
+   * A contract entered by mistake: deleted for real while no service job and
+   * no invoice names it. Once a maintenance or a period was made, it stays
+   * and is given notice.
    */
   @Delete(':id')
   @RequiresPermission('document.issue')
@@ -491,9 +498,16 @@ export class MaintenanceContractsController {
         .where(eq(jobs.maintenanceContractId, existing.id))
         .limit(1)
 
-      if (made) {
+      // And no invoice of a period (#295), deleted drafts included: the key holds them.
+      const [billed] = await tx
+        .select({ id: documents.id })
+        .from(documents)
+        .where(eq(documents.maintenanceContractId, existing.id))
+        .limit(1)
+
+      if (made || billed) {
         throw new ConflictException(
-          'Zu diesem Vertrag gibt es schon einen Serviceauftrag. Er bleibt und lässt sich kündigen.',
+          'Zu diesem Vertrag gibt es schon einen Serviceauftrag oder eine Rechnung. Er bleibt und lässt sich kündigen.',
         )
       }
 

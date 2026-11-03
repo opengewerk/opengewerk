@@ -22,6 +22,12 @@ import { as, testIdentities as identities } from './test-identity.js'
 const north = newId<'tenant'>() as TenantId
 const south = newId<'tenant'>() as TenantId
 const today = berlinClock(new Date()).day
+/**
+ * A time of today after the morning the engine waits for before it acts
+ * (`morningMinute`), so that a run between midnight and six in German time
+ * does the same as one at noon.
+ */
+const morning = new Date(`${today}T09:00:00Z`)
 
 let admin: Pool
 let database: Database
@@ -379,8 +385,8 @@ describe('the maintenances of a contract (#294)', () => {
     const made = await contract()
     const first = addDays(today, 10)
 
-    await runDeadlinesOf({ database }, north, new Date())
-    await runDeadlinesOf({ database }, north, new Date())
+    await runDeadlinesOf({ database }, north, morning)
+    await runDeadlinesOf({ database }, north, morning)
 
     const { rows } = await admin.query<{
       kind: string
@@ -431,7 +437,7 @@ describe('the maintenances of a contract (#294)', () => {
       .set('x-test-identity', office())
       .send({ receivedOn: today })
       .expect(201)
-    await runDeadlinesOf({ database }, north, new Date())
+    await runDeadlinesOf({ database }, north, morning)
 
     expect(await deadlinesOf(running.id, 'maintenance.visit')).toHaveLength(1)
     expect(await deadlinesOf(ended.id, 'maintenance.visit')).toEqual([])
@@ -457,7 +463,7 @@ describe('the maintenances of a contract (#294)', () => {
       .set('x-test-identity', office())
       .send({ receivedOn: today })
       .expect(201)
-    await runDeadlinesOf({ database }, north, new Date())
+    await runDeadlinesOf({ database }, north, morning)
 
     expect(await deadlinesOf(made.id, 'maintenance.notice')).toEqual([
       expect.objectContaining({
@@ -471,7 +477,7 @@ describe('the maintenances of a contract (#294)', () => {
 
 describe('the invoice out of the report of a maintenance (#294)', () => {
   async function reportOf(contractId: string): Promise<string> {
-    await runDeadlinesOf({ database }, north, new Date())
+    await runDeadlinesOf({ database }, north, morning)
 
     const { rows } = await admin.query<{ id: string }>(
       'select id from jobs where maintenance_contract_id = $1',

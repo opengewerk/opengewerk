@@ -25,6 +25,7 @@ import {
 } from '@opengewerk/platform-server'
 import { and, eq, isNull, ne, sql } from 'drizzle-orm'
 
+import { contractInvoice } from '../contracts/recurring.js'
 import { assignNumber } from '../database/number-ranges.js'
 import type { ApplicationDeadlineColumns } from '../database/schema/deadlines.js'
 import { deadlines, jobs, maintenanceContracts, sites, tasks } from '../database/schema/index.js'
@@ -44,11 +45,13 @@ export type DeadlineRow = typeof deadlines.$inferSelect
 export type StatusHandler = (tx: TenantTransaction, deadline: DeadlineRow) => Promise<void>
 
 /**
- * The status handlers of the kinds this instance knows, by kind. None of the
- * kinds shipped so far changes a state at its source; the first ones come
- * with the contracts of phase 2 and the subcontractors of phase 4.
+ * The status handlers of the kinds this instance knows, by kind: the invoice
+ * of a period of a maintenance contract (#295) is the first; the
+ * subcontractors of phase 4 bring more.
  */
-export const statusHandlers: Readonly<Record<string, StatusHandler>> = {}
+export const statusHandlers: Readonly<Record<string, StatusHandler>> = {
+  'maintenance.invoice': contractInvoice,
+}
 
 /** What the engine needs, handed in so that a test can bring kinds, sources and a clock of its own. */
 export interface DeadlineJob {

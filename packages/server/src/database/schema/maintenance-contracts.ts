@@ -8,6 +8,7 @@ import { primaryId, reference, tenantIsolation, timestamps } from '@opengewerk/p
 import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import {
+  boolean,
   check,
   date,
   foreignKey,
@@ -68,6 +69,7 @@ export const maintenanceContracts = pgTable(
     priceKind: text('price_kind').notNull(),
     flatCents: integer('flat_cents'),
     paymentRhythm: text('payment_rhythm').notNull().default('visit'),
+    issueByItself: boolean('issue_by_itself').notNull().default(false),
     cancelledOn: date('cancelled_on'),
     endsOn: date('ends_on'),
     ...timestamps,
@@ -118,7 +120,8 @@ export const maintenanceContracts = pgTable(
         and (${table.priceKind} = 'flat') = (${table.flatCents} is not null)
         and coalesce(${table.flatCents}, 0) between 0 and ${sql.raw(String(maintenanceContractLimits.flatCents))}
         and ${table.paymentRhythm} in (${sql.raw(listOf(paymentRhythms))})
-        and (${table.paymentRhythm} = 'visit' or ${table.priceKind} = 'flat')`,
+        and (${table.paymentRhythm} = 'visit' or ${table.priceKind} = 'flat')
+        and (not ${table.issueByItself} or ${table.paymentRhythm} <> 'visit')`,
     ),
     check(
       'maintenance_contracts_notice',

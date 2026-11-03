@@ -96,7 +96,7 @@ type Missing = MissingDetail | EInvoiceGap | InstructionGap
  * and an invoice that could only go out as one is not issued; before then it
  * is, and the office sees on its screen what the e-invoice would still need.
  */
-async function contentForIssuing(
+export async function contentForIssuing(
   tx: TenantTransaction,
   document: typeof documents.$inferSelect,
 ): Promise<{ content: DocumentContent; missing: readonly Missing[] }> {
@@ -1114,9 +1114,10 @@ function isSignedReport(document: Pick<DocumentRow, 'kind' | 'status'>): boolean
  * the moment, who issued it, and the snapshot of what it says, in the
  * transaction of the caller.
  */
-async function issueWith(
+export async function issueWith(
   tx: TenantTransaction,
-  identity: RequestIdentity,
+  // Nobody for a recurring invoice the deadline engine issues by itself (#295).
+  identity: Pick<RequestIdentity, 'tenantId'> & { readonly userId: string | null },
   existing: DocumentRow,
   content: DocumentContent,
 ): Promise<DocumentRow> {
