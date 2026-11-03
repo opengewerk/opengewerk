@@ -60,6 +60,30 @@
       "responsible": "lead",
       "actions": ["task", "reminder"],
       "taskTitle": "Mangel beseitigen: {quelle}"
+    },
+    {
+      "key": "maintenance.visit",
+      "trade": null,
+      "title": "Wartung fällig",
+      "about": "Kommt aus jedem Wartungsvertrag, der nicht beendet ist: fällig am Tag der nächsten Wartung, die erste und dann alle so vielen Monate, wie der Vertrag sagt. Rechtzeitig davor entsteht ein Serviceauftrag mit den Anlagen des Vertrags, einmal je Tag; auf der Plantafel steht er unter „Ohne Termin“. Danach rückt die Frist zur nächsten Wartung. Nach dem Tag, an dem eine Kündigung den Vertrag beendet, entsteht keine mehr.",
+      "source": "maintenance_visit",
+      "intervalDays": null,
+      "leadDays": 28,
+      "responsible": "lead",
+      "actions": ["service_job"],
+      "taskTitle": "Wartung: {quelle}"
+    },
+    {
+      "key": "maintenance.notice",
+      "trade": null,
+      "title": "Kündigungsfrist eines Wartungsvertrags",
+      "about": "Kommt aus jedem Wartungsvertrag, der sich verlängert und noch nicht gekündigt ist: fällig am letzten Tag, an dem eine Kündigung ihn zum Ende der laufenden Laufzeit beendet. Rechtzeitig davor entsteht eine Aufgabe, den Vertrag anzusehen, etwa seinen Preis. Ist der Tag vorbei, rückt die Frist zur nächsten Laufzeit; mit einer Kündigung entfällt sie.",
+      "source": "maintenance_notice",
+      "intervalDays": null,
+      "leadDays": 30,
+      "responsible": "lead",
+      "actions": ["task", "reminder"],
+      "taskTitle": "Kündigungsfrist endet: {quelle}"
     }
   ]
 }

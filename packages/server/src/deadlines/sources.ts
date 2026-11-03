@@ -1,5 +1,6 @@
 import {
   acceptanceFormKey,
+  addDays,
   acceptanceOf,
   applianceLabel,
   berlinClock,
@@ -12,12 +13,16 @@ import {
   type InstallationId,
   type IsoDate,
   type JobId,
+  lastNoticeDay,
+  lastServiceDay,
   nextInspectionField,
   nextInspectionOn,
+  nextVisitOn,
   readFormValues,
   type SignedTest,
   shippedRules,
   type SiteId,
+  termEndOn,
   warrantyTerms,
 } from '@opengewerk/domain'
 import { type SourceQuery, stockLevels } from '@opengewerk/platform-server'
@@ -30,6 +35,7 @@ import {
   gridOperators,
   installations,
   jobs,
+  maintenanceContracts,
   sites,
 } from '../database/schema/index.js'
 import { tradeForms } from '../forms/registry.js'
@@ -604,6 +610,145 @@ export const defectsToRemedy: SourceQuery<DeadlineValues> = async (tx) => {
   )
 }
 
+/** A maintenance contract as both of its sources read it. */
+async function contractsOf(tx: Parameters<SourceQuery<DeadlineValues>>[0]) {
+  // The last day a service job was made for, deleted ones included: a job
+  // the office deleted stands for its day all the same, and is not made again.
+  const made = await tx
+    .select({
+      contractId: jobs.maintenanceContractId,
+      lastMadeOn: sql<string>`max(${jobs.maintenanceDueOn})::text`,
+    })
+    .from(jobs)
+    .where(isNotNull(jobs.maintenanceContractId))
+    .groupBy(jobs.maintenanceContractId)
+  const lastMade = new Map(made.map((row) => [String(row.contractId), row.lastMadeOn]))
+  const rows = await tx
+    .select({
+      id: maintenanceContracts.id,
+      number: maintenanceContracts.number,
+      designation: maintenanceContracts.designation,
+      customerId: maintenanceContracts.customerId,
+      siteId: maintenanceContracts.siteId,
+      installationIds: maintenanceContracts.installationIds,
+      startsOn: maintenanceContracts.startsOn,
+      firstVisitOn: maintenanceContracts.firstVisitOn,
+      intervalMonths: maintenanceContracts.intervalMonths,
+      termMonths: maintenanceContracts.termMonths,
+      renewal: maintenanceContracts.renewal,
+      renewalMonths: maintenanceContracts.renewalMonths,
+      noticeMonths: maintenanceContracts.noticeMonths,
+      cancelledOn: maintenanceContracts.cancelledOn,
+      endsOn: maintenanceContracts.endsOn,
+      createdAt: maintenanceContracts.createdAt,
+    })
+    .from(maintenanceContracts)
+
+  return rows.map((row) => ({ ...row, lastMadeOn: lastMade.get(row.id) ?? null }))
+}
+
+/** What a deadline of a contract hangs on: its customer and site, and its installation where it covers one. */
+function contractValues(row: Awaited<ReturnType<typeof contractsOf>>[number]): DeadlineValues {
+  return {
+    documentId: null,
+    installationId:
+      row.installationIds.length === 1 ? (row.installationIds[0] as InstallationId) : null,
+    customerId: row.customerId as CustomerId,
+    siteId: row.siteId as SiteId | null,
+    jobId: null,
+  }
+}
+
+/**
+ * The next maintenance of each contract that has one left (#294): one source
+ * per contract, due on the first day the contract counts that has no service
+ * job yet, and not before the day the contract was entered. Once the job of a
+ * day is made, the deadline moves on to the next; after the last day of a
+ * contract given notice, or of one that ends with its term, it drops.
+ */
+export const maintenanceVisitsDue: SourceQuery<DeadlineValues> = async (tx) => {
+  const rows = await contractsOf(tx)
+
+  return rows.flatMap((row) => {
+    const terms = {
+      ...row,
+      startsOn: row.startsOn as IsoDate,
+      endsOn: row.endsOn as IsoDate | null,
+      renewal: row.renewal as 'none' | 'fixed' | 'indefinite',
+    }
+    const due = nextVisitOn(
+      { firstVisitOn: row.firstVisitOn as IsoDate, intervalMonths: row.intervalMonths },
+      {
+        lastMadeOn: row.lastMadeOn as IsoDate | null,
+        notBefore: berlinClock(row.createdAt).day,
+        lastDay: lastServiceDay(terms),
+      },
+    )
+
+    return due === null
+      ? []
+      : [
+          {
+            sourceId: row.id,
+            sourceLabel: `${row.number} ${row.designation}`,
+            anchorOn: terms.startsOn,
+            namedDueOn: due,
+            naturalUserId: null,
+            values: contractValues(row),
+          },
+        ]
+  })
+}
+
+/**
+ * The last day a notice still ends a contract at the end of its term (#294):
+ * for each contract that renews and has no notice yet. The term is the one
+ * running today, or the next once the last day for this one has passed; a
+ * contract that runs on without end has one only before its first term ends.
+ */
+export const maintenanceNoticesDue: SourceQuery<DeadlineValues> = async (tx) => {
+  const today = berlinClock(new Date()).day
+  const rows = await contractsOf(tx)
+
+  return rows.flatMap((row) => {
+    if (row.cancelledOn !== null || row.renewal === 'none') {
+      return []
+    }
+
+    const terms = {
+      startsOn: row.startsOn as IsoDate,
+      termMonths: row.termMonths,
+      renewal: row.renewal as 'fixed' | 'indefinite',
+      renewalMonths: row.renewalMonths,
+      noticeMonths: row.noticeMonths,
+    }
+    let end = termEndOn(terms, today)
+
+    if (end !== null && lastNoticeDay(end, terms.noticeMonths) < today) {
+      end = termEndOn(terms, addDays(end, 1))
+    }
+
+    if (end === null || (terms.renewal === 'indefinite' && end < today)) {
+      return []
+    }
+
+    const due = lastNoticeDay(end, terms.noticeMonths)
+
+    return due < today
+      ? []
+      : [
+          {
+            sourceId: row.id,
+            sourceLabel: `${row.number} ${row.designation}`,
+            anchorOn: terms.startsOn,
+            namedDueOn: due,
+            naturalUserId: null,
+            values: contractValues(row),
+          },
+        ]
+  })
+}
+
 /** Every source there is, by the name a kind gives it. */
 export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
   {
@@ -615,4 +760,6 @@ export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<
     installer_registration: installerRegistrationsRunningOut,
     acceptance: warrantiesRunningOut,
     defect: defectsToRemedy,
+    maintenance_visit: maintenanceVisitsDue,
+    maintenance_notice: maintenanceNoticesDue,
   }

@@ -9,6 +9,7 @@ import {
   CalendarRange,
   Clock,
   File,
+  FileClock,
   HandCoins,
   House,
   IdCard,
@@ -108,6 +109,8 @@ export function useNavigation(): readonly NavigationGroup[] {
                     }
                   : {}),
               },
+              // The maintenance contracts (#294), read by whoever reads documents.
+              { to: '/wartungsvertraege', label: 'Wartungsverträge', icon: FileClock },
             ]
           : []),
         ...(readsTasks

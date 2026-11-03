@@ -92,6 +92,14 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  *   job it drops.
  * - `defect`: the day by which a customer wants a defect remedied (#311),
  *   as it stands at the defect. It drops once the defect is remedied.
+ * - `maintenance_visit`: the next day a maintenance contract is due (#294)
+ *   whose service job is not made yet. One deadline per contract that moves
+ *   on to the next day once the job of this one exists; a contract given
+ *   notice has none after the day it ends, a contract deleted lets it drop.
+ * - `maintenance_notice`: the last day a notice still ends a maintenance
+ *   contract at the end of the term running now (#294). Only for a contract
+ *   that renews and has no notice yet, and for one that runs on without end
+ *   only before its first term ends.
  */
 export const deadlineSources = [
   'quote',
@@ -102,6 +110,8 @@ export const deadlineSources = [
   'installer_registration',
   'acceptance',
   'defect',
+  'maintenance_visit',
+  'maintenance_notice',
 ] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
@@ -326,6 +336,25 @@ export const sourceWords: Readonly<
       hint: 'Fällig an dem Tag, bis zu dem der Kunde den Mangel beseitigt haben will.',
     },
     anchor: 'der Frist des Kunden',
+  },
+  // Due on the day of the maintenance, without an interval (#294): the lead is
+  // how long before it the service job is made. The owner answers for it.
+  maintenance_visit: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig am Tag der Wartung, wie der Vertrag sie zählt.',
+    },
+    anchor: 'dem Beginn des Vertrags',
+  },
+  // Due on the last day a notice still ends the term (#294), without an interval.
+  maintenance_notice: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig am letzten Tag, an dem eine Kündigung den Vertrag noch zum Ende der Laufzeit beendet.',
+    },
+    anchor: 'dem Beginn des Vertrags',
   },
 }
 

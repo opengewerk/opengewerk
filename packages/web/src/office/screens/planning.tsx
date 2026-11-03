@@ -538,7 +538,15 @@ export function PlanningScreen() {
                         }}
                         {...dragProps}
                         onClick={() => {
-                          open({ appointment: null, openedOn: null, jobId: text(job, 'id') })
+                          // A maintenance of a contract proposes its due day (#294).
+                          const due = maybeText(job, 'maintenanceDueOn') as IsoDate | null
+
+                          open({
+                            appointment: null,
+                            openedOn: null,
+                            jobId: text(job, 'id'),
+                            ...(due ? { day: due } : {}),
+                          })
                         }}
                       >
                         <GripVertical
@@ -560,6 +568,11 @@ export function PlanningScreen() {
                           <span className="block text-[12px] text-ink-muted">
                             {customers.get(text(job, 'customerId')) ?? ''}
                           </span>
+                          {maybeText(job, 'maintenanceDueOn') ? (
+                            <span className="block text-[12px] font-semibold text-waiting">
+                              {`Wartung fällig am ${date(text(job, 'maintenanceDueOn'))}`}
+                            </span>
+                          ) : null}
                         </span>
                       </button>
                     </li>

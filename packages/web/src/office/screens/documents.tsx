@@ -70,6 +70,7 @@ import {
   useSignature,
   WorkDoneCard,
 } from './document-cards.js'
+import { QuoteContractCard } from './contract-card.js'
 import { DraftFrame, FixedFrame } from './document-frame.js'
 import { useGrossByDocument } from './document-gross.js'
 import { HeaderCard } from './document-head.js'
@@ -865,6 +866,9 @@ function DocumentView({ document }: { readonly document: RecordState }) {
               <PaymentsCard documentId={documentId} kind={kind} />
             ) : null}
             {mail}
+            {kind === 'quote' && status === 'issued' ? (
+              <QuoteContractCard quoteId={documentId} />
+            ) : null}
           </>
         }
       />

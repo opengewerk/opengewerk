@@ -44,6 +44,7 @@ const numberRangeWords: Readonly<Record<NumberRangeKey, string>> = {
   delivery_note: 'Lieferscheine',
   report: 'Regieberichte',
   invoice: 'Rechnungen',
+  contract: 'Wartungsverträge',
 }
 
 /** The forms of the core and the trade packages by their key, "Prüfprotokoll Erstprüfung nach DIN VDE 0100-600". */
@@ -68,6 +69,7 @@ const screens: Words = {
   suppliers: '/lieferanten/',
   grid_operators: '/netzbetreiber/',
   funding_programs: '/foerderprogramme/',
+  maintenance_contracts: '/wartungsvertraege/',
 }
 
 /** The label of the link to a record, "Zum Kunden". */
@@ -87,6 +89,7 @@ const links: Words = {
   suppliers: 'Zum Lieferanten',
   grid_operators: 'Zum Netzbetreiber',
   funding_programs: 'Zum Förderprogramm',
+  maintenance_contracts: 'Zum Wartungsvertrag',
 }
 
 /** What happened to a document where one word says it. */

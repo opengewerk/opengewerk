@@ -1,0 +1,51 @@
+{
+  "package": "contract",
+  "note": "Grenzen für Verträge über regelmäßige Dienst- oder Werkleistungen in Allgemeinen Geschäftsbedingungen gegenüber Verbrauchern (§ 309 Nr. 9 BGB), für die Hinweise am Wartungsvertrag (#294). Maßgeblich ist der Tag, an dem der Vertrag beginnt. Das Gesetz für faire Verbraucherverträge hat Buchstabe b und c für Verträge ab dem 01.03.2022 verschärft (Art. 229 § 60 EGBGB). Die Werte sind am 03.11.2026 gegen den Gesetzestext bei gesetze-im-internet.de geprüft.",
+  "records": [
+    {
+      "key": "contract.consumer_maximum_term_months",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "months",
+      "value": 24,
+      "source": "§ 309 Nr. 9 Buchst. a BGB",
+      "note": "Eine den Verbraucher länger als zwei Jahre bindende Laufzeit ist in Allgemeinen Geschäftsbedingungen unwirksam."
+    },
+    {
+      "key": "contract.consumer_maximum_renewal_months",
+      "validFrom": "2002-01-01",
+      "validUntil": "2022-02-28",
+      "unit": "months",
+      "value": 12,
+      "source": "§ 309 Nr. 9 Buchst. b BGB a. F.",
+      "note": "Eine stillschweigende Verlängerung um jeweils mehr als ein Jahr war unwirksam."
+    },
+    {
+      "key": "contract.consumer_maximum_renewal_months",
+      "validFrom": "2022-03-01",
+      "validUntil": null,
+      "unit": "months",
+      "value": 0,
+      "source": "§ 309 Nr. 9 Buchst. b BGB",
+      "note": "Eine stillschweigende Verlängerung ist nur noch auf unbestimmte Zeit zulässig, mit dem Recht des Verbrauchers, jederzeit mit höchstens einem Monat Frist zu kündigen. 0 heißt: keine Verlängerung um eine feste Zeit."
+    },
+    {
+      "key": "contract.consumer_maximum_notice_months",
+      "validFrom": "2002-01-01",
+      "validUntil": "2022-02-28",
+      "unit": "months",
+      "value": 3,
+      "source": "§ 309 Nr. 9 Buchst. c BGB a. F.",
+      "note": "Eine längere Kündigungsfrist als drei Monate vor dem Ablauf der zunächst vorgesehenen oder stillschweigend verlängerten Vertragsdauer war unwirksam."
+    },
+    {
+      "key": "contract.consumer_maximum_notice_months",
+      "validFrom": "2022-03-01",
+      "validUntil": null,
+      "unit": "months",
+      "value": 1,
+      "source": "§ 309 Nr. 9 Buchst. b und c BGB",
+      "note": "Höchstens ein Monat vor dem Ablauf der zunächst vorgesehenen Vertragsdauer und nach einer Verlängerung auf unbestimmte Zeit jederzeit mit höchstens einem Monat."
+    }
+  ]
+}

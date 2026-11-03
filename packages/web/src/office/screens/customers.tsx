@@ -67,6 +67,7 @@ import {
 } from '../tags.js'
 import { FilesPanel } from './attachments.js'
 import { ContactsSection } from './contacts.js'
+import { ContractsCard } from './contract-card.js'
 import { DocumentMarker } from './document-marker.js'
 import { useGrossByDocument } from './document-gross.js'
 import { JobsPanel } from './job-table.js'
@@ -672,6 +673,7 @@ function CustomerRecord({
           <>
             {facts}
             {contacts}
+            {customerId ? <ContractsCard filter={{ customerId }} /> : null}
             {tasks}
           </>
         }

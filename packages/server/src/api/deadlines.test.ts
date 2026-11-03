@@ -470,6 +470,24 @@ describe('the settings of each kind', () => {
         responsible: 'lead',
         actions: ['task', 'reminder'],
       }),
+      // The maintenance of a contract (#294), four weeks ahead: a service job.
+      expect.objectContaining({
+        key: 'maintenance.visit',
+        title: 'Wartung fällig',
+        intervalDays: null,
+        leadDays: 28,
+        responsible: 'lead',
+        actions: ['service_job'],
+      }),
+      // The last day for a notice of a contract (#294), thirty days ahead.
+      expect.objectContaining({
+        key: 'maintenance.notice',
+        title: 'Kündigungsfrist eines Wartungsvertrags',
+        intervalDays: null,
+        leadDays: 30,
+        responsible: 'lead',
+        actions: ['task', 'reminder'],
+      }),
       // The recurring inspection of the package Elektro (#301), for whoever signed the last protocol.
       expect.objectContaining({
         key: 'elektro.recurring_inspection',

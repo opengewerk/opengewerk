@@ -19,6 +19,8 @@ export interface DeadlineView extends Omit<FoundationDeadlineView, 'source'> {
     readonly label: string
     readonly documentId: string | null
     readonly installationId: string | null
+    /** The maintenance contract a deadline of a contract follows (#294). */
+    readonly contractId: string | null
   }
   readonly customer: { readonly id: CustomerId | string; readonly name: string } | null
   readonly siteId: string | null
