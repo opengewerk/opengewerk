@@ -659,7 +659,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
       ]
     : customer
       ? [
-          { to: '/kunden', label: 'Kunden' },
+          { to: '/', label: 'Kunden' },
           { to: `/kunden/${String(customer['id'])}`, label: text(customer, 'name') },
         ]
       : []

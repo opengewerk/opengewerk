@@ -82,6 +82,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Die Brotkrume „Kunden“ über einem Beleg ohne Auftrag führt zur Liste der Kunden (#295). Warum: Sie zeigte auf `/kunden`, eine Adresse ohne Seite; aufgefallen ist es an der ersten Dauerrechnung, dem ersten Beleg ohne Auftrag, den die Prüfung der Breiten erreichte.
 - Die Rechnung vor Ort aus #292 schreibt die Einheit einer Position kurz wie das gedruckte Dokument, „1 Std.“ statt
   „1 Stunden“ (#293). Warum: Neben einer Menge stand die ausgeschriebene Einheit der Auswahlliste, die nur im Plural
   passt.
