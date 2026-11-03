@@ -30,7 +30,7 @@ export interface MailText {
   readonly text: string
 }
 
-/** The texts for an occasion the business wrote none for; the board of the canvas, version 126, uses the same words. */
+/** The texts for an occasion the business wrote none for; the board of the canvas, version 127, uses the same words. */
 export const shippedMails: Readonly<Record<MailOccasion, MailText>> = {
   appointment_arranged: {
     subject: 'Ihr Termin am {termin}',
