@@ -14,7 +14,8 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   Büro einträgt, ändert, entfernt und tauscht; die Plantafel zeigt in einer Zeile über den Personen, wer an welchem Tag
   Bereitschaft hat (Migration 0121). Der Bereitschaftsmonteur bekommt das neue Recht „Serviceeinsätze in der
   Bereitschaft anlegen“ und legt den Einsatz auf dem Telefon an, auch ohne Netz, mit dem Zeitpunkt des Anrufs; der
-  Abgleich nimmt ihn nur in einer Zeit seines Plans. Das Büro kennzeichnet einen Auftrag in der Schnellerfassung als
+  Abgleich nimmt ihn nur in einer Zeit seines Plans und höchstens zwei Tage nach dem Anruf; den ganzen Plan sieht das
+  Büro, ein Monteur seine eigenen Zeiten. Das Büro kennzeichnet einen Auftrag in der Schnellerfassung als
   Notdiensteinsatz. Unter „Einstellungen“ stellt der Betrieb für Nacht, Wochenende und Feiertag eine Pauschale oder
   einen Aufschlag auf die Arbeitszeit ein, dazu Beginn und Ende der Nacht; die Rechnung aus dem Regiebericht des
   Einsatzes und die Sammelrechnung bekommen den Zuschlag als letzte Position. Warum: Nachts ist das Büro nicht da, und

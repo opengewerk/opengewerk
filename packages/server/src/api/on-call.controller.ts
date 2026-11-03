@@ -12,7 +12,7 @@ import {
   Query,
   UnprocessableEntityException,
 } from '@nestjs/common'
-import { type OnCallShiftId, onCallShiftProblem } from '@opengewerk/domain'
+import { isAllowed, type OnCallShiftId, onCallShiftProblem } from '@opengewerk/domain'
 import {
   Database,
   isUuid,
@@ -119,7 +119,11 @@ async function rowOf(tx: TenantTransaction, id: string): Promise<Row> {
 export class OnCallController {
   constructor(private readonly database: Database) {}
 
-  /** The times that overlap a span, the earliest first. */
+  /**
+   * The times that overlap a span, the earliest first. Whoever sees every
+   * job (the office) sees the whole plan; a technician sees their own times,
+   * as their device holds them, and not the times and notes of colleagues.
+   */
   @Get()
   @RequiresPermission('job.read')
   list(
@@ -144,6 +148,9 @@ export class OnCallController {
               isNull(onCallShifts.deletedAt),
               lt(onCallShifts.startsAt, end),
               gt(onCallShifts.endsAt, start),
+              isAllowed(identity, 'job.read.all')
+                ? undefined
+                : eq(onCallShifts.userId, identity.userId),
             ),
           )
           .orderBy(asc(onCallShifts.startsAt), asc(onCallShifts.id))

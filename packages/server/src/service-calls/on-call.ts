@@ -24,6 +24,14 @@ import { jobs, onCallShifts } from '../database/schema/index.js'
  */
 const clockSlackMs = 5 * 60_000
 
+/**
+ * How long a call made without a network may take to reach the server: two
+ * days. An older moment is no call taken now, and the office takes it over
+ * like any call outside the plan; otherwise a time of the plan long past
+ * would carry a surcharge the call never had.
+ */
+const longestOfflineMs = 48 * 3_600_000
+
 /** Why a service call made on call may not land, in the shape a sync conflict records. */
 export interface OnCallRefusal {
   readonly reason: ConflictReason
@@ -40,7 +48,7 @@ function momentOf(value: unknown): Date | null {
  * Whether a job made by somebody with `job.on_call` and without `job.write`
  * may land (#293, decided on 27.09.2026): a service call, running, standing
  * on its own, whose moment of the call lies in a time of that person's
- * on-call plan and not ahead of the server's clock. A time taken back since,
+ * on-call plan, not ahead of the server's clock and at most two days back. A time taken back since,
  * or a call outside every time, is refused as a conflict about this one
  * operation; the office takes the call over from there.
  */
@@ -66,7 +74,11 @@ export async function onCallRefusal(
 
   const moment = momentOf(values['emergencyAt'])
 
-  if (moment === null || moment.getTime() > now.getTime() + clockSlackMs) {
+  if (
+    moment === null ||
+    moment.getTime() > now.getTime() + clockSlackMs ||
+    moment.getTime() < now.getTime() - longestOfflineMs
+  ) {
     return { reason: 'record_is_fixed', fields: ['emergencyAt'] }
   }
 

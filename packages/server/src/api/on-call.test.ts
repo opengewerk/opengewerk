@@ -34,6 +34,8 @@ const office = () => as(north.id, 'office')
 const owner = () => as(north.id, 'owner')
 const jonas = () => JSON.stringify({ userId: 'jonas', tenantId: north.id, roles: ['technician'] })
 const lena = () => JSON.stringify({ userId: 'lena', tenantId: north.id, roles: ['technician'] })
+/** On call only in the times relative to now that the calls below are made in. */
+const max = () => JSON.stringify({ userId: 'max', tenantId: north.id, roles: ['technician'] })
 const scribble = 'M100,300L200,120L300,280'
 
 /** Wednesday 28.10.2026, 02:14 in Germany. */
@@ -149,10 +151,10 @@ beforeAll(async () => {
   await admin.query('insert into tenants (id, name) values ($1, $2)', [north.id, north.name])
   await readyToInvoice(admin, north.id)
   await admin.query(
-    "insert into auth_users (id, name, email) values ('jonas', 'Jonas Brandt', 'jonas@nord.example.de'), ('lena', 'Lena Hoffmann', 'lena@nord.example.de')",
+    "insert into auth_users (id, name, email) values ('jonas', 'Jonas Brandt', 'jonas@nord.example.de'), ('lena', 'Lena Hoffmann', 'lena@nord.example.de'), ('max', 'Max Becker', 'max@nord.example.de')",
   )
   await admin.query(
-    "insert into memberships (tenant_id, user_id, roles) values ($1, 'jonas', '{technician}'), ($1, 'lena', '{technician}')",
+    "insert into memberships (tenant_id, user_id, roles) values ($1, 'jonas', '{technician}'), ($1, 'lena', '{technician}'), ($1, 'max', '{technician}')",
     [north.id],
   )
 
@@ -298,6 +300,39 @@ describe('the on-call plan (#293)', () => {
     await http().delete(`/on-call-shifts/${hers}`).set('x-test-identity', office()).expect(200)
   })
 
+  it('lists a technician their own times, the office the whole plan', async () => {
+    const times = await Promise.all(
+      ['jonas', 'lena'].map(
+        async (userId, week) =>
+          (
+            await post('/on-call-shifts', {
+              userId,
+              startsAt: `2026-12-${String(7 + week * 7).padStart(2, '0')}T16:00:00.000Z`,
+              endsAt: `2026-12-${String(14 + week * 7).padStart(2, '0')}T06:00:00.000Z`,
+              note: `Woche ${String(50 + week)}`,
+            })
+          ).id,
+      ),
+    )
+    const listed = async (who: string) =>
+      (
+        (
+          await http()
+            .get('/on-call-shifts?from=2026-12-01T00:00:00.000Z&to=2027-01-01T00:00:00.000Z')
+            .set('x-test-identity', who)
+            .expect(200)
+        ).body as { id: string }[]
+      ).map((time) => time.id)
+
+    expect(await listed(jonas())).toEqual([times[0]])
+    expect(await listed(lena())).toEqual([times[1]])
+    expect(await listed(office())).toEqual(times)
+
+    for (const id of times) {
+      await http().delete(`/on-call-shifts/${id}`).set('x-test-identity', office()).expect(200)
+    }
+  })
+
   it('is not written over the sync, by the office neither', async () => {
     const id = newId<'on-call-shift'>()
     const sent = await push(app, office(), [
@@ -317,9 +352,23 @@ describe('the on-call plan (#293)', () => {
 })
 
 describe('a service call made on call', () => {
+  /** A moment so many hours before now; negative hours lie ahead. */
+  const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString()
+
+  beforeAll(async () => {
+    // Max is on call now, and was in a time two days ago, with a gap between.
+    await post('/on-call-shifts', {
+      userId: 'max',
+      startsAt: hoursAgo(30),
+      endsAt: hoursAgo(-12),
+    })
+    await post('/on-call-shifts', { userId: 'max', startsAt: hoursAgo(60), endsAt: hoursAgo(49) })
+  })
+
   it('lands from the technician on call, with the moment of the call', async () => {
-    const call = aCall()
-    const sent = await push(app, jonas(), [call.operation])
+    const at = hoursAgo(1)
+    const call = aCall({ emergencyAt: at })
+    const sent = await push(app, max(), [call.operation])
 
     expect(sent.receipts.map((receipt) => receipt.outcome)).toEqual(['applied'])
 
@@ -327,18 +376,17 @@ describe('a service call made on call', () => {
       call.id,
     ])
 
-    expect(rows).toEqual([{ kind: 'service', emergency_at: new Date(atNight) }])
+    expect(rows).toEqual([{ kind: 'service', emergency_at: new Date(at) }])
   })
 
   it('is refused as a conflict outside every time of the plan of that person', async () => {
-    const before = await push(app, jonas(), [
-      aCall({ emergencyAt: '2026-10-20T01:00:00.000Z' }).operation,
-    ])
-    // Jonas is on call that night, Lena is not.
-    const somebodyElses = await push(app, lena(), [aCall().operation])
+    // Between the two times of Max.
+    const between = await push(app, max(), [aCall({ emergencyAt: hoursAgo(40) }).operation])
+    // Max is on call now, Lena is not.
+    const somebodyElses = await push(app, lena(), [aCall({ emergencyAt: hoursAgo(1) }).operation])
 
     expect(
-      [...before.receipts, ...somebodyElses.receipts].map((receipt) => [
+      [...between.receipts, ...somebodyElses.receipts].map((receipt) => [
         receipt.outcome,
         receipt.reason,
         receipt.fields,
@@ -351,53 +399,44 @@ describe('a service call made on call', () => {
 
   it('is refused in a time the office took back', async () => {
     const taken = (
-      await post('/on-call-shifts', {
-        userId: 'lena',
-        startsAt: '2026-10-19T16:00:00.000Z',
-        endsAt: '2026-10-20T06:00:00.000Z',
-      })
+      await post('/on-call-shifts', { userId: 'lena', startsAt: hoursAgo(3), endsAt: hoursAgo(-1) })
     ).id
 
     await http().delete(`/on-call-shifts/${taken}`).set('x-test-identity', office()).expect(200)
 
-    const sent = await push(app, lena(), [
-      aCall({ emergencyAt: '2026-10-20T01:00:00.000Z' }).operation,
-    ])
+    const sent = await push(app, lena(), [aCall({ emergencyAt: hoursAgo(1) }).operation])
 
     expect(sent.receipts.map((receipt) => receipt.outcome)).toEqual(['conflict'])
   })
 
-  it('is refused without the moment of the call, and with one ahead of the clock', async () => {
-    const now = (
-      await post('/on-call-shifts', {
-        userId: 'jonas',
-        startsAt: new Date(Date.now() - 3_600_000).toISOString(),
-        endsAt: new Date(Date.now() + 86_400_000).toISOString(),
-      })
-    ).id
-    const without = await push(app, jonas(), [aCall({ emergencyAt: null }).operation])
-    const ahead = await push(app, jonas(), [
-      aCall({ emergencyAt: new Date(Date.now() + 3_600_000).toISOString() }).operation,
-    ])
+  it('is refused without the moment of the call, more than two days back, and ahead of the clock', async () => {
+    const without = await push(app, max(), [aCall({ emergencyAt: null }).operation])
+    // In the earlier time of Max, but too long ago to be a call taken now.
+    const old = await push(app, max(), [aCall({ emergencyAt: hoursAgo(50) }).operation])
+    const ahead = await push(app, max(), [aCall({ emergencyAt: hoursAgo(-1) }).operation])
     // A clock that runs a minute fast is no reason to refuse.
-    const fast = await push(app, jonas(), [
+    const fast = await push(app, max(), [
       aCall({ emergencyAt: new Date(Date.now() + 60_000).toISOString() }).operation,
     ])
 
     expect(
-      [...without.receipts, ...ahead.receipts, ...fast.receipts].map((receipt) => receipt.outcome),
-    ).toEqual(['conflict', 'conflict', 'applied'])
-
-    await http().delete(`/on-call-shifts/${now}`).set('x-test-identity', office()).expect(200)
+      [...without.receipts, ...old.receipts, ...ahead.receipts, ...fast.receipts].map(
+        (receipt) => receipt.outcome,
+      ),
+    ).toEqual(['conflict', 'conflict', 'conflict', 'applied'])
   })
 
   it('is a running call of its own, no follow-up and nothing finished', async () => {
-    const first = aCall()
+    const first = aCall({ emergencyAt: hoursAgo(1) })
 
     await push(app, office(), [first.operation])
 
-    const finished = await push(app, jonas(), [aCall({ status: 'completed' }).operation])
-    const followUp = await push(app, jonas(), [aCall({ predecessorJobId: first.id }).operation])
+    const finished = await push(app, max(), [
+      aCall({ status: 'completed', emergencyAt: hoursAgo(1) }).operation,
+    ])
+    const followUp = await push(app, max(), [
+      aCall({ predecessorJobId: first.id, emergencyAt: hoursAgo(1) }).operation,
+    ])
 
     expect(
       [...finished.receipts, ...followUp.receipts].map((receipt) => [
@@ -459,7 +498,7 @@ describe('the surcharge of an emergency call', () => {
   it('is the last line of the invoice out of its report, for the kind of the call', async () => {
     const call = aCall()
 
-    await push(app, jonas(), [call.operation])
+    await push(app, office(), [call.operation])
 
     const report = await aSignedReport(call.id)
     const invoice = (await post(`/documents/${report}/successors`, { kind: 'final_invoice' })).id
@@ -516,7 +555,7 @@ describe('the surcharge of an emergency call', () => {
   it('comes once on the collective invoice of the call', async () => {
     const call = aCall()
 
-    await push(app, jonas(), [call.operation])
+    await push(app, office(), [call.operation])
 
     for (let day = 0; day < 2; day += 1) {
       const report = await aSignedReport(call.id)
