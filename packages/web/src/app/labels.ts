@@ -164,6 +164,7 @@ export const snippetPurposeLabel: Readonly<Record<SnippetPurpose, string>> = {
   line: 'Position',
   intro: 'Text über den Positionen',
   closing: 'Text unter den Positionen',
+  mail: 'E-Mail',
 }
 
 /**

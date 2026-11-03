@@ -291,7 +291,7 @@ describe('the sample data', () => {
     expect(await response.text()).toContain('urn:xeinkauf.de:kosit:xrechnung_3.0')
   })
 
-  it('carries titles among the lines and snippets for all three places', async () => {
+  it('carries titles among the lines and snippets for all four places', async () => {
     const documents = await read<{ id: string; kind: string }[]>('/documents')
     const estimate = documents.find((document) => document.kind === 'cost_estimate')
     const lines = await read<{ kind: string }[]>(`/documents/${estimate?.id ?? ''}/lines`)
@@ -299,7 +299,7 @@ describe('the sample data', () => {
 
     expect(lines.filter((line) => line.kind === 'title')).toHaveLength(2)
     expect(new Set(snippets.map((snippet) => snippet.purpose))).toEqual(
-      new Set(['line', 'intro', 'closing']),
+      new Set(['line', 'intro', 'closing', 'mail']),
     )
   })
 

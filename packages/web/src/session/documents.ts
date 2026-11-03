@@ -3,6 +3,7 @@ import type {
   DocumentKind,
   EInvoiceStatus,
   IsoDate,
+  MailOccasion,
   MissingDetail,
   Payment,
   RecordState,
@@ -248,12 +249,15 @@ export interface TextSnippet {
   readonly purpose: SnippetPurpose
   readonly title: string
   readonly text: string
+  /** For a snippet for mails, the occasion it is the text of (#315). */
+  readonly mailOccasion: MailOccasion | null
 }
 
 export interface SnippetValues {
   readonly purpose: SnippetPurpose
   readonly title: string
   readonly text: string
+  readonly mailOccasion: MailOccasion | null
 }
 
 const snippets = '/documents/text-snippets'

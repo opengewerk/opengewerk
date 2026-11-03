@@ -1,5 +1,16 @@
-import type { SnippetPurpose } from '@opengewerk/domain'
-import { snippetPurposes } from '@opengewerk/domain'
+import {
+  filledMailSubject,
+  filledMailText,
+  type MailFacts,
+  type MailOccasion,
+  mailOccasionLabel,
+  mailOccasions,
+  mailPlaceholderLabel,
+  mailPlaceholders,
+  shippedMails,
+  type SnippetPurpose,
+  snippetPurposes,
+} from '@opengewerk/domain'
 import { Button, Confirm, Field, Panel, SelectField, TextArea } from '@opengewerk/platform-web'
 import { PageHead, Screen } from '@opengewerk/platform-web/office'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
@@ -28,6 +39,7 @@ const listTitle: Readonly<Record<SnippetPurpose, string>> = {
   line: 'Positionen',
   intro: 'Texte über den Positionen',
   closing: 'Texte unter den Positionen',
+  mail: 'Texte für E-Mails',
 }
 
 /** What each list is for, in one sentence under its heading. */
@@ -35,6 +47,61 @@ const listHint: Readonly<Record<SnippetPurpose, string>> = {
   line: 'Der Name wird zur Bezeichnung der Position, der Text zu ihrer Beschreibung.',
   intro: 'Die Anrede und der Anlass, etwa der Dank für die Anfrage.',
   closing: 'Der Schluss, etwa wie lange ein Angebot gilt und ein Gruß.',
+  mail: 'Der Betreff steht als Name in der Liste, der Text ist die E-Mail. Für einen Anlass ohne eigenen Text gilt der mitgelieferte.',
+}
+
+const occasionOptions = mailOccasions.map((occasion) => ({
+  value: occasion,
+  label: mailOccasionLabel[occasion],
+}))
+
+/**
+ * The values the preview fills in, the story of the board "Textbaustein für
+ * eine E-Mail" (#315): a call about a fuse, an appointment on a Wednesday.
+ * An automatic mail has nobody who sends it, so `{benutzer}` stays empty.
+ */
+const exampleFacts: MailFacts = {
+  kunde: 'Klaus Lehmann',
+  termin: 'Mittwoch, 04.11.2026, 13:30 bis 15:00 Uhr',
+  auftrag: 'AU-2026-0233 Sicherung Küche löst aus',
+  benutzer: null,
+  briefkopf: 'Elektro Nord GmbH',
+}
+
+/** What the mail of an occasion carries besides its text. */
+function attachmentOf(occasion: MailOccasion): string {
+  return occasion === 'job_received'
+    ? 'Für einen Verbraucher hängen die Belehrungen als PDF an, mit einem Satz dazu unter dem Text.'
+    : 'Dazu die Kalenderdatei Termin.ics.'
+}
+
+/** The mail as a customer reads it, with example values, as the card "Vorschau" of the board has it. */
+function MailPreview({
+  occasion,
+  subject,
+  text,
+}: {
+  readonly occasion: MailOccasion
+  readonly subject: string
+  readonly text: string
+}) {
+  return (
+    <Panel title="Vorschau">
+      <div className="flex flex-col gap-2.5">
+        <p className="text-[13px] text-ink-muted">
+          So liest es ein Kunde bei „{mailOccasionLabel[occasion]}“, mit Beispielwerten.
+        </p>
+        <p className="text-[14px] font-semibold">{filledMailSubject(subject, exampleFacts)}</p>
+        <p className="whitespace-pre-line text-[13px] leading-[1.5]">
+          {filledMailText(text, exampleFacts)}
+        </p>
+        <p className="text-[13px] text-ink-muted">
+          Darunter steht die Signatur des Betriebs aus den E-Mail-Einstellungen.{' '}
+          {attachmentOf(occasion)}
+        </p>
+      </div>
+    </Panel>
+  )
 }
 
 function SnippetForm({
@@ -52,8 +119,20 @@ function SnippetForm({
   const adding = snippet === undefined
   const queries = useQueryClient()
   const [purpose, setPurpose] = useState<string>(snippet?.purpose ?? 'line')
+  const [occasion, setOccasion] = useState<MailOccasion>(
+    snippet?.mailOccasion ?? 'appointment_arranged',
+  )
   const [title, setTitle] = useState(snippet?.title ?? '')
   const [body, setBody] = useState(snippet?.text ?? '')
+  const mail = purpose === 'mail'
+
+  /** A new text for mails starts from the shipped one of its occasion. */
+  function startFrom(next: MailOccasion) {
+    if (adding) {
+      setTitle(shippedMails[next].subject)
+      setBody(shippedMails[next].text)
+    }
+  }
   const [working, setWorking] = useState(false)
   const [trouble, setTrouble] = useState<string | null>(null)
 
@@ -62,7 +141,12 @@ function SnippetForm({
     setWorking(true)
     setTrouble(null)
 
-    const values: SnippetValues = { purpose: purpose as SnippetPurpose, title, text: body }
+    const values: SnippetValues = {
+      purpose: purpose as SnippetPurpose,
+      title,
+      text: body,
+      mailOccasion: mail ? occasion : null,
+    }
 
     try {
       await (snippet ? updateSnippet(snippet.id, values) : createSnippet(values))
@@ -79,7 +163,7 @@ function SnippetForm({
     }
   }
 
-  return (
+  const form = (
     <form
       className="flex flex-col gap-3"
       onSubmit={(event) => {
@@ -87,24 +171,70 @@ function SnippetForm({
       }}
     >
       <div className="grid gap-3 sm:grid-cols-2">
-        <SelectField label="Wofür" value={purpose} options={purposeOptions} onChange={setPurpose} />
+        <SelectField
+          label="Wofür"
+          value={purpose}
+          options={purposeOptions}
+          onChange={(next) => {
+            setPurpose(next)
+
+            if (next === 'mail' && title === '' && body === '') {
+              startFrom(occasion)
+            }
+          }}
+        />
+        {mail ? (
+          <SelectField
+            label="Anlass"
+            value={occasion}
+            options={occasionOptions}
+            hint="Je Anlass ein Text. Ohne eigenen gilt der mitgelieferte."
+            onChange={(next) => {
+              setOccasion(next as MailOccasion)
+              startFrom(next as MailOccasion)
+            }}
+          />
+        ) : (
+          <Field
+            label="Name"
+            required
+            value={title}
+            onChange={(event) => {
+              setTitle(event.target.value)
+            }}
+          />
+        )}
+      </div>
+      {mail ? (
         <Field
-          label="Name"
+          label="Betreff"
           required
           value={title}
           onChange={(event) => {
             setTitle(event.target.value)
           }}
         />
-      </div>
+      ) : null}
       <TextArea
         label="Text"
-        rows={6}
+        rows={mail ? 8 : 6}
         value={body}
         onChange={(event) => {
           setBody(event.target.value)
         }}
       />
+      {mail ? (
+        <div className="text-[13px] text-ink-muted">
+          <p className="font-semibold text-ink">Platzhalter</p>
+          <ul className="list-disc pl-[18px] leading-[1.55]">
+            {mailPlaceholders.map((key) => (
+              <li key={key}>
+                <code className="font-semibold">{`{${key}}`}</code> {mailPlaceholderLabel[key]}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {trouble ? (
         <p role="alert" className="text-body font-semibold text-conflict">
@@ -126,6 +256,15 @@ function SnippetForm({
         </Button>
       </div>
     </form>
+  )
+
+  return mail ? (
+    <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)]">
+      {form}
+      <MailPreview occasion={occasion} subject={title} text={body} />
+    </div>
+  ) : (
+    form
   )
 }
 
@@ -179,7 +318,14 @@ function SnippetEntry({
   return (
     <li className="flex flex-wrap items-start gap-3 border-b border-row py-[9px]">
       <div className="min-w-0 grow basis-[240px]">
-        <p className="text-[14px] font-semibold text-ink">{snippet.title}</p>
+        <p className="flex flex-wrap items-baseline gap-2 text-[14px] font-semibold text-ink">
+          {snippet.title}
+          {snippet.mailOccasion ? (
+            <span className="rounded-control border border-control bg-surface px-[9px] text-[13px] font-normal">
+              {mailOccasionLabel[snippet.mailOccasion]}
+            </span>
+          ) : null}
+        </p>
         {snippet.text ? (
           <p className="whitespace-pre-line text-[13px] leading-[1.45] text-ink-muted">
             {snippet.text}
@@ -278,7 +424,7 @@ export function TextSnippetScreen() {
     <Screen>
       <PageHead
         title="Textbausteine"
-        sub="Texte für Positionen und für den Text über und unter den Positionen eines Belegs."
+        sub="Texte für Positionen, für den Text über und unter den Positionen eines Belegs und für E-Mails."
         wideActions
         actions={
           editable ? (
@@ -319,6 +465,7 @@ export function TextSnippetScreen() {
         <SnippetList purpose="intro" snippets={all} editable={editable} />
         <SnippetList purpose="closing" snippets={all} editable={editable} />
       </div>
+      <SnippetList purpose="mail" snippets={all} editable={editable} />
     </Screen>
   )
 }

@@ -2081,6 +2081,44 @@ describe('the text snippets', () => {
         purpose: 'closing',
         title: 'Gruß',
         text: 'Mit freundlichen Grüßen',
+        mailOccasion: null,
+      })
+    })
+  })
+
+  it('take a text for a mail with its occasion, start from the shipped one and show it filled in (#315)', async () => {
+    serverSays('POST', '/documents/text-snippets', (body) => ({
+      status: 201,
+      body: { id: 's-4', ...(body as Row) },
+    }))
+
+    await mount('/textbausteine')
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Textbaustein anlegen' }))
+
+    const form = within(screen.getByRole('region', { name: 'Neuer Textbaustein' }))
+
+    await person.selectOptions(form.getByLabelText('Wofür'), 'mail')
+    await person.selectOptions(form.getByLabelText('Anlass'), 'appointment_moved')
+
+    expect((form.getByLabelText('Betreff', { exact: false }) as HTMLInputElement).value).toBe(
+      'Ihr Termin ist verschoben: {termin}',
+    )
+
+    const preview = within(screen.getByRole('region', { name: 'Vorschau' }))
+
+    expect(
+      preview.getByText('Ihr Termin ist verschoben: Mittwoch, 04.11.2026, 13:30 bis 15:00 Uhr'),
+    ).toBeDefined()
+
+    await person.click(form.getByRole('button', { name: 'Textbaustein anlegen' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'POST')?.body).toMatchObject({
+        purpose: 'mail',
+        title: 'Ihr Termin ist verschoben: {termin}',
+        mailOccasion: 'appointment_moved',
       })
     })
   })
