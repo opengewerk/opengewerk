@@ -11,6 +11,7 @@ import {
 } from '@opengewerk/platform-web/office'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { useMay } from '../../app/queries.js'
@@ -19,10 +20,10 @@ import { mailServerWords, mailStatusWords } from './mail-words.js'
 import { History, latestPeriod, proposedFrom } from './taxes.js'
 
 /**
- * What a document signed on site is called in the sentences of its switch:
- * the setting that sends it to its customer at once, the name of the panel,
- * the sentence that explains it, and what the state says while it is on and
- * while it is off.
+ * The sentences of a switch for a mail to the customer: the setting, the name
+ * of the panel, the sentence that explains it, and what the state says while
+ * it is on and while it is off. A confirmation (#315) says where its text
+ * comes from.
  */
 interface SignedWords {
   readonly setting: TenantParameterKey
@@ -30,6 +31,7 @@ interface SignedWords {
   readonly explanation: string
   readonly on: string
   readonly off: string
+  readonly fromSnippets?: true
 }
 
 const reportWords: SignedWords = {
@@ -54,6 +56,32 @@ const deliveryWords: SignedWords = {
     'aus verschicken.',
   on: 'ein unterschriebener Lieferschein geht gleich an den Kunden.',
   off: 'unterschriebene Lieferscheine bleiben beim Büro.',
+}
+
+/** The confirmation of an appointment (#315), with its calendar file. */
+const appointmentWords: SignedWords = {
+  setting: 'appointment.mail_to_customer',
+  title: 'Bestätigung zum Termin',
+  explanation:
+    'Wird ein Termin an einem Auftrag vereinbart, verschoben oder abgesagt, bekommt der Kunde ' +
+    'eine E-Mail mit Tag und Uhrzeit, dazu eine Kalenderdatei, die sein Kalender übernimmt. Die ' +
+    'Nachricht geht an die Adresse, die beim Kunden hinterlegt ist; ohne Adresse geht keine.',
+  on: 'Kunden bekommen zu jedem Termin eine Bestätigung.',
+  off: 'Termine werden nicht per E-Mail bestätigt.',
+  fromSnippets: true,
+}
+
+/** The confirmation of a service call (#315), with the instructions for a consumer. */
+const receivedWords: SignedWords = {
+  setting: 'service_call.mail_on_receipt',
+  title: 'Bestätigung zum Auftragseingang',
+  explanation:
+    'Legt das Büro einen Serviceauftrag an, bekommt der Kunde eine E-Mail mit Nummer und ' +
+    'Anliegen. Ist er Verbraucher, hängen die Belehrungen als PDF an, die er sonst getrennt ' +
+    'bekäme. Einen anderen Auftrag bestätigt die Auftragsbestätigung als Beleg.',
+  on: 'Serviceaufträge werden per E-Mail bestätigt.',
+  off: 'Serviceaufträge werden nicht per E-Mail bestätigt.',
+  fromSnippets: true,
 }
 
 function saidWhy(error: unknown, fallback: string): string {
@@ -97,7 +125,7 @@ export function MailSettingsScreen() {
           {saidWhy(history.error, 'Die Einstellungen kamen nicht an.')}
         </SettingsText>
       ) : (
-        [reportWords, deliveryWords].map((words) => (
+        [reportWords, deliveryWords, appointmentWords, receivedWords].map((words) => (
           <SignedSection
             key={words.setting}
             words={words}
@@ -184,6 +212,18 @@ function SignedSection({
           <p role="alert" className="text-[13px] font-semibold text-conflict">
             {trouble}
           </p>
+        ) : null}
+
+        {words.fromSnippets ? (
+          <SettingsText muted>
+            Der Text kommt aus den Textbausteinen für E-Mails; ohne eigenen gilt der mitgelieferte.{' '}
+            <Link
+              to="/textbausteine"
+              className="font-semibold text-copper-text underline underline-offset-2"
+            >
+              Textbausteine
+            </Link>
+          </SettingsText>
         ) : null}
       </div>
     </Panel>

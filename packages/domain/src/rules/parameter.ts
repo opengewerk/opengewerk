@@ -97,6 +97,16 @@ export const tenantParameterKeys = [
   'emergency.holiday_flat_cents',
   'emergency.holiday_basis_points',
   /**
+   * Whether a customer gets a mail when an appointment of their job is
+   * arranged, moved or cancelled, with a calendar file (#315, decided on
+   * 27.09.2026), and whether a customer whose service call the office took
+   * gets a mail with its number, and a consumer the instructions with it.
+   * Each switched on its own; read on the day of the appointment's change or
+   * of the call, so that switching it on sends nothing about what was before.
+   */
+  'appointment.mail_to_customer',
+  'service_call.mail_on_receipt',
+  /**
    * When the night begins and ends for the surcharge (#293), as the minute of
    * the day in German time; not set means 20:00 and 06:00
    * (`defaultNight`).
@@ -126,6 +136,8 @@ export const tenantParameterNames: Readonly<Record<TenantParameterKey, string>> 
   'emergency.weekend_flat_cents': 'den Notdienstzuschlag am Wochenende',
   'emergency.weekend_basis_points': 'den Notdienstzuschlag am Wochenende',
   'emergency.holiday_flat_cents': 'den Notdienstzuschlag an Feiertagen',
+  'appointment.mail_to_customer': 'die Bestätigung zum Termin',
+  'service_call.mail_on_receipt': 'die Bestätigung zum Auftragseingang',
   'emergency.holiday_basis_points': 'den Notdienstzuschlag an Feiertagen',
   'emergency.night_from_minute': 'den Beginn der Nacht',
   'emergency.night_until_minute': 'das Ende der Nacht',
@@ -145,6 +157,8 @@ export const tenantParameterUnits: Readonly<Record<TenantParameterKey, RuleUnit>
   'emergency.weekend_flat_cents': 'cents',
   'emergency.weekend_basis_points': 'basis_points',
   'emergency.holiday_flat_cents': 'cents',
+  'appointment.mail_to_customer': 'flag',
+  'service_call.mail_on_receipt': 'flag',
   'emergency.holiday_basis_points': 'basis_points',
   'emergency.night_from_minute': 'minutes',
   'emergency.night_until_minute': 'minutes',

@@ -330,9 +330,29 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       title: 'Fehlersuche',
       text: 'Fehlersuche an der Elektroinstallation, Abrechnung nach Aufwand',
     },
+    // The texts of two confirmations by mail (#315), as the board "Textbaustein
+    // für eine E-Mail" lists them; the others take the shipped ones.
+    {
+      purpose: 'mail',
+      mailOccasion: 'appointment_arranged',
+      title: 'Ihr Termin am {termin}',
+      text:
+        'Guten Tag {kunde},\n\nfür Ihren Auftrag {auftrag} haben wir einen Termin vereinbart: {termin}.\n\n' +
+        'Die Kalenderdatei im Anhang trägt ihn in Ihren Kalender ein.',
+    },
+    {
+      purpose: 'mail',
+      mailOccasion: 'job_received',
+      title: 'Ihr Auftrag {auftrag}',
+      text: 'Guten Tag {kunde},\n\nvielen Dank für Ihren Auftrag. Wir haben ihn unter {auftrag} aufgenommen und melden uns mit einem Termin.',
+    },
   ]) {
     await post('/documents/text-snippets', snippet)
   }
+
+  // The confirmation of an appointment switched on, the one of a service call
+  // left off, as the board "Einstellungen, Bestätigungen per E-Mail" has them.
+  await post('/settings/parameters', { key: 'appointment.mail_to_customer', from: today, value: 1 })
 
   async function document(values: Record<string, unknown>, lines: readonly Line[]) {
     const id = idOf(await post('/documents', { documentDate: today, ...values }))

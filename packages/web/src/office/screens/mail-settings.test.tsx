@@ -438,3 +438,31 @@ describe('a signed delivery note (#299)', () => {
     })
   })
 })
+
+describe('the confirmations to a customer (#315)', () => {
+  it('are switched on each on its own, from today, with the way to their texts', async () => {
+    signedInAs('owner')
+    serverSays('GET', '/settings/parameters', [])
+    serverSays('POST', '/settings/parameters', {})
+    render(inQueries(<MailSettingsScreen />))
+
+    await screen.findByText('Aus: Termine werden nicht per E-Mail bestätigt.')
+
+    const appointment = region('Bestätigung zum Termin')
+    const received = region('Bestätigung zum Auftragseingang')
+
+    expect(within(received).getByRole('link', { name: 'Textbausteine' }).getAttribute('href')).toBe(
+      '/textbausteine',
+    )
+
+    await userEvent.setup().click(within(appointment).getByRole('button', { name: 'Einschalten' }))
+    await userEvent.setup().click(within(received).getByRole('button', { name: 'Einschalten' }))
+
+    await waitFor(() => {
+      expect(calls.filter((call) => call.method === 'POST').map((call) => call.body)).toEqual([
+        { key: 'appointment.mail_to_customer', from: '2026-09-22', value: 1, note: null },
+        { key: 'service_call.mail_on_receipt', from: '2026-09-22', value: 1, note: null },
+      ])
+    })
+  })
+})

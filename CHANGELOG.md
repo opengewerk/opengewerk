@@ -9,6 +9,14 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Bestätigungsmails zu Termin und Auftragseingang mit Textbausteinen für E-Mails (#315), nach der Feature-Gliederung
+  v2.64 und den Tafeln aus Version 127 des Canvas: Unter „E-Mail-Einstellungen“ schaltet der Betrieb die Bestätigung
+  zum Termin und die zum Auftragseingang einzeln ein. Wird ein Termin an einem Auftrag vereinbart, verschoben oder
+  abgesagt, bekommt der Kunde eine E-Mail mit einer Kalenderdatei, die seinen Kalender nachzieht; legt das Büro einen
+  Serviceauftrag an, bekommt er eine Bestätigung, ein Verbraucher mit den Belehrungen als PDF. Unter „Textbausteine“
+  gibt es Texte für E-Mails, je Anlass einer, mit Betreff, Platzhaltern und einer Vorschau; ohne eigenen gilt der
+  mitgelieferte (Migration 0122). Warum: Der Kunde soll ohne Anruf wissen, wann jemand kommt, und ein Verbraucher, der
+  am Telefon beauftragt, bekommt die Belehrungen auf dem Weg, den es ohnehin gibt.
 - Notdienst mit Rufbereitschaftsplan und Notdienstzuschlägen (#293), nach der Feature-Gliederung v2.63 und den Tafeln
   aus Version 125 des Canvas: Unter der Plantafel steht die Rufbereitschaft, Zeiten mit Person, Beginn und Ende, die das
   Büro einträgt, ändert, entfernt und tauscht; die Plantafel zeigt in einer Zeile über den Personen, wer an welchem Tag

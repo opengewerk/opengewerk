@@ -1,8 +1,9 @@
 import { ConflictException, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
-import { berlinClock, RuleError } from '@opengewerk/domain'
+import { type AppointmentId, berlinClock, RuleError } from '@opengewerk/domain'
 import { type Database, type MailAttachment, MailDeliveryError } from '@opengewerk/platform-server'
 
 import type { DocumentFiles, MailedFile } from '../api/document-files.js'
+import { appointmentInvitation } from '../notifications/confirmation-mail.js'
 import { CallInstructionsRefused, callPrintFacts } from '../service-calls/instructions.js'
 import type { OutboxRow } from './outbox.js'
 
@@ -98,7 +99,11 @@ export function withCallInstructions(
   others: AttachmentSource,
 ): AttachmentSource {
   return async (row) => {
-    if (row.kind !== 'job_instructions') {
+    // The confirmation of a service call carries them for a consumer (#315).
+    const carries =
+      row.kind === 'job_instructions' || (row.kind === 'job_received' && row.attachment === 'pdf')
+
+    if (!carries) {
       return others(row)
     }
 
@@ -138,5 +143,53 @@ export function withCallInstructions(
         { permanent: final },
       )
     }
+  }
+}
+
+/**
+ * The files of a message, with the calendar file of an appointment (#315)
+ * beside the others: made when the confirmation goes out, from the
+ * appointment as it is then, so that a calendar holds what the board holds.
+ * An appointment there is no trace of any more gives up the message.
+ */
+export function withAppointmentInvitation(
+  database: Database,
+  others: AttachmentSource,
+): AttachmentSource {
+  return async (row) => {
+    if (row.kind !== 'appointment_confirmation') {
+      return others(row)
+    }
+
+    const appointmentId = row.appointmentId
+
+    const file =
+      appointmentId === null
+        ? null
+        : await database.forTenant({ tenantId: row.tenantId, reason: 'mail' }, (tx) =>
+            appointmentInvitation(tx, row.tenantId, appointmentId as AppointmentId, {
+              name: row.recipientName ?? row.recipientAddress,
+              address: row.recipientAddress,
+            }),
+          )
+
+    if (file === null) {
+      throw new MailDeliveryError(
+        'Den Termin dieser Nachricht gibt es nicht mehr.',
+        'EDOCUMENT',
+        null,
+        {
+          permanent: true,
+        },
+      )
+    }
+
+    return [
+      {
+        filename: 'Termin.ics',
+        content: new TextEncoder().encode(file.text),
+        contentType: `text/calendar; charset=utf-8; method=${file.method}`,
+      },
+    ]
   }
 }

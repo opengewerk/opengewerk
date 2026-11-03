@@ -1,9 +1,13 @@
-import { snippetPurposes } from '@opengewerk/domain'
+import { mailOccasions, snippetPurposes } from '@opengewerk/domain'
 import { primaryId, tenantIsolation, timestamps } from '@opengewerk/platform-server'
 import { tenantColumn } from '@opengewerk/platform-server/schema'
-import { index, pgEnum, pgTable, text } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { index, pgEnum, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core'
 
 export const snippetPurpose = pgEnum('snippet_purpose', snippetPurposes)
+
+/** What a snippet for mails is the text of (#315). */
+export const mailOccasion = pgEnum('mail_occasion', mailOccasions)
 
 /**
  * The texts a business writes once and puts into its documents again and
@@ -27,10 +31,15 @@ export const textSnippets = pgTable(
     purpose: snippetPurpose('purpose').notNull(),
     title: text('title').notNull(),
     text: text('text').notNull(),
+    // For a snippet for mails, the occasion it is the text of; one for each.
+    mailOccasion: mailOccasion('mail_occasion'),
     ...timestamps,
   },
   (table) => [
     tenantIsolation(table.tenantId),
     index('text_snippets_purpose_idx').on(table.tenantId, table.purpose),
+    uniqueIndex('text_snippets_one_per_occasion')
+      .on(table.tenantId, table.mailOccasion)
+      .where(sql`${table.mailOccasion} is not null`),
   ],
 )

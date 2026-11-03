@@ -175,6 +175,21 @@ export type Notification =
       readonly kind: 'early_start_signed'
       readonly requestId: string
     }
+  | {
+      /**
+       * An appointment of a job arranged, moved or cancelled, to its customer
+       * (#315); once for each version of when it is, and once when cancelled.
+       */
+      readonly kind: 'appointment_confirmation'
+      readonly appointmentId: string
+      readonly revision: number
+      readonly change: 'arranged' | 'moved' | 'cancelled'
+    }
+  | {
+      /** A service call the office took, to its customer (#315). Once per job. */
+      readonly kind: 'job_received'
+      readonly jobId: JobId
+    }
 
 /** What every message needs besides its cause: where the instance is reached. */
 export interface NotifyContext {
@@ -235,6 +250,12 @@ export function causeOf(notification: Notification): string {
       return `job_instructions:${notification.jobId}:${notification.request}`
     case 'early_start_signed':
       return `early_start_signed:${notification.requestId}`
+    case 'appointment_confirmation':
+      return notification.change === 'cancelled'
+        ? `appointment_confirmation:${notification.appointmentId}:cancelled`
+        : `appointment_confirmation:${notification.appointmentId}:${String(notification.revision)}`
+    case 'job_received':
+      return `job_received:${notification.jobId}`
   }
 }
 

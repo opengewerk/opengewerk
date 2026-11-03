@@ -861,6 +861,11 @@ const crossings: readonly {
     write: (own, other) =>
       repoint('mail_outbox', 'early_start_request_id', own.mail, other.earlyStart),
   },
+  // A confirmation of an appointment, with its calendar file (#315).
+  {
+    key: 'mail_outbox_appointment_in_tenant',
+    write: (own, other) => repoint('mail_outbox', 'appointment_id', own.mail, other.appointment),
+  },
   // A time of the on-call plan, made at the route as an insert (#293).
   {
     key: 'on_call_shifts_person_works_here',

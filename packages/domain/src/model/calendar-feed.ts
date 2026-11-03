@@ -114,6 +114,50 @@ export function calendarOf(name: string, entries: readonly CalendarEntry[]): str
   return lines.map(folded).join('\r\n') + '\r\n'
 }
 
+/** Who sends a calendar file and who gets it, as a mail address with a name. */
+export interface CalendarParty {
+  readonly name: string
+  readonly address: string
+}
+
+/**
+ * The calendar file a confirmation mail carries for one appointment (#315):
+ * the event of the feed with the method a calendar acts on, the business as
+ * organizer and the customer as the one invited. A cancellation keeps the
+ * identity and takes the next sequence, so the calendar takes the entry out
+ * instead of adding one.
+ */
+export function invitationOf(
+  entry: CalendarEntry,
+  parties: { readonly organizer: CalendarParty; readonly attendee: CalendarParty },
+  cancelled: boolean,
+): string {
+  const event = eventOf(entry)
+  const party = (role: string, who: CalendarParty) =>
+    `${role};CN="${who.name.replace(/["\r\n\\]/g, '')}":mailto:${who.address.replace(/[\s"\\]/g, '')}`
+
+  event.splice(
+    event.length - 1,
+    0,
+    party('ORGANIZER', parties.organizer),
+    party('ATTENDEE;ROLE=REQ-PARTICIPANT', parties.attendee),
+    ...(cancelled ? ['STATUS:CANCELLED'] : []),
+  )
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//OpenGewerk//Termin//DE',
+    'CALSCALE:GREGORIAN',
+    `METHOD:${cancelled ? 'CANCEL' : 'REQUEST'}`,
+    ...berlinZone,
+    ...event,
+    'END:VCALENDAR',
+  ]
+
+  return lines.map(folded).join('\r\n') + '\r\n'
+}
+
 function eventOf(entry: CalendarEntry): string[] {
   const start = berlinWall(entry.startsAt)
   const lines = [
