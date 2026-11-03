@@ -296,6 +296,8 @@ export const auditVocabulary: AuditVocabulary = {
       // The instructions of a service call and the request signed at the door (#292).
       job_id: 'Auftrag',
       early_start_request_id: 'Verlangen auf vorzeitigen Beginn',
+      // The appointment a confirmation is about (#315).
+      appointment_id: 'Termin',
     },
     deadlines: {
       document_id: 'Beleg',

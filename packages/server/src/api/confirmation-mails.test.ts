@@ -270,12 +270,19 @@ describe('a confirmation of an appointment (#315)', () => {
     ])
     expect(calendarOf(afterCancel[0])).toContain('METHOD:CANCEL\r\n')
     expect(calendarOf(afterCancel[0])).toContain('STATUS:CANCELLED\r\n')
+    // A version after the move, so that the calendar takes the cancellation.
+    expect(calendarOf(afterCancel[0])).toContain('SEQUENCE:2\r\n')
     // And nothing twice.
     expect(await cycle()).toEqual([])
   })
 
   it('goes to nobody for a customer without an address, and not about one that is over', async () => {
     await anAppointment(await aJob(await aCustomer({ email: null })))
+
+    // Nor a cancellation of an appointment the customer never heard of.
+    const untold = await anAppointment(await aJob(await aCustomer()))
+
+    await send('delete', `/appointments/${untold.id}?version=${String(untold.version)}`)
 
     const job = await aJob(await aCustomer())
 
