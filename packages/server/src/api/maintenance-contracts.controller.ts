@@ -40,9 +40,7 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /**
  * The fields the office writes. The customer and the site come from the
- * quote, the number from the range, and the notice from its own route; how
- * the customer pays is a maintenance at a time until the recurring invoice
- * (#295) comes.
+ * quote, the number from the range, and the notice from its own route.
  */
 const writableFields = [
   'designation',
@@ -57,6 +55,8 @@ const writableFields = [
   'noticeMonths',
   'priceKind',
   'flatCents',
+  'paymentRhythm',
+  'issueByItself',
 ] as const
 
 type Writable = (typeof writableFields)[number]
@@ -105,9 +105,15 @@ function checked(
     stored['flatCents'] = null
   }
 
+  // Paid per maintenance again, nothing goes out by itself.
+  if (stored['paymentRhythm'] === 'visit' && !('issueByItself' in stored)) {
+    stored['issueByItself'] = false
+  }
+
   const whole: Record<string, unknown> = {
     installationIds: [],
     paymentRhythm: 'visit',
+    issueByItself: false,
     ...(existing ?? {}),
     ...stored,
   }

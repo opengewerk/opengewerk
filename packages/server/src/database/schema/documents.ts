@@ -34,6 +34,7 @@ import { sql } from 'drizzle-orm'
 import { customers } from './customers.js'
 import { installations } from './installations.js'
 import { jobs } from './jobs.js'
+import { maintenanceContracts } from './maintenance-contracts.js'
 import { sites } from './sites.js'
 import { stores } from './stock.js'
 
@@ -75,6 +76,9 @@ export const documents = pgTable(
      */
     serviceFrom: date('service_from'),
     serviceUntil: date('service_until'),
+    // The maintenance contract a recurring invoice bills a period of (#295), one
+    // per contract and start of a period; written by the deadline engine.
+    maintenanceContractId: reference<'maintenance-contract'>('maintenance_contract_id'),
     issuedAt: timestamp('issued_at', { withTimezone: true }),
     /**
      * The account that issued it, written by the route with `issued_at` and
@@ -129,6 +133,16 @@ export const documents = pgTable(
   (table): PgTableExtraConfigValue[] => [
     tenantIsolation(table.tenantId),
     unique('documents_tenant_id_key').on(table.tenantId, table.id),
+    foreignKey({
+      columns: [table.tenantId, table.maintenanceContractId],
+      foreignColumns: [maintenanceContracts.tenantId, maintenanceContracts.id],
+      name: 'documents_maintenance_contract_in_tenant',
+    }).onDelete('restrict'),
+    unique('documents_maintenance_period_key').on(table.maintenanceContractId, table.serviceFrom),
+    check(
+      'documents_maintenance_period',
+      sql`${table.maintenanceContractId} is null or (${table.kind} = 'recurring_invoice' and ${table.serviceFrom} is not null)`,
+    ),
     foreignKey({
       columns: [table.tenantId, table.storeId],
       foreignColumns: [stores.tenantId, stores.id],

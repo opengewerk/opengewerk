@@ -17,7 +17,9 @@ import {
   lastServiceDay,
   nextInspectionField,
   nextInspectionOn,
+  nextPeriod,
   nextVisitOn,
+  type PaymentRhythm,
   readFormValues,
   type SignedTest,
   shippedRules,
@@ -639,6 +641,8 @@ async function contractsOf(tx: Parameters<SourceQuery<DeadlineValues>>[0]) {
       renewalMonths: maintenanceContracts.renewalMonths,
       noticeMonths: maintenanceContracts.noticeMonths,
       cancelledOn: maintenanceContracts.cancelledOn,
+      paymentRhythm: maintenanceContracts.paymentRhythm,
+      priceKind: maintenanceContracts.priceKind,
       endsOn: maintenanceContracts.endsOn,
       createdAt: maintenanceContracts.createdAt,
     })
@@ -749,6 +753,58 @@ export const maintenanceNoticesDue: SourceQuery<DeadlineValues> = async (tx) => 
   })
 }
 
+/**
+ * The next period of each contract paid per period that has no invoice yet
+ * (#295): due on its first day, not before the day the contract was entered,
+ * and none after the last day of a contract. Once the invoice of a period
+ * exists, deleted drafts included, the deadline moves on to the next.
+ */
+export const maintenancePeriodsDue: SourceQuery<DeadlineValues> = async (tx) => {
+  const billed = await tx
+    .select({
+      contractId: documents.maintenanceContractId,
+      lastBilledFrom: sql<string>`max(${documents.serviceFrom})::text`,
+    })
+    .from(documents)
+    .where(isNotNull(documents.maintenanceContractId))
+    .groupBy(documents.maintenanceContractId)
+  const lastBilled = new Map(billed.map((row) => [String(row.contractId), row.lastBilledFrom]))
+  const rows = await contractsOf(tx)
+
+  return rows.flatMap((row) => {
+    if (row.paymentRhythm === 'visit' || row.priceKind !== 'flat') {
+      return []
+    }
+
+    const period = nextPeriod(
+      { startsOn: row.startsOn as IsoDate, paymentRhythm: row.paymentRhythm as PaymentRhythm },
+      {
+        lastBilledFrom: (lastBilled.get(row.id) ?? null) as IsoDate | null,
+        notBefore: berlinClock(row.createdAt).day,
+        lastDay: lastServiceDay({
+          ...row,
+          startsOn: row.startsOn as IsoDate,
+          endsOn: row.endsOn as IsoDate | null,
+          renewal: row.renewal as 'none' | 'fixed' | 'indefinite',
+        }),
+      },
+    )
+
+    return period === null
+      ? []
+      : [
+          {
+            sourceId: row.id,
+            sourceLabel: `${row.number} ${row.designation}`,
+            anchorOn: row.startsOn as IsoDate,
+            namedDueOn: period.from,
+            naturalUserId: null,
+            values: contractValues(row),
+          },
+        ]
+  })
+}
+
 /** Every source there is, by the name a kind gives it. */
 export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
   {
@@ -762,4 +818,5 @@ export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<
     defect: defectsToRemedy,
     maintenance_visit: maintenanceVisitsDue,
     maintenance_notice: maintenanceNoticesDue,
+    maintenance_period: maintenancePeriodsDue,
   }

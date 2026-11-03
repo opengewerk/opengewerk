@@ -241,7 +241,7 @@ export class DocumentMailController {
  * does" is judged on the day the message is asked for (#134): the transition
  * ends for the invoice on the day it is sent, not on the day it is dated.
  */
-async function attachmentFor(
+export async function attachmentFor(
   tx: Parameters<typeof dutyOf>[0],
   content: Parameters<typeof dutyOf>[1],
 ): Promise<DocumentAttachment> {

@@ -84,6 +84,18 @@
       "responsible": "lead",
       "actions": ["task", "reminder"],
       "taskTitle": "Kündigungsfrist endet: {quelle}"
+    },
+    {
+      "key": "maintenance.invoice",
+      "trade": null,
+      "title": "Rechnung eines Wartungsvertrags",
+      "about": "Kommt aus jedem Wartungsvertrag, der je Monat, Quartal oder Jahr abgerechnet wird: fällig am ersten Tag des nächsten Zeitraums ohne Rechnung. An diesem Tag entsteht eine Dauerrechnung über den Zeitraum mit der Pauschale als einer Position. Die erste eines Vertrags wartet als Entwurf; danach schreibt OpenGewerk sie fest und schickt sie per E-Mail, wo der Vertrag das will. Danach rückt die Frist zum nächsten Zeitraum.",
+      "source": "maintenance_period",
+      "intervalDays": null,
+      "leadDays": 0,
+      "responsible": "lead",
+      "actions": ["status"],
+      "taskTitle": "Rechnung: {quelle}"
     }
   ]
 }

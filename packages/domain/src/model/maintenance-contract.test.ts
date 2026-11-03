@@ -10,7 +10,9 @@ import {
   lastNoticeDay,
   lastServiceDay,
   maintenanceContractProblems,
+  nextPeriod,
   nextVisitOn,
+  periodText,
   termEndOn,
   visitDescription,
 } from './maintenance-contract.js'
@@ -204,6 +206,85 @@ describe('the values of a maintenance contract (#294)', () => {
     })
     expect(maintenanceContractProblems({ ...valid, installationIds: ['a', 'a'] })).toEqual({
       installationIds: 'Höchstens 50 Anlagen, jede einmal.',
+    })
+  })
+})
+
+describe('the periods of a contract paid per period (#295)', () => {
+  const monthly = { startsOn: day('2026-01-31'), paymentRhythm: 'monthly' as const }
+
+  it('follow one another from the start, each counted from it', () => {
+    const window = { lastBilledFrom: null, notBefore: day('2026-01-01'), lastDay: null }
+
+    expect(nextPeriod(monthly, window)).toEqual({
+      from: '2026-01-31',
+      until: '2026-02-27',
+      cut: false,
+    })
+    expect(nextPeriod(monthly, { ...window, lastBilledFrom: day('2026-01-31') })).toEqual({
+      from: '2026-02-28',
+      until: '2026-03-30',
+      cut: false,
+    })
+    expect(
+      nextPeriod(
+        { ...monthly, paymentRhythm: 'yearly' },
+        { ...window, lastBilledFrom: day('2026-01-31') },
+      ),
+    ).toEqual({ from: '2027-01-31', until: '2028-01-30', cut: false })
+  })
+
+  it('start no earlier than the day the contract was entered, and none for a contract paid per maintenance', () => {
+    expect(
+      nextPeriod(monthly, { lastBilledFrom: null, notBefore: day('2026-11-03'), lastDay: null })
+        ?.from,
+    ).toBe('2026-11-30')
+    expect(
+      nextPeriod(
+        { ...monthly, paymentRhythm: 'visit' },
+        { lastBilledFrom: null, notBefore: day('2026-01-01'), lastDay: null },
+      ),
+    ).toBeNull()
+  })
+
+  it('end with the last day of the contract, the last one cut short by it', () => {
+    const quarterly = { startsOn: day('2026-01-01'), paymentRhythm: 'quarterly' as const }
+    const window = { notBefore: day('2026-01-01'), lastDay: day('2026-04-30') }
+
+    expect(nextPeriod(quarterly, { ...window, lastBilledFrom: day('2026-01-01') })).toEqual({
+      from: '2026-04-01',
+      until: '2026-04-30',
+      cut: true,
+    })
+    expect(nextPeriod(quarterly, { ...window, lastBilledFrom: day('2026-04-01') })).toBeNull()
+    expect(periodText({ from: day('2026-04-01'), until: day('2026-04-30') })).toBe(
+      '01.04.2026 bis 30.04.2026',
+    )
+  })
+
+  it('go out by themselves only for a contract paid per period', () => {
+    const valid = {
+      designation: 'Wartung',
+      services: null,
+      installationIds: [],
+      startsOn: '2026-12-01',
+      firstVisitOn: '2027-06-01',
+      intervalMonths: 12,
+      termMonths: 24,
+      renewal: 'none',
+      renewalMonths: null,
+      noticeMonths: 0,
+      priceKind: 'flat',
+      flatCents: 3_900,
+    }
+
+    expect(
+      maintenanceContractProblems({ ...valid, paymentRhythm: 'monthly', issueByItself: true }),
+    ).toEqual({})
+    expect(
+      maintenanceContractProblems({ ...valid, paymentRhythm: 'visit', issueByItself: true }),
+    ).toEqual({
+      issueByItself: 'Ohne Zutun gehen nur Rechnungen je Zeitraum hinaus.',
     })
   })
 })

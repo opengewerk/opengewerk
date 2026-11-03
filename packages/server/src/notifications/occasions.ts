@@ -15,6 +15,7 @@ import {
   taskDue,
 } from './notify.js'
 import { callInstructionsMail, signedEarlyStartMail, signedEarlyStarts } from './call-mail.js'
+import { contractInvoicesToSend } from './contract-invoices.js'
 import {
   appointmentConfirmationMail,
   changedAppointments,
@@ -58,6 +59,8 @@ export const occasions = occasionsOf<Notification, NotificationExtra>({
   },
   document: {
     causeOf,
+    // The recurring invoices of contracts issued by themselves (#295).
+    raise: { mail: (database, tenantId, now) => contractInvoicesToSend(database, tenantId, now) },
     mail: (database, tenantId, notification) =>
       documentToCustomer(database, tenantId, notification),
   },

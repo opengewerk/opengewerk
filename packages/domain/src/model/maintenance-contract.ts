@@ -69,6 +69,12 @@ export interface MaintenanceContract {
   /** Net, per maintenance; null for a contract at effort. */
   readonly flatCents: number | null
   readonly paymentRhythm: PaymentRhythm
+  /**
+   * Whether the recurring invoices of a contract paid per period are issued
+   * and sent by mail without anybody (#295), from the second on: the first of
+   * a contract always waits as a draft.
+   */
+  readonly issueByItself: boolean
   /** The day a notice came in, and the day the contract ends because of it. */
   readonly cancelledOn: IsoDate | null
   readonly endsOn: IsoDate | null
@@ -225,6 +231,88 @@ export function nextVisitOn(
   }
 
   return null
+}
+
+/** How many months a period of each rhythm has; null for an invoice per maintenance. */
+export const periodMonths: Readonly<Record<PaymentRhythm, number | null>> = {
+  visit: null,
+  monthly: 1,
+  quarterly: 3,
+  yearly: 12,
+}
+
+/** How a contract is paid, in the words of the contract screen. */
+export const rhythmLabel: Readonly<Record<PaymentRhythm, string>> = {
+  visit: 'je Wartung, nach der Ausführung',
+  monthly: 'monatlich, zu Beginn des Monats',
+  quarterly: 'vierteljährlich, zu Beginn des Quartals',
+  yearly: 'jährlich, zu Beginn des Jahres',
+}
+
+/** What the flat price is for: "je Wartung", "je Monat". */
+export const priceUnitLabel: Readonly<Record<PaymentRhythm, string>> = {
+  visit: 'je Wartung',
+  monthly: 'je Monat',
+  quarterly: 'je Quartal',
+  yearly: 'je Jahr',
+}
+
+/** One period a recurring invoice bills (#295). */
+export interface BilledPeriod {
+  readonly from: IsoDate
+  readonly until: IsoDate
+  /** Cut short by the last day of the contract: billed as a draft, never by itself. */
+  readonly cut: boolean
+}
+
+/**
+ * The next period of a contract paid per period that has no invoice yet: from
+ * its start, each so many months, each counted from the start; after the last
+ * one billed, not starting before the day the contract was entered, and not
+ * starting after its last day. A period that runs past the last day ends with
+ * it. Null for a contract paid per maintenance, and once there is none left.
+ *
+ * Not before the day it was entered: a contract taken over from paper had its
+ * periods before that billed already, like its maintenances were done.
+ */
+export function nextPeriod(
+  contract: Pick<MaintenanceContract, 'startsOn' | 'paymentRhythm'>,
+  window: {
+    readonly lastBilledFrom: IsoDate | null
+    readonly notBefore: IsoDate
+    readonly lastDay: IsoDate | null
+  },
+): BilledPeriod | null {
+  const months = periodMonths[contract.paymentRhythm]
+
+  if (months === null) {
+    return null
+  }
+
+  for (let index = 0; index < termsLooked; index += 1) {
+    const from = addMonths(contract.startsOn, index * months)
+
+    if (window.lastDay !== null && from > window.lastDay) {
+      return null
+    }
+
+    if (
+      (window.lastBilledFrom === null || from > window.lastBilledFrom) &&
+      from >= window.notBefore
+    ) {
+      const until = addDays(addMonths(contract.startsOn, (index + 1) * months), -1)
+      const cut = window.lastDay !== null && until > window.lastDay
+
+      return { from, until: cut && window.lastDay !== null ? window.lastDay : until, cut }
+    }
+  }
+
+  return null
+}
+
+/** "01.12.2026 bis 31.12.2026". */
+export function periodText(period: Pick<BilledPeriod, 'from' | 'until'>): string {
+  return `${germanDay(period.from)} bis ${germanDay(period.until)}`
 }
 
 /** "alle 6 Monate", or "jeden Monat". */
@@ -457,6 +545,16 @@ export function maintenanceContractProblems(
     problems['paymentRhythm'] = 'Wann gezahlt wird, fehlt.'
   } else if (rhythm !== 'visit' && priceKind !== 'flat') {
     problems['paymentRhythm'] = 'Eine Rechnung je Zeitraum braucht eine Pauschale.'
+  }
+
+  if (
+    contract['issueByItself'] !== undefined &&
+    contract['issueByItself'] !== null &&
+    typeof contract['issueByItself'] !== 'boolean'
+  ) {
+    problems['issueByItself'] = 'Hier steht ja oder nein.'
+  } else if (contract['issueByItself'] === true && rhythm === 'visit') {
+    problems['issueByItself'] = 'Ohne Zutun gehen nur Rechnungen je Zeitraum hinaus.'
   }
 
   const installationIds = contract['installationIds']
