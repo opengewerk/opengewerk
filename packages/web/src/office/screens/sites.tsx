@@ -38,6 +38,7 @@ import { type ChosenTags, TagPicker, TagPill, useTagsBy } from '../tags.js'
 import { AppliancesPanel, ReportButton } from './appliances.js'
 import { FilesPanel } from './attachments.js'
 import { ContactsSection } from './contacts.js'
+import { ContractsCard } from './contract-card.js'
 import { placeOf, tagsChanged } from './customers.js'
 import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
@@ -680,6 +681,7 @@ export function SiteScreen() {
               links={{ customerId, siteId }}
               empty="Für dieses Objekt ist keine Aufgabe offen."
             />
+            {siteId ? <ContractsCard filter={{ siteId }} /> : null}
           </>
         }
       />

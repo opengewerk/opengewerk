@@ -34,6 +34,11 @@ const about: Readonly<
       'UStG es verlangt.',
     next: 'Beleg',
   },
+  contract: {
+    title: 'Wartungsverträge',
+    covers: 'Jeder Wartungsvertrag bekommt beim Anlegen die nächste Nummer.',
+    next: 'Vertrag',
+  },
 }
 
 const words: NumberRangeWords<NumberRangeKey> = {

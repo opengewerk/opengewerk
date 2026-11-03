@@ -8,6 +8,10 @@ import type { DeadlineKindView, DeadlineView } from '../../session/deadlines.js'
 
 /** Where the source of a deadline is found in the office. */
 function sourceHref(deadline: DeadlineView): string | null {
+  if (deadline.source.contractId !== null) {
+    return `/wartungsvertraege/${deadline.source.contractId}`
+  }
+
   if (deadline.source.documentId !== null) {
     return `/belege/${deadline.source.documentId}`
   }

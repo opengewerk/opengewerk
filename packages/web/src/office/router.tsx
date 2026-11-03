@@ -72,6 +72,7 @@ const screens = {
   textSnippets: () => import('./screens/text-snippets.js'),
   gridOperators: () => import('./screens/grid-operators.js'),
   fundingPrograms: () => import('./screens/funding-programs.js'),
+  maintenanceContracts: () => import('./screens/maintenance-contracts.js'),
   time: () => import('./screens/time.js'),
 }
 
@@ -140,6 +141,22 @@ const GridOperatorList = lazyRouteComponent(screens.gridOperators, 'GridOperator
 const GridOperatorScreen = lazyRouteComponent(screens.gridOperators, 'GridOperatorScreen')
 const NewGridOperatorScreen = lazyRouteComponent(screens.gridOperators, 'NewGridOperatorScreen')
 const FundingProgramList = lazyRouteComponent(screens.fundingPrograms, 'FundingProgramList')
+const MaintenanceContractList = lazyRouteComponent(
+  screens.maintenanceContracts,
+  'MaintenanceContractList',
+)
+const MaintenanceContractScreen = lazyRouteComponent(
+  screens.maintenanceContracts,
+  'MaintenanceContractScreen',
+)
+const NewMaintenanceContractScreen = lazyRouteComponent(
+  screens.maintenanceContracts,
+  'NewMaintenanceContractScreen',
+)
+const EditMaintenanceContractScreen = lazyRouteComponent(
+  screens.maintenanceContracts,
+  'EditMaintenanceContractScreen',
+)
 const FundingProgramScreen = lazyRouteComponent(screens.fundingPrograms, 'FundingProgramScreen')
 const NewFundingProgramScreen = lazyRouteComponent(
   screens.fundingPrograms,
@@ -391,6 +408,27 @@ const routes = [
     getParentRoute: () => office,
     path: '/foerderprogramme/$fundingProgramId',
     component: FundingProgramScreen,
+  }),
+  // The maintenance contracts (#294); a new one comes out of an issued quote.
+  createRoute({
+    getParentRoute: () => office,
+    path: '/wartungsvertraege',
+    component: MaintenanceContractList,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/wartungsvertraege/neu/$quoteId',
+    component: NewMaintenanceContractScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/wartungsvertraege/$contractId',
+    component: MaintenanceContractScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/wartungsvertraege/$contractId/bearbeiten',
+    component: EditMaintenanceContractScreen,
   }),
   createRoute({ getParentRoute: () => office, path: '/konflikte', component: SyncScreen }),
   createRoute({ getParentRoute: () => office, path: '/konto', component: AccountScreen }),

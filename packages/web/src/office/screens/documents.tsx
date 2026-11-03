@@ -70,6 +70,7 @@ import {
   useSignature,
   WorkDoneCard,
 } from './document-cards.js'
+import { QuoteContractAction } from './contract-card.js'
 import { DraftFrame, FixedFrame } from './document-frame.js'
 import { useGrossByDocument } from './document-gross.js'
 import { HeaderCard } from './document-head.js'
@@ -726,6 +727,9 @@ function DocumentView({ document }: { readonly document: RecordState }) {
           {`${documentKindLabel[successor]} erstellen`}
         </Button>
       ))}
+      {kind === 'quote' && status === 'issued' ? (
+        <QuoteContractAction quoteId={documentId} />
+      ) : null}
       {continuing && status === 'issued' && successorsOf(kind).length > 0 ? (
         <Link to={`/belege/${String(continuing['id'])}`} className={followLook}>
           {`Weiter bei ${documentName(continuing)}`}

@@ -32,6 +32,7 @@ import { useMay } from '../../app/queries.js'
 import { FilesPanel } from './attachments.js'
 import { useBoards } from '../../app/electrical.js'
 import { BoardsSection, ChartButton } from './boards.js'
+import { ContractsCard } from './contract-card.js'
 import { JobsPanel } from './job-table.js'
 import { NewJobForm } from './jobs.js'
 import { ProtocolsSection } from './protocols.js'
@@ -474,6 +475,7 @@ export function InstallationScreen() {
             </Panel>
             {/* Under the facts, as the board "Anlagenakte mit QR-Etikett" has it (#308). */}
             <LabelPanel installationId={installationId} />
+            <ContractsCard filter={{ installationId }} title="Wartungsvertrag" />
           </>
         }
       />
