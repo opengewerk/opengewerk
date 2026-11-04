@@ -1,12 +1,19 @@
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
-import { addMonths, berlinClock, type IsoDate, type TenantId } from '@opengewerk/domain'
+import {
+  addMonths,
+  berlinClock,
+  type IsoDate,
+  syncEntities,
+  type TenantId,
+} from '@opengewerk/domain'
 import { Database, newId } from '@opengewerk/platform-server'
 import { sql } from 'drizzle-orm'
 import type { Pool } from 'pg'
 import request from 'supertest'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
+import { restrictedOut } from '../database/device-scope.js'
 import { applicationDatabaseUrl, connect, resetToMigrated } from '../database/test-database.js'
 import { runDeadlinesOf } from '../deadlines/engine.js'
 import { documentToCustomer } from '../notifications/notify.js'
@@ -462,6 +469,45 @@ describe('restricting a customer (#845)', () => {
     expect((listed.body as { id: string }[]).map((entry) => entry.id)).not.toContain(customer)
   })
 
+  it('narrows every entity a device holds that hangs on a customer', async () => {
+    // A column that ties a row to a customer, directly or through what
+    // belongs to one; a table a device holds with such a column is either
+    // narrowed by a restriction or says here why not (security review of #849).
+    const keys = [
+      'customer_id',
+      'site_id',
+      'job_id',
+      'document_id',
+      'source_document_id',
+      'installation_id',
+      'appliance_id',
+      'defect_id',
+      'appointment_id',
+      'attachment_id',
+      'distribution_board_id',
+      'circuit_id',
+      'inverter_id',
+      'pv_string_id',
+      'form_record_id',
+    ]
+    const { rows } = await admin.query<{ table_name: string }>(
+      `select distinct table_name from information_schema.columns
+        where table_schema = 'public' and column_name = any($1)`,
+      [keys],
+    )
+    const held = new Set<string>(syncEntities)
+    const restricted = { customerIds: [newId<'customer'>()], value: 'restricted:x' }
+    const left = rows
+      .map((row) => row.table_name)
+      .filter((table) => held.has(table) && restrictedOut(restricted, table) === undefined)
+      .sort()
+
+    // Two hold no more of a customer than the key of a job, whose row stays
+    // off the device: the bookings of a vehicle's stock (#298), and the
+    // working time of the staff, which is theirs and goes with #846.
+    expect(left).toEqual(['stock_movements', 'time_entries'])
+  })
+
   it('sends the customer no mail any more', async () => {
     // Two customers with an invoice issued the way the office issues one: the
     // one free gets its mail, which shows that the way works, the one
@@ -721,6 +767,38 @@ describe('deleting a customer (#845)', () => {
     expect(
       (await admin.query('select name from customers where id = $1', [customer])).rows,
     ).toEqual([{ name: `Ingrid ${family}` }])
+  })
+
+  it('lets nobody who does not lead open the locks for a customer', async () => {
+    const { customer, invoice } = await vossberg()
+
+    // One transaction, as a deletion would run: the line of the protocol is
+    // refused, and with it everything after it.
+    const attempt = database.forTenant({ tenantId: north, userId: 'bruno' }, async (tx) => {
+      await tx.execute(
+        sql.raw(`insert into erasures (tenant_id, kind, record_id, label, automatic, redactions, created_by)
+                 values ('${north}', 'customer', '${customer}', 'Privatkunde', false, 0, 'bruno')`),
+      )
+      await tx.execute(sql.raw(`delete from communications where customer_id = '${customer}'`))
+      await tx.execute(sql.raw(`update documents set subject = 'x' where id = '${invoice}'`))
+    })
+
+    expect(await refusedWith(attempt)).toContain('row-level security')
+    expect(
+      await refusedWith(
+        asApplication(`delete from communications where customer_id = '${customer}'`, 'bruno'),
+      ),
+    ).toContain('Eintrag im Verlauf')
+    expect(
+      (
+        await admin.query('select count(*)::int as n from communications where customer_id = $1', [
+          customer,
+        ])
+      ).rows,
+    ).toEqual([{ n: 1 }])
+    expect(
+      (await admin.query('select subject from documents where id = $1', [invoice])).rows,
+    ).toEqual([{ subject: expect.stringMatching(/^Rechnung /) as unknown }])
   })
 
   it('opens the locks for nothing else: outside a deletion they hold as before', async () => {
