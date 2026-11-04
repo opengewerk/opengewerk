@@ -621,6 +621,23 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
     issueByItself: true,
   })
 
+  // A quote the customer turned down (#841): out of the pipeline, with no
+  // follow-up, and with the mark on the screen of the quote.
+  const declinedOffer = await document(
+    {
+      customerId: nordblick,
+      siteId: estate,
+      kind: 'quote',
+      subject: 'Ladepunkte in der Tiefgarage',
+    },
+    [item('Wallbox 11 kW mit Lastmanagement, montiert', 4000, 'piece', 148_000)],
+  )
+
+  await post(`/documents/${declinedOffer.id}/issue`, {})
+  await send(base, 'PUT', `/offer-declines/${declinedOffer.id}`, {
+    reason: 'Die Eigentümerversammlung hat die Ladepunkte vertagt.',
+  })
+
   // The leads of the office (#312), one in each stage the board "Vertrieb"
   // shows, and one that became a customer and has no offer yet.
   const leads = [

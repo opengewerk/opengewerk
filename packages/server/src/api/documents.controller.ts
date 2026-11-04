@@ -16,6 +16,7 @@ import {
   cancellationOf,
   closesProgressInvoices,
   continuesChain,
+  declinedOfferRefusal,
   currentContent,
   type CustomerId,
   type DeductionContent,
@@ -60,6 +61,7 @@ import {
   documentInstructionChoices,
   documentLines,
   documents,
+  offerDeclines,
   documentSnapshots,
   documentSources,
   numberRanges,
@@ -570,6 +572,17 @@ export class DocumentsController {
                 'Entwurf. Erst festschreiben, dann den Folgebeleg anlegen.'
             : 'Aus einem stornierten Beleg entsteht kein Folgebeleg.',
         )
+      }
+
+      // An offer the office marked as declined gets no successor until the
+      // mark is taken back (#841).
+      const [declined] = await tx
+        .select({ id: offerDeclines.id })
+        .from(offerDeclines)
+        .where(eq(offerDeclines.documentId, predecessor.id))
+
+      if (declined) {
+        throw new ConflictException(declinedOfferRefusal)
       }
 
       // One successor that counts, so that the chain does not branch (#129).

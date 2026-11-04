@@ -54,4 +54,6 @@ export const serverPaths = [
   'maintenance-contracts',
   // The leads of the office (#312).
   'prospects',
+  // An offer the customer turned down (#841).
+  'offer-declines',
 ] as const

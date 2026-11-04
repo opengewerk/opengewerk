@@ -314,7 +314,7 @@ const stageOrder: Readonly<Record<ProspectStage, number>> = {
  * - **Lead**: a lead that is not dismissed and no customer, and one that
  *   became a customer who has no offer and no order yet.
  * - **Angebot**: an issued quote or cost estimate that no issued document
- *   follows in its chain.
+ *   follows in its chain, unless the office marked it as declined (#841).
  * - **Auftrag**: one that an issued document follows, an order confirmation,
  *   an invoice or a delivery note, and an issued order confirmation that had
  *   no offer before it.
@@ -331,12 +331,15 @@ export function pipelineOf(input: {
   readonly documents: readonly PipelineDocument[]
   readonly jobs: readonly PipelineJob[]
   readonly contracts?: readonly PipelineContract[]
+  /** The offers the office marked as declined (#841). */
+  readonly declined?: readonly DocumentId[]
   readonly today: IsoDate
   readonly doneDays?: number
 }): Pipeline {
   const doneFrom = addDays(input.today, -(input.doneDays ?? pipelineDoneDays))
   const jobs = new Map(input.jobs.map((job) => [job.id, job]))
   const contracts = new Map((input.contracts ?? []).map((contract) => [contract.quoteId, contract]))
+  const declined = new Set(input.declined ?? [])
   const following = new Map<DocumentId, PipelineDocument[]>()
 
   for (const document of input.documents) {
@@ -445,6 +448,11 @@ export function pipelineOf(input: {
         since: dayOf(ordered.issuedAt),
       })
 
+      continue
+    }
+
+    // Turned down by the customer, as the office marked it (#841): in no column.
+    if (declined.has(head.id)) {
       continue
     }
 

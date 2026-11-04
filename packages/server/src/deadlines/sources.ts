@@ -38,6 +38,7 @@ import {
   installations,
   jobs,
   maintenanceContracts,
+  offerDeclines,
   sites,
 } from '../database/schema/index.js'
 import { tradeForms } from '../forms/registry.js'
@@ -58,7 +59,8 @@ export interface DeadlineValues {
 /**
  * The quotes that went out and that nothing has followed: no order
  * confirmation, no invoice, no document at all with the quote as its
- * predecessor, and no maintenance contract made out of it. A draft that follows counts as well, because somebody is
+ * predecessor, no maintenance contract made out of it, and no mark that the
+ * customer declined it (#841). A draft that follows counts as well, because somebody is
  * already on it; if it is thrown away, the quote is open again, and so is its
  * deadline.
  *
@@ -94,6 +96,12 @@ export const openQuotes: SourceQuery<DeadlineValues> = async (tx) => {
           select 1 from ${maintenanceContracts} as contract
            where contract.tenant_id = ${documents.tenantId}
              and contract.quote_id = ${documents.id}
+        )`,
+        // Nor one the office marked as declined (#841): nobody follows it up.
+        sql`not exists (
+          select 1 from ${offerDeclines} as declined
+           where declined.tenant_id = ${documents.tenantId}
+             and declined.document_id = ${documents.id}
         )`,
       ),
     )

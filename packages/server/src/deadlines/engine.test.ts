@@ -358,6 +358,24 @@ describe('a quote that went out', () => {
     await admin.query('delete from maintenance_contracts')
   })
 
+  it('drops out when the office marks the quote as declined, and comes back when that is taken back (#841)', async () => {
+    const quote = await aQuote()
+    await runDeadlinesOf(engine(), north, before)
+
+    await admin.query(
+      `insert into offer_declines (tenant_id, document_id, declined_on) values ($1, $2, '2037-09-11')`,
+      [north, quote],
+    )
+
+    expect(await runDeadlinesOf(engine(), north, before)).toMatchObject({ dropped: 1 })
+    expect(await runDeadlinesOf(engine(), north, dueDay)).toMatchObject({ reminded: 0 })
+    expect(await tasksOf()).toHaveLength(0)
+
+    await admin.query('delete from offer_declines')
+
+    expect(await runDeadlinesOf(engine(), north, dueDay)).toMatchObject({ reopened: 1 })
+  })
+
   it('is done when the task its reminder made is done, by whoever did it', async () => {
     await aQuote()
     await runDeadlinesOf(engine(), north, dueDay)

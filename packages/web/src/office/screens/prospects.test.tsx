@@ -109,6 +109,17 @@ const rows: Readonly<Record<string, RecordState[]>> = {
       issuedAt: issued,
     },
     {
+      // Turned down by the customer, as the office marked it (#841).
+      id: 'q-9',
+      customerId: 'c-1',
+      kind: 'quote',
+      status: 'issued',
+      number: 'AN-2026-0441',
+      subject: 'Beleuchtung der Werkstatt',
+      documentDate: addDays(on, -12),
+      issuedAt: `${addDays(on, -12)}T09:00:00.000Z`,
+    },
+    {
       id: 'q-2',
       customerId: 'c-2',
       kind: 'quote',
@@ -268,6 +279,10 @@ beforeEach(() => {
 
     if (one) {
       return answer(200, one)
+    }
+
+    if (path === '/offer-declines') {
+      return answer(200, [{ id: 'od-1', documentId: 'q-9', declinedOn: on, reason: null }])
     }
 
     if (path.startsWith('/deadlines?')) {
@@ -440,6 +455,10 @@ describe('the pipeline (#312)', () => {
 
     expect(within(offer).getByText('AN-2026-0450 PV-Anlage mit Speicher')).toBeTruthy()
     expect(await within(offer).findByText('Wiedervorlage heute')).toBeTruthy()
+    // An offer the office marked as declined is in no column (#841).
+    await waitFor(() => {
+      expect(screen.queryByText(/AN-2026-0441/)).toBeNull()
+    })
 
     const order = await column('Auftrag')
 
