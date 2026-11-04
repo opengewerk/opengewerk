@@ -29,6 +29,7 @@ import {
 } from '../database/schema/index.js'
 import { issuerOf } from '../documents/content.js'
 import type { DeadlineRow } from '../deadlines/engine.js'
+import { customerRestricted } from '../privacy/customer-erasure.js'
 import { mailTextOf } from './confirmation-mail.js'
 import { signatureFor } from './notify.js'
 
@@ -138,7 +139,8 @@ export async function remindCustomer(
     .from(customers)
     .where(and(eq(customers.id, deadline.customerId as CustomerId), isNull(customers.deletedAt)))
 
-  if (!customer) {
+  // A customer restricted on a request for deletion is reminded of nothing (#845).
+  if (!customer || (await customerRestricted(tx, deadline.customerId as CustomerId))) {
     return
   }
 

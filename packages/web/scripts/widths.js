@@ -65,5 +65,9 @@ await checkWidths({
     'Anruf eintragen',
     // The question before leads that are due go, under "Datenschutz" (#317).
     'Ausgewählte löschen',
+    // A request for deletion recorded in the file of a customer, and the
+    // questions before a customer is restricted or deleted on it (#845).
+    'Löschanfrage erfassen',
+    'Sperren',
   ],
 })

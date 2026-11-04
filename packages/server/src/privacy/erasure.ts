@@ -1,4 +1,6 @@
 import {
+  customerErasureLabel,
+  customerHoldSentence,
   type DueErasure,
   type Erasure,
   type ErasureAutomation,
@@ -14,7 +16,15 @@ import { leadsItsTenant, type TenantTransaction } from '@opengewerk/platform-ser
 import { auditEntries, auditRedactions, memberships } from '@opengewerk/platform-server/schema'
 import { and, asc, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm'
 
-import { deadlines, erasureAutomations, erasures, prospects } from '../database/schema/index.js'
+import {
+  customers,
+  deadlines,
+  erasureAutomations,
+  erasureRequests,
+  erasures,
+  prospects,
+} from '../database/schema/index.js'
+import { customerStandings, emptyCustomer, redactRecords } from './customer-erasure.js'
 
 /** What the change log calls a deletion under the concept, and its switch. */
 export const erasureReason = 'privacy.erase'
@@ -197,6 +207,106 @@ async function eraseProspects(
   return written
 }
 
+/**
+ * Deletes customers under the deletion concept (#845), each one that nothing
+ * holds any more and that is due or asked to be deleted: the line of the
+ * protocol first, which opens the locks for this customer in this
+ * transaction alone (`customer_erasing`), then the request is done, then the
+ * customer and what hangs on it are emptied (`emptyCustomer`), and every
+ * value of every row it touched is blacked out in the change log. One
+ * transaction for all of them, so a refusal of any keeps every one.
+ */
+async function eraseCustomers(
+  tx: TenantTransaction,
+  input: {
+    readonly tenantId: TenantId
+    readonly userId: string
+    readonly ids: readonly string[]
+    readonly automatic: boolean
+    readonly today: IsoDate
+  },
+): Promise<Erasure[]> {
+  const due = await dueDeadlinesOf(tx, 'customer', input.today)
+  const keys = input.ids.map((id) => id.toLowerCase())
+
+  await tx
+    .select({ id: customers.id })
+    .from(customers)
+    .where(inArray(customers.id, keys as (typeof customers.$inferSelect)['id'][]))
+    .for('update')
+
+  const standings = await customerStandings(tx, input.today, keys)
+  const written: Erasure[] = []
+
+  for (const key of keys) {
+    const standing = standings.get(key)
+
+    if (standing === undefined) {
+      throw new ErasureRefused('Ein ausgewählter Kunde ist nicht mehr da.')
+    }
+
+    const [hold] = standing.holds
+
+    if (hold !== undefined) {
+      throw new ErasureRefused(`Ein ausgewählter Kunde bleibt noch: ${customerHoldSentence(hold)}`)
+    }
+
+    const deadline = due.get(key)
+
+    if (deadline === undefined && standing.request === null) {
+      throw new ErasureRefused('Ein ausgewählter Kunde ist noch nicht zum Löschen fällig.')
+    }
+
+    const requestedOn = standing.request?.receivedOn ?? null
+    const [line] = await tx
+      .insert(erasures)
+      .values({
+        tenantId: input.tenantId,
+        kind: 'customer',
+        recordId: standing.customerId,
+        label: customerErasureLabel({
+          kind: standing.kind,
+          lastContactOn: standing.lastContactOn,
+          requestedOn,
+        }),
+        dueOn: deadline?.dueOn ?? requestedOn,
+        automatic: input.automatic,
+        redactions: 0,
+        // Set by `record_note_author` from the person of the transaction.
+        createdBy: input.userId,
+      })
+      .returning()
+
+    if (line === undefined) {
+      throw new Error('The protocol of the deletion concept took no line')
+    }
+
+    if (standing.request !== null) {
+      await tx
+        .update(erasureRequests)
+        .set({ status: 'erased', erasedAt: new Date(), updatedAt: new Date() })
+        .where(eq(erasureRequests.id, standing.request.id as never))
+    }
+
+    const touched = await emptyCustomer(tx, standing.customerId)
+    const redactions = await redactRecords(tx, {
+      tenantId: input.tenantId,
+      userId: input.userId,
+      touched,
+      reason: erasureKindWords.customer.reason,
+    })
+    const [counted] = await tx
+      .update(erasures)
+      .set({ redactions })
+      .where(eq(erasures.id, line.id))
+      .returning()
+
+    written.push(erasureOf(counted ?? line))
+  }
+
+  return written
+}
+
 /** Deletes records of a kind under the deletion concept, as `eraseProspects` says for leads. */
 export function eraseRecords(
   tx: TenantTransaction,
@@ -212,6 +322,8 @@ export function eraseRecords(
   switch (input.kind) {
     case 'prospect':
       return eraseProspects(tx, input)
+    case 'customer':
+      return eraseCustomers(tx, input)
   }
 }
 
@@ -232,8 +344,8 @@ function germanDay(day: string): string {
   return `${day.slice(8, 10)}.${day.slice(5, 7)}.${day.slice(0, 4)}`
 }
 
-/** What is due, with who each record is, for the office before it confirms. */
-export async function dueErasuresOf(tx: TenantTransaction, today: IsoDate): Promise<DueErasure[]> {
+/** The leads that are due, with who each is, for the office before it confirms. */
+async function dueProspectsOf(tx: TenantTransaction, today: IsoDate): Promise<DueErasure[]> {
   const rows = await tx
     .select({
       deadlineId: deadlines.id,
@@ -270,6 +382,56 @@ export async function dueErasuresOf(tx: TenantTransaction, today: IsoDate): Prom
       .join(' · '),
     dueOn: row.dueOn as IsoDate,
   }))
+}
+
+/**
+ * The customers that are due (#845), with who each is: the label of its
+ * deadline says why, by its last contact or its request.
+ */
+async function dueCustomersOf(tx: TenantTransaction, today: IsoDate): Promise<DueErasure[]> {
+  const rows = await tx
+    .select({
+      deadlineId: deadlines.id,
+      dueOn: deadlines.dueOn,
+      recordId: customers.id,
+      name: customers.name,
+      label: deadlines.sourceLabel,
+    })
+    .from(deadlines)
+    .innerJoin(customers, sql`${customers.id} = ${deadlines.sourceId}`)
+    .where(
+      and(
+        eq(deadlines.kind, erasureKindWords.customer.deadline),
+        eq(deadlines.status, 'open'),
+        lte(deadlines.dueOn, today),
+        isNull(customers.deletedAt),
+      ),
+    )
+    .orderBy(asc(deadlines.dueOn), asc(customers.name))
+
+  return rows.map((row) => ({
+    deadlineId: row.deadlineId,
+    kind: 'customer',
+    recordId: row.recordId,
+    name: row.name,
+    detail: row.label,
+    dueOn: row.dueOn as IsoDate,
+  }))
+}
+
+/**
+ * What is due, with who each record is, for the office before it confirms:
+ * of each kind whose records the person may read (`read` of the kind).
+ */
+export async function dueErasuresOf(
+  tx: TenantTransaction,
+  today: IsoDate,
+  readable: readonly ErasureKind[],
+): Promise<DueErasure[]> {
+  return [
+    ...(readable.includes('prospect') ? await dueProspectsOf(tx, today) : []),
+    ...(readable.includes('customer') ? await dueCustomersOf(tx, today) : []),
+  ]
 }
 
 /** The protocol, newest first. */

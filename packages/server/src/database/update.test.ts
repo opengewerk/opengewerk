@@ -2657,3 +2657,54 @@ describe('the rollback of the deletion concept', () => {
     expect(await tableNames(admin)).not.toContain('erasure_automations')
   })
 })
+
+/**
+ * The rollback of 0130 (#845): a request for deletion and a customer deleted
+ * are what the protocol keeps, and the rollback deletes neither; while there
+ * is one, it stops. Without them it closes the locks again and takes the kind
+ * `customer` out of its type, a lead deleted before staying in the protocol.
+ */
+describe('the rollback of deleting customers', () => {
+  it('deletes no request and no line of a customer, and stops while there is one', async () => {
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+
+    const customer = newId<'customer'>()
+
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name) values ($1, $2, 'private', 'Familie Weber')",
+      [customer, tenant.id],
+    )
+    await admin.query(
+      `begin; set local app.user_id = 'lena';
+       insert into erasure_requests (tenant_id, customer_id, received_on, channel, answer_due_on, created_by)
+       values ('${tenant.id}', '${customer}', '2026-11-02', 'email', '2026-12-02', 'lena');
+       insert into erasures (tenant_id, kind, record_id, label, automatic, redactions, created_by)
+       values ('${tenant.id}', 'prospect', '${newId<'prospect'>()}',
+               'Lead aus einem Anruf, letzter Kontakt 02.10.2025', false, 9, 'lena');
+       commit;`,
+    )
+
+    await expect(revertMigration(admin, '0130_customer_erasure')).rejects.toThrow(
+      'Die Rücknahme von 0130 löscht sie nicht',
+    )
+
+    await admin.query(
+      'begin; set local session_replication_role = replica; delete from erasure_requests; commit;',
+    )
+    await revertMigration(admin, '0130_customer_erasure')
+
+    expect(await tableNames(admin)).not.toContain('erasure_requests')
+    expect((await admin.query('select kind::text as kind from erasures')).rows).toEqual([
+      { kind: 'prospect' },
+    ])
+    expect(
+      (
+        await admin.query(
+          "select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'erasure_kind' and e.enumlabel = 'customer'",
+        )
+      ).rowCount,
+    ).toBe(0)
+  })
+})

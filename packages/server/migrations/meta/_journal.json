@@ -911,6 +911,13 @@
       "when": 1793789934044,
       "tag": "0129_erasures",
       "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1793797260668,
+      "tag": "0130_customer_erasure",
+      "breakpoints": true
     }
   ]
 }

@@ -463,7 +463,7 @@ describe('deleting by itself (#317)', () => {
 
     await http().delete('/privacy/automations/prospect').set('x-test-identity', owner).expect(200)
     expect((await overview()).automations).toEqual([])
-    await http().put('/privacy/automations/customer').set('x-test-identity', owner).expect(404)
+    await http().put('/privacy/automations/staff').set('x-test-identity', owner).expect(404)
 
     expect(
       await refusedByPolicy(
