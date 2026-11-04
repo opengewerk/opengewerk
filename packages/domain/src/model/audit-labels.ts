@@ -245,6 +245,19 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       rated_power_w: 'Bemessungsleistung',
     },
   },
+  // The notes and calls at a customer and a site (#313).
+  communications: {
+    label: 'Eintrag im Verlauf',
+    fields: {
+      customer_id: 'Kunde',
+      site_id: 'Objekt',
+      direction: 'Richtung',
+      counterpart: 'Gesprächspartner',
+      text: 'Inhalt',
+      happened_at: 'Wann',
+      created_by: 'Geschrieben von',
+    },
+  },
   // An offer the customer turned down (#841).
   offer_declines: {
     label: 'Ablehnung eines Angebots',

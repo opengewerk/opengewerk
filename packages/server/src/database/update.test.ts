@@ -2584,3 +2584,41 @@ describe('the rollback of the declined offers', () => {
     expect(await tableNames(admin)).not.toContain('offer_declines')
   })
 })
+
+/**
+ * The rollback of 0128 (#313): an entry in the history is what somebody said
+ * or noted. The rollback deletes none; while there is one, it stops.
+ */
+describe('the rollback of the history', () => {
+  it('deletes no entry, and stops while there is one', async () => {
+    const customer = newId<'customer'>()
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name) values ($1, $2, 'private', 'Familie Weber')",
+      [customer, tenant.id],
+    )
+    await admin.query(
+      `insert into communications (tenant_id, customer_id, kind, text, happened_at)
+       values ($1, $2, 'note', 'Schlüssel beim Hausmeister.', now())`,
+      [tenant.id, customer],
+    )
+
+    await expect(revertMigration(admin, '0128_communications')).rejects.toThrow(
+      'Die Rücknahme von 0128 löscht sie nicht',
+    )
+    expect((await admin.query('select count(*)::int as count from communications')).rows).toEqual([
+      { count: 1 },
+    ])
+
+    // Taken out by hand, as the sentence says, the rollback goes through.
+    await admin.query(
+      'begin; set local session_replication_role = replica; delete from communications; commit;',
+    )
+    await revertMigration(admin, '0128_communications')
+
+    expect(await tableNames(admin)).not.toContain('communications')
+  })
+})

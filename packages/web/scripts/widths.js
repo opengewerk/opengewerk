@@ -60,5 +60,8 @@ await checkWidths({
     'Kunde anlegen',
     // An offer the customer turned down, a dialog on the quote (#841).
     'Als abgelehnt markieren',
+    // A note and a call in the history of a customer and a site (#313).
+    'Notiz',
+    'Anruf eintragen',
   ],
 })

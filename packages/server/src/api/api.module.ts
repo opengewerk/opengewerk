@@ -79,6 +79,7 @@ import { CallInstructionsController } from './call-instructions.controller.js'
 import { OnCallController } from './on-call.controller.js'
 import { FundingProgramsController } from './funding-programs.controller.js'
 import { MaintenanceContractsController } from './maintenance-contracts.controller.js'
+import { CommunicationsController } from './communications.controller.js'
 import { OfferDeclinesController } from './offer-declines.controller.js'
 import { ProspectsController } from './prospects.controller.js'
 import { FormRecordsController } from './form-records.controller.js'
@@ -322,6 +323,7 @@ export class ApiModule {
         MaintenanceContractsController,
         ProspectsController,
         OfferDeclinesController,
+        CommunicationsController,
         FundingPapersController,
         AcceptanceRequestController,
         DefectReportController,
