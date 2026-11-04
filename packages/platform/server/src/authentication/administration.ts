@@ -967,6 +967,48 @@ export async function removeAccountData(
 }
 
 /**
+ * Takes the name off an account, the last thing of a person a tenant had to
+ * keep: an application calls it once nothing it keeps names them any more,
+ * when the papers that did have gone at the end of their retention. `name` is
+ * what the account is called from then on, in the words of the application.
+ *
+ * Only after the last day here, as `removeAccountData`, and only for an
+ * account that is this tenant's alone: a membership elsewhere keeps the name,
+ * blocked or past its last day as well, because what the person did there
+ * names them and the other tenant keeps its own papers; so does running the
+ * instance. Says whether the name went; a second call changes nothing more.
+ */
+export async function removeAccountName(
+  access: Pick<AccessRules, 'sentences'>,
+  database: Database,
+  actor: Actor,
+  userId: string,
+  name: string,
+): Promise<boolean> {
+  await database.forTenant(actor, async (tx) => {
+    const membership = await membershipOf(access, tx, actor.tenantId, userId)
+
+    if (!hasEnded(membership.lastDay)) {
+      throw new ConflictException(
+        'The access has not ended; the name of its account goes after its last day.',
+      )
+    }
+  })
+
+  if (!(await worksOnlyHere(database, actor.tenantId, userId))) {
+    return false
+  }
+
+  await database.forInstance(
+    (tx) =>
+      tx.update(authUsers).set({ name, updatedAt: new Date() }).where(eq(authUsers.id, userId)),
+    actor.userId,
+  )
+
+  return true
+}
+
+/**
  * Whether an account still works for another tenant or runs the instance:
  * the question `worksOnlyHere` asks, with a membership elsewhere past its
  * last day no longer counting. Asked as the person, which is what lets the

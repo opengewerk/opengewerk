@@ -127,6 +127,15 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  *   lets it drop, a later contact moves it.
  * - `erasure_request`: a request for deletion not answered yet (#845), due a
  *   month after it came in (Art. 12 (3) DSGVO). The answer lets it drop.
+ * - `sickness`: a sickness a year after its last day (#846,
+ *   `sicknessErasureDueOn`); deleting it lets it drop.
+ * - `staff_year`: the time and leave of one year of one person, six years
+ *   after the end of the year (#846, `staffYearErasureDueOn`).
+ * - `person`: the file of somebody who left, three years after the end of the
+ *   year they left (#846, `personErasureDueOn`). Coming back lets it drop.
+ *
+ * The three of the staff come only once they are due: a deadline years ahead
+ * for every sickness and every year would fill the list and say nothing.
  */
 export const deadlineSources = [
   'quote',
@@ -143,6 +152,9 @@ export const deadlineSources = [
   'prospect',
   'customer',
   'erasure_request',
+  'sickness',
+  'staff_year',
+  'person',
 ] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
@@ -444,6 +456,31 @@ export const sourceWords: Readonly<
       hint: 'Fällig einen Monat nach dem Eingang der Anfrage.',
     },
     anchor: 'dem Eingang der Anfrage',
+  },
+  // The three of the staff (#846): due from the rule package, without an interval.
+  sickness: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig ein Jahr nach dem letzten Tag der Krankheit.',
+    },
+    anchor: 'dem letzten Tag der Krankheit',
+  },
+  staff_year: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig sechs Jahre nach dem Ende des Jahres, wenn die Lohnunterlagen gehen dürfen.',
+    },
+    anchor: 'dem Ende des Jahres',
+  },
+  person: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig drei Jahre nach dem Ende des Jahres, in dem die Person ausgetreten ist.',
+    },
+    anchor: 'dem Ende des Austrittsjahres',
   },
 }
 

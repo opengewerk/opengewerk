@@ -167,6 +167,8 @@ describe('the tables', () => {
         'a calendar asks without a session, and only the token in its address names the tenant (#291)',
       'document_file_takes_its_file()':
         'the file of a document goes with its customer, and the application may not delete files (#845)',
+      'qualification_takes_its_certificate()':
+        'the certificate of a qualification goes with the file of its person, and the application may not delete files (#846)',
     })
 
     expect(reading).toEqual({ unexplained: [], stale: [], openToEveryRole: [] })

@@ -258,7 +258,7 @@ describe('what is due, for whoever may not see leads', () => {
 
     expect(
       await screen.findByText(
-        'Was zum Löschen fällig ist, sieht, wer Leads oder Kunden sehen darf.',
+        'Was zum Löschen fällig ist, sieht, wer Leads oder Kunden sehen, Abwesenheiten pflegen oder Akten lesen darf.',
       ),
     ).toBeTruthy()
     expect(await screen.findByText('Löschanfragen sieht, wer Kunden sehen darf.')).toBeTruthy()
@@ -473,6 +473,70 @@ describe('a customer that is due (#845)', () => {
   })
 })
 
+describe('the staff that are due (#846)', () => {
+  it('go each kind on its own, with what goes along with a year and a file', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+
+    signedInAs('owner')
+    overview(
+      true,
+      [],
+      [],
+      [],
+      [
+        {
+          deadlineId: 'd-4',
+          kind: 'sickness',
+          recordId: 'a-1',
+          name: 'Jonas Albrecht',
+          detail: 'Krankheit, letzter Tag 14.10.2025',
+          dueOn: '2026-10-14',
+        },
+        {
+          deadlineId: 'd-5',
+          kind: 'staff_year',
+          recordId: 'y-1',
+          name: 'Klaus Berger',
+          detail: 'Arbeitszeiten und Urlaub 2019',
+          dueOn: '2026-01-01',
+        },
+        {
+          deadlineId: 'd-6',
+          kind: 'person',
+          recordId: 'p-9',
+          name: 'Dennis Kraft',
+          detail: 'Akte, Austritt 30.06.2022',
+          dueOn: '2026-01-01',
+        },
+      ],
+    )
+    render(inQueries(<PrivacyScreen />))
+
+    const table = await screen.findByRole('table', { name: 'Zum Löschen fällig' })
+
+    expect(within(table).getByText('Klaus Berger').closest('tr')?.textContent).toContain('Jahr')
+    expect(within(table).getByText('Dennis Kraft').closest('tr')?.textContent).toContain('Akte')
+    await user.click(screen.getByRole('button', { name: 'Ausgewählte löschen' }))
+
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Eine Krankheit, ein Jahr und eine Akte löschen?',
+    })
+
+    expect(dialog.textContent).toContain('Mit einem Jahr gehen die Arbeitszeiten')
+    expect(dialog.textContent).toContain('bleibt ihr Name, bis das letzte Jahr geht')
+    await user.click(within(dialog).getByRole('button', { name: 'Endgültig löschen' }))
+    await waitFor(() => {
+      expect(
+        calls.filter((call) => call.path === '/privacy/erasures').map((call) => call.body),
+      ).toEqual([
+        { kind: 'sickness', ids: ['a-1'] },
+        { kind: 'staff_year', ids: ['y-1'] },
+        { kind: 'person', ids: ['p-9'] },
+      ])
+    })
+  })
+})
+
 describe('the words of the question', () => {
   it('count and name who goes', () => {
     expect(erasureQuestion({ prospect: 1 })).toBe('Einen Lead löschen?')
@@ -482,6 +546,10 @@ describe('the words of the question', () => {
     expect(erasureQuestion({ prospect: 2, customer: 1 })).toBe(
       'Zwei Leads und einen Kunden löschen?',
     )
+    expect(erasureQuestion({ sickness: 1, staff_year: 1, person: 1 })).toBe(
+      'Eine Krankheit, ein Jahr und eine Akte löschen?',
+    )
+    expect(erasureQuestion({ staff_year: 2, person: 3 })).toBe('Zwei Jahre und drei Akten löschen?')
     expect(whoGoes(['A', 'B'])).toBe('A und B gehen endgültig.')
     expect(whoGoes(['A', 'B', 'C', 'D'])).toBe('Die 4 Ausgewählten gehen endgültig.')
   })

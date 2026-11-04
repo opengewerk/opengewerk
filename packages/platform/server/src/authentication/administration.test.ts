@@ -8,7 +8,12 @@ import { newId } from '../database/identifier.js'
 import { applicationRole, standingInLine } from '../database/test-database.js'
 import { appointOperator } from '../instance/operators.js'
 import { addressNeedsMail } from './address-confirmation.js'
-import { listColleagues, removeAccountData, removedAddress } from './administration.js'
+import {
+  listColleagues,
+  removeAccountData,
+  removeAccountName,
+  removedAddress,
+} from './administration.js'
 import { authenticationPath } from './authentication.js'
 import type { InvitationMail, InvitationMailing } from './invitation-mailing.js'
 import {
@@ -1737,5 +1742,51 @@ describe('removing what an access that has ended no longer needs', () => {
 
     expect(removed.at(-1)?.new_value).not.toBeNull()
     expect(removed.at(-1)?.reason).toBe('membership.data_removal')
+  })
+
+  describe('and at the very end the name', () => {
+    const gone = 'Gelöschter Zugang'
+    const tim = { email: 'tim@nord.example.de', name: 'Tim Weiterda' }
+
+    beforeAll(async () => {
+      const { userId } = await addStaffMember(instance.authentication, instance.database, {
+        ...tim,
+        password,
+        tenantId: north.id,
+        roles: ['member'],
+      })
+
+      userIds.set(tim.email, userId)
+    })
+
+    it('is refused while the access still works, and the name stays', async () => {
+      await expect(
+        removeAccountName(probeAccess, instance.database, as(north.id), idOf(tim), gone),
+      ).rejects.toThrow(ConflictException)
+      expect((await account(tim))?.name).toBe(tim.name)
+    })
+
+    it('takes the name of an account that was this tenant’s alone', async () => {
+      // Ole works nowhere else, and his last day here has passed.
+      expect(
+        await removeAccountName(probeAccess, instance.database, as(north.id), idOf(ole), gone),
+      ).toBe(true)
+      expect((await account(ole))?.name).toBe(gone)
+      expect(
+        await removeAccountName(probeAccess, instance.database, as(north.id), idOf(ole), gone),
+      ).toBe(true)
+    })
+
+    it('keeps the name of an account that worked next door as well, past its end there, or runs the instance', async () => {
+      // Pia's membership in the south has ended too; what she did there names her.
+      expect(
+        await removeAccountName(probeAccess, instance.database, as(north.id), idOf(pia), gone),
+      ).toBe(false)
+      expect((await account(pia))?.name).toBe(pia.name)
+      expect(
+        await removeAccountName(probeAccess, instance.database, as(north.id), idOf(udo), gone),
+      ).toBe(false)
+      expect((await account(udo))?.name).toBe(udo.name)
+    })
   })
 })

@@ -106,6 +106,9 @@ let followed: string[]
 /** The people the probe application keeps out of the place of every deadline (opengewerk-haustechnik#473). */
 let outside: ReadonlySet<string>
 
+/** The kinds the probe application hides from a person, by person (#846). */
+let hidden: ReadonlyMap<string, readonly string[]>
+
 const rules: DeadlineRules<ProbeKind, ProbeDeadlineColumns> = {
   table: probeDeadlines,
   registry,
@@ -122,6 +125,7 @@ const rules: DeadlineRules<ProbeKind, ProbeDeadlineColumns> = {
   kindFields: (kind) => ({ countsIn: kind.intervalMonths ? 'months' : 'days' }),
   mayAnswer: async (_tx, asked) =>
     asked.map(({ userIds }) => new Set(userIds.filter((userId) => !outside.has(userId)))),
+  hiddenFrom: (identity) => hidden.get(identity.userId) ?? [],
   afterResponsible: async (_tx, _tenantId, row) => {
     followed.push(`responsible ${row.sourceLabel} ${String(row.responsibleUserId)}`)
   },
@@ -296,6 +300,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   outside = new Set()
+  hidden = new Map()
   await foundation.empty()
   await foundation.tenants(admin, [north, south])
 
@@ -736,6 +741,43 @@ describe('the list of deadlines as a table', () => {
 
     expect(answer.text).toContain(";'=1+1;")
     expect((await tableOf('mia'))[1]?.[4]).toBe('=1+1')
+  })
+})
+
+describe('a kind hidden from a person (#846)', () => {
+  it('is in neither the list nor its table, and a change by key finds none of it', async () => {
+    const door = await aDeadline({
+      kind: 'door.check',
+      label: 'Haus Ost',
+      dueOn: '2037-04-01',
+      natural: null,
+    })
+    await aDeadline({ label: 'Paket P-1', dueOn: '2037-03-09' })
+
+    hidden = new Map([['mia', ['door.check']]])
+
+    expect((await list('mia', 'all')).map((entry) => entry.source.label)).toEqual(['Paket P-1'])
+    expect((await list('lena', 'all')).map((entry) => entry.source.label)).toEqual([
+      'Paket P-1',
+      'Haus Ost',
+    ])
+
+    const table = await http()
+      .get('/deadlines/table?format=csv')
+      .set(testIdentityHeader, as('mia'))
+      .expect(200)
+
+    expect(table.text).not.toContain('Haus Ost')
+
+    await http()
+      .patch(`/deadlines/${door}`)
+      .set(testIdentityHeader, as('mia'))
+      .send({ leadDays: 2 })
+      .expect(404)
+    await http().post(`/deadlines/${door}/done`).set(testIdentityHeader, as('mia')).expect(404)
+    await http().post(`/deadlines/${door}/reopen`).set(testIdentityHeader, as('mia')).expect(404)
+
+    expect((await list('lena'))[1]).toMatchObject({ status: 'open', ownLeadDays: null })
   })
 })
 

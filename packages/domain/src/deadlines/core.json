@@ -135,6 +135,42 @@
       "responsible": "lead",
       "actions": ["task"],
       "taskTitle": "Löschanfrage beantworten: {quelle}"
+    },
+    {
+      "key": "privacy.sickness_erasure",
+      "trade": null,
+      "title": "Krankheit löschen",
+      "about": "Eine Krankheit ist ein Jahr nach ihrem letzten Tag zum Löschen fällig (Löschkonzept): so lange brauchen sie das betriebliche Eingliederungsmanagement und die Entgeltfortzahlung, danach geht sie als Gesundheitsdatum. Sie steht dann unter Einstellungen, Datenschutz, wo das Löschen bestätigt wird; steht die Art dort auf automatisch, löscht der Lauf sie von selbst. Die Frist sieht nur, wer Abwesenheiten pflegt.",
+      "source": "sickness",
+      "intervalDays": null,
+      "leadDays": 0,
+      "responsible": "lead",
+      "actions": ["erasure"],
+      "taskTitle": "Krankheit löschen: {quelle}"
+    },
+    {
+      "key": "privacy.staff_year_erasure",
+      "trade": null,
+      "title": "Arbeitszeiten und Urlaub eines Jahres löschen",
+      "about": "Die Arbeitszeiten, die Rufbereitschaft, der Urlaub und der Urlaubsanspruch eines Jahres einer Person sind sechs Jahre nach dem Ende des Jahres zum Löschen fällig, wenn sie als Lohnunterlage nicht mehr aufzubewahren sind (Löschkonzept). Sie stehen dann unter Einstellungen, Datenschutz, wo das Löschen bestätigt wird; steht die Art dort auf automatisch, löscht der Lauf sie von selbst. Die Frist sieht nur, wer die Akten lesen darf.",
+      "source": "staff_year",
+      "intervalDays": null,
+      "leadDays": 0,
+      "responsible": "lead",
+      "actions": ["erasure"],
+      "taskTitle": "Jahr löschen: {quelle}"
+    },
+    {
+      "key": "privacy.person_erasure",
+      "trade": null,
+      "title": "Akte löschen",
+      "about": "Die Akte einer ausgetretenen Person ist drei Jahre nach dem Ende des Jahres ihres Austritts zum Löschen fällig (Löschkonzept), mit der vereinbarten Arbeitszeit, den Qualifikationen samt Zertifikaten und dem Zugang. Werden von ihr noch Arbeitszeiten aufbewahrt, bleibt ihr Name, bis das letzte Jahr geht. Sie steht dann unter Einstellungen, Datenschutz, wo das Löschen bestätigt wird; steht die Art dort auf automatisch, löscht der Lauf sie von selbst. Die Frist sieht nur, wer die Akten lesen darf.",
+      "source": "person",
+      "intervalDays": null,
+      "leadDays": 0,
+      "responsible": "lead",
+      "actions": ["erasure"],
+      "taskTitle": "Akte löschen: {quelle}"
     }
   ]
 }

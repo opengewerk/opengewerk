@@ -42,6 +42,7 @@ import {
   erasureRequests,
 } from '../database/schema/index.js'
 import { restrictCustomer } from '../privacy/customer-erasure.js'
+import { finishErasedAccounts } from '../privacy/staff-erasure.js'
 import {
   automationReason,
   automationsOf,
@@ -156,7 +157,7 @@ export class PrivacyController {
     const erasing = { tenantId: identity.tenantId, userId: identity.userId, reason: erasureReason }
 
     try {
-      return await this.database.forTenant(erasing, async (tx) => {
+      const erased = await this.database.forTenant(erasing, async (tx) => {
         if (!(await personLeads(tx, identity.userId, day))) {
           throw new ForbiddenException(leadersOnly)
         }
@@ -170,6 +171,13 @@ export class PrivacyController {
           today: day,
         })
       })
+
+      // The account behind a file that went, outside the transaction (#846).
+      if (kind === 'person' || kind === 'staff_year') {
+        await finishErasedAccounts(this.database, identity.tenantId)
+      }
+
+      return erased
     } catch (error) {
       if (error instanceof ErasureRefused) {
         throw new ConflictException(error.message)

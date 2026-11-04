@@ -267,11 +267,52 @@ describe('a time entry', () => {
     const old = await plant(gone)
     const recent = await plant(kept)
 
-    await admin.query('delete from time_entries where id = $1', [old])
-    expect(await row(old)).toBeUndefined()
-    expect(
-      (await refusedBy(admin.query('delete from time_entries where id = $1', [recent]))).code,
-    ).toBe('OG001')
+    // An entry goes only with the year of its person under the deletion
+    // concept (#846), in the transaction that writes its line, and still not
+    // before the two years. The file is planted past its key to an account.
+    const person = newId<'person'>()
+
+    await admin.query(
+      `begin; set local session_replication_role = replica;
+       insert into people (id, tenant_id, name, user_id) values ('${person}', '${north.id}', 'Max Monteur', 'max');
+       commit;`,
+    )
+
+    const withItsYear = async (id: string, day: string) => {
+      const client = await admin.connect()
+
+      try {
+        await client.query('begin')
+        await client.query(`select set_config('app.user_id', 'lena', true)`)
+        await client.query(
+          `insert into erasures (tenant_id, kind, record_id, label, automatic, redactions, created_by)
+           values ($1, 'staff_year', staff_year_key($2, extract(year from $3::date)::int), 'Probe', false, 0, 'lena')`,
+          [north.id, person, day],
+        )
+        await client.query('delete from time_entries where id = $1', [id])
+        await client.query('commit')
+      } catch (error) {
+        await client.query('rollback')
+        throw error
+      } finally {
+        client.release()
+      }
+    }
+
+    try {
+      expect(
+        (await refusedBy(admin.query('delete from time_entries where id = $1', [old]))).code,
+      ).toBe('OG001')
+      expect((await refusedBy(withItsYear(recent, kept))).code).toBe('OG001')
+      await withItsYear(old, gone)
+      expect(await row(old)).toBeUndefined()
+      expect(await row(recent)).toBeDefined()
+    } finally {
+      await admin.query(
+        `begin; set local session_replication_role = replica;
+         delete from erasures; delete from people where id = '${person}'; commit;`,
+      )
+    }
   })
 })
 

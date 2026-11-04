@@ -8,8 +8,12 @@ import {
   type ErasureKind,
   erasureKindWords,
   type IsoDate,
+  personErasureLabel,
+  personHoldSentence,
   prospectErasureLabel,
   prospectSourceLabel,
+  sicknessErasureLabel,
+  staffYearErasureLabel,
   type TenantId,
 } from '@opengewerk/domain'
 import { leadsItsTenant, type TenantTransaction } from '@opengewerk/platform-server'
@@ -25,6 +29,15 @@ import {
   prospects,
 } from '../database/schema/index.js'
 import { customerStandings, emptyCustomer, redactRecords } from './customer-erasure.js'
+import {
+  duePeople,
+  dueSicknesses,
+  dueStaffYears,
+  type StaffTouched,
+  takePerson,
+  takeSickness,
+  takeStaffYear,
+} from './staff-erasure.js'
 
 /** What the change log calls a deletion under the concept, and its switch. */
 export const erasureReason = 'privacy.erase'
@@ -307,6 +320,161 @@ async function eraseCustomers(
   return written
 }
 
+/** One record of the staff that is due (#846), as the list shows it and the deletion takes it. */
+interface StaffRecord {
+  readonly deadlineId: string
+  readonly recordId: string
+  /** Who it is, for the list before confirming. */
+  readonly name: string
+  /** What it is without a name, for the list and the protocol. */
+  readonly label: string
+  readonly dueOn: IsoDate
+  readonly take: (tx: TenantTransaction) => Promise<StaffTouched[]>
+}
+
+type StaffKind = 'sickness' | 'staff_year' | 'person'
+
+/**
+ * The records of a kind of the staff a deadline proposes today, or of those
+ * asked for, by their key: what the pass found due and is due still. A file
+ * held by an access that has not ended is not among them.
+ */
+async function staffRecords(
+  tx: TenantTransaction,
+  kind: StaffKind,
+  today: IsoDate,
+  ids?: readonly string[],
+): Promise<Map<string, StaffRecord>> {
+  const due = await dueDeadlinesOf(tx, kind, today)
+  const records: Omit<StaffRecord, 'deadlineId' | 'dueOn'>[] = []
+
+  if (kind === 'sickness') {
+    for (const sickness of await dueSicknesses(tx, today, ids)) {
+      records.push({
+        recordId: sickness.absenceId,
+        name: sickness.personName,
+        label: sicknessErasureLabel(sickness.lastDay),
+        take: (inner) => takeSickness(inner, sickness.absenceId),
+      })
+    }
+  } else if (kind === 'staff_year') {
+    for (const year of await dueStaffYears(tx, today, ids)) {
+      records.push({
+        recordId: year.key,
+        name: year.personName,
+        label: staffYearErasureLabel(year.year),
+        take: (inner) => takeStaffYear(inner, year),
+      })
+    }
+  } else {
+    for (const person of await duePeople(tx, today, ids)) {
+      if (person.holds.length === 0) {
+        records.push({
+          recordId: person.personId,
+          name: person.personName,
+          label: personErasureLabel(person.leftOn),
+          take: (inner) => takePerson(inner, person),
+        })
+      }
+    }
+  }
+
+  return new Map(
+    records.flatMap((record) => {
+      const deadline = due.get(record.recordId.toLowerCase())
+
+      return deadline === undefined
+        ? []
+        : [
+            [
+              record.recordId.toLowerCase(),
+              { ...record, deadlineId: deadline.id, dueOn: deadline.dueOn as IsoDate },
+            ] as const,
+          ]
+    }),
+  )
+}
+
+/**
+ * Deletes records of the staff under the deletion concept (#846), as
+ * `eraseCustomers` does: for each, the line of the protocol first, so that the
+ * locks of 0131 open, then the rows, then every value of them in the change
+ * log blacked out, and the count. One transaction for all of them, so a
+ * refusal of any keeps every one.
+ */
+async function eraseStaff(
+  tx: TenantTransaction,
+  kind: StaffKind,
+  input: {
+    readonly tenantId: TenantId
+    readonly userId: string
+    readonly ids: readonly string[]
+    readonly automatic: boolean
+    readonly today: IsoDate
+  },
+): Promise<Erasure[]> {
+  const records = await staffRecords(tx, kind, input.today, input.ids)
+
+  if (kind === 'person') {
+    const [held] = (await duePeople(tx, input.today, input.ids)).filter(
+      (person) => person.holds.length > 0,
+    )
+    const [hold] = held?.holds ?? []
+
+    if (hold !== undefined) {
+      throw new ErasureRefused(`Eine ausgewählte Akte bleibt noch: ${personHoldSentence(hold)}`)
+    }
+  }
+
+  const written: Erasure[] = []
+
+  for (const key of input.ids.map((id) => id.toLowerCase())) {
+    const record = records.get(key)
+
+    if (record === undefined) {
+      throw new ErasureRefused(
+        `${erasureKindWords[kind].one}: ein ausgewählter Eintrag ist nicht mehr da oder nicht zum Löschen fällig.`,
+      )
+    }
+
+    const [line] = await tx
+      .insert(erasures)
+      .values({
+        tenantId: input.tenantId,
+        kind,
+        recordId: record.recordId,
+        label: record.label,
+        dueOn: record.dueOn,
+        automatic: input.automatic,
+        redactions: 0,
+        // Set by `record_note_author` from the person of the transaction.
+        createdBy: input.userId,
+      })
+      .returning()
+
+    if (line === undefined) {
+      throw new Error('The protocol of the deletion concept took no line')
+    }
+
+    const touched = await record.take(tx)
+    const redactions = await redactRecords(tx, {
+      tenantId: input.tenantId,
+      userId: input.userId,
+      touched: touched.filter((entry) => entry.ids.length > 0),
+      reason: erasureKindWords[kind].reason,
+    })
+    const [counted] = await tx
+      .update(erasures)
+      .set({ redactions })
+      .where(eq(erasures.id, line.id))
+      .returning()
+
+    written.push(erasureOf(counted ?? line))
+  }
+
+  return written
+}
+
 /** Deletes records of a kind under the deletion concept, as `eraseProspects` says for leads. */
 export function eraseRecords(
   tx: TenantTransaction,
@@ -324,6 +492,10 @@ export function eraseRecords(
       return eraseProspects(tx, input)
     case 'customer':
       return eraseCustomers(tx, input)
+    case 'sickness':
+    case 'staff_year':
+    case 'person':
+      return eraseStaff(tx, input.kind, input)
   }
 }
 
@@ -419,6 +591,33 @@ async function dueCustomersOf(tx: TenantTransaction, today: IsoDate): Promise<Du
   }))
 }
 
+/** What of the staff is due, of the kinds the person may read (#846). */
+async function staffDueOf(
+  tx: TenantTransaction,
+  today: IsoDate,
+  readable: readonly ErasureKind[],
+): Promise<DueErasure[]> {
+  const kinds = (['sickness', 'staff_year', 'person'] as const).filter((kind) =>
+    readable.includes(kind),
+  )
+  const due: DueErasure[] = []
+
+  for (const kind of kinds) {
+    for (const record of (await staffRecords(tx, kind, today)).values()) {
+      due.push({
+        deadlineId: record.deadlineId,
+        kind,
+        recordId: record.recordId,
+        name: record.name,
+        detail: record.label,
+        dueOn: record.dueOn,
+      })
+    }
+  }
+
+  return due
+}
+
 /**
  * What is due, with who each record is, for the office before it confirms:
  * of each kind whose records the person may read (`read` of the kind).
@@ -431,6 +630,7 @@ export async function dueErasuresOf(
   return [
     ...(readable.includes('prospect') ? await dueProspectsOf(tx, today) : []),
     ...(readable.includes('customer') ? await dueCustomersOf(tx, today) : []),
+    ...(await staffDueOf(tx, today, readable)),
   ]
 }
 

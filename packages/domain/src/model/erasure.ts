@@ -14,10 +14,12 @@ import type { Prospect, ProspectSource } from './prospect.js'
  *
  * The first kind is a lead that never became a customer (3.1, #312), the
  * second a customer with whom nothing runs any more or who asked to be
- * deleted (#845). The staff follow with #846, a kind of its own here and a
- * kind of deadline that proposes it.
+ * deleted (#845). The last three are the staff's (#846): a sickness twelve
+ * months after its last day, the time and leave of a year of one person once
+ * the payroll no longer needs them, and the file of somebody who left three
+ * years after the end of that year, decided on 04.11.2026.
  */
-export const erasureKinds = ['prospect', 'customer'] as const
+export const erasureKinds = ['prospect', 'customer', 'sickness', 'staff_year', 'person'] as const
 
 export type ErasureKind = (typeof erasureKinds)[number]
 
@@ -56,6 +58,31 @@ export const erasureKindWords: Readonly<Record<ErasureKind, ErasureKindWords>> =
     title: 'Kunden, mit denen nichts mehr läuft',
     reason:
       'Gelöscht nach dem Löschkonzept: ein Kunde, mit dem nichts mehr läuft, oder einer, der um das Löschen gebeten hat.',
+  },
+  // Who sees which kind an absence is (#288): a sickness is a health datum.
+  sickness: {
+    deadline: 'privacy.sickness_erasure',
+    read: 'absence.write',
+    one: 'Krankheit',
+    title: 'Krankheiten nach zwölf Monaten',
+    reason: 'Gelöscht nach dem Löschkonzept: eine Krankheit, zwölf Monate nach ihrem letzten Tag.',
+  },
+  // A year of somebody's file: who reads the files reads it.
+  staff_year: {
+    deadline: 'privacy.staff_year_erasure',
+    read: 'person.read',
+    one: 'Jahr',
+    title: 'Arbeitszeiten und Urlaub eines Jahres',
+    reason:
+      'Gelöscht nach dem Löschkonzept: Arbeitszeiten und Urlaub eines Jahres, nachdem sie als Lohnunterlage nicht mehr aufzubewahren waren.',
+  },
+  person: {
+    deadline: 'privacy.person_erasure',
+    read: 'person.read',
+    one: 'Akte',
+    title: 'Akten nach dem Austritt',
+    reason:
+      'Gelöscht nach dem Löschkonzept: die Akte einer Person, drei Jahre nach dem Ende des Jahres, in dem sie ausgetreten ist.',
   },
 }
 
@@ -106,6 +133,25 @@ export function customerErasureLabel(customer: {
   return customer.requestedOn === null
     ? `${kind}, letzter Kontakt ${germanDay(customer.lastContactOn)}`
     : `${kind} auf Löschanfrage vom ${germanDay(customer.requestedOn)}`
+}
+
+/**
+ * What a sickness is called where its name must not go: the day it ended.
+ * The deadline that proposes it is shown only to whoever sees the kind of an
+ * absence, and the line of the protocol names nobody.
+ */
+export function sicknessErasureLabel(lastDay: IsoDate): string {
+  return `Krankheit, letzter Tag ${germanDay(lastDay)}`
+}
+
+/** What a year of somebody's time and leave is called where the name must not go. */
+export function staffYearErasureLabel(year: number): string {
+  return `Arbeitszeiten und Urlaub ${String(year)}`
+}
+
+/** What the file of somebody who left is called where the name must not go. */
+export function personErasureLabel(leftOn: IsoDate): string {
+  return `Akte, Austritt ${germanDay(leftOn)}`
 }
 
 /** A record that is due, as the office reads it before confirming. */

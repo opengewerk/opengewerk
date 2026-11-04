@@ -1409,6 +1409,46 @@ async function plantPeople(base: string, today: IsoDate): Promise<void> {
 
   await plantAbsences(base, today, ids)
   await plantTime(base, today)
+  await plantStaffDue(base, today, ids)
+}
+
+/**
+ * What of the staff the deletion concept proposes (#846), as the boards
+ * "Datenschutz" draw it: a sickness of Max Becker that ended more than a year
+ * ago, and Dennis Kraft, who left three years and more before this year and
+ * has no access, with the days of leave of a year six years past its end. His
+ * file and that year come due; nothing goes before somebody confirms.
+ */
+async function plantStaffDue(
+  base: string,
+  today: IsoDate,
+  ids: ReadonlyMap<string, string>,
+): Promise<void> {
+  const post = (path: string, body: unknown) => send(base, 'POST', path, body)
+  const year = Number(today.slice(0, 4))
+  const lastDay = addDays(today, -400)
+
+  await post('/absences', {
+    personId: ids.get('Max Becker') ?? '',
+    kind: 'sickness',
+    firstDay: addDays(lastDay, -4),
+    lastDay,
+    startsAtNoon: false,
+    endsAtNoon: false,
+  })
+
+  const joinedOn = `${String(year - 10)}-04-01`
+  const kraft = (await post('/people', {
+    name: 'Dennis Kraft',
+    joinedOn,
+    leftOn: `${String(year - 4)}-06-30`,
+    workingTime: { validFrom: joinedOn, mondayMinutes: 480, tuesdayMinutes: 480 },
+  })) as { id: string }
+
+  await send(base, 'PUT', `/absences/people/${kraft.id}/entitlements/${String(year - 7)}`, {
+    entitledHalfDays: 60,
+    carriedHalfDays: 0,
+  })
 }
 
 /**

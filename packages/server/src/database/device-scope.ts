@@ -363,6 +363,27 @@ export async function restrictedOnDevices(tx: TenantTransaction): Promise<Restri
  * added once there are any: a business that never restricted anybody keeps
  * the values it had, and its devices fetch nothing anew.
  */
+/**
+ * How many years of the staff the deletion concept has taken (#846), as a
+ * part of what the records of time and the times on call are narrowed to. A
+ * year that goes is deleted for good and leaves no marked row behind; a
+ * device learns it only by dropping what it holds of both and asking again,
+ * which a new count makes it do. Nothing while none went, so that the value
+ * stays what devices hold today.
+ */
+export async function staffYearsErased(tx: TenantTransaction): Promise<number> {
+  const { rows } = await tx.execute<{ n: string }>(
+    sql`select count(*)::text as n from erasures where kind::text = 'staff_year'`,
+  )
+
+  return Number(rows[0]?.n ?? '0')
+}
+
+/** A value narrowed with the count of `staffYearsErased`. */
+export function narrowedWithErasedYears(value: string, erased: number): string {
+  return erased === 0 ? value : `${value}:erased:${String(erased)}`
+}
+
 export function narrowedWith(value: string, restricted: RestrictedOnDevices): string {
   return restricted.customerIds.length === 0 ? value : `${value}:${restricted.value}`
 }
