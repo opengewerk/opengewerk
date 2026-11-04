@@ -2622,3 +2622,38 @@ describe('the rollback of the history', () => {
     expect(await tableNames(admin)).not.toContain('communications')
   })
 })
+
+/**
+ * The rollback of 0129 (#317): the protocol of the deletion concept says what
+ * went, and the rollback deletes no line of it; while there is one, it stops.
+ */
+describe('the rollback of the deletion concept', () => {
+  it('deletes no line of the protocol, and stops while there is one', async () => {
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    // Who deleted comes from the transaction, as in the application.
+    await admin.query(
+      `begin; set local app.user_id = 'lena';
+       insert into erasures (tenant_id, kind, record_id, label, automatic, redactions, created_by)
+       values ('${tenant.id}', 'prospect', '${newId<'prospect'>()}',
+               'Lead aus einem Anruf, letzter Kontakt 02.10.2025', false, 9, 'lena');
+       commit;`,
+    )
+
+    await expect(revertMigration(admin, '0129_erasures')).rejects.toThrow(
+      'Die Rücknahme von 0129 löscht sie nicht',
+    )
+    expect((await admin.query('select count(*)::int as count from erasures')).rows).toEqual([
+      { count: 1 },
+    ])
+
+    await admin.query(
+      'begin; set local session_replication_role = replica; delete from erasures; commit;',
+    )
+    await revertMigration(admin, '0129_erasures')
+
+    expect(await tableNames(admin)).not.toContain('erasures')
+    expect(await tableNames(admin)).not.toContain('erasure_automations')
+  })
+})

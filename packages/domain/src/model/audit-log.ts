@@ -23,6 +23,10 @@ const reasonWords: Readonly<Record<string, string>> = {
   'article.import': 'Import aus DATANORM',
   'article.import.interrupted': 'Von selbst, Import beim Neustart beendet',
   'article.prices.follow': 'Verkaufspreise nach einem geänderten Aufschlag',
+  // The deletion concept (#317): a deletion, by a person or in her name by
+  // the pass, and switching a kind to go by itself.
+  'privacy.erase': 'Gelöscht nach dem Löschkonzept',
+  'privacy.automation': 'Löschkonzept: automatisch löschen eingestellt',
 }
 
 /**
@@ -195,6 +199,10 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   communications: ['happened_at'],
   // An offer the customer turned down (#841): the day it was.
   offer_declines: ['declined_on'],
+  // A line of the protocol of the deletion concept, by what went (#317).
+  erasures: ['label'],
+  // A kind that goes by itself, by its kind (#317).
+  erasure_automations: ['kind'],
   // An article by what it is called, a price by the day it begins, and what a
   // supplier sells by the supplier, which the page names (#296).
   articles: ['designation', 'number'],

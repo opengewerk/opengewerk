@@ -1,7 +1,9 @@
 import {
+  berlinClock,
   type CustomerId,
   type DeadlineKind,
   type DeadlineRegistry,
+  erasureKindOfDeadline,
   type InstallationId,
   type IsoDate,
   type JobId,
@@ -30,6 +32,7 @@ import { assignNumber } from '../database/number-ranges.js'
 import type { ApplicationDeadlineColumns } from '../database/schema/deadlines.js'
 import { deadlines, jobs, maintenanceContracts, sites, tasks } from '../database/schema/index.js'
 import { remindCustomer } from '../notifications/customer-reminder.js'
+import { eraseByItself } from '../privacy/erasure.js'
 import { deadlineKinds } from './registry.js'
 import { deadlineSourceQueries, type DeadlineValues } from './sources.js'
 
@@ -214,6 +217,20 @@ function bound(
       },
       customer_reminder: async ({ tx, tenantId, kind, deadline, responsible, now }) => {
         await remindCustomer(tx, { tenantId, kind, deadline, responsible, now })
+      },
+      erasure: async ({ tx, tenantId, kind, deadline, now }) => {
+        const erasureKind = erasureKindOfDeadline(kind.key)
+
+        if (erasureKind === null) {
+          throw new Error(`The deadline kind ${kind.key} deletes and is no kind of erasure`)
+        }
+
+        await eraseByItself(tx, {
+          tenantId,
+          kind: erasureKind,
+          sourceId: deadline.sourceId,
+          today: berlinClock(now).day,
+        })
       },
     },
     complete: async (tx, now) => {

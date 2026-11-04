@@ -705,6 +705,22 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
       days: 20,
       concern: 'Steckdosen im Keller nachrüsten',
     },
+    // Two from more than a year ago that never became customers: the
+    // deletion concept proposes them under "Datenschutz" (#317).
+    {
+      name: 'Brenner, Sandra',
+      source: 'website',
+      stage: 'dismissed',
+      days: 400,
+      concern: 'Wallbox in der Garage',
+    },
+    {
+      name: 'Lehmann, Markus',
+      source: 'phone',
+      stage: 'contacted',
+      days: 380,
+      concern: 'PV auf dem Carport',
+    },
     {
       name: 'Kaiser, Lena',
       source: 'referral',

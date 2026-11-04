@@ -60,6 +60,10 @@ import type {
  * - `customer_reminder`: a reminder to the customer of the source (#316), by
  *   mail or, without an address, a task to call them, where the customer may
  *   be reminded and the business has switched it on.
+ * - `erasure`: the source deleted under the deletion concept (#317), where
+ *   the business has set its kind to go by itself, in the name of whoever
+ *   did so while that person leads it. Otherwise nothing: the deadline stays
+ *   open, and the office confirms it under "Datenschutz".
  */
 export const deadlineActions = [
   'task',
@@ -67,6 +71,7 @@ export const deadlineActions = [
   'service_job',
   'status',
   'customer_reminder',
+  'erasure',
 ] as const
 
 export type DeadlineAction = (typeof deadlineActions)[number]
@@ -112,6 +117,9 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  * - `maintenance_period`: the start of the next period of a contract paid per
  *   period that has no invoice yet (#295). One deadline per contract that
  *   moves on to the next period once the invoice of this one exists.
+ * - `prospect`: a lead that never became a customer (#317), due the months
+ *   of the interval after its last contact. A later contact moves it; the
+ *   lead becoming a customer or being deleted lets it drop.
  */
 export const deadlineSources = [
   'quote',
@@ -125,6 +133,7 @@ export const deadlineSources = [
   'maintenance_visit',
   'maintenance_notice',
   'maintenance_period',
+  'prospect',
 ] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
@@ -399,6 +408,15 @@ export const sourceWords: Readonly<
     },
     anchor: 'dem Beginn des Vertrags',
   },
+  // Due the months of the interval after the last contact (#317).
+  prospect: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Gezählt ab dem letzten Kontakt mit dem Lead.',
+    },
+    anchor: 'dem letzten Kontakt',
+  },
 }
 
 /** Who a kind gives a deadline to when nobody has said otherwise, in those words. */
@@ -414,6 +432,7 @@ const actionWords: Readonly<Record<DeadlineAction, string>> = {
   service_job: 'ein Serviceauftrag im Entwurf',
   status: 'ein neuer Stand an der Quelle',
   customer_reminder: 'eine Erinnerung an den Kunden',
+  erasure: 'das Löschen, wenn es unter Datenschutz auf automatisch steht',
 }
 
 /**

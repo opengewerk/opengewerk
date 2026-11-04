@@ -21,6 +21,7 @@ import {
   BellRing,
   Server,
   Shield,
+  ShieldCheck,
   Signature,
   Tag,
   Users,
@@ -148,6 +149,15 @@ const settings = [
     about: 'Wer in diesem Betrieb arbeitet, mit welchen Rollen, und die Einladungen.',
     icon: Users,
     right: 'membership.read',
+  },
+  {
+    key: 'datenschutz',
+    to: '/einstellungen/datenschutz',
+    title: 'Datenschutz',
+    about:
+      'Was nach dem Löschkonzept fällig ist, was gelöscht wurde und wie lange Unterlagen bleiben.',
+    icon: ShieldCheck,
+    right: 'settings.read',
   },
   {
     key: 'protokoll',

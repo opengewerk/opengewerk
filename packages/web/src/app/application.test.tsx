@@ -358,6 +358,7 @@ describe('what each entry hands to the foundation', () => {
       'e-mail',
       'sicherung',
       'zugaenge',
+      'datenschutz',
       'protokoll',
     ])
     expect(application.ownTenant).toBeUndefined()

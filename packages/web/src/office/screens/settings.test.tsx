@@ -92,6 +92,7 @@ describe('the settings', () => {
       '/einstellungen/e-mail',
       '/einstellungen/sicherung',
       '/einstellungen/zugaenge',
+      '/einstellungen/datenschutz',
       '/einstellungen/protokoll',
     ])
   })
@@ -110,7 +111,8 @@ describe('the settings', () => {
 
     expect(screen.queryByRole('link', { name: /Zugänge/ })).toBeNull()
     expect(screen.queryByRole('link', { name: /Änderungsprotokoll/ })).toBeNull()
-    expect(screen.getAllByRole('link')).toHaveLength(13)
+    // "Datenschutz" it reads; deleting there is for whoever leads (#317).
+    expect(screen.getAllByRole('link')).toHaveLength(14)
   })
 
   it('offer a technician none of them', async () => {
