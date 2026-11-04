@@ -263,6 +263,24 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
     label: 'Ablehnung eines Angebots',
     fields: { document_id: 'Angebot', declined_on: 'Abgelehnt am', reason: 'Grund' },
   },
+  // The protocol of the deletion concept (#317).
+  erasures: {
+    label: 'Löschung nach dem Löschkonzept',
+    fields: {
+      kind: 'Art',
+      record_id: 'Gelöschter Datensatz',
+      label: 'Was',
+      due_on: 'Fällig seit',
+      automatic: 'Von selbst',
+      redactions: 'Geschwärzte Werte',
+      created_by: 'Gelöscht von',
+    },
+  },
+  // A kind of the deletion concept that goes by itself (#317).
+  erasure_automations: {
+    label: 'Automatisch löschen',
+    fields: { kind: 'Art', created_by: 'Eingeschaltet von' },
+  },
   // The leads of the office (#312).
   prospects: {
     label: 'Lead',

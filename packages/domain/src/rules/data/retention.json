@@ -1,0 +1,69 @@
+{
+  "package": "retention",
+  "note": "Die Aufbewahrungsfristen des Löschkonzepts (#317), nach Abschnitt 7 der Feature-Gliederung getrennt hinterlegt. Geprüft am 04.11.2026 am Text von § 147 AO, § 257 HGB, § 14b UStG, § 17 MiLoG und Art. 97 § 19a EGAO bei gesetze-im-internet.de. Die Frist beginnt mit dem Schluss des Kalenderjahres (§ 147 Abs. 4 AO, § 257 Abs. 5 HGB, § 14b Abs. 1 Satz 3 UStG), die Aufzeichnungen nach MiLoG und ArbZG ab dem Tag der Aufzeichnung; welche Unterlage wann beginnt, steht in `model/retention.ts`. Maßgeblich ist die Frist am Tag der Prüfung: die acht Jahre gelten für jede Unterlage, deren Frist nach der alten Fassung am 31.12.2024 noch nicht abgelaufen war (Art. 97 § 19a Abs. 2 EGAO), außer bei Kreditinstituten, Versicherungen und Wertpapierinstituten (Abs. 3). Eine Frist läuft nicht ab, solange die Unterlagen für Steuern von Bedeutung sind, deren Festsetzungsfrist noch läuft (§ 147 Abs. 3 Satz 5 AO); das kann die Engine nicht wissen, deshalb schlägt der Löschlauf vor und der Inhaber bestätigt. Frühere Fassungen vor 2002 sind nicht abgebildet. Die fachkundige Abnahme steht aus wie bei den Regelpaketen in #31.",
+  "records": [
+    {
+      "key": "retention.books",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 10,
+      "source": "§ 147 Abs. 1 Nr. 1, Abs. 3 Satz 1 AO; § 257 Abs. 1 Nr. 1, Abs. 4 HGB",
+      "note": "Bücher und Aufzeichnungen, Inventare, Jahresabschlüsse, Lageberichte, die Eröffnungsbilanz und die Arbeitsanweisungen und Organisationsunterlagen zu ihrem Verständnis."
+    },
+    {
+      "key": "retention.booking_vouchers",
+      "validFrom": "2002-01-01",
+      "validUntil": "2024-12-31",
+      "unit": "years",
+      "value": 10,
+      "source": "§ 147 Abs. 3 Satz 1 AO a. F.; § 257 Abs. 4 HGB a. F.; § 14b Abs. 1 Satz 1 UStG a. F.",
+      "note": "Buchungsbelege und Rechnungen bis zum Bürokratieentlastungsgesetz IV."
+    },
+    {
+      "key": "retention.booking_vouchers",
+      "validFrom": "2025-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 8,
+      "source": "§ 147 Abs. 1 Nr. 4, Abs. 3 Satz 1 AO; § 257 Abs. 1 Nr. 4, Abs. 4 HGB; § 14b Abs. 1 Satz 1 UStG",
+      "note": "Buchungsbelege und Rechnungen, für jede Unterlage, deren Frist nach der alten Fassung am 31.12.2024 noch nicht abgelaufen war (Art. 97 § 19a Abs. 2 EGAO)."
+    },
+    {
+      "key": "retention.business_letters",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 6,
+      "source": "§ 147 Abs. 1 Nr. 2 und 3, Abs. 3 Satz 1 AO; § 257 Abs. 1 Nr. 2 und 3, Abs. 4 HGB",
+      "note": "Empfangene Handels- und Geschäftsbriefe und die Wiedergaben der abgesandten."
+    },
+    {
+      "key": "retention.other_tax_documents",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 6,
+      "source": "§ 147 Abs. 1 Nr. 5, Abs. 3 Satz 1 AO",
+      "note": "Sonstige Unterlagen, soweit sie für die Besteuerung von Bedeutung sind."
+    },
+    {
+      "key": "retention.minimum_wage_records",
+      "validFrom": "2015-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 2,
+      "source": "§ 17 Abs. 1 Satz 1 MiLoG",
+      "note": "Beginn, Ende und Dauer der täglichen Arbeitszeit, mindestens zwei Jahre ab dem für die Aufzeichnung maßgeblichen Zeitpunkt."
+    },
+    {
+      "key": "retention.working_time_records",
+      "validFrom": "1994-07-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 2,
+      "source": "§ 16 Abs. 2 ArbZG",
+      "note": "Die Nachweise über die Arbeitszeit, die über die werktägliche Arbeitszeit hinausgeht, mindestens zwei Jahre."
+    }
+  ]
+}

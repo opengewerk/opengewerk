@@ -97,6 +97,19 @@
       "responsible": "lead",
       "actions": ["status"],
       "taskTitle": "Rechnung: {quelle}"
+    },
+    {
+      "key": "privacy.prospect_erasure",
+      "trade": null,
+      "title": "Lead löschen",
+      "about": "Ein Lead, der nie Kunde wurde, ist eine Zahl von Monaten nach dem letzten Kontakt zum Löschen fällig (Löschkonzept). Er steht dann unter Einstellungen, Datenschutz, wo das Löschen bestätigt wird; steht die Art dort auf automatisch, löscht der Lauf ihn von selbst. Ein späterer Kontakt verschiebt die Frist, wird er Kunde oder gelöscht, entfällt sie.",
+      "source": "prospect",
+      "intervalDays": null,
+      "intervalMonths": 12,
+      "leadDays": 0,
+      "responsible": "lead",
+      "actions": ["erasure"],
+      "taskTitle": "Lead löschen: {quelle}"
     }
   ]
 }

@@ -58,4 +58,6 @@ export const serverPaths = [
   'offer-declines',
   // The notes and calls at a customer and a site, and their history (#313).
   'communications',
+  // The deletion concept: what is due, the protocol and what goes by itself (#317).
+  'privacy',
 ] as const

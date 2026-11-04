@@ -497,6 +497,17 @@ describe('the settings of each kind', () => {
         responsible: 'lead',
         actions: ['status'],
       }),
+      // A lead that never became a customer (#317), twelve months after its last
+      // contact, deleted only where the owner set it to go by itself.
+      expect.objectContaining({
+        key: 'privacy.prospect_erasure',
+        title: 'Lead löschen',
+        intervalDays: null,
+        intervalMonths: 12,
+        leadDays: 0,
+        responsible: 'lead',
+        actions: ['erasure'],
+      }),
       // The recurring inspection of the package Elektro (#301), for whoever signed the last protocol.
       expect.objectContaining({
         key: 'elektro.recurring_inspection',

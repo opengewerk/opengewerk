@@ -20,6 +20,7 @@ import {
   nextPeriod,
   nextVisitOn,
   type PaymentRhythm,
+  prospectErasureLabel,
   readFormValues,
   type SignedTest,
   shippedRules,
@@ -39,6 +40,7 @@ import {
   jobs,
   maintenanceContracts,
   offerDeclines,
+  prospects,
   sites,
 } from '../database/schema/index.js'
 import { tradeForms } from '../forms/registry.js'
@@ -820,6 +822,39 @@ export const maintenancePeriodsDue: SourceQuery<DeadlineValues> = async (tx) => 
   })
 }
 
+/**
+ * The leads that never became a customer (#317), each due the months of its
+ * kind after its last contact. Named without a name (`prospectErasureLabel`):
+ * the deadline outlives the lead it proposes for deletion, and so does the
+ * task or the protocol line that may come from it. A later contact moves the
+ * deadline; the lead becoming a customer or being deleted lets it drop.
+ */
+export const erasableProspects: SourceQuery<DeadlineValues> = async (tx) => {
+  const rows = await tx
+    .select({
+      id: prospects.id,
+      source: prospects.source,
+      lastContactOn: prospects.lastContactOn,
+    })
+    .from(prospects)
+    .where(isNull(prospects.customerId))
+
+  return rows.map((row) => ({
+    sourceId: row.id,
+    sourceLabel: prospectErasureLabel(row),
+    anchorOn: row.lastContactOn,
+    namedDueOn: null,
+    naturalUserId: null,
+    values: {
+      documentId: null,
+      installationId: null,
+      customerId: null,
+      siteId: null,
+      jobId: null,
+    },
+  }))
+}
+
 /** Every source there is, by the name a kind gives it. */
 export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
   {
@@ -834,4 +869,5 @@ export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<
     maintenance_visit: maintenanceVisitsDue,
     maintenance_notice: maintenanceNoticesDue,
     maintenance_period: maintenancePeriodsDue,
+    prospect: erasableProspects,
   }

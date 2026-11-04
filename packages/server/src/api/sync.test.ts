@@ -353,7 +353,11 @@ describe('the tables', () => {
       // An offer the customer turned down (#841), marked at the desk.
       name === 'offer_declines' ||
       // The notes and calls at a customer and a site (#313), written at the desk.
-      name === 'communications'
+      name === 'communications' ||
+      // The protocol of the deletion concept and the kinds that go by
+      // themselves (#317), kept at the desk.
+      name === 'erasures' ||
+      name === 'erasure_automations'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

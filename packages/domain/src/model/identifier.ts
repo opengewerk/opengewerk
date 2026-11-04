@@ -25,6 +25,7 @@ export type MaintenanceContractId = Id<'maintenance-contract'>
 export type ProspectId = Id<'prospect'>
 export type OfferDeclineId = Id<'offer-decline'>
 export type CommunicationId = Id<'communication'>
+export type ErasureId = Id<'erasure'>
 export type DocumentSignatureId = Id<'document-signature'>
 export type TaskId = Id<'task'>
 export type InstructionId = Id<'instruction'>

@@ -63,5 +63,7 @@ await checkWidths({
     // A note and a call in the history of a customer and a site (#313).
     'Notiz',
     'Anruf eintragen',
+    // The question before leads that are due go, under "Datenschutz" (#317).
+    'Ausgewählte löschen',
   ],
 })

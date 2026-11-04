@@ -5,6 +5,7 @@ import eInvoice from './data/e-invoice.json' with { type: 'json' }
 import holidays from './data/holidays.json' with { type: 'json' }
 import invoice from './data/invoice.json' with { type: 'json' }
 import payment from './data/payment.json' with { type: 'json' }
+import retention from './data/retention.json' with { type: 'json' }
 import { type RuleRecord, ruleSet, type RuleSet } from '@opengewerk/platform-domain'
 import smallBusiness from './data/small-business.json' with { type: 'json' }
 import vat from './data/vat.json' with { type: 'json' }
@@ -54,6 +55,7 @@ export const rulePackages: readonly RulePackage[] = [
   holidays as RulePackage,
   warranty as RulePackage,
   contract as RulePackage,
+  retention as RulePackage,
 ]
 
 /**
