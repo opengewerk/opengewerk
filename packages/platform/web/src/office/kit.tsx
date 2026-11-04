@@ -124,9 +124,12 @@ export function PageHead({
         </Link>
       ) : null}
       {/* On a desktop the head stays one row, as on the boards: the title gives way and its
-          badges wrap, the actions keep their place on the right. Below that they wrap under it. */}
-      <div className="flex flex-wrap items-start gap-3 lg:flex-nowrap">
-        <div className="min-w-0 grow">
+          badges wrap, the actions keep their place on the right. Below that they wrap under it.
+          A title gives way down to 15rem and no further: a head with more actions than that
+          leaves room for, five buttons at 1024 pixels, puts them under the title instead of
+          squeezing it to a letter a line and the buttons past the edge of the screen. */}
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="min-w-0 grow lg:basis-[15rem]">
           <div className="flex flex-wrap items-center gap-x-[11px] gap-y-1 max-lg:gap-y-0">
             <h1 className="text-[24px] leading-[1.2] font-semibold tracking-[-0.2px] text-ink [overflow-wrap:anywhere] max-sm:basis-full">
               {title}
@@ -142,7 +145,7 @@ export function PageHead({
         {actions ? (
           <div
             className={clsx(
-              'flex flex-wrap items-center gap-2 lg:shrink-0',
+              'flex max-w-full flex-wrap items-center gap-2 lg:shrink-0',
               wideActions &&
                 'max-sm:grid max-sm:basis-full max-sm:grid-cols-2 max-sm:[&>*:only-child]:col-span-2',
             )}

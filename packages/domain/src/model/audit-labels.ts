@@ -139,6 +139,7 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       buyer_reference: 'Käuferreferenz',
       reminder_ground: 'Grundlage für Erinnerungen',
       reminder_ground_on: 'Grundlage für Erinnerungen seit',
+      source: 'Quelle',
     },
   },
   document_files: {
@@ -242,6 +243,21 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       grid_operator_reference: 'Kennung beim Netzbetreiber',
       usable_capacity_wh: 'Nutzbare Speicherkapazität',
       rated_power_w: 'Bemessungsleistung',
+    },
+  },
+  // The leads of the office (#312).
+  prospects: {
+    label: 'Lead',
+    fields: {
+      name: 'Name',
+      concern: 'Anliegen',
+      email: 'E-Mail',
+      source: 'Quelle',
+      stage: 'Stand',
+      last_contact_on: 'Letzter Kontakt',
+      customer_id: 'Kunde',
+      site_id: 'Objekt',
+      converted_at: 'Kunde geworden am',
     },
   },
   // The maintenance contracts of the office (#294).

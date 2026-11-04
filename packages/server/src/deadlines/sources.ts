@@ -58,7 +58,7 @@ export interface DeadlineValues {
 /**
  * The quotes that went out and that nothing has followed: no order
  * confirmation, no invoice, no document at all with the quote as its
- * predecessor. A draft that follows counts as well, because somebody is
+ * predecessor, and no maintenance contract made out of it. A draft that follows counts as well, because somebody is
  * already on it; if it is thrown away, the quote is open again, and so is its
  * deadline.
  *
@@ -87,6 +87,13 @@ export const openQuotes: SourceQuery<DeadlineValues> = async (tx) => {
            where following.tenant_id = ${documents.tenantId}
              and following.predecessor_document_id = ${documents.id}
              and following.deleted_at is null
+        )`,
+        // A maintenance contract made out of the quote (#294) is its order as
+        // much as a confirmation would be (#312): nothing to follow up.
+        sql`not exists (
+          select 1 from ${maintenanceContracts} as contract
+           where contract.tenant_id = ${documents.tenantId}
+             and contract.quote_id = ${documents.id}
         )`,
       ),
     )

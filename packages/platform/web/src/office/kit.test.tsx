@@ -83,7 +83,7 @@ describe('the head of a screen', () => {
     expect(screen.getAllByRole('link', { name: 'Regale' })).toHaveLength(2)
   })
 
-  it('stays one row on a desk, where the title gives way and the actions keep their place', async () => {
+  it('stays one row on a desk, where the title gives way down to 15rem and the actions keep their place', async () => {
     await shown(
       <PageHead
         title="Regal am Fenster"
@@ -96,9 +96,13 @@ describe('the head of a screen', () => {
     const actions = screen.getByRole('button', { name: 'Bearbeiten' }).parentElement
     const row = actions?.parentElement
 
-    expect(row?.className).toContain('lg:flex-nowrap')
+    expect(row?.className).toContain('flex-wrap')
     expect(actions?.className).toContain('lg:shrink-0')
     expect(row?.firstElementChild?.className).toContain('min-w-0')
+    // The title gives way down to 15rem and no further: then the actions go
+    // under it, and break within the width of the screen.
+    expect(row?.firstElementChild?.className).toContain('lg:basis-[15rem]')
+    expect(actions?.className).toContain('max-w-full')
   })
 
   it('has no path where a screen gives none', async () => {

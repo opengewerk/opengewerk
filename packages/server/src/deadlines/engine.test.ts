@@ -341,6 +341,23 @@ describe('a quote that went out', () => {
     expect(await only()).toMatchObject({ status: 'open', closedAt: null })
   })
 
+  it('drops out when a maintenance contract is made out of the quote (#312)', async () => {
+    const quote = await aQuote()
+    await runDeadlinesOf(engine(), north, before)
+
+    await admin.query(
+      `insert into maintenance_contracts (tenant_id, number, designation, customer_id, quote_id, starts_on,
+         first_visit_on, interval_months, term_months, renewal, notice_months, price_kind)
+       values ($1, 'WV-2037-0001', 'Wartung', $2, $3, '2037-09-15', '2038-12-01', 12, 24, 'none', 0, 'effort')`,
+      [north, customers[north], quote],
+    )
+
+    expect(await runDeadlinesOf(engine(), north, before)).toMatchObject({ dropped: 1 })
+    expect(await runDeadlinesOf(engine(), north, dueDay)).toMatchObject({ reminded: 0 })
+    expect(await tasksOf()).toHaveLength(0)
+    await admin.query('delete from maintenance_contracts')
+  })
+
   it('is done when the task its reminder made is done, by whoever did it', async () => {
     await aQuote()
     await runDeadlinesOf(engine(), north, dueDay)

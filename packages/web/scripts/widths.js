@@ -54,5 +54,9 @@ await checkWidths({
     // screen of its own on site.
     'Mangel erfassen',
     'Reklamation erfassen',
+    // A new lead, behind a button on the pipeline and the list, and making a
+    // customer of one, a dialog on the lead (#312).
+    'Lead erfassen',
+    'Kunde anlegen',
   ],
 })

@@ -2,6 +2,7 @@ import type { Address } from './address.js'
 import type { IsoDate, Synced } from '@opengewerk/platform-domain'
 import type { CustomerId } from './identifier.js'
 import type { ReminderGround } from './customer-reminder.js'
+import type { ProspectSource } from './prospect.js'
 
 /**
  * The four kinds the concept distinguishes. They differ in how a job reaches
@@ -57,6 +58,12 @@ export interface Customer extends Synced, Address {
    */
   readonly reminderGround: ReminderGround | null
   readonly reminderGroundOn: IsoDate | null
+
+  /**
+   * How the customer found the business (#312): the source of the lead it
+   * came from, or what the office chose; null where nobody said.
+   */
+  readonly source: ProspectSource | null
 
   readonly notes: string | null
 }

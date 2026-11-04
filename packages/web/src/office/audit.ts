@@ -6,6 +6,8 @@ import {
   metalNames,
   type NumberRangeKey,
   overcurrentDeviceLabel,
+  prospectSourceLabel,
+  prospectStageLabel,
   rcdTypeLabel,
   tripCharacteristicLabel,
 } from '@opengewerk/domain'
@@ -70,6 +72,7 @@ const screens: Words = {
   grid_operators: '/netzbetreiber/',
   funding_programs: '/foerderprogramme/',
   maintenance_contracts: '/wartungsvertraege/',
+  prospects: '/leads/',
 }
 
 /** The label of the link to a record, "Zum Kunden". */
@@ -90,6 +93,7 @@ const links: Words = {
   grid_operators: 'Zum Netzbetreiber',
   funding_programs: 'Zum Förderprogramm',
   maintenance_contracts: 'Zum Wartungsvertrag',
+  prospects: 'Zum Lead',
 }
 
 /** What happened to a document where one word says it. */
@@ -102,7 +106,9 @@ const documentSteps: Words = {
 export const auditScreenWords: AuditScreenWords = {
   vocabulary: auditVocabulary,
   values: {
-    customers: { kind: customerKindLabel },
+    customers: { kind: customerKindLabel, source: prospectSourceLabel },
+    // The leads (#312).
+    prospects: { kind: customerKindLabel, source: prospectSourceLabel, stage: prospectStageLabel },
     installations: { kind: installationKindLabel },
     // The register of appliances (#303).
     appliances: { mobility: applianceMobilityLabel },

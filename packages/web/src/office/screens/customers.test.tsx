@@ -115,6 +115,20 @@ beforeEach(() => {
         },
       ],
       ['/auth/tenants', [aTenantChoice(['office'])]],
+      // The lead a customer came from (#312).
+      [
+        '/prospects',
+        [
+          {
+            id: 'l-1',
+            name: 'Klaus Lehmann',
+            customerId: 'c-1',
+            source: 'referral',
+            stage: 'qualified',
+            createdAt: '2026-10-28T09:00:00.000Z',
+          },
+        ],
+      ],
     ])
 
     return Promise.resolve(
@@ -318,6 +332,45 @@ describe('the reminders of a customer (#316)', () => {
 
     expect(sent['reminderGround'] ?? null).toBeNull()
     expect(sent['reminderGroundOn'] ?? null).toBeNull()
+  })
+})
+
+describe('the source of a customer (#312)', () => {
+  it('stands among the facts, with the lead it came from', async () => {
+    server.put('customers', {
+      ...customer('c-1', 'Klaus Lehmann', 'private', 'Hamburg'),
+      source: 'referral',
+    })
+    await mount('/kunden/c-1')
+
+    const facts = await screen.findByRole('region', { name: 'Stammdaten' })
+    const lead = await within(facts).findByRole('link', { name: 'Lead vom 28.10.2026' })
+
+    expect(lead.getAttribute('href')).toBe('/leads/l-1')
+    expect(within(facts).getByText(/Empfehlung, aus dem/)).toBeDefined()
+  })
+
+  it('is left out of the facts where nobody said', async () => {
+    server.put('customers', customer('c-1', 'Klaus Lehmann', 'private', 'Hamburg'))
+    await mount('/kunden/c-1')
+
+    const facts = await screen.findByRole('region', { name: 'Stammdaten' })
+
+    expect(within(facts).queryByText('Quelle')).toBeNull()
+  })
+
+  it('is chosen in the form and sent with the customer', async () => {
+    await mount('/kunden/neu')
+    const user = userEvent.setup()
+
+    await user.type(await screen.findByLabelText('Name'), 'Café Rosengarten')
+    await user.selectOptions(screen.getByLabelText('Quelle'), 'Website')
+    await user.click(screen.getByRole('button', { name: 'Kunde anlegen' }))
+
+    await waitFor(() => {
+      expect(server.all('customers')).toHaveLength(1)
+    })
+    expect(server.all('customers')[0]).toMatchObject({ source: 'website' })
   })
 })
 

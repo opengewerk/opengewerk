@@ -503,6 +503,14 @@ const crossings: readonly {
             maintenance_contract_id = ${other.maintenanceContract} where id = ${own.document}`,
   },
   {
+    key: 'prospects_customer_in_tenant',
+    write: (own, other) => repoint('prospects', 'customer_id', own.prospect, other.customer),
+  },
+  {
+    key: 'prospects_site_in_tenant',
+    write: (own, other) => repoint('prospects', 'site_id', own.prospect, other.site),
+  },
+  {
     key: 'maintenance_contracts_customer_in_tenant',
     write: (own, other) =>
       repoint('maintenance_contracts', 'customer_id', own.maintenanceContract, other.customer),
@@ -1508,6 +1516,8 @@ interface Planted {
   readonly gridOperator: string
   readonly fundingProgram: string
   readonly maintenanceContract: string
+  /** A lead of the business that became the customer above, with its site (#312). */
+  readonly prospect: string
   /** An acceptance at the job above, a draft, and a defect at the job (#311). */
   readonly acceptance: string
   readonly defect: string
@@ -1761,6 +1771,11 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
          interval_months, term_months, renewal, notice_months, price_kind)
        values ($1, 'WV-2026-0001', 'Wartung', $2, $3, '2026-11-01', '2026-11-15', 12, 12, 'none', 0, 'effort')`,
       [tenant, customer, document],
+    ),
+    prospect: await one(
+      `insert into prospects (tenant_id, name, source, last_contact_on, customer_id, site_id, converted_at)
+       values ($1, 'Familie Weber', 'phone', '2026-11-03', $2, $3, now())`,
+      [tenant, customer, site],
     ),
     acceptance: await one(
       `insert into form_records (tenant_id, definition_key, definition_version, job_id, performed_on)

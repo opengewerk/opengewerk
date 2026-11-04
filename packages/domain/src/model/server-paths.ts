@@ -52,4 +52,6 @@ export const serverPaths = [
   // The funding programmes as templates of the office (#307).
   'funding-programs',
   'maintenance-contracts',
+  // The leads of the office (#312).
+  'prospects',
 ] as const

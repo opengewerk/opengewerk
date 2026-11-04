@@ -9,6 +9,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Hinzugefügt
 
+- Leads und Vertriebspipeline (#312), nach der Feature-Gliederung v2.68: Das Büro erfasst einen Lead mit Anliegen, Quelle und Stand der Qualifizierung, ohne dass ein Kunde entsteht, und macht ihn in einem Schritt zum Kunden mit Objekt; die Quelle bleibt am Kunden. Unter „Vertrieb“ steht die Pipeline von Lead über Angebot und Auftrag bis abgeschlossen, abgelesen aus den Belegen, mit der Wiedervorlage offener Angebote. Neue Tabelle `prospects`, die Spalte `customers.source` und die Rechte `prospect.read` und `prospect.write` für Inhaber und Büro (Migration 0126). Damit hält OpenGewerk fest, woher Kunden kommen und wie aus einer Anfrage ein Auftrag wird, was die Auswertungen in Phase 6 brauchen.
 - Erinnerungen an Kunden zu Prüfungen und Wartungen (#316), nach der Feature-Gliederung v2.67 und den Tafeln aus
   Version 135 des Canvas: Rückt die Wiederholungsprüfung einer Anlage, die Prüfung der Geräte eines Objekts oder die
   Wartung aus einem Vertrag näher, bekommt der Kunde eine E-Mail mit der Bitte um einen Termin, aus dem neuen Text für
@@ -92,6 +93,8 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Der Kopf einer Seite drückt seinen Titel nicht mehr auf einen Buchstaben je Zeile (#312). Ab 1024 Pixeln blieb er immer eine Zeile, und die Knöpfe behielten ihre Breite: ein festgeschriebenes Angebot mit seinen drei Folgebelegen schob den Titel zusammen und die Knöpfe bei 1024 Pixeln 63 Pixel über den Rand. Jetzt weicht der Titel bis auf 15rem, reicht das nicht, stehen die Knöpfe unter ihm und brechen dort um. Aufgefallen ist es, als die Prüfung der Breiten über die neuen Links der Pipeline zuerst ein solches Angebot traf.
+- Ein Angebot, aus dem ein Wartungsvertrag wurde, bekommt keine Wiedervorlage mehr (#312). Bis jetzt galt es weiter als offen, weil ihm kein Beleg folgt, und die Fristen-Engine hätte 14 Tage nach dem Festschreiben die Aufgabe „Angebot nachfassen“ angelegt; der Vertrag ist aber sein Auftrag. In der Vertriebspipeline steht es deshalb unter „Abgeschlossen“.
 - Die Brotkrume „Kunden“ über einem Beleg ohne Auftrag führt zur Liste der Kunden (#295). Warum: Sie zeigte auf `/kunden`, eine Adresse ohne Seite; aufgefallen ist es an der ersten Dauerrechnung, dem ersten Beleg ohne Auftrag, den die Prüfung der Breiten erreichte.
 - Die Rechnung vor Ort aus #292 schreibt die Einheit einer Position kurz wie das gedruckte Dokument, „1 Std.“ statt
   „1 Stunden“ (#293). Warum: Neben einer Menge stand die ausgeschriebene Einheit der Auswahlliste, die nur im Plural

@@ -1,4 +1,4 @@
-import { customerKinds, reminderGrounds } from '@opengewerk/domain'
+import { customerKinds, prospectSources, reminderGrounds } from '@opengewerk/domain'
 import { primaryId, syncColumns, tenantIsolation, timestamps } from '@opengewerk/platform-server'
 import { tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
@@ -7,6 +7,9 @@ import { boolean, check, date, pgEnum, pgTable, text, unique } from 'drizzle-orm
 export const customerKind = pgEnum('customer_kind', customerKinds)
 
 export const reminderGround = pgEnum('reminder_ground', reminderGrounds)
+
+/** Where a lead came from (#312), and the customer it became keeps it. */
+export const prospectSource = pgEnum('prospect_source', prospectSources)
 
 /**
  * The customer. Tax attributes sit here because they decide how a document has
@@ -44,6 +47,10 @@ export const customers = pgTable(
     // contract (#316), and since when; null for only a contract's.
     reminderGround: reminderGround('reminder_ground'),
     reminderGroundOn: date('reminder_ground_on'),
+
+    // How the customer found the business (#312), from its lead or chosen in
+    // the office; null where nobody said.
+    source: prospectSource('source'),
 
     notes: text('notes'),
     ...timestamps,
