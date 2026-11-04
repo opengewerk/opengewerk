@@ -964,7 +964,7 @@ const aboutNoCustomer: DeadlineValues = {
  * read by people who may not see which kind an absence is, and the routes
  * keep the kind from them as well (`hiddenFrom`).
  */
-export const sicknessesToErase: SourceQuery<DeadlineValues> = async (tx) => {
+export const erasableSicknesses: SourceQuery<DeadlineValues> = async (tx) => {
   const today = berlinClock(new Date()).day
 
   return (await dueSicknesses(tx, today)).map((sickness) => ({
@@ -978,7 +978,7 @@ export const sicknessesToErase: SourceQuery<DeadlineValues> = async (tx) => {
 }
 
 /** The years of the people whose time and leave may go (#846), only once they are due, named by the year. */
-export const staffYearsToErase: SourceQuery<DeadlineValues> = async (tx) => {
+export const erasableStaffYears: SourceQuery<DeadlineValues> = async (tx) => {
   const today = berlinClock(new Date()).day
 
   return (await dueStaffYears(tx, today)).map((year) => ({
@@ -995,7 +995,7 @@ export const staffYearsToErase: SourceQuery<DeadlineValues> = async (tx) => {
  * The files of the people who left (#846), once they are due and the access
  * here has ended, named by the day of leaving.
  */
-export const peopleToErase: SourceQuery<DeadlineValues> = async (tx) => {
+export const erasablePeople: SourceQuery<DeadlineValues> = async (tx) => {
   const today = berlinClock(new Date()).day
 
   return (await duePeople(tx, today))
@@ -1027,7 +1027,7 @@ export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<
     prospect: erasableProspects,
     customer: erasableCustomers,
     erasure_request: openErasureRequests,
-    sickness: sicknessesToErase,
-    staff_year: staffYearsToErase,
-    person: peopleToErase,
+    sickness: erasableSicknesses,
+    staff_year: erasableStaffYears,
+    person: erasablePeople,
   }
