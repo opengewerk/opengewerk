@@ -918,6 +918,13 @@
       "when": 1793797260668,
       "tag": "0130_customer_erasure",
       "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1793804912324,
+      "tag": "0131_staff_erasure",
+      "breakpoints": true
     }
   ]
 }

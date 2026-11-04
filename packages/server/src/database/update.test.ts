@@ -2707,4 +2707,37 @@ describe('the rollback of deleting customers', () => {
       ).rowCount,
     ).toBe(0)
   })
+
+  it('deletes no line of the staff, and stops while there is one (0131)', async () => {
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `begin; set local app.user_id = 'lena';
+       insert into erasures (tenant_id, kind, record_id, label, automatic, redactions, created_by)
+       values ('${tenant.id}', 'sickness', '${newId<'absence'>()}', 'Krankheit, letzter Tag 14.10.2025', false, 20, 'lena');
+       commit;`,
+    )
+
+    await expect(revertMigration(admin, '0131_staff_erasure')).rejects.toThrow(
+      'Die Rücknahme von 0131 löscht sie nicht',
+    )
+
+    await admin.query(
+      'begin; set local session_replication_role = replica; delete from erasures; commit;',
+    )
+    await revertMigration(admin, '0131_staff_erasure')
+
+    const labels = await admin.query(
+      "select e.enumlabel from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'erasure_kind' order by e.enumsortorder",
+    )
+
+    expect(labels.rows.map((row: { enumlabel: string }) => row.enumlabel)).toEqual([
+      'prospect',
+      'customer',
+    ])
+    expect(
+      (await admin.query("select 1 from pg_proc where proname = 'staff_year_key'")).rowCount,
+    ).toBe(0)
+  })
 })

@@ -63,11 +63,15 @@ function countWord(count: number): string {
 const kindCounted: Readonly<Record<ErasureKind, readonly [string, string]>> = {
   prospect: ['einen Lead', 'Leads'],
   customer: ['einen Kunden', 'Kunden'],
+  sickness: ['eine Krankheit', 'Krankheiten'],
+  staff_year: ['ein Jahr', 'Jahre'],
+  person: ['eine Akte', 'Akten'],
 }
 
 /**
  * The question before deleting, by kind: "Zwei Leads löschen?", "Einen
- * Kunden löschen?", "Zwei Leads und einen Kunden löschen?".
+ * Kunden löschen?", "Zwei Leads und einen Kunden löschen?", "Eine Krankheit,
+ * ein Jahr und eine Akte löschen?".
  */
 export function erasureQuestion(counts: Partial<Readonly<Record<ErasureKind, number>>>): string {
   const parts = erasureKinds.flatMap((kind) => {
@@ -76,7 +80,10 @@ export function erasureQuestion(counts: Partial<Readonly<Record<ErasureKind, num
 
     return count === 0 ? [] : [count === 1 ? one : `${countWord(count).toLowerCase()} ${many}`]
   })
-  const said = parts.join(' und ')
+  const said =
+    parts.length < 2
+      ? parts.join('')
+      : `${parts.slice(0, -1).join(', ')} und ${parts[parts.length - 1] ?? ''}`
 
   return `${said.charAt(0).toUpperCase()}${said.slice(1)} löschen?`
 }
@@ -97,6 +104,14 @@ export function whoGoes(names: readonly string[]): string {
 /** What goes with a customer and what stays (#845), before it goes. */
 export const withCustomer =
   'Mit einem Kunden gehen seine Ansprechpartner, sein Verlauf, seine Aufträge, Belege und Dateien; Objekte und Anlagen bleiben ohne seine Daten.'
+
+/** What goes with a year of a person (#846), before it goes. */
+export const withYear =
+  'Mit einem Jahr gehen die Arbeitszeiten, die Rufbereitschaft, der Urlaub und der Urlaubsanspruch dieses Jahres.'
+
+/** What goes with the file of somebody who left (#846), and what stays a while. */
+export const withPerson =
+  'Mit einer Akte gehen die vereinbarte Arbeitszeit, die Qualifikationen mit ihren Zertifikaten und der Zugang; werden von der Person noch Arbeitszeiten aufbewahrt, bleibt ihr Name, bis das letzte Jahr geht.'
 
 /** What stays of whatever went: a line without a name. */
 const protocolSentence =
@@ -142,7 +157,8 @@ function DueSection({ overview }: { readonly overview: PrivacyOverview }) {
     return (
       <Panel title="Zum Löschen fällig" roomy>
         <SettingsText muted>
-          Was zum Löschen fällig ist, sieht, wer Leads oder Kunden sehen darf.
+          Was zum Löschen fällig ist, sieht, wer Leads oder Kunden sehen, Abwesenheiten pflegen oder
+          Akten lesen darf.
         </SettingsText>
       </Panel>
     )
@@ -165,7 +181,7 @@ function DueTable({
   const [problem, setProblem] = useState<string | null>(null)
   const chosen = due.filter((entry) => !unselected.has(entry.recordId))
   const note =
-    'Ein Lead, der nie Kunde wurde, kommt nach dem letzten Kontakt hierher, vorgegeben nach zwölf Monaten; ein Kunde, wenn mit ihm nichts mehr läuft, vorgegeben drei Jahre nach dem letzten Kontakt, oder auf seine Löschanfrage. Die Dauer steht unter Fristen bei „Lead löschen“ und „Kunde löschen“.'
+    'Ein Lead, der nie Kunde wurde, kommt nach dem letzten Kontakt hierher, vorgegeben nach zwölf Monaten; ein Kunde, wenn mit ihm nichts mehr läuft, vorgegeben drei Jahre nach dem letzten Kontakt, oder auf seine Löschanfrage. Die Dauer steht unter Fristen bei „Lead löschen“ und „Kunde löschen“. Eine Krankheit kommt zwölf Monate nach ihrem letzten Tag, Arbeitszeiten und Urlaub eines Jahres sechs Jahre nach dessen Ende und die Akte einer Person drei Jahre nach dem Ende ihres Austrittsjahres, sobald ihr Zugang geendet hat.'
   const counts = Object.fromEntries(
     erasureKinds.map((kind) => [kind, chosen.filter((entry) => entry.kind === kind).length]),
   ) as Readonly<Record<ErasureKind, number>>
@@ -309,6 +325,8 @@ function DueTable({
         {[
           whoGoes(chosen.map((entry) => entry.name)),
           counts.customer > 0 ? withCustomer : null,
+          counts.staff_year > 0 ? withYear : null,
+          counts.person > 0 ? withPerson : null,
           protocolSentence,
         ]
           .filter((part) => part !== null)
@@ -323,6 +341,12 @@ const automaticWords: Readonly<Record<ErasureKind, string>> = {
     'Eingeschaltet löscht der Lauf jeden fälligen Lead von selbst, im Namen dessen, der es eingeschaltet hat, und schwärzt seine Werte im Änderungsprotokoll. Führt diese Person den Betrieb nicht mehr, schlägt der Lauf wieder nur vor.',
   customer:
     'Eingeschaltet löscht der Lauf jeden fälligen Kunden von selbst, wie die Leads; die auf eine Löschanfrage eingeschlossen.',
+  sickness:
+    'Eingeschaltet löscht der Lauf jede Krankheit zwölf Monate nach ihrem letzten Tag von selbst. Danach zählt ein Tag darin, der in einem Urlaub lag, wieder als Urlaub.',
+  staff_year:
+    'Eingeschaltet löscht der Lauf die Arbeitszeiten, die Rufbereitschaft, den Urlaub und den Urlaubsanspruch eines Jahres von selbst, sobald sie als Lohnunterlage nicht mehr aufzubewahren sind.',
+  person:
+    'Eingeschaltet löscht der Lauf die Akte einer ausgetretenen Person von selbst, mit ihrer Arbeitszeit, ihren Qualifikationen und ihrem Zugang.',
 }
 
 /**
@@ -648,7 +672,7 @@ export function periodWords(key: string, on: IsoDate): string {
     .filter((record: RuleRecord) => record.key === key && record.validUntil !== null)
     .filter((record) => (record.validUntil ?? '') < now.validFrom)
     .sort((a, b) => (a.validFrom < b.validFrom ? 1 : -1))[0]
-  const years = `${String(now.value)} Jahre`
+  const years = now.value === 1 ? '1 Jahr' : `${String(now.value)} Jahre`
 
   return before && before.value !== now.value
     ? `${years}, bis ${(before.validUntil ?? '').slice(0, 4)} ${yearWords[before.value] ?? String(before.value)}`
@@ -664,7 +688,7 @@ function RetentionSection() {
       kind,
       label: words.label,
       period: periodWords(words.rule, day),
-      starts: words.starts === 'end_of_year' ? 'Ende des Jahres' : 'Tag der Aufzeichnung',
+      starts: words.begins,
       source: shippedRules.at(words.rule, day)?.source ?? '',
     }
   })
@@ -673,7 +697,7 @@ function RetentionSection() {
     <TablePanel
       title="Aufbewahrungsfristen"
       caption="Aufbewahrungsfristen"
-      note="Eine Frist läuft nicht ab, solange die Unterlagen für Steuern von Bedeutung sind, deren Festsetzungsfrist noch läuft (§ 147 Abs. 3 Satz 5 AO). Deshalb schlägt der Löschlauf vor, und wer den Betrieb führt, bestätigt. Rechnungen, Gutschriften und Stornos eines Kunden zählen als Buchungsbelege, seine übrigen Belege als Geschäftsbriefe."
+      note="Eine Frist läuft nicht ab, solange die Unterlagen für Steuern von Bedeutung sind, deren Festsetzungsfrist noch läuft (§ 147 Abs. 3 Satz 5 AO). Deshalb schlägt der Löschlauf vor, und wer den Betrieb führt, bestätigt. Rechnungen, Gutschriften und Stornos eines Kunden zählen als Buchungsbelege, seine übrigen Belege als Geschäftsbriefe. Urlaub und Urlaubsanspruch eines Jahres bleiben so lange wie die Arbeitszeiten desselben Jahres."
       cards={rows.map((row) => ({
         key: row.kind,
         title: row.label,

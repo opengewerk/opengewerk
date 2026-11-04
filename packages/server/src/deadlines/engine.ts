@@ -22,7 +22,8 @@ import {
   runDeadlineCycle as runFoundationCycle,
   runDeadlinesOf as runFoundationDeadlinesOf,
   type SourceQuery,
-  startDeadlineWorker as startFoundationWorker,
+  everyTenant,
+  startRepeating,
   type TenantTransaction,
 } from '@opengewerk/platform-server'
 import { and, eq, isNull, ne, sql } from 'drizzle-orm'
@@ -33,6 +34,7 @@ import type { ApplicationDeadlineColumns } from '../database/schema/deadlines.js
 import { deadlines, jobs, maintenanceContracts, sites, tasks } from '../database/schema/index.js'
 import { remindCustomer } from '../notifications/customer-reminder.js'
 import { eraseByItself } from '../privacy/erasure.js'
+import { finishErasedAccounts } from '../privacy/staff-erasure.js'
 import { deadlineKinds } from './registry.js'
 import { deadlineSourceQueries, type DeadlineValues } from './sources.js'
 
@@ -255,23 +257,50 @@ function bound(
  * One pass over one business: first the sources, then what has come within
  * its lead. How a pass goes is the foundation's, `runDeadlinesOf` there.
  */
-export function runDeadlinesOf(
+export async function runDeadlinesOf(
   job: DeadlineJob,
   tenantId: TenantId,
   now: Date,
 ): Promise<DeadlineReport> {
-  return runFoundationDeadlinesOf(bound(job), tenantId, now)
+  const report = await runFoundationDeadlinesOf(bound(job), tenantId, now)
+
+  await finishErasedAccounts(job.database, tenantId)
+
+  return report
 }
 
 /**
  * One pass over every business. A business whose pass fails does not stop
  * the others, and how each pass ended is written down for the office.
+ *
+ * After the passes and outside their transactions, the accounts behind the
+ * files the deletion concept took by itself (#846): the foundation opens
+ * transactions of its own for an account. A business whose step fails does
+ * not stop the others, and the next cycle tries it again.
  */
-export function runDeadlineCycle(job: DeadlineJob): Promise<DeadlineReport> {
-  return runFoundationCycle(bound(job))
+export async function runDeadlineCycle(job: DeadlineJob): Promise<DeadlineReport> {
+  const report = await runFoundationCycle(bound(job))
+
+  for (const tenantId of await everyTenant(job.database)) {
+    try {
+      await finishErasedAccounts(job.database, tenantId)
+    } catch (error) {
+      console.error(
+        `Die Konten gelöschter Akten des Betriebs ${tenantId} sind nicht bereinigt.`,
+        error,
+      )
+    }
+  }
+
+  return report
 }
 
 /** Runs the engine every minute, one pass after the other and never two at once. */
 export function startDeadlineWorker(job: DeadlineJob, intervalMs = 60_000): RepeatingJob {
-  return startFoundationWorker(bound(job), intervalMs)
+  return startRepeating({
+    run: () => runDeadlineCycle(job),
+    intervalMs,
+    firstAfterMs: 10_000,
+    failure: 'Der Abgleich der Fristen ist gescheitert.',
+  })
 }

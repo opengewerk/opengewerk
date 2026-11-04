@@ -41,7 +41,7 @@ import {
   tableNamesPeople,
   type TenantId,
 } from '@opengewerk/platform-domain'
-import { and, asc, eq, ilike, inArray, lt, or, type SQL, sql } from 'drizzle-orm'
+import { and, asc, eq, ilike, inArray, lt, notInArray, or, type SQL, sql } from 'drizzle-orm'
 
 import { RequiresPermission } from '../api/authorization.js'
 import { CurrentIdentity, type RequestIdentity } from '../api/identity.js'
@@ -327,6 +327,13 @@ export interface DeadlineRules<
    * not is refused as the person of a deadline.
    */
   readonly mayAnswer?: MayAnswer<Row>
+  /**
+   * The kinds whose deadlines a person does not see, where what a deadline
+   * is about needs a right beyond reading deadlines: a sickness that falls
+   * due is a health datum. Neither the list nor its table shows them, and a
+   * change by key finds none.
+   */
+  readonly hiddenFrom?: (identity: RequestIdentity) => readonly string[]
   /** What follows a new person for a deadline: a task it made changes hands. */
   readonly afterResponsible?: (tx: TenantTransaction, tenantId: TenantId, row: Row) => Promise<void>
   /** What follows a deadline marked done: a task it made is done with it. */
@@ -455,11 +462,12 @@ async function refuseClosed(
   table: DeadlinesTable,
   id: string,
   message: string,
+  visible?: SQL,
 ): Promise<never> {
   const [exists] = await tx
     .select({ id: table.id })
     .from(table)
-    .where(eq(table.id, id as DeadlineRowId))
+    .where(and(eq(table.id, id as DeadlineRowId), visible))
 
   if (!exists) {
     throw new NotFoundException()
@@ -596,6 +604,13 @@ function deadlinesController(
      * The deadlines a question finds, with what the list says about each:
      * a page of them for the list, all of them for its table.
      */
+    /** The deadlines a person sees: every one, but of the kinds hidden from them (`hiddenFrom`). */
+    private visibleTo(identity: RequestIdentity): SQL | undefined {
+      const hidden = this.rules.hiddenFrom?.(identity) ?? []
+
+      return hidden.length === 0 ? undefined : notInArray(this.deadlines().kind, [...hidden])
+    }
+
     private async read(
       identity: RequestIdentity,
       question: DeadlineQuestion,
@@ -607,6 +622,7 @@ function deadlinesController(
         question.kind === null ? undefined : eq(table.kind, question.kind),
         question.search === null ? undefined : this.searching(question.search),
         question.late ? lt(table.dueOn, berlinClock(new Date()).day) : undefined,
+        this.visibleTo(identity),
         ...question.narrowedBy,
       )
       const order = [asc(table.dueOn), asc(table.sourceLabel), asc(table.id)]
@@ -840,7 +856,7 @@ function deadlinesController(
             const [row] = (await tx
               .select()
               .from(table)
-              .where(eq(table.id, id as never))) as KeptDeadline[]
+              .where(and(eq(table.id, id as never), this.visibleTo(identity)))) as KeptDeadline[]
 
             if (row !== undefined) {
               const [allowed] = await mayAnswer(tx, [{ deadline: row, userIds: [person] }])
@@ -858,7 +874,7 @@ function deadlinesController(
         const [updated] = (await tx
           .update(table)
           .set({ ...changes, updatedAt: new Date() })
-          .where(eq(table.id, id as DeadlineRowId))
+          .where(and(eq(table.id, id as DeadlineRowId), this.visibleTo(identity)))
           .returning()) as KeptDeadline[]
 
         if (!updated) {
@@ -887,11 +903,23 @@ function deadlinesController(
         const [updated] = (await tx
           .update(table)
           .set({ status: 'done', closedAt: now, closedBy: identity.userId, updatedAt: now })
-          .where(and(eq(table.id, id as DeadlineRowId), eq(table.status, 'open')))
+          .where(
+            and(
+              eq(table.id, id as DeadlineRowId),
+              eq(table.status, 'open'),
+              this.visibleTo(identity),
+            ),
+          )
           .returning()) as KeptDeadline[]
 
         if (!updated) {
-          await refuseClosed(tx, table, id, 'Diese Frist ist nicht mehr offen.')
+          await refuseClosed(
+            tx,
+            table,
+            id,
+            'Diese Frist ist nicht mehr offen.',
+            this.visibleTo(identity),
+          )
         } else {
           await this.rules.afterDone?.(tx, updated)
         }
@@ -917,7 +945,13 @@ function deadlinesController(
         const [updated] = (await tx
           .update(table)
           .set({ status: 'open', closedAt: null, closedBy: null, updatedAt: new Date() })
-          .where(and(eq(table.id, id as DeadlineRowId), eq(table.status, 'done')))
+          .where(
+            and(
+              eq(table.id, id as DeadlineRowId),
+              eq(table.status, 'done'),
+              this.visibleTo(identity),
+            ),
+          )
           .returning()) as KeptDeadline[]
 
         if (!updated) {
@@ -926,6 +960,7 @@ function deadlinesController(
             table,
             id,
             'Nur eine erledigte Frist lässt sich wieder öffnen. Eine entfallene kommt von selbst zurück, sobald ihre Quelle sie wieder verlangt.',
+            this.visibleTo(identity),
           )
         } else {
           await this.rules.afterReopen?.(tx, updated)

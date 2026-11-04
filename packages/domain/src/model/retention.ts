@@ -10,6 +10,10 @@ import type { IsoDate, RuleSet } from '@opengewerk/platform-domain'
  * and how the office calls it. A kind is a kind of paper, not a table: which
  * record of this application is which kind is said by whoever deletes it
  * (#845 the customers, #846 the staff).
+ *
+ * The last three are the staff's (#846): the records of time as papers of the
+ * payroll, a sickness for as long as it is needed, and the file of somebody
+ * who left for as long as claims from the employment can be made.
  */
 export const retentionKinds = [
   'books',
@@ -18,6 +22,9 @@ export const retentionKinds = [
   'other_tax_documents',
   'minimum_wage_records',
   'working_time_records',
+  'payroll_records',
+  'sickness_records',
+  'personnel_files',
 ] as const
 
 export type RetentionKind = (typeof retentionKinds)[number]
@@ -41,38 +48,68 @@ export interface RetentionKindWords {
   readonly starts: RetentionStart
   /** What the office calls the papers, in the table of the periods. */
   readonly label: string
+  /** From when it counts, as the table of the periods says it. */
+  readonly begins: string
 }
+
+const endOfYear = 'Ende des Jahres'
+const dayOfTheRecord = 'Tag der Aufzeichnung'
 
 export const retentionKindWords: Readonly<Record<RetentionKind, RetentionKindWords>> = {
   books: {
     rule: 'retention.books',
     starts: 'end_of_year',
     label: 'Bücher, Inventare, Jahresabschlüsse',
+    begins: endOfYear,
   },
   booking_vouchers: {
     rule: 'retention.booking_vouchers',
     starts: 'end_of_year',
     label: 'Buchungsbelege und Rechnungen',
+    begins: endOfYear,
   },
   business_letters: {
     rule: 'retention.business_letters',
     starts: 'end_of_year',
     label: 'Handels- und Geschäftsbriefe',
+    begins: endOfYear,
   },
   other_tax_documents: {
     rule: 'retention.other_tax_documents',
     starts: 'end_of_year',
     label: 'Sonstige Unterlagen für die Steuer',
+    begins: endOfYear,
   },
   minimum_wage_records: {
     rule: 'retention.minimum_wage_records',
     starts: 'record',
     label: 'Aufzeichnungen nach dem Mindestlohngesetz',
+    begins: dayOfTheRecord,
   },
   working_time_records: {
     rule: 'retention.working_time_records',
     starts: 'record',
     label: 'Nachweise nach dem Arbeitszeitgesetz',
+    begins: dayOfTheRecord,
+  },
+  payroll_records: {
+    rule: 'retention.payroll_records',
+    starts: 'end_of_year',
+    label: 'Lohnunterlagen, die Arbeitszeiten eingeschlossen',
+    begins: endOfYear,
+  },
+  // Counted from the last day of the sickness, which is the day the record is about.
+  sickness_records: {
+    rule: 'retention.sickness_records',
+    starts: 'record',
+    label: 'Krankheiten',
+    begins: 'Letzter Tag',
+  },
+  personnel_files: {
+    rule: 'retention.personnel_files',
+    starts: 'end_of_year',
+    label: 'Akten nach dem Austritt',
+    begins: 'Ende des Austrittsjahres',
   },
 }
 

@@ -26,8 +26,10 @@ import {
   deviceScope,
   narrowedTo,
   narrowedWith,
+  narrowedWithErasedYears,
   restrictedOnDevices,
   restrictedOut,
+  staffYearsErased,
   scopedEntities,
   sitesWithOpenJobs,
 } from '../database/device-scope.js'
@@ -351,6 +353,8 @@ export function syncRoutes(key: SecretKey | null): SyncRoutes<Identity, Permissi
       // The customers restricted on a request for deletion stay off every
       // device, with everything that hangs on them (#845).
       const restricted = await restrictedOnDevices(tx)
+      // The years of the staff deleted for good (#846), which a device drops.
+      const erasedYears = await staffYearsErased(tx)
       const narrowFor = (entity: string): SQL | undefined => {
         if (entity === 'time_entries' && ownTimeOnly) {
           return eq(timeEntries.userId, identity.userId)
@@ -394,14 +398,15 @@ export function syncRoutes(key: SecretKey | null): SyncRoutes<Identity, Permissi
         // last time drops what it holds of that entity and asks from the start;
         // for the part of the business that is every change of the jobs in it.
         narrowed: {
-          time_entries: ownTimeOnly ? `user:${identity.userId}` : 'all',
+          time_entries: narrowedWithErasedYears(
+            ownTimeOnly ? `user:${identity.userId}` : 'all',
+            erasedYears,
+          ),
           ...Object.fromEntries(
             scopedEntities.map((entity) => [
               entity,
               entity === 'on_call_shifts'
-                ? scope
-                  ? scope.value
-                  : 'all'
+                ? narrowedWithErasedYears(scope ? scope.value : 'all', erasedYears)
                 : narrowedWith(scope ? scope.value : 'all', restricted),
             ]),
           ),

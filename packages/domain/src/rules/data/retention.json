@@ -57,6 +57,33 @@
       "note": "Beginn, Ende und Dauer der täglichen Arbeitszeit, mindestens zwei Jahre ab dem für die Aufzeichnung maßgeblichen Zeitpunkt."
     },
     {
+      "key": "retention.payroll_records",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 6,
+      "source": "§ 147 Abs. 1 Nr. 5, Abs. 3 Satz 1 AO; § 41 Abs. 1 Satz 9 EStG",
+      "note": "Lohnunterlagen, die Arbeitszeiten eingeschlossen, die bei einem Lohn nach Stunden die Lohnzahlung tragen: bis zum Ablauf des sechsten Kalenderjahres nach dem Jahr, in dem sie entstanden sind. Die zwei Jahre aus § 17 MiLoG und § 16 Abs. 2 ArbZG liegen darin. Entschieden am 04.11.2026 (#846); ob Zeiten als Buchungsbeleg acht Jahre bleiben müssen, prüft die fachkundige Abnahme in #31."
+    },
+    {
+      "key": "retention.sickness_records",
+      "validFrom": "2018-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 1,
+      "source": "§ 167 Abs. 2 Satz 1 SGB IX; § 3 Abs. 1 EFZG",
+      "note": "Keine Aufbewahrungsfrist, sondern wie lange eine Krankheit gebraucht wird: ein Jahr ab ihrem letzten Tag, so weit reichen das betriebliche Eingliederungsmanagement (länger als sechs Wochen innerhalb eines Jahres) und die Entgeltfortzahlung. Danach geht sie als Gesundheitsdatum (Art. 9, Art. 17 Abs. 1 Buchst. a DSGVO). Gültig ab der Fassung des SGB IX vom 01.01.2018."
+    },
+    {
+      "key": "retention.personnel_files",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 3,
+      "source": "§ 195, § 199 Abs. 1 BGB",
+      "note": "Keine Aufbewahrungsfrist, sondern die regelmäßige Verjährung der Ansprüche aus dem Arbeitsverhältnis: drei Jahre ab dem Schluss des Jahres des Austritts. Bis dahin bleibt die Akte, danach geht sie mit Arbeitszeit, Qualifikationen und Zugang; Lohnunterlagen halten den Namen länger (retention.payroll_records)."
+    },
+    {
       "key": "retention.working_time_records",
       "validFrom": "1994-07-01",
       "validUntil": null,

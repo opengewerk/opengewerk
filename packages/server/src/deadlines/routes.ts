@@ -8,6 +8,7 @@ import type {
   TaskId,
   TenantId,
 } from '@opengewerk/domain'
+import { erasureKinds, erasureKindWords, type Identity, isAllowed } from '@opengewerk/domain'
 import {
   type DeadlineEntry,
   type DeadlineKindEntry,
@@ -130,6 +131,15 @@ export const deadlineRules: DeadlineRules<DeadlineKind, ApplicationDeadlineColum
   searchIn: (pattern) =>
     sql`exists (select 1 from ${customers} where ${customers.id} = ${deadlines.customerId} and ${customers.name} ilike ${pattern})`,
   kindFields: (kind) => ({ trade: kind.trade }),
+  // A deadline of the deletion concept says what falls due to whoever may read
+  // its kind and to nobody else (#846): a sickness due is a health datum, and
+  // the file and the years of a person are for whoever reads the files.
+  hiddenFrom: (identity) =>
+    erasureKinds
+      .filter(
+        (kind) => !isAllowed(identity as Pick<Identity, 'rights'>, erasureKindWords[kind].read),
+      )
+      .map((kind) => erasureKindWords[kind].deadline),
   afterResponsible: handTaskOn,
   afterDone: async (tx, row) => {
     const task = taskOfTheDay(row)

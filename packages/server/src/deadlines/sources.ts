@@ -20,7 +20,10 @@ import {
   nextPeriod,
   nextVisitOn,
   type PaymentRhythm,
+  personErasureLabel,
   prospectErasureLabel,
+  sicknessErasureLabel,
+  staffYearErasureLabel,
   customerErasureDueOn,
   customerErasureLabel,
   readFormValues,
@@ -47,6 +50,7 @@ import {
   sites,
 } from '../database/schema/index.js'
 import { contactMonthsOf, customerStandings } from '../privacy/customer-erasure.js'
+import { duePeople, dueSicknesses, dueStaffYears } from '../privacy/staff-erasure.js'
 import { tradeForms } from '../forms/registry.js'
 
 /**
@@ -945,6 +949,67 @@ export const openErasureRequests: SourceQuery<DeadlineValues> = async (tx) => {
   }))
 }
 
+/** A deadline of the staff hangs on nothing of a customer. */
+const aboutNoCustomer: DeadlineValues = {
+  documentId: null,
+  installationId: null,
+  customerId: null,
+  siteId: null,
+  jobId: null,
+}
+
+/**
+ * The sicknesses a year after their last day (#846), only once they are due:
+ * named by that day and not by the person, since the list of deadlines is
+ * read by people who may not see which kind an absence is, and the routes
+ * keep the kind from them as well (`hiddenFrom`).
+ */
+export const erasableSicknesses: SourceQuery<DeadlineValues> = async (tx) => {
+  const today = berlinClock(new Date()).day
+
+  return (await dueSicknesses(tx, today)).map((sickness) => ({
+    sourceId: sickness.absenceId,
+    sourceLabel: sicknessErasureLabel(sickness.lastDay),
+    anchorOn: sickness.lastDay,
+    namedDueOn: sickness.dueOn,
+    naturalUserId: null,
+    values: aboutNoCustomer,
+  }))
+}
+
+/** The years of the people whose time and leave may go (#846), only once they are due, named by the year. */
+export const erasableStaffYears: SourceQuery<DeadlineValues> = async (tx) => {
+  const today = berlinClock(new Date()).day
+
+  return (await dueStaffYears(tx, today)).map((year) => ({
+    sourceId: year.key,
+    sourceLabel: staffYearErasureLabel(year.year),
+    anchorOn: `${String(year.year)}-12-31` as IsoDate,
+    namedDueOn: year.dueOn,
+    naturalUserId: null,
+    values: aboutNoCustomer,
+  }))
+}
+
+/**
+ * The files of the people who left (#846), once they are due and the access
+ * here has ended, named by the day of leaving.
+ */
+export const erasablePeople: SourceQuery<DeadlineValues> = async (tx) => {
+  const today = berlinClock(new Date()).day
+
+  return (await duePeople(tx, today))
+    .filter((person) => person.holds.length === 0)
+    .map((person) => ({
+      sourceId: person.personId,
+      sourceLabel: personErasureLabel(person.leftOn),
+      anchorOn: person.leftOn,
+      namedDueOn: person.dueOn,
+      naturalUserId: null,
+      values: aboutNoCustomer,
+    }))
+}
+
 /** Every source there is, by the name a kind gives it. */
 export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
   {
@@ -962,4 +1027,7 @@ export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<
     prospect: erasableProspects,
     customer: erasableCustomers,
     erasure_request: openErasureRequests,
+    sickness: erasableSicknesses,
+    staff_year: erasableStaffYears,
+    person: erasablePeople,
   }
