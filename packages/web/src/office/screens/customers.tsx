@@ -89,6 +89,7 @@ import { useGrossByDocument } from './document-gross.js'
 import { JobsPanel } from './job-table.js'
 import { JobState, NewJobForm } from './jobs.js'
 import { TasksSection } from './tasks.js'
+import { CustomerPrivacyPanel } from './customer-privacy.js'
 
 const kindOptions = customerKinds.map((kind) => ({
   value: kind,
@@ -665,6 +666,13 @@ function CustomerRecord({
       empty="Für diesen Kunden ist keine Aufgabe offen."
     />
   )
+  // A request for deletion and what holds the customer (#845).
+  const privacy = (
+    <CustomerPrivacyPanel
+      customerId={customerId}
+      customerName={maybeText(customer, 'name') ?? ''}
+    />
+  )
 
   if (layout === 'three') {
     return (
@@ -683,6 +691,7 @@ function CustomerRecord({
           <div className="flex w-[380px] shrink-0 flex-col gap-3">
             {facts}
             {contacts}
+            {privacy}
           </div>
         </div>
       </>
@@ -704,6 +713,7 @@ function CustomerRecord({
             {facts}
             {contacts}
             {tasks}
+            {privacy}
           </div>
         </div>
       </>
@@ -733,6 +743,7 @@ function CustomerRecord({
             {contacts}
             {customerId ? <ContractsCard filter={{ customerId }} /> : null}
             {tasks}
+            {privacy}
           </>
         }
       />

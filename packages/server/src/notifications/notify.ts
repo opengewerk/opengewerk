@@ -57,6 +57,7 @@ import {
   signedDocumentMessage,
   taskDueMessage,
 } from './templates.js'
+import { customerRestricted } from '../privacy/customer-erasure.js'
 
 /**
  * Something that happened and may be worth a message.
@@ -554,7 +555,8 @@ export async function documentToCustomer(
       .from(documents)
       .where(and(eq(documents.id, notification.documentId), isNull(documents.deletedAt)))
 
-    if (!document) {
+    // A customer restricted on a request for deletion gets no mail (#845).
+    if (!document || (await customerRestricted(tx, document.customerId))) {
       return []
     }
 
@@ -726,7 +728,8 @@ export async function signedDocument(
       .from(customers)
       .where(eq(customers.id, document.customerId))
 
-    if (!signature || !customer?.email) {
+    // A customer restricted on a request for deletion gets no mail (#845).
+    if (!signature || !customer?.email || (await customerRestricted(tx, document.customerId))) {
       return []
     }
 

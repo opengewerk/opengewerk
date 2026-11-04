@@ -100,7 +100,8 @@ beforeEach(async () => {
     [tenant, onlyHere],
   )
   await admin.query(
-    `create or replace function application_attachment_may_go(p uuid) returns boolean
+    `drop function if exists application_attachment_may_go(uuid);
+     create function application_attachment_may_go(p uuid) returns boolean
        language sql stable as $$ select p::text = current_setting('test.may_go', true) $$`,
   )
 })

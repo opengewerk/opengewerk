@@ -508,6 +508,25 @@ describe('the settings of each kind', () => {
         responsible: 'lead',
         actions: ['erasure'],
       }),
+      // A customer with whom nothing runs (#845), three years after its last
+      // contact, and the answer to a request for deletion, a month after it came in.
+      expect.objectContaining({
+        key: 'privacy.customer_erasure',
+        title: 'Kunde löschen',
+        intervalDays: null,
+        intervalMonths: 36,
+        leadDays: 0,
+        responsible: 'lead',
+        actions: ['erasure'],
+      }),
+      expect.objectContaining({
+        key: 'privacy.erasure_request',
+        title: 'Löschanfrage beantworten',
+        intervalDays: null,
+        leadDays: 7,
+        responsible: 'lead',
+        actions: ['task'],
+      }),
       // The recurring inspection of the package Elektro (#301), for whoever signed the last protocol.
       expect.objectContaining({
         key: 'elektro.recurring_inspection',

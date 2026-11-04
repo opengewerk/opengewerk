@@ -281,6 +281,20 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
     label: 'Automatisch löschen',
     fields: { kind: 'Art', created_by: 'Eingeschaltet von' },
   },
+  // A request for deletion of a customer, from the request to its end (#845).
+  erasure_requests: {
+    label: 'Löschanfrage',
+    fields: {
+      customer_id: 'Kunde',
+      received_on: 'Eingegangen am',
+      channel: 'Weg',
+      status: 'Stand',
+      answer_due_on: 'Antwort fällig am',
+      restricted_at: 'Gesperrt am',
+      erased_at: 'Gelöscht am',
+      created_by: 'Erfasst von',
+    },
+  },
   // The leads of the office (#312).
   prospects: {
     label: 'Lead',

@@ -165,6 +165,8 @@ describe('the tables', () => {
         "a supplier's number writes its row of the search, which the application has no right on (#461)",
       'calendar_feed_for(hash text)':
         'a calendar asks without a session, and only the token in its address names the tenant (#291)',
+      'document_file_takes_its_file()':
+        'the file of a document goes with its customer, and the application may not delete files (#845)',
     })
 
     expect(reading).toEqual({ unexplained: [], stale: [], openToEveryRole: [] })
@@ -514,6 +516,15 @@ const crossings: readonly {
     write: (own, other) =>
       sql`insert into communications (tenant_id, customer_id, site_id, kind, text, happened_at)
             values (${own.tenant}, ${own.customer}, ${other.site}, 'note', 'Schlüssel beim Hausmeister.', now())`,
+  },
+  {
+    // Inserts, since a request is recorded once; with a person, whom the
+    // trigger takes from the transaction (#845).
+    key: 'erasure_requests_customer_in_tenant',
+    write: (own, other) =>
+      sql`with person as (select set_config('app.user_id', 'lena', true))
+          insert into erasure_requests (tenant_id, customer_id, received_on, channel, answer_due_on, created_by)
+          select ${own.tenant}, ${other.customer}, '2026-11-02', 'email', '2026-12-02', 'lena' from person`,
   },
   {
     key: 'offer_declines_document_in_tenant',

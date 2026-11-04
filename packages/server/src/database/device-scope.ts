@@ -2,6 +2,8 @@ import { closedJobsStayDays, recentlyUsedDays } from '@opengewerk/domain'
 import { fingerprintOf, idArray, type TenantTransaction } from '@opengewerk/platform-server'
 import { type SQL, sql } from 'drizzle-orm'
 
+import { restrictedCustomers } from '../privacy/customer-erasure.js'
+
 /**
  * The part of the business the device of one person holds (#140), for a
  * person without `job.read.all`: the jobs they are assigned to that are open,
@@ -334,4 +336,111 @@ export async function sitesWithOpenJobs(
   const ids = rows.map((row) => row.site_id)
 
   return { siteIds: new Set(ids), value: `sites:${fingerprintOf(ids)}` }
+}
+
+/**
+ * The customers restricted on a request for deletion (#845, Art. 18 DSGVO):
+ * no device holds them or anything that hangs on them, the office's
+ * included; the documents they keep are kept on the server alone. `value`
+ * changes with the list and goes into what the pull names as narrowed, so
+ * that a device lets go of a customer restricted since its last pull, and
+ * fetches what comes back once the customer is deleted and only the site
+ * and its installations stay.
+ */
+export interface RestrictedOnDevices {
+  readonly customerIds: readonly string[]
+  readonly value: string
+}
+
+export async function restrictedOnDevices(tx: TenantTransaction): Promise<RestrictedOnDevices> {
+  const customerIds = await restrictedCustomers(tx)
+
+  return { customerIds, value: `restricted:${fingerprintOf(customerIds)}` }
+}
+
+/**
+ * The value an entity's rows are narrowed to, with the restricted customers
+ * added once there are any: a business that never restricted anybody keeps
+ * the values it had, and its devices fetch nothing anew.
+ */
+export function narrowedWith(value: string, restricted: RestrictedOnDevices): string {
+  return restricted.customerIds.length === 0 ? value : `${value}:${restricted.value}`
+}
+
+/**
+ * The condition that keeps the rows of a restricted customer off every
+ * device, or undefined where there is none or the entity hangs on no
+ * customer. It follows the keys downwards as `narrowedTo` does: its sites,
+ * jobs and documents, the installations at its sites with what is in them,
+ * and the tasks, files, defects and protocols at any of these. A key that is
+ * null leaves the row where it is.
+ */
+export function restrictedOut(restricted: RestrictedOnDevices, entity: string): SQL | undefined {
+  if (restricted.customerIds.length === 0) {
+    return undefined
+  }
+
+  const ids = sql`array[${sql.join(
+    restricted.customerIds.map((id) => sql`${id}`),
+    sql`, `,
+  )}]::uuid[]`
+  const jobs = sql`(select id from jobs where customer_id = any(${ids}))`
+  const sites = sql`(select id from sites where customer_id = any(${ids}))`
+  const installations = sql`(select id from installations where site_id in ${sites})`
+  const appliances = sql`(select id from appliances where site_id in ${sites})`
+  const boards = sql`(select id from distribution_boards where installation_id in ${installations})`
+  const circuits = sql`(select id from circuits where distribution_board_id in ${boards})`
+  const inverters = sql`(select id from inverters where installation_id in ${installations})`
+  const strings = sql`(select id from pv_strings where inverter_id in ${inverters})`
+  const documents = sql`(select id from documents where customer_id = any(${ids}))`
+  const appointments = sql`(select id from appointments where job_id in ${jobs})`
+  const defects = sql`(select id from defects
+    where job_id in ${jobs} or installation_id in ${installations})`
+  const attachments = sql`(select id from attachments
+    where customer_id = any(${ids}) or job_id in ${jobs}
+       or site_id in ${sites} or installation_id in ${installations})`
+
+  const table = sql.identifier(entity)
+  const column = (name: string) => sql`${table}.${sql.identifier(name)}`
+
+  const of: Readonly<Record<string, SQL>> = {
+    jobs: sql`${column('id')} in ${jobs}`,
+    job_assignments: sql`${column('job_id')} in ${jobs}`,
+    job_notes: sql`${column('job_id')} in ${jobs}`,
+    defects: sql`${column('id')} in ${defects}`,
+    defect_steps: sql`${column('defect_id')} in ${defects}`,
+    early_start_requests: sql`${column('job_id')} in ${jobs}`,
+    appointments: sql`${column('job_id')} in ${jobs}`,
+    appointment_people: sql`${column('appointment_id')} in ${appointments}`,
+    customers: sql`${column('id')} = any(${ids})`,
+    customer_tags: sql`${column('customer_id')} = any(${ids})`,
+    contacts: sql`(${column('customer_id')} = any(${ids}) or ${column('site_id')} in ${sites})`,
+    sites: sql`${column('id')} in ${sites}`,
+    site_tags: sql`${column('site_id')} in ${sites}`,
+    site_accesses: sql`${column('site_id')} in ${sites}`,
+    installations: sql`${column('id')} in ${installations}`,
+    appliances: sql`${column('id')} in ${appliances}`,
+    installation_labels: sql`${column('installation_id')} in ${installations}`,
+    distribution_boards: sql`${column('id')} in ${boards}`,
+    board_sections: sql`${column('distribution_board_id')} in ${boards}`,
+    circuits: sql`${column('id')} in ${circuits}`,
+    equipment: sql`${column('circuit_id')} in ${circuits}`,
+    inverters: sql`${column('id')} in ${inverters}`,
+    pv_strings: sql`${column('id')} in ${strings}`,
+    pv_modules: sql`${column('pv_string_id')} in ${strings}`,
+    documents: sql`${column('id')} in ${documents}`,
+    document_lines: sql`${column('document_id')} in ${documents}`,
+    document_signatures: sql`${column('document_id')} in ${documents}`,
+    document_sources: sql`${column('document_id')} in ${documents}`,
+    tasks: sql`(${column('customer_id')} = any(${ids}) or ${column('job_id')} in ${jobs}
+      or ${column('site_id')} in ${sites})`,
+    attachments: sql`${column('id')} in ${attachments}`,
+    attachment_versions: sql`${column('attachment_id')} in ${attachments}`,
+    form_records: sql`(${column('installation_id')} in ${installations}
+      or ${column('appliance_id')} in ${appliances} or ${column('job_id')} in ${jobs})`,
+  }
+
+  const held = of[entity]
+
+  return held === undefined ? undefined : sql`not coalesce(${held}, false)`
 }

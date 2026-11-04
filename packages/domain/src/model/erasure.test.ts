@@ -6,8 +6,9 @@ import {
   erasureKindOfDeadline,
   erasureKinds,
   erasureKindWords,
-  erasureRequestProblem,
+  erasureConfirmationProblem,
   mostErasuresAtOnce,
+  customerErasureLabel,
   prospectErasureLabel,
 } from './erasure.js'
 
@@ -21,6 +22,25 @@ describe('a lead as the deletion names it', () => {
     expect(
       prospectErasureLabel({ source: 'referral', lastContactOn: '2025-10-02' as IsoDate }),
     ).toBe('Lead aus einer Empfehlung, letzter Kontakt 02.10.2025')
+  })
+})
+
+describe('a customer as the deletion names it', () => {
+  it('says its kind and its last contact, or the day it asked, and nothing about who', () => {
+    expect(
+      customerErasureLabel({
+        kind: 'private',
+        lastContactOn: '2023-03-03' as IsoDate,
+        requestedOn: null,
+      }),
+    ).toBe('Privatkunde, letzter Kontakt 03.03.2023')
+    expect(
+      customerErasureLabel({
+        kind: 'property_management',
+        lastContactOn: '2023-03-03' as IsoDate,
+        requestedOn: '2026-11-04' as IsoDate,
+      }),
+    ).toBe('Hausverwaltung auf Löschanfrage vom 04.11.2026')
   })
 })
 
@@ -57,24 +77,24 @@ describe('the kinds of erasure', () => {
 
 describe('a confirmation', () => {
   it('names a kind and the records that go', () => {
-    expect(erasureRequestProblem({ kind: 'prospect', ids: [id(1), id(2)] })).toBeNull()
+    expect(erasureConfirmationProblem({ kind: 'prospect', ids: [id(1), id(2)] })).toBeNull()
   })
 
   it('is refused for a kind the concept does not know', () => {
-    expect(erasureRequestProblem({ kind: 'customer', ids: [id(1)] })).toContain('keine Art')
-    expect(erasureRequestProblem(null)).toContain('keine Art')
+    expect(erasureConfirmationProblem({ kind: 'staff', ids: [id(1)] })).toContain('keine Art')
+    expect(erasureConfirmationProblem(null)).toContain('keine Art')
   })
 
   it('is refused without a record, with too many, or with one that is no key', () => {
-    expect(erasureRequestProblem({ kind: 'prospect', ids: [] })).toBe('Ausgewählt ist nichts.')
-    expect(erasureRequestProblem({ kind: 'prospect' })).toBe('Ausgewählt ist nichts.')
+    expect(erasureConfirmationProblem({ kind: 'prospect', ids: [] })).toBe('Ausgewählt ist nichts.')
+    expect(erasureConfirmationProblem({ kind: 'prospect' })).toBe('Ausgewählt ist nichts.')
     expect(
-      erasureRequestProblem({
+      erasureConfirmationProblem({
         kind: 'prospect',
         ids: Array.from({ length: mostErasuresAtOnce + 1 }, (_, n) => id(n)),
       }),
     ).toContain('höchstens')
-    expect(erasureRequestProblem({ kind: 'prospect', ids: ['1 or 1=1'] })).toContain(
+    expect(erasureConfirmationProblem({ kind: 'prospect', ids: ['1 or 1=1'] })).toContain(
       'keine Kennung',
     )
   })
@@ -82,8 +102,8 @@ describe('a confirmation', () => {
   it('is refused with a record twice, whatever the case of its letters', () => {
     const key = '0000000a-0000-4000-8000-000000000001'
 
-    expect(erasureRequestProblem({ kind: 'prospect', ids: [key, key.toUpperCase()] })).toContain(
-      'zweimal',
-    )
+    expect(
+      erasureConfirmationProblem({ kind: 'prospect', ids: [key, key.toUpperCase()] }),
+    ).toContain('zweimal')
   })
 })

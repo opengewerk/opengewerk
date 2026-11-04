@@ -27,6 +27,9 @@ const reasonWords: Readonly<Record<string, string>> = {
   // the pass, and switching a kind to go by itself.
   'privacy.erase': 'Gelöscht nach dem Löschkonzept',
   'privacy.automation': 'Löschkonzept: automatisch löschen eingestellt',
+  // A request for deletion recorded, and the customer restricted on it (#845).
+  'privacy.request': 'Löschanfrage erfasst',
+  'privacy.restrict': 'Kunde gesperrt auf eine Löschanfrage',
 }
 
 /**
@@ -203,6 +206,8 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   erasures: ['label'],
   // A kind that goes by itself, by its kind (#317).
   erasure_automations: ['kind'],
+  // A request for deletion, by the day it came in (#845).
+  erasure_requests: ['received_on'],
   // An article by what it is called, a price by the day it begins, and what a
   // supplier sells by the supplier, which the page names (#296).
   articles: ['designation', 'number'],

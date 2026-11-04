@@ -184,6 +184,7 @@ export const personalDataCatalogue: Readonly<Record<string, PersonalData>> = {
   equipment: none,
   // Who switched a kind on, and who deleted: the protocol names nobody else (#317).
   erasure_automations: ofPerson('created_by'),
+  erasure_requests: { about: ['customer', 'person'], columns: ['customer_id', 'created_by'] },
   erasures: ofPerson('created_by'),
   file_uploads: ofPerson('user_id'),
   files: none,

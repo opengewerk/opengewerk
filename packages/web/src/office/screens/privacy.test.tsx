@@ -79,9 +79,65 @@ const erased = [
   },
 ]
 
-function overview(leads: boolean, automations: unknown[] = [], erasures: unknown[] = []) {
-  serverSays('GET', '/privacy', { due, erasures, automations, leads })
+function overview(
+  leads: boolean,
+  automations: unknown[] = [],
+  erasures: unknown[] = [],
+  requests: unknown[] = [],
+  dueNow: unknown[] = due,
+) {
+  serverSays('GET', '/privacy', { due: dueNow, erasures, automations, requests, leads })
 }
+
+function aRequest(
+  id: string,
+  customerName: string,
+  values: {
+    readonly status?: 'open' | 'restricted'
+    readonly holds?: { kind: string; until: string | null }[]
+    readonly answer?: 'erase' | 'restrict' | null
+    readonly dueOn?: string | null
+  },
+) {
+  return {
+    request: {
+      id,
+      customerId: `c-${id}`,
+      receivedOn: '2026-11-01',
+      channel: 'email',
+      status: values.status ?? 'open',
+      answerDueOn: '2026-12-01',
+      restrictedAt: values.status === 'restricted' ? '2026-10-14T08:00:00.000Z' : null,
+      erasedAt: null,
+      createdBy: 'bruno',
+      createdAt: '2026-11-01T08:00:00.000Z',
+    },
+    customerName,
+    holds: values.holds ?? [],
+    answer: values.answer === undefined ? 'erase' : values.answer,
+    dueOn: values.dueOn === undefined ? '2026-11-01' : values.dueOn,
+  }
+}
+
+const requests = [
+  aRequest('r-1', 'Familie Wolff', {
+    status: 'restricted',
+    holds: [{ kind: 'retention', until: '2034-12-31' }],
+    answer: 'restrict',
+    dueOn: '2035-01-01',
+  }),
+  aRequest('r-2', 'Jürgen Haas', {
+    holds: [{ kind: 'retention', until: '2034-12-31' }],
+    answer: 'restrict',
+    dueOn: '2035-01-01',
+  }),
+  aRequest('r-3', 'Ute Petersen', {}),
+  aRequest('r-4', 'Familie Arslan', {
+    holds: [{ kind: 'open_job', until: null }],
+    answer: null,
+    dueOn: null,
+  }),
+]
 
 beforeEach(() => {
   calls = []
@@ -191,12 +247,21 @@ describe('what is due', () => {
 describe('what is due, for whoever may not see leads', () => {
   it('says who sees it instead of naming anybody', async () => {
     signedInAs('owner')
-    serverSays('GET', '/privacy', { due: null, erasures: [], automations: [], leads: true })
+    serverSays('GET', '/privacy', {
+      due: null,
+      erasures: [],
+      automations: [],
+      requests: null,
+      leads: true,
+    })
     render(inQueries(<PrivacyScreen />))
 
     expect(
-      await screen.findByText('Welche Leads zum Löschen fällig sind, sieht, wer Leads sehen darf.'),
+      await screen.findByText(
+        'Was zum Löschen fällig ist, sieht, wer Leads oder Kunden sehen darf.',
+      ),
     ).toBeTruthy()
+    expect(await screen.findByText('Löschanfragen sieht, wer Kunden sehen darf.')).toBeTruthy()
     expect(screen.queryByRole('table', { name: 'Zum Löschen fällig' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Ausgewählte löschen' })).toBeNull()
   })
@@ -210,7 +275,10 @@ describe('deleting by itself', () => {
     render(inQueries(<PrivacyScreen />))
 
     const user = userEvent.setup()
-    await user.click(await screen.findByRole('button', { name: 'Einschalten' }))
+    // The leads come first, the customers after them.
+    await user.click(
+      (await screen.findAllByRole('button', { name: 'Einschalten' }))[0] as HTMLElement,
+    )
 
     await waitFor(() => {
       expect(calls.some((call) => call.method === 'PUT')).toBe(true)
@@ -267,12 +335,154 @@ describe('what went and how long papers stay', () => {
   })
 })
 
+describe('the requests for deletion (#845)', () => {
+  it('show each with what holds its customer and when it is due', async () => {
+    signedInAs('office')
+    overview(false, [], [], requests)
+    render(inQueries(<PrivacyScreen />))
+
+    const table = await screen.findByRole('table', { name: 'Löschanfragen' })
+    const haas = within(table).getByText('Jürgen Haas').closest('tr')
+    const wolff = within(table).getByText('Familie Wolff').closest('tr')
+
+    expect(haas?.textContent).toContain(
+      'Eingegangen am 01.11.2026 per E-Mail · Belege sind bis 31.12.2034 aufzubewahren.',
+    )
+    expect(haas?.textContent).toContain('Antwort bis 01.12.2026')
+    expect(wolff?.textContent).toContain('Gesperrt')
+    expect(wolff?.textContent).toContain('Löschen ab 01.01.2035')
+    expect(within(table).queryByRole('button')).toBeNull()
+  })
+
+  it('offer whoever leads the answer each can get today', async () => {
+    signedInAs('owner')
+    overview(true, [], [], requests)
+    render(inQueries(<PrivacyScreen />))
+
+    const table = await screen.findByRole('table', { name: 'Löschanfragen' })
+    const row = (name: string) => within(table).getByText(name).closest('tr') as HTMLElement
+
+    expect(within(row('Jürgen Haas')).getByRole('button', { name: 'Sperren' })).toBeTruthy()
+    expect(within(row('Ute Petersen')).getByRole('button', { name: 'Löschen' })).toBeTruthy()
+    expect(within(row('Familie Arslan')).queryByRole('button')).toBeNull()
+    expect(row('Familie Arslan').textContent).toContain('Erst nach dem Auftrag')
+    expect(within(row('Familie Wolff')).queryByRole('button')).toBeNull()
+  })
+
+  it('restrict a customer after a question', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+
+    signedInAs('owner')
+    overview(true, [], [], requests)
+    render(inQueries(<PrivacyScreen />))
+
+    const table = await screen.findByRole('table', { name: 'Löschanfragen' })
+
+    await user.click(
+      within(within(table).getByText('Jürgen Haas').closest('tr') as HTMLElement).getByRole(
+        'button',
+        { name: 'Sperren' },
+      ),
+    )
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Jürgen Haas sperren?' })
+
+    expect(dialog.textContent).toContain('Belege sind bis 31.12.2034 aufzubewahren.')
+    await user.click(within(dialog).getByRole('button', { name: 'Sperren' }))
+    await waitFor(() => {
+      expect(
+        calls.some(
+          (call) => call.method === 'POST' && call.path === '/privacy/requests/r-2/restriction',
+        ),
+      ).toBe(true)
+    })
+  })
+
+  it('delete a customer whom nothing holds, with what goes along', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+
+    signedInAs('owner')
+    overview(true, [], [], requests)
+    render(inQueries(<PrivacyScreen />))
+
+    const table = await screen.findByRole('table', { name: 'Löschanfragen' })
+
+    await user.click(
+      within(within(table).getByText('Ute Petersen').closest('tr') as HTMLElement).getByRole(
+        'button',
+        { name: 'Löschen' },
+      ),
+    )
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Ute Petersen löschen?' })
+
+    expect(dialog.textContent).toContain('Objekte und Anlagen bleiben ohne seine Daten.')
+    await user.click(within(dialog).getByRole('button', { name: 'Endgültig löschen' }))
+    await waitFor(() => {
+      expect(calls.find((call) => call.path === '/privacy/erasures')?.body).toEqual({
+        kind: 'customer',
+        ids: ['c-r-3'],
+      })
+    })
+  })
+})
+
+describe('a customer that is due (#845)', () => {
+  it('goes with the leads chosen, each kind on its own', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+
+    signedInAs('owner')
+    overview(
+      true,
+      [],
+      [],
+      [],
+      [
+        ...due,
+        {
+          deadlineId: 'd-3',
+          kind: 'customer',
+          recordId: 'c-9',
+          name: 'Gerhard Moll',
+          detail: 'Privatkunde, letzter Kontakt 12.06.2023',
+          dueOn: '2026-06-12',
+        },
+      ],
+    )
+    render(inQueries(<PrivacyScreen />))
+
+    const table = await screen.findByRole('table', { name: 'Zum Löschen fällig' })
+
+    expect(within(table).getByText('Gerhard Moll').closest('tr')?.textContent).toContain('Kunde')
+    await user.click(screen.getByRole('button', { name: 'Ausgewählte löschen' }))
+
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Zwei Leads und einen Kunden löschen?',
+    })
+
+    expect(dialog.textContent).toContain('Mit einem Kunden gehen')
+    await user.click(within(dialog).getByRole('button', { name: 'Endgültig löschen' }))
+    await waitFor(() => {
+      expect(
+        calls.filter((call) => call.path === '/privacy/erasures').map((call) => call.body),
+      ).toEqual([
+        { kind: 'prospect', ids: ['p-1', 'p-2'] },
+        { kind: 'customer', ids: ['c-9'] },
+      ])
+    })
+  })
+})
+
 describe('the words of the question', () => {
   it('count and name who goes', () => {
-    expect(erasureQuestion(1)).toBe('Einen Lead löschen?')
-    expect(erasureQuestion(2)).toBe('Zwei Leads löschen?')
-    expect(erasureQuestion(13)).toBe('13 Leads löschen?')
+    expect(erasureQuestion({ prospect: 1 })).toBe('Einen Lead löschen?')
+    expect(erasureQuestion({ prospect: 2 })).toBe('Zwei Leads löschen?')
+    expect(erasureQuestion({ prospect: 13 })).toBe('13 Leads löschen?')
+    expect(erasureQuestion({ customer: 1 })).toBe('Einen Kunden löschen?')
+    expect(erasureQuestion({ prospect: 2, customer: 1 })).toBe(
+      'Zwei Leads und einen Kunden löschen?',
+    )
     expect(whoGoes(['A', 'B'])).toBe('A und B gehen endgültig.')
-    expect(whoGoes(['A', 'B', 'C', 'D'])).toBe('Die 4 ausgewählten Leads gehen endgültig.')
+    expect(whoGoes(['A', 'B', 'C', 'D'])).toBe('Die 4 Ausgewählten gehen endgültig.')
   })
 })

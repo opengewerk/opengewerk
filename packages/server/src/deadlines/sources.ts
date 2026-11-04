@@ -21,6 +21,8 @@ import {
   nextVisitOn,
   type PaymentRhythm,
   prospectErasureLabel,
+  customerErasureDueOn,
+  customerErasureLabel,
   readFormValues,
   type SignedTest,
   shippedRules,
@@ -34,6 +36,7 @@ import { and, desc, eq, inArray, isNotNull, isNull, type SQL, sql } from 'drizzl
 import {
   defects,
   documents,
+  erasureRequests,
   formRecords,
   gridOperators,
   installations,
@@ -43,6 +46,7 @@ import {
   prospects,
   sites,
 } from '../database/schema/index.js'
+import { contactMonthsOf, customerStandings } from '../privacy/customer-erasure.js'
 import { tradeForms } from '../forms/registry.js'
 
 /**
@@ -855,6 +859,92 @@ export const erasableProspects: SourceQuery<DeadlineValues> = async (tx) => {
   }))
 }
 
+/**
+ * The customers with whom nothing runs (#845), each due when
+ * `customerErasureDueOn` says: the months the business set after its last
+ * contact, or the day it asked to be deleted, and not before the day after
+ * its last document to keep and its last warranty, and only from that day
+ * on. The source names the day and reads the months itself, since the day
+ * may be a hold's and not the interval's. An open job or a running contract lets the deadline drop, a
+ * later contact moves it, and so does the customer being deleted. Named
+ * without a name (`customerErasureLabel`), as for a lead.
+ */
+export const erasableCustomers: SourceQuery<DeadlineValues> = async (tx) => {
+  const today = berlinClock(new Date()).day
+  const standings = await customerStandings(tx, today)
+  const months = await contactMonthsOf(tx)
+
+  return [...standings.values()].flatMap((standing) => {
+    const requestedOn = standing.request?.receivedOn ?? null
+    const dueOn = customerErasureDueOn({
+      holds: standing.holds,
+      lastContactOn: standing.lastContactOn,
+      contactMonths: months,
+      requestedOn,
+    })
+
+    // Only once it is due: a deadline for every customer, years ahead, would
+    // fill the list of deadlines and say nothing.
+    if (dueOn === null || dueOn > today) {
+      return []
+    }
+
+    return [
+      {
+        sourceId: standing.customerId,
+        sourceLabel: customerErasureLabel({
+          kind: standing.kind,
+          lastContactOn: standing.lastContactOn,
+          requestedOn,
+        }),
+        anchorOn: requestedOn ?? standing.lastContactOn,
+        namedDueOn: dueOn,
+        naturalUserId: null,
+        values: {
+          documentId: null,
+          installationId: null,
+          customerId: standing.customerId,
+          siteId: null,
+          jobId: null,
+        },
+      },
+    ]
+  })
+}
+
+/**
+ * The requests for deletion not answered yet (#845), each due a month after
+ * it came in (Art. 12 (3) DSGVO). Named by the day it came in; the deadline
+ * hangs on the customer, so that its task opens the customer's file. The
+ * answer lets it drop.
+ */
+export const openErasureRequests: SourceQuery<DeadlineValues> = async (tx) => {
+  const rows = await tx
+    .select({
+      id: erasureRequests.id,
+      customerId: erasureRequests.customerId,
+      receivedOn: erasureRequests.receivedOn,
+      answerDueOn: erasureRequests.answerDueOn,
+    })
+    .from(erasureRequests)
+    .where(eq(erasureRequests.status, 'open'))
+
+  return rows.map((row) => ({
+    sourceId: row.id,
+    sourceLabel: `Löschanfrage vom ${row.receivedOn.slice(8, 10)}.${row.receivedOn.slice(5, 7)}.${row.receivedOn.slice(0, 4)}`,
+    anchorOn: row.receivedOn as IsoDate,
+    namedDueOn: row.answerDueOn as IsoDate,
+    naturalUserId: null,
+    values: {
+      documentId: null,
+      installationId: null,
+      customerId: row.customerId as CustomerId,
+      siteId: null,
+      jobId: null,
+    },
+  }))
+}
+
 /** Every source there is, by the name a kind gives it. */
 export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
   {
@@ -870,4 +960,6 @@ export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<
     maintenance_notice: maintenanceNoticesDue,
     maintenance_period: maintenancePeriodsDue,
     prospect: erasableProspects,
+    customer: erasableCustomers,
+    erasure_request: openErasureRequests,
   }

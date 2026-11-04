@@ -120,6 +120,13 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  * - `prospect`: a lead that never became a customer (#317), due the months
  *   of the interval after its last contact. A later contact moves it; the
  *   lead becoming a customer or being deleted lets it drop.
+ * - `customer`: a customer with whom nothing runs (#845), due the months of
+ *   the interval after its last contact, or the day it asked to be deleted,
+ *   and not before the day after its last document to keep and its last
+ *   warranty (`customerErasureDueOn`). An open job or a running contract
+ *   lets it drop, a later contact moves it.
+ * - `erasure_request`: a request for deletion not answered yet (#845), due a
+ *   month after it came in (Art. 12 (3) DSGVO). The answer lets it drop.
  */
 export const deadlineSources = [
   'quote',
@@ -134,6 +141,8 @@ export const deadlineSources = [
   'maintenance_notice',
   'maintenance_period',
   'prospect',
+  'customer',
+  'erasure_request',
 ] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
@@ -416,6 +425,25 @@ export const sourceWords: Readonly<
       hint: 'Gezählt ab dem letzten Kontakt mit dem Lead.',
     },
     anchor: 'dem letzten Kontakt',
+  },
+  // Due the months of the interval after the last contact, and not before the
+  // papers and the warranty let the customer go (#845).
+  customer: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Gezählt ab dem letzten Kontakt mit dem Kunden; nicht bevor Belege und Gewährleistung ihn freigeben.',
+    },
+    anchor: 'dem letzten Kontakt',
+  },
+  // Due a month after the request came in (#845), without an interval.
+  erasure_request: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig einen Monat nach dem Eingang der Anfrage.',
+    },
+    anchor: 'dem Eingang der Anfrage',
   },
 }
 

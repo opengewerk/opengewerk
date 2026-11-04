@@ -5,6 +5,8 @@ import {
   type ErasureKind,
   erasureKinds,
   erasureKindWords,
+  erasureRequestSentence,
+  type ErasureRequestView,
   type IsoDate,
   type RuleRecord,
   retentionKinds,
@@ -16,7 +18,8 @@ import { date, moment, today } from '@opengewerk/platform-web/format'
 import { SettingsPage, SettingsText } from '@opengewerk/platform-web/office'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Trash2 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Lock, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
 import { useAuthorName } from '../../app/defects.js'
@@ -25,8 +28,10 @@ import {
   type PrivacyOverview,
   privacyKey,
   privacyOverview,
+  restrictOnRequest,
   switchAutomation,
 } from '../../session/privacy.js'
+import { holdsSentence } from './customer-privacy.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -55,9 +60,25 @@ function countWord(count: number): string {
   return word.charAt(0).toUpperCase() + word.slice(1)
 }
 
-/** The question before deleting: "Zwei Leads löschen?", "Einen Lead löschen?". */
-export function erasureQuestion(count: number): string {
-  return count === 1 ? 'Einen Lead löschen?' : `${countWord(count)} Leads löschen?`
+const kindCounted: Readonly<Record<ErasureKind, readonly [string, string]>> = {
+  prospect: ['einen Lead', 'Leads'],
+  customer: ['einen Kunden', 'Kunden'],
+}
+
+/**
+ * The question before deleting, by kind: "Zwei Leads löschen?", "Einen
+ * Kunden löschen?", "Zwei Leads und einen Kunden löschen?".
+ */
+export function erasureQuestion(counts: Partial<Readonly<Record<ErasureKind, number>>>): string {
+  const parts = erasureKinds.flatMap((kind) => {
+    const count = counts[kind] ?? 0
+    const [one, many] = kindCounted[kind]
+
+    return count === 0 ? [] : [count === 1 ? one : `${countWord(count).toLowerCase()} ${many}`]
+  })
+  const said = parts.join(' und ')
+
+  return `${said.charAt(0).toUpperCase()}${said.slice(1)} löschen?`
 }
 
 /** Who goes, by name while there are few: "Sandra Brenner und Markus Lehmann gehen endgültig." */
@@ -70,8 +91,16 @@ export function whoGoes(names: readonly string[]): string {
     return `${names.slice(0, -1).join(', ')} und ${names[names.length - 1] ?? ''} gehen endgültig.`
   }
 
-  return `Die ${String(names.length)} ausgewählten Leads gehen endgültig.`
+  return `Die ${String(names.length)} Ausgewählten gehen endgültig.`
 }
+
+/** What goes with a customer and what stays (#845), before it goes. */
+export const withCustomer =
+  'Mit einem Kunden gehen seine Ansprechpartner, sein Verlauf, seine Aufträge, Belege und Dateien; Objekte und Anlagen bleiben ohne seine Daten.'
+
+/** What stays of whatever went: a line without a name. */
+const protocolSentence =
+  'Die Werte im Änderungsprotokoll werden geschwärzt; was bleibt, ist eine Zeile unter „Gelöscht“, wann und von wem, ohne Namen.'
 
 /**
  * The deletion concept in the office (#317), as the boards "Datenschutz"
@@ -97,6 +126,7 @@ export function PrivacyScreen() {
         </SettingsText>
       ) : (
         <>
+          <RequestsSection overview={overview.data} />
           <DueSection overview={overview.data} />
           <AutomaticSection overview={overview.data} />
           <ErasedSection erasures={overview.data.erasures} />
@@ -112,7 +142,7 @@ function DueSection({ overview }: { readonly overview: PrivacyOverview }) {
     return (
       <Panel title="Zum Löschen fällig" roomy>
         <SettingsText muted>
-          Welche Leads zum Löschen fällig sind, sieht, wer Leads sehen darf.
+          Was zum Löschen fällig ist, sieht, wer Leads oder Kunden sehen darf.
         </SettingsText>
       </Panel>
     )
@@ -135,7 +165,10 @@ function DueTable({
   const [problem, setProblem] = useState<string | null>(null)
   const chosen = due.filter((entry) => !unselected.has(entry.recordId))
   const note =
-    'Ein Lead, der nie Kunde wurde, kommt nach dem letzten Kontakt hierher, vorgegeben nach zwölf Monaten. Die Dauer steht unter Fristen bei „Lead löschen“.'
+    'Ein Lead, der nie Kunde wurde, kommt nach dem letzten Kontakt hierher, vorgegeben nach zwölf Monaten; ein Kunde, wenn mit ihm nichts mehr läuft, vorgegeben drei Jahre nach dem letzten Kontakt, oder auf seine Löschanfrage. Die Dauer steht unter Fristen bei „Lead löschen“ und „Kunde löschen“.'
+  const counts = Object.fromEntries(
+    erasureKinds.map((kind) => [kind, chosen.filter((entry) => entry.kind === kind).length]),
+  ) as Readonly<Record<ErasureKind, number>>
 
   const toggle = (entry: DueErasure, on: boolean) => {
     setUnselected((before) => {
@@ -156,10 +189,15 @@ function DueTable({
     setProblem(null)
 
     try {
-      await erase(
-        'prospect',
-        chosen.map((entry) => entry.recordId),
-      )
+      // One kind after the other, each all or nothing.
+      for (const kind of erasureKinds) {
+        const ids = chosen.filter((entry) => entry.kind === kind).map((entry) => entry.recordId)
+
+        if (ids.length > 0) {
+          await erase(kind, ids)
+        }
+      }
+
       setAsking(false)
       setUnselected(new Set())
       await queries.invalidateQueries({ queryKey: privacyKey })
@@ -258,7 +296,7 @@ function DueTable({
       </TablePanel>
       <Confirm
         open={asking}
-        title={erasureQuestion(chosen.length)}
+        title={erasureQuestion(counts)}
         confirm="Endgültig löschen"
         busy={busy}
         onConfirm={() => {
@@ -268,8 +306,213 @@ function DueTable({
           setAsking(false)
         }}
       >
-        {whoGoes(chosen.map((entry) => entry.name))} Die Werte im Änderungsprotokoll werden
-        geschwärzt; was bleibt, ist eine Zeile unter „Gelöscht“, wann und von wem, ohne Namen.
+        {[
+          whoGoes(chosen.map((entry) => entry.name)),
+          counts.customer > 0 ? withCustomer : null,
+          protocolSentence,
+        ]
+          .filter((part) => part !== null)
+          .join(' ')}
+      </Confirm>
+    </>
+  )
+}
+
+const automaticWords: Readonly<Record<ErasureKind, string>> = {
+  prospect:
+    'Eingeschaltet löscht der Lauf jeden fälligen Lead von selbst, im Namen dessen, der es eingeschaltet hat, und schwärzt seine Werte im Änderungsprotokoll. Führt diese Person den Betrieb nicht mehr, schlägt der Lauf wieder nur vor.',
+  customer:
+    'Eingeschaltet löscht der Lauf jeden fälligen Kunden von selbst, wie die Leads; die auf eine Löschanfrage eingeschlossen.',
+}
+
+/**
+ * The requests for deletion that run (#845), as the boards "Datenschutz"
+ * draw them: each with what holds its customer and the answer it can get
+ * today, restricting or deleting, offered to whoever leads the business.
+ */
+function RequestsSection({ overview }: { readonly overview: PrivacyOverview }) {
+  const queries = useQueryClient()
+  const [asking, setAsking] = useState<{
+    readonly view: ErasureRequestView
+    readonly answer: 'erase' | 'restrict'
+  } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+  const note =
+    'Erfasst wird eine Löschanfrage in der Kundenakte. Gelöscht wird ein Kunde, mit dem nichts mehr läuft; halten ihn noch Belege oder eine Gewährleistung, wird er gesperrt: Er verschwindet aus Listen und Auswahlen und von jedem Gerät und bekommt keine E-Mail mehr. Mit dem Ende der letzten Frist steht er unter „Zum Löschen fällig“.'
+
+  if (overview.requests === null) {
+    return (
+      <Panel title="Löschanfragen" roomy>
+        <SettingsText muted>Löschanfragen sieht, wer Kunden sehen darf.</SettingsText>
+      </Panel>
+    )
+  }
+
+  if (overview.requests.length === 0) {
+    return (
+      <Panel title="Löschanfragen" roomy>
+        <div className="flex flex-col gap-2">
+          <SettingsText>Keine Löschanfrage offen.</SettingsText>
+          <SettingsText muted small>
+            {note}
+          </SettingsText>
+        </div>
+      </Panel>
+    )
+  }
+
+  const answer = async () => {
+    if (asking === null) {
+      return
+    }
+
+    setBusy(true)
+    setProblem(null)
+
+    try {
+      if (asking.answer === 'erase') {
+        await erase('customer', [asking.view.request.customerId])
+      } else {
+        await restrictOnRequest(asking.view.request.id)
+      }
+
+      await queries.invalidateQueries({ queryKey: privacyKey })
+    } catch (error) {
+      setProblem(saidWhy(error, 'Die Antwort ging nicht durch. Nichts wurde geändert.'))
+    } finally {
+      setBusy(false)
+      setAsking(null)
+    }
+  }
+
+  const due = (view: ErasureRequestView) =>
+    view.request.status === 'restricted'
+      ? view.dueOn === null
+        ? 'Noch offen'
+        : `Löschen ab ${date(view.dueOn)}`
+      : `Antwort bis ${date(view.request.answerDueOn)}`
+  const waits = (view: ErasureRequestView) =>
+    view.holds.some((hold) => hold.kind === 'open_job')
+      ? 'Erst nach dem Auftrag'
+      : 'Erst nach dem Vertrag'
+  const actionOf = (view: ErasureRequestView) => {
+    if (!overview.leads || view.request.status !== 'open') {
+      return null
+    }
+
+    if (view.answer === 'erase') {
+      return (
+        <Button
+          tone="danger"
+          size="small"
+          icon={Trash2}
+          onClick={() => {
+            setAsking({ view, answer: 'erase' })
+          }}
+        >
+          Löschen
+        </Button>
+      )
+    }
+
+    if (view.answer === 'restrict') {
+      return (
+        <Button
+          size="small"
+          icon={Lock}
+          onClick={() => {
+            setAsking({ view, answer: 'restrict' })
+          }}
+        >
+          Sperren
+        </Button>
+      )
+    }
+
+    return <span className="text-ink-faint">{waits(view)}</span>
+  }
+
+  return (
+    <>
+      <TablePanel
+        title="Löschanfragen"
+        caption="Löschanfragen"
+        note={
+          <>
+            {problem ? (
+              <span role="alert" className="mb-1 block text-conflict">
+                {problem}
+              </span>
+            ) : null}
+            {note}
+          </>
+        }
+      >
+        <thead>
+          <tr>
+            <Column>Kunde</Column>
+            <Column className="w-[110px]">Stand</Column>
+            <Column className="w-[160px]">Fällig</Column>
+            <Column className="w-[160px] text-right">
+              <span className="sr-only">Antwort</span>
+            </Column>
+          </tr>
+        </thead>
+        <tbody>
+          {overview.requests.map((view) => (
+            <tr key={view.request.id}>
+              <Cell>
+                <span className="flex flex-col gap-px">
+                  {view.request.status === 'restricted' ? (
+                    <span>{view.customerName}</span>
+                  ) : (
+                    <Link
+                      to="/kunden/$customerId"
+                      params={{ customerId: view.request.customerId }}
+                      className="text-copper-text underline underline-offset-2"
+                    >
+                      {view.customerName}
+                    </Link>
+                  )}
+                  <span className="text-[12px] text-ink-faint">
+                    {`${erasureRequestSentence(view.request)} · ${holdsSentence(view)}`}
+                  </span>
+                </span>
+              </Cell>
+              <Cell>
+                <Status tone={view.request.status === 'restricted' ? 'locked' : 'waiting'}>
+                  {view.request.status === 'restricted' ? 'Gesperrt' : 'Offen'}
+                </Status>
+              </Cell>
+              <Cell>{due(view)}</Cell>
+              <Cell className="text-right">{actionOf(view)}</Cell>
+            </tr>
+          ))}
+        </tbody>
+      </TablePanel>
+      <Confirm
+        open={asking !== null}
+        title={
+          asking === null
+            ? ''
+            : `${asking.view.customerName} ${asking.answer === 'erase' ? 'löschen' : 'sperren'}?`
+        }
+        confirm={asking?.answer === 'restrict' ? 'Sperren' : 'Endgültig löschen'}
+        tone={asking?.answer === 'restrict' ? 'primary' : 'danger'}
+        busy={busy}
+        onConfirm={() => {
+          void answer()
+        }}
+        onCancel={() => {
+          setAsking(null)
+        }}
+      >
+        {asking === null
+          ? null
+          : asking.answer === 'erase'
+            ? `${asking.view.customerName} geht endgültig, die Löschanfrage ist damit erledigt. ${withCustomer} ${protocolSentence}`
+            : `${holdsSentence(asking.view)} Bis dahin verschwindet ${asking.view.customerName} aus Listen und Auswahlen und von jedem Gerät und bekommt keine E-Mail mehr. Danach steht der Kunde unter „Zum Löschen fällig“.`}
       </Confirm>
     </>
   )
@@ -327,9 +570,7 @@ function AutomaticSection({ overview }: { readonly overview: PrivacyOverview }) 
                 </SettingsText>
               ) : null}
               <SettingsText muted small>
-                Eingeschaltet löscht der Lauf jeden fälligen Lead von selbst, im Namen dessen, der
-                es eingeschaltet hat, und schwärzt seine Werte im Änderungsprotokoll. Führt diese
-                Person den Betrieb nicht mehr, schlägt der Lauf wieder nur vor.
+                {automaticWords[kind]}
               </SettingsText>
             </div>
           )
@@ -432,7 +673,7 @@ function RetentionSection() {
     <TablePanel
       title="Aufbewahrungsfristen"
       caption="Aufbewahrungsfristen"
-      note="Eine Frist läuft nicht ab, solange die Unterlagen für Steuern von Bedeutung sind, deren Festsetzungsfrist noch läuft (§ 147 Abs. 3 Satz 5 AO). Deshalb schlägt der Löschlauf vor, und wer den Betrieb führt, bestätigt."
+      note="Eine Frist läuft nicht ab, solange die Unterlagen für Steuern von Bedeutung sind, deren Festsetzungsfrist noch läuft (§ 147 Abs. 3 Satz 5 AO). Deshalb schlägt der Löschlauf vor, und wer den Betrieb führt, bestätigt. Rechnungen, Gutschriften und Stornos eines Kunden zählen als Buchungsbelege, seine übrigen Belege als Geschäftsbriefe."
       cards={rows.map((row) => ({
         key: row.kind,
         title: row.label,

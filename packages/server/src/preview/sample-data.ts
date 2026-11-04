@@ -1131,6 +1131,74 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   await signOnDevice(post, heatingReport, heatingWork, 'Ayse Arslan')
   await post(`/documents/${heatingReport.id}/successors`, { kind: 'final_invoice' })
 
+  // Four requests for deletion under "Datenschutz" (#845): one with nothing
+  // left to keep, which goes at once; one with an invoice of this year, to be
+  // restricted until the invoice may go; one restricted so already; and one
+  // that came in with a job still open, which waits for the job.
+  const before = (days: number) => addDays(today, -days)
+  const asked = async (
+    { invoice, ...values }: Record<string, unknown>,
+    receivedOn: IsoDate,
+    channel: string,
+  ) => {
+    const id = idOf(await post('/customers', { kind: 'private', ...values }))
+
+    if (typeof invoice === 'string') {
+      const { id: issued } = await document(
+        { customerId: id, kind: 'final_invoice', subject: invoice },
+        [item('Arbeitszeit', 1500, 'hour', 6800)],
+      )
+
+      await post(`/documents/${issued}/issue`, {})
+    }
+
+    const recorded = await post('/privacy/requests', { customerId: id, receivedOn, channel })
+
+    return idOf(recorded['request'] as Answer)
+  }
+
+  await asked(
+    {
+      name: 'Ute Petersen',
+      email: 'ute.petersen@example.com',
+      street: 'Hoheluftchaussee',
+      houseNumber: '17',
+      postalCode: '20253',
+      city: 'Hamburg',
+    },
+    before(3),
+    'email',
+  )
+  await asked(
+    {
+      name: 'Jürgen Haas',
+      email: 'j.haas@example.com',
+      street: 'Bismarckstraße',
+      houseNumber: '5',
+      postalCode: '20259',
+      city: 'Hamburg',
+      invoice: 'Steckdosen im Wohnzimmer erneuert',
+    },
+    before(12),
+    'letter',
+  )
+
+  const wolff = await asked(
+    {
+      name: 'Familie Wolff',
+      street: 'Isestraße',
+      houseNumber: '81',
+      postalCode: '20149',
+      city: 'Hamburg',
+      invoice: 'Herd angeschlossen',
+    },
+    before(23),
+    'letter',
+  )
+
+  await post(`/privacy/requests/${wolff}/restriction`, {})
+  await post('/privacy/requests', { customerId: arslan, receivedOn: before(1), channel: 'phone' })
+
   // A report of today still in draft, with material taken from an article
   // (#296): the walk of the check of widths opens "Material eintragen" on it
   // on site, and its article counts as used lately on every device.

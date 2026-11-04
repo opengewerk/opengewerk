@@ -15,7 +15,7 @@ import {
   type SyncRoutes,
   type TenantTransaction,
 } from '@opengewerk/platform-server'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, type SQL, sql } from 'drizzle-orm'
 
 import {
   accessesOfOpenJobs,
@@ -25,6 +25,9 @@ import {
   vehiclesOnDevices,
   deviceScope,
   narrowedTo,
+  narrowedWith,
+  restrictedOnDevices,
+  restrictedOut,
   scopedEntities,
   sitesWithOpenJobs,
 } from '../database/device-scope.js'
@@ -345,34 +348,43 @@ export function syncRoutes(key: SecretKey | null): SyncRoutes<Identity, Permissi
       const own = scope ?? (withValues ? await deviceScope(tx, identity.userId) : null)
       const sites =
         own !== null && (withValues || !keepsAccess) ? await sitesWithOpenJobs(tx, own) : null
+      // The customers restricted on a request for deletion stay off every
+      // device, with everything that hangs on them (#845).
+      const restricted = await restrictedOnDevices(tx)
+      const narrowFor = (entity: string): SQL | undefined => {
+        if (entity === 'time_entries' && ownTimeOnly) {
+          return eq(timeEntries.userId, identity.userId)
+        }
+
+        // Who saw which value is for the audit log; a device gets its own.
+        if (entity === 'site_access_reveals') {
+          return eq(siteAccessReveals.userId, identity.userId)
+        }
+
+        // The catalogue does not fit on a device (#296): every device, the
+        // office's too, holds the frequent articles and their prices.
+        if (entity === 'articles' || entity === 'article_prices') {
+          return articlesNarrowedTo(held, entity)
+        }
+
+        // The stock of the vehicles, on every device (#298).
+        if (entity === 'store_articles' || entity === 'stock_movements') {
+          return stockNarrowedTo(vehicles, entity)
+        }
+
+        if (entity === 'site_accesses') {
+          return keepsAccess ? undefined : scope ? accessesOfOpenJobs(scope) : sql`false`
+        }
+
+        return scope ? narrowedTo(scope, entity) : undefined
+      }
 
       return {
         narrow(entity) {
-          if (entity === 'time_entries' && ownTimeOnly) {
-            return eq(timeEntries.userId, identity.userId)
-          }
+          const narrowed = narrowFor(entity)
+          const away = restrictedOut(restricted, entity)
 
-          // Who saw which value is for the audit log; a device gets its own.
-          if (entity === 'site_access_reveals') {
-            return eq(siteAccessReveals.userId, identity.userId)
-          }
-
-          // The catalogue does not fit on a device (#296): every device, the
-          // office's too, holds the frequent articles and their prices.
-          if (entity === 'articles' || entity === 'article_prices') {
-            return articlesNarrowedTo(held, entity)
-          }
-
-          // The stock of the vehicles, on every device (#298).
-          if (entity === 'store_articles' || entity === 'stock_movements') {
-            return stockNarrowedTo(vehicles, entity)
-          }
-
-          if (entity === 'site_accesses') {
-            return keepsAccess ? undefined : scope ? accessesOfOpenJobs(scope) : sql`false`
-          }
-
-          return scope ? narrowedTo(scope, entity) : undefined
+          return away === undefined ? narrowed : narrowed === undefined ? away : and(narrowed, away)
         },
         // What the answer was narrowed to, per entity whose rows depend on who
         // asks. The store on a device belongs to the business, not to a person,
@@ -384,19 +396,29 @@ export function syncRoutes(key: SecretKey | null): SyncRoutes<Identity, Permissi
         narrowed: {
           time_entries: ownTimeOnly ? `user:${identity.userId}` : 'all',
           ...Object.fromEntries(
-            scopedEntities.map((entity) => [entity, scope ? scope.value : 'all']),
+            scopedEntities.map((entity) => [
+              entity,
+              entity === 'on_call_shifts'
+                ? scope
+                  ? scope.value
+                  : 'all'
+                : narrowedWith(scope ? scope.value : 'all', restricted),
+            ]),
           ),
           // Changes with the sites of the open jobs, so that a closed job takes
           // the ways into its site off the device, and with whether values were
           // asked for. For whoever keeps them all, only while some carry a value
           // (#447): a device that holds none has nothing to let go of.
-          site_accesses: keepsAccess
-            ? withValues && sites && sites.siteIds.size > 0
-              ? `all:${sites.value}:values`
-              : 'all'
-            : scope && sites
-              ? `${sites.value}:${withValues ? 'values' : 'bare'}`
-              : 'none',
+          site_accesses: narrowedWith(
+            keepsAccess
+              ? withValues && sites && sites.siteIds.size > 0
+                ? `all:${sites.value}:values`
+                : 'all'
+              : scope && sites
+                ? `${sites.value}:${withValues ? 'values' : 'bare'}`
+                : 'none',
+            restricted,
+          ),
           site_access_reveals: `user:${identity.userId}`,
           // The articles every device holds, which change with the articles and
           // not with who asks (#296).

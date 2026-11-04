@@ -18,6 +18,7 @@ import { customers, customerTags } from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { setTags, tagChoiceFrom } from './tag-choice.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
+import { notRestricted } from '../privacy/customer-erasure.js'
 
 const writableFields = [
   'kind',
@@ -64,8 +65,12 @@ export class CustomersController {
   @Get()
   @RequiresPermission('customer.read')
   list(@CurrentIdentity() identity: RequestIdentity) {
+    // Without the customers restricted on a request for deletion (#845).
     return this.database.forTenant(identity, (tx) =>
-      tx.select().from(customers).where(isNull(customers.deletedAt)),
+      tx
+        .select()
+        .from(customers)
+        .where(and(isNull(customers.deletedAt), notRestricted(customers.id))),
     )
   }
 

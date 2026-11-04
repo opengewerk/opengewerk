@@ -1,22 +1,31 @@
-import { erasureKinds } from '@opengewerk/domain'
-import { primaryId, tenantIsolation, timestamps } from '@opengewerk/platform-server'
+import { erasureKinds, erasureRequestChannels, erasureRequestStatuses } from '@opengewerk/domain'
+import { primaryId, reference, tenantIsolation, timestamps } from '@opengewerk/platform-server'
 import { applicationRole, tenantColumn } from '@opengewerk/platform-server/schema'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   pgEnum,
   pgPolicy,
   pgTable,
   text,
+  timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 
+import { customers } from './customers.js'
+
 export const erasureKind = pgEnum('erasure_kind', erasureKinds)
+
+export const erasureRequestStatus = pgEnum('erasure_request_status', erasureRequestStatuses)
+
+export const erasureRequestChannel = pgEnum('erasure_request_channel', erasureRequestChannels)
 
 /**
  * Whether the person of the transaction leads its tenant: a membership of
@@ -101,5 +110,59 @@ export const erasureAutomations = pgTable(
     }),
     unique('erasure_automations_tenant_id_key').on(table.tenantId, table.id),
     unique('erasure_automations_once').on(table.tenantId, table.kind),
+  ],
+)
+
+/**
+ * A request of a customer to be deleted (Art. 17 DSGVO), from the request to
+ * its end (#845): who recorded it and when it came in, how, when the answer
+ * is due, and when the customer was restricted (Art. 18) and when it went.
+ *
+ * Recorded by whoever may change customers; answered, which restricts or
+ * deletes the customer, only by whoever leads the business, as the policy
+ * says. One request runs per customer at a time. It names nobody but the
+ * customer by its key, which stays as an empty row when the customer goes,
+ * and the person who recorded it. It goes to no device.
+ */
+export const erasureRequests = pgTable(
+  'erasure_requests',
+  {
+    id: primaryId<'erasure-request'>(),
+    ...tenantColumn,
+    customerId: reference<'customer'>('customer_id').notNull(),
+    receivedOn: date('received_on').notNull(),
+    channel: erasureRequestChannel('channel').notNull(),
+    status: erasureRequestStatus('status').notNull().default('open'),
+    answerDueOn: date('answer_due_on').notNull(),
+    restrictedAt: timestamp('restricted_at', { withTimezone: true }),
+    erasedAt: timestamp('erased_at', { withTimezone: true }),
+    createdBy: text('created_by').notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    tenantIsolation(table.tenantId),
+    pgPolicy('answered_by_whoever_leads', {
+      as: 'restrictive',
+      for: 'update',
+      to: applicationRole,
+      using: personLeads,
+      withCheck: personLeads,
+    }),
+    unique('erasure_requests_tenant_id_key').on(table.tenantId, table.id),
+    foreignKey({
+      columns: [table.tenantId, table.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+      name: 'erasure_requests_customer_in_tenant',
+    }).onDelete('restrict'),
+    uniqueIndex('erasure_requests_one_at_a_time')
+      .on(table.tenantId, table.customerId)
+      .where(sql`${table.status} <> 'erased'`),
+    check(
+      'erasure_requests_stand',
+      sql`(${table.status} = 'open' and ${table.restrictedAt} is null and ${table.erasedAt} is null)
+        or (${table.status} = 'restricted' and ${table.restrictedAt} is not null and ${table.erasedAt} is null)
+        or (${table.status} = 'erased' and ${table.erasedAt} is not null)`,
+    ),
+    check('erasure_requests_answer_after', sql`${table.answerDueOn} >= ${table.receivedOn}`),
   ],
 )

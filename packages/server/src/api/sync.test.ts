@@ -357,7 +357,9 @@ describe('the tables', () => {
       // The protocol of the deletion concept and the kinds that go by
       // themselves (#317), kept at the desk.
       name === 'erasures' ||
-      name === 'erasure_automations'
+      name === 'erasure_automations' ||
+      // The requests for deletion (#845), recorded and answered at the desk.
+      name === 'erasure_requests'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

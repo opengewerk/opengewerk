@@ -110,6 +110,31 @@
       "responsible": "lead",
       "actions": ["erasure"],
       "taskTitle": "Lead löschen: {quelle}"
+    },
+    {
+      "key": "privacy.customer_erasure",
+      "trade": null,
+      "title": "Kunde löschen",
+      "about": "Ein Kunde ist zum Löschen fällig, wenn mit ihm nichts mehr läuft, kein offener Auftrag, kein laufender Wartungsvertrag, kein Beleg mehr aufzubewahren und keine Gewährleistung, und seit einer Zahl von Monaten kein Kontakt war; hat er um das Löschen gebeten, ohne die Monate (Löschkonzept). Er steht dann unter Einstellungen, Datenschutz, wo das Löschen bestätigt wird; steht die Art dort auf automatisch, löscht der Lauf ihn von selbst. Ein späterer Kontakt verschiebt die Frist, ein neuer Auftrag lässt sie entfallen.",
+      "source": "customer",
+      "intervalDays": null,
+      "intervalMonths": 36,
+      "leadDays": 0,
+      "responsible": "lead",
+      "actions": ["erasure"],
+      "taskTitle": "Kunde löschen: {quelle}"
+    },
+    {
+      "key": "privacy.erasure_request",
+      "trade": null,
+      "title": "Löschanfrage beantworten",
+      "about": "Bittet ein Kunde darum, seine Daten zu löschen, ist die Antwort einen Monat nach Eingang fällig (Art. 12 Abs. 3 DSGVO). Beantwortet wird unter Einstellungen, Datenschutz: gelöscht, wenn mit dem Kunden nichts mehr läuft, sonst gesperrt, solange Belege oder eine Gewährleistung ihn halten. Rechtzeitig davor entsteht eine Aufgabe; mit der Antwort entfällt die Frist.",
+      "source": "erasure_request",
+      "intervalDays": null,
+      "leadDays": 7,
+      "responsible": "lead",
+      "actions": ["task"],
+      "taskTitle": "Löschanfrage beantworten: {quelle}"
     }
   ]
 }
