@@ -2436,3 +2436,108 @@ describe('the rollback of the acceptance', () => {
     expect(await forced('jobs')).toBe(true)
   })
 })
+
+describe('the roles before 0126', () => {
+  const before = () => readMigrationIndex().findIndex((entry) => entry.tag === '0126_prospects')
+
+  it('give the owner and the office the rights to the leads, and nobody else', async () => {
+    expect(before()).toBeGreaterThan(0)
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), releaseFolder(before()))
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+         values ($1, 'owner', 'Inhaber', '{customer.write}', true, true),
+                ($1, 'office', 'Büro', '{customer.write}', false, false),
+                ($1, 'technician', 'Monteur', '{customer.read}', false, false)`,
+      [tenant.id],
+    )
+
+    await runMigrations(ownerDatabaseUrl())
+
+    const { rows: roles } = await admin.query<{ key: string; reads: boolean; keeps: boolean }>(
+      `select key, 'prospect.read' = any(rights) as reads,
+              'prospect.write' = any(rights) as keeps
+         from tenant_roles order by key`,
+    )
+    expect(roles).toEqual([
+      { key: 'office', reads: true, keeps: true },
+      { key: 'owner', reads: true, keeps: true },
+      { key: 'technician', reads: false, keeps: false },
+    ])
+
+    const { rows: forced } = await admin.query<{ forced: boolean }>(
+      `select relforcerowsecurity as forced from pg_class where relname = 'tenant_roles'`,
+    )
+    expect(forced).toEqual([{ forced: true }])
+  })
+})
+
+/**
+ * The rollback of 0126 (#312): a lead is somebody who asked, the source of a
+ * customer what the office was told. The rollback deletes neither; while
+ * there is one, it stops and changes nothing.
+ */
+describe('the rollback of the leads', () => {
+  async function forced(table: string): Promise<boolean> {
+    const { rows } = await admin.query<{ forced: boolean }>(
+      'select relforcerowsecurity as forced from pg_class where relname = $1',
+      [table],
+    )
+
+    return rows[0]?.forced ?? false
+  }
+
+  it('deletes no lead and no source, and stops while there is one', async () => {
+    const customer = newId<'customer'>()
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+         values ($1, 'office', 'Büro', '{customer.write,prospect.read,prospect.write}', false, false)`,
+      [tenant.id],
+    )
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name, source) values ($1, $2, 'private', 'Familie Weber', 'referral')",
+      [customer, tenant.id],
+    )
+
+    await expect(revertMigration(admin, '0126_prospects')).rejects.toThrow(
+      'Die Rücknahme von 0126 löscht sie nicht',
+    )
+    expect(
+      (await admin.query('select source from customers where id = $1', [customer])).rows,
+    ).toEqual([{ source: 'referral' }])
+    expect(await forced('customers')).toBe(true)
+    expect(await forced('prospects')).toBe(true)
+
+    // A lead alone stops it as well.
+    await admin.query(
+      `begin; set local session_replication_role = replica; update customers set source = null; commit;`,
+    )
+    await admin.query(
+      `insert into prospects (tenant_id, name, source, last_contact_on) values ($1, 'Café Rosengarten', 'website', '2026-11-02')`,
+      [tenant.id],
+    )
+    await expect(revertMigration(admin, '0126_prospects')).rejects.toThrow(
+      'Die Rücknahme von 0126 löscht sie nicht',
+    )
+
+    // Taken out by hand, as the sentence says, the rollback goes through.
+    await admin.query(
+      `begin; set local session_replication_role = replica; delete from prospects; commit;`,
+    )
+    await revertMigration(admin, '0126_prospects')
+
+    expect(await tableNames(admin)).not.toContain('prospects')
+    expect(await columnNames(admin, 'customers')).not.toContain('source')
+    expect(
+      (await admin.query<{ rights: string[] }>('select rights from tenant_roles')).rows,
+    ).toEqual([{ rights: ['customer.write'] }])
+    expect(await forced('customers')).toBe(true)
+    expect(await forced('tenant_roles')).toBe(true)
+  })
+})

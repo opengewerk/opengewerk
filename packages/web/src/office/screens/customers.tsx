@@ -3,6 +3,8 @@ import {
   customerKinds,
   customerStandingLabel,
   type IsoDate,
+  prospectSourceLabel,
+  prospectSources,
   type RecordState,
   type ReminderGround,
   reminderGroundExplanation,
@@ -52,6 +54,7 @@ import {
   yesOrNo,
 } from '@opengewerk/platform-web/sync'
 import type { EditResult } from '@opengewerk/platform-web/sync'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { ArrowRight, Check, Clock, Pencil, Plus, Tag, Users, X } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
@@ -66,6 +69,7 @@ import {
   jobStatusOf,
 } from '../../app/labels.js'
 import { useMay } from '../../app/queries.js'
+import { prospects, type ProspectEntry, prospectsKey } from '../../session/prospects.js'
 import { setTags } from '../../session/tags.js'
 import {
   type ChosenTags,
@@ -109,8 +113,25 @@ function asCustomer(values: Record<string, string>) {
     // A ground has its day and none has none (#316), whatever the field held before.
     reminderGround: values['reminderGround'] || null,
     reminderGroundOn: values['reminderGround'] ? asTextOrNull(values['reminderGroundOn']) : null,
+    // How the customer found the business (#312), none where nobody said.
+    source: values['source'] || null,
     notes: asTextOrNull(values['notes']),
   }
+}
+
+/** The sources as the form offers them, none first (#312). */
+const sourceOptions = [
+  { value: '', label: 'Nicht angegeben' },
+  ...prospectSources.map((source) => ({ value: source, label: prospectSourceLabel[source] })),
+]
+
+/** The source of a record, or null where it has none or one this version does not know. */
+function sourceOf(customer: RecordState): (typeof prospectSources)[number] | null {
+  const source = customer['source']
+
+  return typeof source === 'string' && (prospectSources as readonly string[]).includes(source)
+    ? (source as (typeof prospectSources)[number])
+    : null
 }
 
 /** The grounds for reminders as the form offers them, none first (#316). */
@@ -714,6 +735,8 @@ function CustomerRecord({
 /** "Stammdaten": what a document needs to know about the customer. */
 function CustomerFacts({ customer }: { readonly customer: RecordState }) {
   const email = maybeText(customer, 'email')
+  const source = sourceOf(customer)
+  const lead = useLeadOf(text(customer, 'id'), source !== null)
 
   return (
     <Panel title="Stammdaten">
@@ -749,11 +772,45 @@ function CustomerFacts({ customer }: { readonly customer: RecordState }) {
                 : null,
             ),
           },
+          // How the customer found the business (#312), with the lead it came from.
+          ...(source === null
+            ? []
+            : [
+                {
+                  label: 'Quelle',
+                  value: lead ? (
+                    <>
+                      {`${prospectSourceLabel[source]}, aus dem `}
+                      <Link to={`/leads/${lead.id}`} className="text-copper-text underline">
+                        {`Lead vom ${date(lead.createdAt.slice(0, 10))}`}
+                      </Link>
+                    </>
+                  ) : (
+                    prospectSourceLabel[source]
+                  ),
+                },
+              ]),
           { label: 'Notizen', value: maybeText(customer, 'notes') },
         ]}
       />
     </Panel>
   )
+}
+
+/**
+ * The lead a customer came from (#312), for whoever reads leads and while
+ * there is a connection: the leads live on the server.
+ */
+function useLeadOf(customerId: string, asked: boolean): ProspectEntry | undefined {
+  const { online } = useSyncStatus()
+  const reads = useMay('prospect.read')
+  const leads = useQuery({
+    queryKey: prospectsKey,
+    queryFn: () => prospects(),
+    enabled: asked && online && reads,
+  })
+
+  return leads.data?.find((entry) => entry.customerId === customerId)
 }
 
 /** "Objekte": the buildings of the customer, with their installations and what runs there. */
@@ -1064,6 +1121,7 @@ interface CustomerDraft {
   isConstructionServiceRecipient: string
   reminderGround: string
   reminderGroundOn: string
+  source: string
   notes: string
 }
 
@@ -1088,6 +1146,7 @@ function draftOf(customer: RecordState | null): CustomerDraft {
       customer?.['isConstructionServiceRecipient'] === true ? 'true' : 'false',
     reminderGround: held('reminderGround'),
     reminderGroundOn: held('reminderGroundOn'),
+    source: held('source'),
     notes: held('notes'),
   }
 }
@@ -1247,7 +1306,7 @@ function CustomerFormScreen({ customerId }: { readonly customerId: string | unde
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
           <div className="flex min-w-0 grow flex-col gap-3">
             <FormPanel title="Kunde">
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
                 {input('name', 'Name', { required: true })}
                 <SelectField
                   label="Art"
@@ -1255,6 +1314,13 @@ function CustomerFormScreen({ customerId }: { readonly customerId: string | unde
                   options={kindOptions}
                   onChange={set('kind')}
                   required
+                />
+                {/* How the customer found the business (#312). */}
+                <SelectField
+                  label="Quelle"
+                  value={draft.source}
+                  options={sourceOptions}
+                  onChange={set('source')}
                 />
               </div>
             </FormPanel>

@@ -175,6 +175,7 @@ describe('the navigation of the office', () => {
     expect(listed(nav)).toEqual([
       ...master,
       'Arbeit',
+      'Vertrieb',
       'Aufträge',
       'Plantafel',
       'Belege',
@@ -202,6 +203,7 @@ describe('the navigation of the office', () => {
     expect(listed(nav)).toEqual([
       ...master,
       'Arbeit',
+      'Vertrieb',
       'Aufträge',
       'Plantafel',
       'Belege',

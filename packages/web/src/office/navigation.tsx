@@ -10,6 +10,7 @@ import {
   Clock,
   File,
   FileClock,
+  Funnel,
   HandCoins,
   House,
   IdCard,
@@ -51,6 +52,7 @@ export function useNavigation(): readonly NavigationGroup[] {
   const readsGridOperators = useMay('grid_operator.read')
   const readsFundingPrograms = useMay('funding_program.read')
   const readsPeople = useMay('person.read')
+  const readsProspects = useMay('prospect.read')
   const keepsAbsences = useMay('absence.write')
   const plans = useMay('job.write')
   const requests = useOpenRequests(keepsAbsences)
@@ -88,6 +90,10 @@ export function useNavigation(): readonly NavigationGroup[] {
     {
       title: 'Arbeit',
       entries: [
+        // The pipeline from the lead to the closed job, and the leads (#312).
+        ...(readsProspects
+          ? [{ to: '/vertrieb', label: 'Vertrieb', icon: Funnel, also: ['/leads'] }]
+          : []),
         { to: '/auftraege', label: 'Aufträge', icon: Calendar },
         // Who goes where when (#290), for whoever plans the jobs.
         ...(plans ? [{ to: '/plantafel', label: 'Plantafel', icon: CalendarRange }] : []),

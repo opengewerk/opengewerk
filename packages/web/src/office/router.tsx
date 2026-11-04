@@ -73,6 +73,8 @@ const screens = {
   gridOperators: () => import('./screens/grid-operators.js'),
   fundingPrograms: () => import('./screens/funding-programs.js'),
   maintenanceContracts: () => import('./screens/maintenance-contracts.js'),
+  prospects: () => import('./screens/prospects.js'),
+  pipeline: () => import('./screens/pipeline.js'),
   time: () => import('./screens/time.js'),
 }
 
@@ -141,6 +143,11 @@ const GridOperatorList = lazyRouteComponent(screens.gridOperators, 'GridOperator
 const GridOperatorScreen = lazyRouteComponent(screens.gridOperators, 'GridOperatorScreen')
 const NewGridOperatorScreen = lazyRouteComponent(screens.gridOperators, 'NewGridOperatorScreen')
 const FundingProgramList = lazyRouteComponent(screens.fundingPrograms, 'FundingProgramList')
+const ProspectList = lazyRouteComponent(screens.prospects, 'ProspectList')
+const ProspectScreen = lazyRouteComponent(screens.prospects, 'ProspectScreen')
+const NewProspectScreen = lazyRouteComponent(screens.prospects, 'NewProspectScreen')
+const EditProspectScreen = lazyRouteComponent(screens.prospects, 'EditProspectScreen')
+const SalesScreen = lazyRouteComponent(screens.pipeline, 'SalesScreen')
 const MaintenanceContractList = lazyRouteComponent(
   screens.maintenanceContracts,
   'MaintenanceContractList',
@@ -408,6 +415,20 @@ const routes = [
     getParentRoute: () => office,
     path: '/foerderprogramme/$fundingProgramId',
     component: FundingProgramScreen,
+  }),
+  // The pipeline and the leads (#312).
+  createRoute({ getParentRoute: () => office, path: '/vertrieb', component: SalesScreen }),
+  createRoute({ getParentRoute: () => office, path: '/leads', component: ProspectList }),
+  createRoute({ getParentRoute: () => office, path: '/leads/neu', component: NewProspectScreen }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/leads/$prospectId',
+    component: ProspectScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/leads/$prospectId/bearbeiten',
+    component: EditProspectScreen,
   }),
   // The maintenance contracts (#294); a new one comes out of an issued quote.
   createRoute({

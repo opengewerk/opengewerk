@@ -621,6 +621,73 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
     issueByItself: true,
   })
 
+  // The leads of the office (#312), one in each stage the board "Vertrieb"
+  // shows, and one that became a customer and has no offer yet.
+  const leads = [
+    {
+      name: 'Yilmaz, Deniz',
+      source: 'referral',
+      stage: 'new',
+      days: 0,
+      concern: 'Wallbox in der Garage, 11 kW',
+    },
+    {
+      name: 'Hausverwaltung Alstertal GmbH',
+      kind: 'property_management',
+      source: 'email',
+      stage: 'new',
+      days: 1,
+      concern: 'Prüfung der Geräte in zwölf Wohnanlagen',
+      email: 'technik@alstertal.example',
+    },
+    {
+      name: 'Café Rosengarten',
+      kind: 'business',
+      source: 'website',
+      stage: 'contacted',
+      days: 2,
+      concern: 'LED-Beleuchtung für den Gastraum',
+    },
+    {
+      name: 'Brandt, Familie',
+      source: 'phone',
+      stage: 'qualified',
+      days: 1,
+      concern: 'PV-Anlage mit Speicher auf dem Einfamilienhaus, Dach nach Süden, etwa 10 kWp.',
+      phone: '040 84 21 57 00',
+      street: 'Kastanienweg',
+      houseNumber: '9',
+      postalCode: '22339',
+      city: 'Hamburg',
+    },
+    {
+      name: 'Schmitt, Paul',
+      source: 'phone',
+      stage: 'dismissed',
+      days: 20,
+      concern: 'Steckdosen im Keller nachrüsten',
+    },
+    {
+      name: 'Kaiser, Lena',
+      source: 'referral',
+      stage: 'qualified',
+      days: 5,
+      concern: 'Unterverteilung im Neubau',
+      street: 'Wiesenring',
+      houseNumber: '14',
+      postalCode: '22527',
+      city: 'Hamburg',
+    },
+  ] as const
+
+  for (const { days, ...values } of leads) {
+    const made = idOf(await post('/prospects', { ...values, lastContactOn: addDays(today, -days) }))
+
+    if (values.name === 'Kaiser, Lena') {
+      await post(`/prospects/${made}/conversion`, {})
+    }
+  }
+
   // Two days of work in the stairwell, a report for each, issued and not
   // billed yet: the job offers one invoice over both (#135).
   for (const [daysAgo, minutes] of [

@@ -29,6 +29,15 @@ export const permissions = [
   'customer.create',
   /** Changing and removing a customer that is already there, not creating one. */
   'customer.write',
+  /**
+   * The leads of the business (#312): who asked before there is a customer,
+   * and the pipeline that starts with them. The owner and the office, who
+   * take the calls and write the offers; a lead is somebody's name and number
+   * before any order, nothing a device on site needs. Making a customer out
+   * of one asks `customer.create` and `site.write` as well.
+   */
+  'prospect.read',
+  'prospect.write',
   'site.read',
   'site.write',
   /**
@@ -279,6 +288,8 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'customer.read': 'Kunden ansehen',
   'customer.create': 'Kunden anlegen',
   'customer.write': 'Kunden ändern',
+  'prospect.read': 'Leads ansehen',
+  'prospect.write': 'Leads erfassen und ändern',
   'site.read': 'Objekte ansehen',
   'site.write': 'Objekte bearbeiten',
   'site.access': 'Zugang zu Objekten sehen und pflegen',
@@ -381,6 +392,8 @@ const officePermissions: readonly Permission[] = [
   'customer.read',
   'customer.create',
   'customer.write',
+  'prospect.read',
+  'prospect.write',
   'site.read',
   'site.write',
   'site.access',

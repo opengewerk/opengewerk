@@ -189,6 +189,7 @@ export const syncFieldNames: Readonly<Record<string, string>> = {
   taxExemptionValidUntil: 'Freistellung gültig bis',
   reminderGround: 'Grundlage für Erinnerungen',
   reminderGroundOn: 'Grundlage für Erinnerungen seit',
+  source: 'Quelle',
   parentJobId: 'Übergeordneter Auftrag',
   predecessorJobId: 'Folgt auf',
   inverterId: 'Wechselrichter',
