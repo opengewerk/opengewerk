@@ -81,6 +81,7 @@ import {
   useTagsBy,
 } from '../tags.js'
 import { FilesPanel } from './attachments.js'
+import { HistoryPanel } from './history.js'
 import { ContactsSection } from './contacts.js'
 import { ContractsCard } from './contract-card.js'
 import { DocumentMarker } from './document-marker.js'
@@ -646,6 +647,10 @@ function CustomerRecord({
     <CustomerJobs customerId={customerId} jobs={jobs} adding={addingJob} onAdding={setAddingJob} />
   )
   const facts = <CustomerFacts customer={customer} />
+  // The notes, calls, mails and appointments at the customer and its sites (#313).
+  const historyPanel = (
+    <HistoryPanel subject={{ customerId }} customerId={customerId} sites={sites} />
+  )
   const contacts = (
     <ContactsSection
       parent={{ customerId }}
@@ -672,6 +677,7 @@ function CustomerRecord({
           </div>
           <div className="flex min-w-0 basis-0 grow flex-col gap-3">
             <CustomerDocuments customerId={customerId} />
+            {historyPanel}
             {tasks}
           </div>
           <div className="flex w-[380px] shrink-0 flex-col gap-3">
@@ -692,6 +698,7 @@ function CustomerRecord({
             {sitesPanel}
             {jobsPanel}
             <CustomerDocuments customerId={customerId} />
+            {historyPanel}
           </div>
           <div className="flex w-[340px] shrink-0 flex-col gap-3">
             {facts}
@@ -711,6 +718,7 @@ function CustomerRecord({
           <>
             {sitesPanel}
             {jobsPanel}
+            {historyPanel}
             <FilesPanel
               field="customerId"
               id={customerId}

@@ -503,6 +503,19 @@ const crossings: readonly {
             maintenance_contract_id = ${other.maintenanceContract} where id = ${own.document}`,
   },
   {
+    // Inserts, since an entry in the history is written once (#313).
+    key: 'communications_customer_in_tenant',
+    write: (own, other) =>
+      sql`insert into communications (tenant_id, customer_id, kind, text, happened_at)
+            values (${own.tenant}, ${other.customer}, 'note', 'Schlüssel beim Hausmeister.', now())`,
+  },
+  {
+    key: 'communications_site_in_tenant',
+    write: (own, other) =>
+      sql`insert into communications (tenant_id, customer_id, site_id, kind, text, happened_at)
+            values (${own.tenant}, ${own.customer}, ${other.site}, 'note', 'Schlüssel beim Hausmeister.', now())`,
+  },
+  {
     key: 'offer_declines_document_in_tenant',
     write: (own, other) =>
       repoint('offer_declines', 'document_id', own.offerDecline, other.document),
@@ -1525,6 +1538,8 @@ interface Planted {
   readonly prospect: string
   /** The document above, marked as a declined offer (#841). */
   readonly offerDecline: string
+  /** A note at the customer and site above (#313). */
+  readonly communication: string
   /** An acceptance at the job above, a draft, and a defect at the job (#311). */
   readonly acceptance: string
   readonly defect: string
@@ -1778,6 +1793,11 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
          interval_months, term_months, renewal, notice_months, price_kind)
        values ($1, 'WV-2026-0001', 'Wartung', $2, $3, '2026-11-01', '2026-11-15', 12, 12, 'none', 0, 'effort')`,
       [tenant, customer, document],
+    ),
+    communication: await one(
+      `insert into communications (tenant_id, customer_id, site_id, kind, text, happened_at)
+       values ($1, $2, $3, 'note', 'Schlüssel beim Hausmeister.', now())`,
+      [tenant, customer, site],
     ),
     offerDecline: await one(
       "insert into offer_declines (tenant_id, document_id, declined_on) values ($1, $2, '2026-11-04')",

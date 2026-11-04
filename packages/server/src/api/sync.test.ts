@@ -351,7 +351,9 @@ describe('the tables', () => {
       // The leads (#312), kept at the desk; a customer that came of one carries its source.
       name === 'prospects' ||
       // An offer the customer turned down (#841), marked at the desk.
-      name === 'offer_declines'
+      name === 'offer_declines' ||
+      // The notes and calls at a customer and a site (#313), written at the desk.
+      name === 'communications'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

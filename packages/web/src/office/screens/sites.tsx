@@ -37,6 +37,7 @@ import { setTags } from '../../session/tags.js'
 import { type ChosenTags, TagPicker, TagPill, useTagsBy } from '../tags.js'
 import { AppliancesPanel, ReportButton } from './appliances.js'
 import { FilesPanel } from './attachments.js'
+import { HistoryPanel } from './history.js'
 import { ContactsSection } from './contacts.js'
 import { ContractsCard } from './contract-card.js'
 import { placeOf, tagsChanged } from './customers.js'
@@ -580,6 +581,11 @@ export function SiteScreen() {
               }
               empty="Für dieses Objekt läuft noch kein Auftrag."
             />
+
+            {/* The notes, calls, mails and appointments at the site (#313). */}
+            {siteId ? (
+              <HistoryPanel subject={{ siteId }} customerId={customerId} sites={[site]} />
+            ) : null}
 
             <FilesPanel
               field="siteId"

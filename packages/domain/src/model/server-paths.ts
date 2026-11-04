@@ -56,4 +56,6 @@ export const serverPaths = [
   'prospects',
   // An offer the customer turned down (#841).
   'offer-declines',
+  // The notes and calls at a customer and a site, and their history (#313).
+  'communications',
 ] as const

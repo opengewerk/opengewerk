@@ -638,6 +638,27 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
     reason: 'Die Eigentümerversammlung hat die Ladepunkte vertagt.',
   })
 
+  // The history at the property management (#313): a call about the estate
+  // this morning and a note about the customer from last week, beside the
+  // mails and appointments the preview has anyway.
+  const talkedAt = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString()
+
+  await post('/communications', {
+    customerId: nordblick,
+    siteId: estate,
+    kind: 'call',
+    direction: 'incoming',
+    counterpart: 'Frau Albers, Technik',
+    text: 'Das Licht im Treppenhaus flackert wieder, diesmal im zweiten Stock. Ein Termin nächste Woche passt.',
+    happenedAt: talkedAt(2),
+  })
+  await post('/communications', {
+    customerId: nordblick,
+    kind: 'note',
+    text: 'Rechnungen ab Januar bitte nur noch per E-Mail an die Buchhaltung, nicht mehr an die Technik.',
+    happenedAt: talkedAt(24 * 6),
+  })
+
   // The leads of the office (#312), one in each stage the board "Vertrieb"
   // shows, and one that became a customer and has no offer yet.
   const leads = [
