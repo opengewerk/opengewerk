@@ -7,7 +7,8 @@ import { request } from '@opengewerk/platform-web/sync'
  */
 
 export interface PrivacyOverview {
-  readonly due: readonly DueErasure[]
+  /** Null for somebody who may not read the records of the kinds that are due. */
+  readonly due: readonly DueErasure[] | null
   readonly erasures: readonly Erasure[]
   readonly automations: readonly ErasureAutomation[]
   /** Whether the person asking leads the business, and so may delete and switch. */

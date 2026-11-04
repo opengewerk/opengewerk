@@ -21,6 +21,8 @@ import {
   erasureKindWords,
   erasureRequestProblem,
   type ErasureRequest,
+  isAllowed,
+  missingPermission,
 } from '@opengewerk/domain'
 import { Database } from '@opengewerk/platform-server'
 import { and, eq } from 'drizzle-orm'
@@ -42,8 +44,11 @@ import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
 /** What the screen "Datenschutz" shows, in one answer. */
 export interface PrivacyOverview {
-  /** What is due and not yet deleted, with who each record is. */
-  readonly due: readonly DueErasure[]
+  /**
+   * What is due and not yet deleted, with who each record is; null for
+   * somebody who may not read the records of the kinds that are due.
+   */
+  readonly due: readonly DueErasure[] | null
   /** The protocol, newest first. */
   readonly erasures: readonly Erasure[]
   /** The kinds that go by themselves. */
@@ -83,7 +88,9 @@ export class PrivacyController {
     const day = today()
 
     return this.database.forTenant(identity, async (tx) => ({
-      due: await dueErasuresOf(tx, day),
+      due: isAllowed(identity, erasureKindWords.prospect.read)
+        ? await dueErasuresOf(tx, day)
+        : null,
       erasures: await erasuresOf(tx),
       automations: await automationsOf(tx),
       leads: await personLeads(tx, identity.userId, day),
@@ -108,6 +115,12 @@ export class PrivacyController {
     }
 
     const { kind, ids } = body as ErasureRequest
+    const read = erasureKindWords[kind].read
+
+    // Nobody confirms what she may not see.
+    if (!isAllowed(identity, read)) {
+      throw new ForbiddenException(missingPermission(read))
+    }
     const day = today()
     const erasing = { tenantId: identity.tenantId, userId: identity.userId, reason: erasureReason }
 

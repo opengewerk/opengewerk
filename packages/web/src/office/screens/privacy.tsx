@@ -108,8 +108,27 @@ export function PrivacyScreen() {
 }
 
 function DueSection({ overview }: { readonly overview: PrivacyOverview }) {
+  if (overview.due === null) {
+    return (
+      <Panel title="Zum Löschen fällig" roomy>
+        <SettingsText muted>
+          Welche Leads zum Löschen fällig sind, sieht, wer Leads sehen darf.
+        </SettingsText>
+      </Panel>
+    )
+  }
+
+  return <DueTable due={overview.due} leads={overview.leads} />
+}
+
+function DueTable({
+  due,
+  leads,
+}: {
+  readonly due: readonly DueErasure[]
+  readonly leads: boolean
+}) {
   const queries = useQueryClient()
-  const { due, leads } = overview
   const [unselected, setUnselected] = useState<ReadonlySet<string>>(new Set())
   const [asking, setAsking] = useState(false)
   const [busy, setBusy] = useState(false)

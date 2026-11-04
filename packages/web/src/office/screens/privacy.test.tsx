@@ -188,6 +188,20 @@ describe('what is due', () => {
   })
 })
 
+describe('what is due, for whoever may not see leads', () => {
+  it('says who sees it instead of naming anybody', async () => {
+    signedInAs('owner')
+    serverSays('GET', '/privacy', { due: null, erasures: [], automations: [], leads: true })
+    render(inQueries(<PrivacyScreen />))
+
+    expect(
+      await screen.findByText('Welche Leads zum Löschen fällig sind, sieht, wer Leads sehen darf.'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('table', { name: 'Zum Löschen fällig' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Ausgewählte löschen' })).toBeNull()
+  })
+})
+
 describe('deleting by itself', () => {
   it('is switched on for the kind, and then says who did it and is switched off', async () => {
     signedInAs('owner')

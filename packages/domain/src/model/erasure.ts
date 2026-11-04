@@ -1,5 +1,6 @@
 import type { IsoDate } from '@opengewerk/platform-domain'
 
+import type { Permission } from './authorization.js'
 import type { ErasureId } from './identifier.js'
 import type { Prospect, ProspectSource } from './prospect.js'
 
@@ -21,6 +22,12 @@ export type ErasureKind = (typeof erasureKinds)[number]
 export interface ErasureKindWords {
   /** The kind of deadline that proposes a record of the kind. */
   readonly deadline: string
+  /**
+   * The right that reads a record of the kind. Who it is that is due is shown
+   * only to whoever has it, and only whoever has it confirms (the security
+   * review of #847): reading the settings is not reading the leads.
+   */
+  readonly read: Permission
   /** One record of the kind, as a column of the lists says it. */
   readonly one: string
   /** The kind as the switch for going by itself names it. */
@@ -35,6 +42,7 @@ export interface ErasureKindWords {
 export const erasureKindWords: Readonly<Record<ErasureKind, ErasureKindWords>> = {
   prospect: {
     deadline: 'privacy.prospect_erasure',
+    read: 'prospect.read',
     one: 'Lead',
     title: 'Leads, die nie Kunde wurden',
     reason: 'Gelöscht nach dem Löschkonzept: ein Lead, der nie Kunde wurde.',

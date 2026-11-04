@@ -370,6 +370,29 @@ describe('deleting what is due (#317)', () => {
     expect((await overview()).erasures).toHaveLength(1)
   })
 
+  it('names what is due only to whoever may see leads, and lets nobody else confirm', async () => {
+    await runDeadlinesOf({ database }, north, morning)
+
+    // Leads the business, reads the settings and not the leads: a role of a business's own.
+    const settingsOnly = JSON.stringify({
+      userId: 'lena',
+      tenantId: north,
+      roles: ['owner'],
+      rights: ['settings.read'],
+    })
+
+    expect((await overview(settingsOnly)).due).toBeNull()
+
+    const answer = await http()
+      .post('/privacy/erasures')
+      .set('x-test-identity', settingsOnly)
+      .send({ kind: 'prospect', ids: [old] })
+      .expect(403)
+
+    expect(refusal(answer)).toContain('Leads')
+    expect(await prospectExists(old)).toBe(true)
+  })
+
   it('does not reach into another business', async () => {
     await runDeadlinesOf({ database }, north, morning)
 
