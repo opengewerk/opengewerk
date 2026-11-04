@@ -1199,6 +1199,30 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   await post(`/privacy/requests/${wolff}/restriction`, {})
   await post('/privacy/requests', { customerId: arslan, receivedOn: before(1), channel: 'phone' })
 
+  // A customer deleted on its request whose garden house never had a job or a
+  // protocol, so the site goes with it (#848): "Datenschutz" proposes it.
+  const lorenz = idOf(
+    await post('/customers', {
+      kind: 'private',
+      name: 'Familie Lorenz',
+      street: 'Gärtnerstraße',
+      houseNumber: '42',
+      postalCode: '20253',
+      city: 'Hamburg',
+    }),
+  )
+
+  await post('/sites', {
+    customerId: lorenz,
+    designation: 'Gartenhaus Lorenz',
+    street: 'Gärtnerstraße',
+    houseNumber: '42',
+    postalCode: '20253',
+    city: 'Hamburg',
+  })
+  await post('/privacy/requests', { customerId: lorenz, receivedOn: before(40), channel: 'email' })
+  await post('/privacy/erasures', { kind: 'customer', ids: [lorenz] })
+
   // A report of today still in draft, with material taken from an article
   // (#296): the walk of the check of widths opens "Material eintragen" on it
   // on site, and its article counts as used lately on every device.

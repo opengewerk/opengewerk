@@ -84,6 +84,15 @@
       "note": "Keine Aufbewahrungsfrist, sondern die regelmäßige Verjährung der Ansprüche aus dem Arbeitsverhältnis: drei Jahre ab dem Schluss des Jahres des Austritts. Bis dahin bleibt die Akte, danach geht sie mit Arbeitszeit, Qualifikationen und Zugang; Lohnunterlagen halten den Namen länger (retention.payroll_records)."
     },
     {
+      "key": "retention.site_records",
+      "validFrom": "2002-01-01",
+      "validUntil": null,
+      "unit": "years",
+      "value": 10,
+      "source": "§ 199 Abs. 3 Satz 1 Nr. 1 BGB",
+      "note": "Keine Aufbewahrungsfrist, sondern die längste Verjährung von Schadensersatzansprüchen ohne Rücksicht auf die Kenntnis: zehn Jahre von ihrer Entstehung an. So lange bleiben Objekt, Anlagen und Protokolle eines gelöschten Kunden ohne seine Daten als Nachweis des Betriebs, gezählt ab dem jüngsten unterschriebenen Protokoll am Objekt, ohne Protokoll ab dem letzten abgeschlossenen Auftrag dort. Entschieden am 04. und 05.11.2026 (#845, #848). Ansprüche aus der Verletzung von Leben, Körper und Gesundheit verjähren erst nach dreißig Jahren (§ 199 Abs. 2 BGB); ob das für Nachweise an elektrischen Anlagen eine längere Frist verlangt, prüft die fachkundige Abnahme in #31."
+    },
+    {
       "key": "retention.working_time_records",
       "validFrom": "1994-07-01",
       "validUntil": null,

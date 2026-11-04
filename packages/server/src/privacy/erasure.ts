@@ -13,10 +13,11 @@ import {
   prospectErasureLabel,
   prospectSourceLabel,
   sicknessErasureLabel,
+  siteHoldSentence,
   staffYearErasureLabel,
   type TenantId,
 } from '@opengewerk/domain'
-import { leadsItsTenant, type TenantTransaction } from '@opengewerk/platform-server'
+import { idArray, leadsItsTenant, type TenantTransaction } from '@opengewerk/platform-server'
 import { auditEntries, auditRedactions, memberships } from '@opengewerk/platform-server/schema'
 import { and, asc, desc, eq, inArray, isNull, lte, sql } from 'drizzle-orm'
 
@@ -29,6 +30,7 @@ import {
   prospects,
 } from '../database/schema/index.js'
 import { customerStandings, emptyCustomer, redactRecords } from './customer-erasure.js'
+import { dueSites, emptySite } from './site-erasure.js'
 import {
   duePeople,
   dueSicknesses,
@@ -475,6 +477,93 @@ async function eraseStaff(
   return written
 }
 
+/**
+ * Deletes sites of deleted customers under the deletion concept (#848), as
+ * `eraseStaff` does: for each, the line of the protocol first, so that the
+ * locks of 0132 open for this site in this transaction alone
+ * (`site_erasing`), then the site and everything that hangs on it are emptied
+ * (`emptySite`), then every value of them in the change log is blacked out,
+ * and the count. A site the pass did not find due, or one a maintenance
+ * contract still holds, is refused. One transaction for all of them, so a
+ * refusal of any keeps every one.
+ */
+async function eraseSites(
+  tx: TenantTransaction,
+  input: {
+    readonly tenantId: TenantId
+    readonly userId: string
+    readonly ids: readonly string[]
+    readonly automatic: boolean
+    readonly today: IsoDate
+  },
+): Promise<Erasure[]> {
+  const due = await dueDeadlinesOf(tx, 'site', input.today)
+  const keys = input.ids.map((id) => id.toLowerCase())
+
+  await tx.execute(sql`select id from sites where id = any(${idArray(keys)}) for update`)
+
+  const standings = new Map(
+    (await dueSites(tx, input.today, keys)).map((standing) => [
+      standing.siteId.toLowerCase(),
+      standing,
+    ]),
+  )
+  const written: Erasure[] = []
+
+  for (const key of keys) {
+    const standing = standings.get(key)
+    const deadline = due.get(key)
+
+    if (standing === undefined || deadline === undefined) {
+      throw new ErasureRefused(
+        'Objekt: ein ausgewähltes Objekt ist nicht mehr da oder nicht zum Löschen fällig.',
+      )
+    }
+
+    const [hold] = standing.holds
+
+    if (hold !== undefined) {
+      throw new ErasureRefused(`Ein ausgewähltes Objekt bleibt noch: ${siteHoldSentence(hold)}`)
+    }
+
+    const [line] = await tx
+      .insert(erasures)
+      .values({
+        tenantId: input.tenantId,
+        kind: 'site',
+        recordId: standing.siteId,
+        label: standing.label,
+        dueOn: deadline.dueOn,
+        automatic: input.automatic,
+        redactions: 0,
+        // Set by `record_note_author` from the person of the transaction.
+        createdBy: input.userId,
+      })
+      .returning()
+
+    if (line === undefined) {
+      throw new Error('The protocol of the deletion concept took no line')
+    }
+
+    const touched = await emptySite(tx, standing.siteId)
+    const redactions = await redactRecords(tx, {
+      tenantId: input.tenantId,
+      userId: input.userId,
+      touched,
+      reason: erasureKindWords.site.reason,
+    })
+    const [counted] = await tx
+      .update(erasures)
+      .set({ redactions })
+      .where(eq(erasures.id, line.id))
+      .returning()
+
+    written.push(erasureOf(counted ?? line))
+  }
+
+  return written
+}
+
 /** Deletes records of a kind under the deletion concept, as `eraseProspects` says for leads. */
 export function eraseRecords(
   tx: TenantTransaction,
@@ -496,6 +585,8 @@ export function eraseRecords(
     case 'staff_year':
     case 'person':
       return eraseStaff(tx, input.kind, input)
+    case 'site':
+      return eraseSites(tx, input)
   }
 }
 
@@ -619,6 +710,38 @@ async function staffDueOf(
 }
 
 /**
+ * The sites of deleted customers that are due (#848) and nothing holds, with
+ * what each is called and where it stands: a site keeps its designation and
+ * address until it goes, and the label says from when the ten years counted.
+ */
+async function dueSitesOf(tx: TenantTransaction, today: IsoDate): Promise<DueErasure[]> {
+  const due = await dueDeadlinesOf(tx, 'site', today)
+
+  return (await dueSites(tx, today))
+    .flatMap((standing) => {
+      const deadline = due.get(standing.siteId.toLowerCase())
+
+      return deadline === undefined || standing.holds.length > 0
+        ? []
+        : [
+            {
+              deadlineId: deadline.id,
+              kind: 'site' as const,
+              recordId: standing.siteId,
+              name: standing.name,
+              detail: [standing.address, standing.label]
+                .filter((part) => part.trim() !== '')
+                .join(' · '),
+              dueOn: deadline.dueOn as IsoDate,
+            },
+          ]
+    })
+    .sort(
+      (left, right) => left.dueOn.localeCompare(right.dueOn) || left.name.localeCompare(right.name),
+    )
+}
+
+/**
  * What is due, with who each record is, for the office before it confirms:
  * of each kind whose records the person may read (`read` of the kind).
  */
@@ -631,6 +754,7 @@ export async function dueErasuresOf(
     ...(readable.includes('prospect') ? await dueProspectsOf(tx, today) : []),
     ...(readable.includes('customer') ? await dueCustomersOf(tx, today) : []),
     ...(await staffDueOf(tx, today, readable)),
+    ...(readable.includes('site') ? await dueSitesOf(tx, today) : []),
   ]
 }
 

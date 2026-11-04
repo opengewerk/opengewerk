@@ -527,16 +527,21 @@ describe('the settings of each kind', () => {
         responsible: 'lead',
         actions: ['task'],
       }),
-      // The staff (#846): a sickness, a year of a person, the file of somebody who left.
-      ...['privacy.sickness_erasure', 'privacy.staff_year_erasure', 'privacy.person_erasure'].map(
-        (key) =>
-          expect.objectContaining({
-            key,
-            intervalDays: null,
-            leadDays: 0,
-            responsible: 'lead',
-            actions: ['erasure'],
-          }),
+      // The staff (#846): a sickness, a year of a person, the file of somebody who left;
+      // and the site of a deleted customer (#848).
+      ...[
+        'privacy.sickness_erasure',
+        'privacy.staff_year_erasure',
+        'privacy.person_erasure',
+        'privacy.site_erasure',
+      ].map((key) =>
+        expect.objectContaining({
+          key,
+          intervalDays: null,
+          leadDays: 0,
+          responsible: 'lead',
+          actions: ['erasure'],
+        }),
       ),
       // The recurring inspection of the package Elektro (#301), for whoever signed the last protocol.
       expect.objectContaining({

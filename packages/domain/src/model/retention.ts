@@ -11,9 +11,11 @@ import type { IsoDate, RuleSet } from '@opengewerk/platform-domain'
  * record of this application is which kind is said by whoever deletes it
  * (#845 the customers, #846 the staff).
  *
- * The last three are the staff's (#846): the records of time as papers of the
+ * Then three of the staff's (#846): the records of time as papers of the
  * payroll, a sickness for as long as it is needed, and the file of somebody
- * who left for as long as claims from the employment can be made.
+ * who left for as long as claims from the employment can be made. The last is
+ * the site of a deleted customer with its installations and protocols (#848),
+ * kept as proof for as long as a claim for damages can be made.
  */
 export const retentionKinds = [
   'books',
@@ -25,6 +27,7 @@ export const retentionKinds = [
   'payroll_records',
   'sickness_records',
   'personnel_files',
+  'site_records',
 ] as const
 
 export type RetentionKind = (typeof retentionKinds)[number]
@@ -110,6 +113,14 @@ export const retentionKindWords: Readonly<Record<RetentionKind, RetentionKindWor
     starts: 'end_of_year',
     label: 'Akten nach dem Austritt',
     begins: 'Ende des Austrittsjahres',
+  },
+  // Counted from the day of the youngest signed protocol at the site, which is
+  // when a claim for damages can arise at the latest.
+  site_records: {
+    rule: 'retention.site_records',
+    starts: 'record',
+    label: 'Objekte gelöschter Kunden mit Anlagen und Protokollen',
+    begins: 'Letztes Protokoll',
   },
 }
 

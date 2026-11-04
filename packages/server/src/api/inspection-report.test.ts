@@ -182,11 +182,12 @@ describe('the test of the electrical installation of a site', () => {
       values: { verdict: 'defects', defects: 'F3 zu hoch.', next_inspection_months: 48_000 },
     })
     // An extension after it tests a part, and the report names the test of the whole.
+    // A day that is past, so that it is never the day the report is printed.
     await aProtocol({
       installation: cabinet,
       key: 'vde-0100-600',
       version: 3,
-      on: '2026-11-05',
+      on: '2026-11-03',
       values: { occasion: 'extension', verdict: 'passed' },
     })
     await aProtocol({
@@ -259,7 +260,7 @@ describe('the test of the electrical installation of a site', () => {
     )
     expect(report).toContain('<td class="figure">20.10.2027</td>')
     expect(report).toContain('<td class="figure">02.11.2030</td>')
-    expect(report).not.toContain('05.11.2026')
+    expect(report).not.toContain('03.11.2026')
     expect(report).not.toContain('01.03.2022')
     expect(report).not.toContain('25.10.2026')
     expect(report).not.toContain('Inbetriebsetzung')

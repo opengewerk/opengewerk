@@ -335,8 +335,9 @@ describe('the handover of the folder to the operator (#305)', () => {
         ),
       ),
     ).toMatch(/permission denied/)
+    // Deleting goes only with the site of a deleted customer (#848), and otherwise its lock refuses.
     expect(await refusal(database.forTenant(actor, (tx) => tx.delete(pvHandovers)))).toMatch(
-      /permission denied/,
+      /Übergabe der PV-Anlagendokumentation wird weder geändert noch gelöscht/,
     )
   })
 

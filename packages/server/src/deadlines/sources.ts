@@ -50,6 +50,7 @@ import {
   sites,
 } from '../database/schema/index.js'
 import { contactMonthsOf, customerStandings } from '../privacy/customer-erasure.js'
+import { dueSites } from '../privacy/site-erasure.js'
 import { duePeople, dueSicknesses, dueStaffYears } from '../privacy/staff-erasure.js'
 import { tradeForms } from '../forms/registry.js'
 
@@ -1010,6 +1011,28 @@ export const erasablePeople: SourceQuery<DeadlineValues> = async (tx) => {
     }))
 }
 
+/**
+ * The sites of deleted customers (#848), once they are due and no maintenance
+ * contract there holds them: ten years after the youngest signed protocol at
+ * the site, else after its last job closed, else with the customer. Named by
+ * that day and not by the address (`siteErasureLabel`); the deadline hangs on
+ * the site alone, since its customer is gone.
+ */
+export const erasableSites: SourceQuery<DeadlineValues> = async (tx) => {
+  const today = berlinClock(new Date()).day
+
+  return (await dueSites(tx, today))
+    .filter((standing) => standing.holds.length === 0)
+    .map((standing) => ({
+      sourceId: standing.siteId,
+      sourceLabel: standing.label,
+      anchorOn: standing.anchor?.on ?? standing.customerErasedOn,
+      namedDueOn: standing.dueOn,
+      naturalUserId: null,
+      values: { ...aboutNoCustomer, siteId: standing.siteId as SiteId },
+    }))
+}
+
 /** Every source there is, by the name a kind gives it. */
 export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<DeadlineValues>>> =
   {
@@ -1030,4 +1053,5 @@ export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<
     sickness: erasableSicknesses,
     staff_year: erasableStaffYears,
     person: erasablePeople,
+    site: erasableSites,
   }
