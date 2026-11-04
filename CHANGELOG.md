@@ -93,6 +93,7 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Behoben
 
+- Der Kopf einer Seite drückt seinen Titel nicht mehr auf einen Buchstaben je Zeile (#312). Ab 1024 Pixeln blieb er immer eine Zeile, und die Knöpfe behielten ihre Breite: ein festgeschriebenes Angebot mit seinen drei Folgebelegen schob den Titel zusammen und die Knöpfe bei 1024 Pixeln 63 Pixel über den Rand. Jetzt weicht der Titel bis auf 15rem, reicht das nicht, stehen die Knöpfe unter ihm und brechen dort um. Aufgefallen ist es, als die Prüfung der Breiten über die neuen Links der Pipeline zuerst ein solches Angebot traf.
 - Ein Angebot, aus dem ein Wartungsvertrag wurde, bekommt keine Wiedervorlage mehr (#312). Bis jetzt galt es weiter als offen, weil ihm kein Beleg folgt, und die Fristen-Engine hätte 14 Tage nach dem Festschreiben die Aufgabe „Angebot nachfassen“ angelegt; der Vertrag ist aber sein Auftrag. In der Vertriebspipeline steht es deshalb unter „Abgeschlossen“.
 - Die Brotkrume „Kunden“ über einem Beleg ohne Auftrag führt zur Liste der Kunden (#295). Warum: Sie zeigte auf `/kunden`, eine Adresse ohne Seite; aufgefallen ist es an der ersten Dauerrechnung, dem ersten Beleg ohne Auftrag, den die Prüfung der Breiten erreichte.
 - Die Rechnung vor Ort aus #292 schreibt die Einheit einer Position kurz wie das gedruckte Dokument, „1 Std.“ statt
