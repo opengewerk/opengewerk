@@ -245,6 +245,11 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       rated_power_w: 'Bemessungsleistung',
     },
   },
+  // An offer the customer turned down (#841).
+  offer_declines: {
+    label: 'Ablehnung eines Angebots',
+    fields: { document_id: 'Angebot', declined_on: 'Abgelehnt am', reason: 'Grund' },
+  },
   // The leads of the office (#312).
   prospects: {
     label: 'Lead',

@@ -58,5 +58,7 @@ await checkWidths({
     // customer of one, a dialog on the lead (#312).
     'Lead erfassen',
     'Kunde anlegen',
+    // An offer the customer turned down, a dialog on the quote (#841).
+    'Als abgelehnt markieren',
   ],
 })

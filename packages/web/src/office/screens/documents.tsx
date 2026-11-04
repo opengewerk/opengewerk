@@ -2,6 +2,7 @@ import type { DocumentKind, DocumentStatus, IsoDate, RecordState } from '@openge
 import {
   closesProgressInvoices,
   continuesChain,
+  declinableKinds,
   isCancellable,
   isInvoice,
   receivesPayments,
@@ -16,6 +17,7 @@ import {
   Cell,
   Column,
   Panel,
+  Status,
   TablePanel,
   cardLink,
   statusIcons,
@@ -41,7 +43,7 @@ import {
 } from '@opengewerk/platform-web/sync'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { ChevronRight, Eye, File, Lock, Pencil } from 'lucide-react'
+import { ChevronRight, Eye, File, Lock, Pencil, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -71,6 +73,7 @@ import {
   WorkDoneCard,
 } from './document-cards.js'
 import { QuoteContractCard } from './contract-card.js'
+import { OfferDeclineCard, useOfferDecline } from './offer-decline.js'
 import { DraftFrame, FixedFrame } from './document-frame.js'
 import { useGrossByDocument } from './document-gross.js'
 import { HeaderCard } from './document-head.js'
@@ -568,6 +571,8 @@ function DocumentView({ document }: { readonly document: RecordState }) {
     maybeText(document, 'predecessorDocumentId') ?? undefined,
   )
   const successors = useRelated('documents', 'predecessorDocumentId', documentId)
+  // An offer the customer turned down (#841): no successor until the mark is taken back.
+  const declined = useOfferDecline(documentId)
   const allDocuments = useRecords('documents')
   const sources = useRecords('document_sources')
   const signature = useSignature(documentId)
@@ -618,7 +623,7 @@ function DocumentView({ document }: { readonly document: RecordState }) {
     successors.find((successor) =>
       continuesChain({ kind: documentKindOf(successor), status: documentStatusOf(successor) }),
     ) ?? collectedIn
-  const next = status === 'issued' && mayWrite && !continuing ? successorsOf(kind) : []
+  const next = status === 'issued' && mayWrite && !continuing && !declined ? successorsOf(kind) : []
   // A signed report goes on to its invoice through issuing, as the board has
   // "Rechnung erstellen" beside "Festschreiben": a successor is made out of an
   // issued document only.
@@ -866,8 +871,16 @@ function DocumentView({ document }: { readonly document: RecordState }) {
               <PaymentsCard documentId={documentId} kind={kind} />
             ) : null}
             {mail}
-            {kind === 'quote' && status === 'issued' ? (
+            {kind === 'quote' && status === 'issued' && !declined ? (
               <QuoteContractCard quoteId={documentId} />
+            ) : null}
+            {declinableKinds.includes(kind) && status === 'issued' ? (
+              <OfferDeclineCard
+                documentId={documentId}
+                number={number ?? ''}
+                offeredOn={text(document, 'documentDate') as IsoDate}
+                followed={successors.some((successor) => successor['deletedAt'] == null)}
+              />
             ) : null}
           </>
         }
@@ -885,6 +898,11 @@ function DocumentView({ document }: { readonly document: RecordState }) {
         badges={
           <span className="inline-flex flex-wrap items-center gap-x-[11px] gap-y-1">
             <DocumentState status={status} />
+            {declined ? (
+              <Status tone="neutral" icon={X}>
+                Abgelehnt
+              </Status>
+            ) : null}
             <span className="numeric text-[13px] text-ink-faint">
               {date(document['documentDate'])}
               {customer ? (

@@ -191,6 +191,8 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   installation_labels: ['code'],
   // A handover of the papers of a PV system by its day (#305).
   pv_handovers: ['handed_over_on'],
+  // An offer the customer turned down (#841): the day it was.
+  offer_declines: ['declined_on'],
   // An article by what it is called, a price by the day it begins, and what a
   // supplier sells by the supplier, which the page names (#296).
   articles: ['designation', 'number'],

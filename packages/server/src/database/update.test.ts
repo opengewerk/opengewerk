@@ -2541,3 +2541,46 @@ describe('the rollback of the leads', () => {
     expect(await forced('tenant_roles')).toBe(true)
   })
 })
+
+/**
+ * The rollback of 0127 (#841): a decline is what a customer told the office.
+ * The rollback deletes none; while there is one, it stops and changes nothing.
+ */
+describe('the rollback of the declined offers', () => {
+  it('deletes no decline, and stops while there is one', async () => {
+    const customer = newId<'customer'>()
+    const quote = newId<'document'>()
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      "insert into customers (id, tenant_id, kind, name) values ($1, $2, 'private', 'Kern, Ingrid')",
+      [customer, tenant.id],
+    )
+    await admin.query(
+      `insert into documents (id, tenant_id, customer_id, kind, status, number, document_date, issued_at)
+       values ($1, $2, $3, 'quote', 'issued', 'AN-2026-0450', '2026-10-21', now())`,
+      [quote, tenant.id, customer],
+    )
+    await admin.query(
+      "insert into offer_declines (tenant_id, document_id, declined_on) values ($1, $2, '2026-11-04')",
+      [tenant.id, quote],
+    )
+
+    await expect(revertMigration(admin, '0127_offer_declines')).rejects.toThrow(
+      'Die Rücknahme von 0127 löscht sie nicht',
+    )
+    expect((await admin.query('select count(*)::int as count from offer_declines')).rows).toEqual([
+      { count: 1 },
+    ])
+
+    // Taken out by hand, as the sentence says, the rollback goes through.
+    await admin.query(
+      'begin; set local session_replication_role = replica; delete from offer_declines; commit;',
+    )
+    await revertMigration(admin, '0127_offer_declines')
+
+    expect(await tableNames(admin)).not.toContain('offer_declines')
+  })
+})

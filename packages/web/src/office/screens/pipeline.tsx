@@ -30,6 +30,7 @@ import { documentKindOf, documentStatusOf, jobStatusOf } from '../../app/labels.
 import { useMay } from '../../app/queries.js'
 import type { DeadlineView } from '../../session/deadlines.js'
 import { maintenanceContracts } from '../../session/maintenance-contracts.js'
+import { useOfferDeclines } from './offer-decline.js'
 import type { ProspectEntry } from '../../session/prospects.js'
 import { useGrossByDocument } from './document-gross.js'
 import { ProspectStatus, prospectsOffline, useProspects } from './prospects.js'
@@ -164,6 +165,7 @@ export function SalesScreen() {
   const gross = useGrossByDocument()
   const followUps = useFollowUps()
   const contracts = useContracts()
+  const declines = useOfferDeclines()
   const on = today() as IsoDate
 
   const byId = useMemo(() => {
@@ -189,9 +191,10 @@ export function SalesScreen() {
           quoteId: contract.quoteId as DocumentId,
           since: contract.createdAt.slice(0, 10) as IsoDate,
         })),
+        declined: (declines.data ?? []).map((decline) => decline.documentId),
         today: on,
       }),
-    [leads.data, documents, jobs, contracts, on],
+    [leads.data, documents, jobs, contracts, declines.data, on],
   )
 
   const nameOf = (customerId: string) => maybeText(byId.get(customerId), 'name') ?? ''
@@ -293,7 +296,7 @@ export function SalesScreen() {
   })
   const hint =
     'Der Stand folgt aus den Belegen. Ein festgeschriebenes Angebot oder ein Kostenvoranschlag steht unter „Angebot“, bis ihm ein festgeschriebener Beleg folgt, dann unter „Auftrag“; mit der Schlussrechnung oder dem abgeschlossenen Auftrag unter „Abgeschlossen“, dort die letzten ' +
-    `${String(pipelineDoneDays)} Tage. Von Hand gesetzt wird nur der Stand eines Leads. Beträge brutto.`
+    `${String(pipelineDoneDays)} Tage. Von Hand gesetzt werden nur der Stand eines Leads und dass ein Angebot abgelehnt ist; ein abgelehntes steht in keiner Spalte. Beträge brutto.`
 
   return (
     <Screen>

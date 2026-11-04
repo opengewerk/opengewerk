@@ -503,6 +503,11 @@ const crossings: readonly {
             maintenance_contract_id = ${other.maintenanceContract} where id = ${own.document}`,
   },
   {
+    key: 'offer_declines_document_in_tenant',
+    write: (own, other) =>
+      repoint('offer_declines', 'document_id', own.offerDecline, other.document),
+  },
+  {
     key: 'prospects_customer_in_tenant',
     write: (own, other) => repoint('prospects', 'customer_id', own.prospect, other.customer),
   },
@@ -1518,6 +1523,8 @@ interface Planted {
   readonly maintenanceContract: string
   /** A lead of the business that became the customer above, with its site (#312). */
   readonly prospect: string
+  /** The document above, marked as a declined offer (#841). */
+  readonly offerDecline: string
   /** An acceptance at the job above, a draft, and a defect at the job (#311). */
   readonly acceptance: string
   readonly defect: string
@@ -1771,6 +1778,10 @@ async function plant(tenant: TenantId, slug: string): Promise<Planted> {
          interval_months, term_months, renewal, notice_months, price_kind)
        values ($1, 'WV-2026-0001', 'Wartung', $2, $3, '2026-11-01', '2026-11-15', 12, 12, 'none', 0, 'effort')`,
       [tenant, customer, document],
+    ),
+    offerDecline: await one(
+      "insert into offer_declines (tenant_id, document_id, declined_on) values ($1, $2, '2026-11-04')",
+      [tenant, document],
     ),
     prospect: await one(
       `insert into prospects (tenant_id, name, source, last_contact_on, customer_id, site_id, converted_at)

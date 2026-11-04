@@ -373,6 +373,10 @@ beforeEach(() => {
   // The job screen names the people of the business, for who is on it (#140).
   serverSays('GET', '/tasks/assignees', () => ({ status: 200, body: [] }))
 
+  // No offer is marked as declined and none made a contract (#841, #294), unless a test says so.
+  serverSays('GET', '/offer-declines', () => ({ status: 200, body: [] }))
+  serverSays('GET', '/maintenance-contracts?quoteId=d-1', () => ({ status: 200, body: [] }))
+
   // Every document asks the server for its instructions. None proposed and
   // nothing chosen, unless a test says otherwise. `d-7` is the one the job
   // screen creates: without it that screen got `{}` for its instructions and
@@ -1187,6 +1191,72 @@ describe('an issued quote', () => {
     const chain = within(screen.getByRole('region', { name: 'Belegkette' }))
 
     expect(chain.getByRole('link', { name: 'Angebot AN-2026-0001' })).toBeDefined()
+  })
+})
+
+describe('an offer the customer turned down (#841)', () => {
+  const issued = document({ status: 'issued', number: 'AN-2026-0441' })
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' })
+
+  it('is marked as declined on the day, with a reason the office may leave out', async () => {
+    serverSays('PUT', '/offer-declines/d-1', (body) => ({
+      status: 200,
+      body: { id: 'od-1', documentId: 'd-1', ...(body as object) },
+    }))
+    await mount('/belege/d-1', { documents: [issued], document_lines: outlined })
+
+    const person = userEvent.setup()
+
+    await person.click(await screen.findByRole('button', { name: 'Als abgelehnt markieren' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Angebot als abgelehnt markieren' })
+
+    expect((within(dialog).getByLabelText(/Abgelehnt am/) as HTMLInputElement).value).toBe(today)
+    await person.type(within(dialog).getByLabelText('Grund'), 'Ein anderer Betrieb war günstiger.')
+    await person.click(within(dialog).getByRole('button', { name: 'Als abgelehnt markieren' }))
+
+    await waitFor(() => {
+      expect(calls.find((call) => call.method === 'PUT')).toEqual({
+        method: 'PUT',
+        path: '/offer-declines/d-1',
+        body: { declinedOn: today, reason: 'Ein anderer Betrieb war günstiger.' },
+      })
+    })
+  })
+
+  it('offers no successor while it is declined, and takes the mark back', async () => {
+    serverSays('GET', '/offer-declines', () => ({
+      status: 200,
+      body: [{ id: 'od-1', documentId: 'd-1', declinedOn: '2026-11-04', reason: 'Zu teuer.' }],
+    }))
+    serverSays('DELETE', '/offer-declines/d-1', () => ({
+      status: 200,
+      body: { documentId: 'd-1' },
+    }))
+    await mount('/belege/d-1', { documents: [issued], document_lines: outlined })
+
+    expect(await screen.findByText('Abgelehnt am 04.11.2026')).toBeDefined()
+    expect(screen.getByText('Abgelehnt')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Auftragsbestätigung erstellen' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Wartungsvertrag anlegen' })).toBeNull()
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Ablehnung zurücknehmen' }))
+
+    await waitFor(() => {
+      expect(
+        calls.some((call) => call.method === 'DELETE' && call.path === '/offer-declines/d-1'),
+      ).toBe(true)
+    })
+  })
+
+  it('is not offered to whoever does not issue documents', async () => {
+    await mount('/belege/d-1', { documents: [issued], document_lines: outlined }, ['technician'])
+
+    expect(await screen.findByText(/Soll sich etwas ändern/)).toBeDefined()
+    // Long enough for the declines and the contracts to answer, which the card waits for.
+    await expect(
+      screen.findByRole('button', { name: 'Als abgelehnt markieren' }, { timeout: 600 }),
+    ).rejects.toThrow()
   })
 })
 

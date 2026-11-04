@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common'
 import {
   type ContractTerms,
+  declinedOfferRefusal,
   type CustomerId,
   type DocumentId,
   endAfterNotice,
@@ -34,7 +35,13 @@ import {
 import { and, arrayContains, asc, eq, inArray, isNull, type SQL } from 'drizzle-orm'
 
 import { assignNumber } from '../database/number-ranges.js'
-import { documents, installations, jobs, maintenanceContracts } from '../database/schema/index.js'
+import {
+  documents,
+  installations,
+  jobs,
+  maintenanceContracts,
+  offerDeclines,
+} from '../database/schema/index.js'
 import { RequiresPermission } from './authorization.js'
 import { CurrentIdentity, type RequestIdentity } from './identity.js'
 
@@ -320,6 +327,16 @@ export class MaintenanceContractsController {
         throw new UnprocessableEntityException(
           'Ein Wartungsvertrag entsteht aus einem festgeschriebenen Angebot.',
         )
+      }
+
+      // A quote the office marked as declined makes no contract (#841).
+      const [declined] = await tx
+        .select({ id: offerDeclines.id })
+        .from(offerDeclines)
+        .where(eq(offerDeclines.documentId, quote.id))
+
+      if (declined) {
+        throw new ConflictException(declinedOfferRefusal)
       }
 
       const [taken] = await tx
