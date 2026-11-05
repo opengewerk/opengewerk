@@ -113,6 +113,19 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
   „1 Stunden“ (#293). Warum: Neben einer Menge stand die ausgeschriebene Einheit der Auswahlliste, die nur im Plural
   passt.
 
+### Sicherheit
+
+- Der Renderer für PDFs läuft auf `browserless/chromium` 2.59.0 statt 2.57.3, im Stapel, im Job der E-Rechnung und in
+  der Anleitung für die Entwicklung (#856). Warum: 2.58.3 bringt Node 26.13.0 mit, und der Job der E-Rechnung prüft
+  nur, was auch im Betrieb läuft.
+- Die Abhängigkeiten tragen keine Fassung mit offener Sicherheitsmeldung mehr. Nest steht auf 12.3.3, das multer
+  2.5.0 mitbringt (GHSA-q7qp-rjg7-q26m, ein abgebrochener Upload konnte Anfragen auf Dauer belegen). happy-dom 21.0.4 steht auch an der
+  Wurzel, damit kein Test mehr 20.14.5 nachzieht. Für minimatch, glob und das alte esbuild unter drizzle-kit setzt
+  `pnpm-workspace.yaml` Overrides, die nur die betroffenen Fassungen anheben. deepmerge hat keine reparierte Fassung;
+  `@rollup/plugin-node-resolve` kopierte damit nur seine eigenen Vorgaben und tut das jetzt über einen Patch mit
+  `structuredClone`, sodass deepmerge ganz aus dem Baum ist. Warum: Dependabot meldete acht offene Befunde, und jeder
+  Override fällt weg, sobald das Paket darüber selbst eine reparierte Fassung verlangt.
+
 ## [0.7.0] - 2026-11-03
 
 Die siebte Fassung bringt den größten Teil von Phase 2, dem Kern für Elektro und PV. Zu den Prüfungen kommen das
