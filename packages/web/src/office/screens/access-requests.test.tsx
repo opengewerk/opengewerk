@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { InRouter } from '../../app/in-router.js'
+import { aDocumentsSummary } from '../../session/test-privacy.js'
 import { aTenantChoice } from '../../session/test-tenants.js'
 import { accessIdentity } from './access-requests.js'
 import { PrivacyScreen } from './privacy.js'
@@ -124,6 +125,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-04T10:00:00Z') })
   serverSays('GET', '/tasks/assignees', [{ userId: 'lena', name: 'Lena Leitung' }])
   serverSays('GET', '/privacy/access-requests', { requests: listed })
+  serverSays('GET', '/privacy/documents', aDocumentsSummary)
 
   vi.stubGlobal('fetch', (path: string, init?: RequestInit) => {
     const method = init?.method ?? 'GET'

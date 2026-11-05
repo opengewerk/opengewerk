@@ -271,6 +271,10 @@ export const personalDataCatalogue: Readonly<Record<string, PersonalData>> = {
   password_resets: ofPerson('user_id'),
   payments: { about: ['customer'], columns: ['document_id', 'amount_cents', 'received_on'] },
   people: ofPerson('name', 'user_id', 'joined_on', 'left_on'),
+  // What the record of the processing says (#319): the business, its data
+  // protection officer and its own words on the activities, no subject.
+  processing_record_activities: none,
+  processing_record_settings: none,
   prospects: {
     about: ['prospect'],
     columns: [

@@ -53,12 +53,12 @@ function saidWhy(error: unknown, fallback: string): string {
 }
 
 /** Hands the file to the browser to save, under the name the server gave it. */
-function save(file: RequestedFile): void {
+export function saveFile(file: RequestedFile, fallback: string): void {
   const address = URL.createObjectURL(file.content)
   const link = document.createElement('a')
 
   link.href = address
-  link.download = file.name ?? 'Auskunft.zip'
+  link.download = file.name ?? fallback
   link.click()
   // The browser has taken the file once the click is through.
   setTimeout(() => {
@@ -138,7 +138,7 @@ function AccessRequests() {
     setProblem(null)
 
     try {
-      save(await drawAccessAnswer(view.request.id))
+      saveFile(await drawAccessAnswer(view.request.id), 'Auskunft.zip')
       await queries.invalidateQueries({ queryKey: accessRequestsKey })
     } catch (error) {
       setProblem(saidWhy(error, 'Die Auskunft kam nicht an. Ohne Verbindung gibt es keine.'))

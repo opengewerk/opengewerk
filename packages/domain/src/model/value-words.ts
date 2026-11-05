@@ -17,6 +17,7 @@ import type { LineUnit } from './document-line.js'
 import { installationKindLabel } from './installation.js'
 import type { JobKind, JobStatus } from './job.js'
 import { metalNames } from './metal.js'
+import { processingActivities } from './processing-record.js'
 import { prospectSourceLabel, prospectStageLabel } from './prospect.js'
 import type { SnippetPurpose } from './text-snippet.js'
 import type { TimeEntryKind } from './time-entry.js'
@@ -167,5 +168,11 @@ export const valueWords: Readonly<Record<string, Readonly<Record<string, Words>>
     subject: accessSubjectLabel,
     channel: erasureRequestChannelLabel,
     status: accessRequestStatusLabel,
+  },
+  // An activity of the record of the processing by its title (#319).
+  processing_record_activities: {
+    activity: Object.fromEntries(
+      processingActivities.map((activity) => [activity.key, activity.title]),
+    ),
   },
 }

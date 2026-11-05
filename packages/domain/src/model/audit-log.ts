@@ -34,6 +34,8 @@ const reasonWords: Readonly<Record<string, string>> = {
   'privacy.access_request': 'Auskunftsanfrage erfasst',
   'privacy.access_report': 'Auskunft erstellt',
   'privacy.access_answer': 'Auskunft beantwortet',
+  // What whoever leads wrote for the record of the processing (#319).
+  'privacy.record': 'Verzeichnis der Verarbeitungstätigkeiten geändert',
 }
 
 /**
@@ -214,6 +216,10 @@ const titleFieldsByTable: Readonly<Record<string, readonly string[]>> = {
   erasure_requests: ['received_on'],
   // A request for access, by the day it came in (#318).
   access_requests: ['received_on'],
+  // The record of the processing by whom it names as responsible, and an
+  // activity of it by its title (#319).
+  processing_record_settings: ['controller', 'officer'],
+  processing_record_activities: ['activity'],
   // An article by what it is called, a price by the day it begins, and what a
   // supplier sells by the supplier, which the page names (#296).
   articles: ['designation', 'number'],

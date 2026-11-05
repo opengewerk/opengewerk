@@ -44,6 +44,8 @@ export interface AccessAnswer {
   /** The names of the accounts the report names, by id. */
   readonly names: ReadonlyMap<string, string>
   readonly gridOperators: readonly string[]
+  /** The recipients the record of the processing names for what concerns the person (#319). */
+  readonly recipients: readonly string[]
   /**
    * The account of somebody of the staff, as the instance keeps it: its name
    * and address. Its sign-ins, passkeys and second factor the instance keeps
@@ -272,7 +274,7 @@ export function accessPrintJob(answer: AccessAnswer): Required<Omit<PrintJob, 's
   const body = `${sheetHead('Auskunft nach Art. 15 DSGVO', [answer.name, asked], answer.keeper)}
 ${intro}
 ${section('Zwecke und Rechtsgrundlagen', paragraph(accessPurposes[subject]))}
-${section('Empfänger', paragraph(accessRecipients(answer.gridOperators, mails)))}
+${section('Empfänger', paragraph(accessRecipients(answer.gridOperators, mails, answer.recipients)))}
 ${section('Wie lange die Daten bleiben', paragraph(accessStorage[subject]))}
 ${section('Ihre Rechte', paragraph(accessRightsText))}
 ${section('Herkunft', paragraph(accessSource[subject]))}

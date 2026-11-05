@@ -203,6 +203,7 @@ export * from './print/renderer.js'
 // its three lines say, the application says.
 export * from './labels/code.js'
 export * from './print/label.js'
+export * from './print/markdown.js'
 
 // What a command is started with, for a test that listens to one.
 export type { CommandSurroundings } from './command-line.js'

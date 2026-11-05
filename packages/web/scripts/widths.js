@@ -27,6 +27,12 @@ await checkWidths({
    * to under `/anlagen/<id>`. From there the walk follows its links as usual.
    */
   scannedOnly: [[/^\/anlagen\/([^/]+)$/, (id) => `/m/anlagen/${id}`]],
+  /**
+   * More kinds of page than the foundation stops at: with the page of the
+   * record of the processing and its dialog (#319) the office has more than
+   * 120, and the walk would stop before the last of them.
+   */
+  mostKinds: 160,
 
   /**
    * The buttons that open a form without an address of its own, or go to one
@@ -72,5 +78,8 @@ await checkWidths({
     // A request for access recorded under "Datenschutz", with the search for
     // the person (#318).
     'Anfrage erfassen',
+    // What the owner writes for an activity of the record of the processing
+    // (#319), on the first, which every business uses.
+    'Konten, Anmeldung und Zugänge bearbeiten',
   ],
 })

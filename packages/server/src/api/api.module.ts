@@ -82,6 +82,7 @@ import { FundingProgramsController } from './funding-programs.controller.js'
 import { MaintenanceContractsController } from './maintenance-contracts.controller.js'
 import { CommunicationsController } from './communications.controller.js'
 import { PrivacyController } from './privacy.controller.js'
+import { PrivacyDocumentsController } from './privacy-documents.controller.js'
 import { OfferDeclinesController } from './offer-declines.controller.js'
 import { ProspectsController } from './prospects.controller.js'
 import { FormRecordsController } from './form-records.controller.js'
@@ -327,6 +328,7 @@ export class ApiModule {
         OfferDeclinesController,
         CommunicationsController,
         PrivacyController,
+        PrivacyDocumentsController,
         FundingPapersController,
         AcceptanceRequestController,
         AccessRequestsController,

@@ -30,11 +30,12 @@ export const erasureRequestChannel = pgEnum('erasure_request_channel', erasureRe
 /**
  * Whether the person of the transaction leads its tenant: a membership of
  * hers, not blocked and not past its last day, with a role that leads. The
- * same question the policy of `audit_redactions` asks (ADR 0013), for the two
+ * same question the policy of `audit_redactions` asks (ADR 0013), for the
  * tables below: what the deletion concept deletes, and whether a kind goes by
- * itself, is for whoever leads the business and for nobody else (#317).
+ * itself, is for whoever leads the business and for nobody else (#317); and
+ * for what the record of the processing says (#319).
  */
-const personLeads = sql`exists (select 1 from public.memberships m join public.tenant_roles r on r.tenant_id = m.tenant_id and r.key = any (m.roles) and r.leads where m.tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid and m.user_id = nullif(current_setting('app.user_id', true), '') and m.blocked_at is null and (m.last_day is null or m.last_day >= (now() at time zone 'Europe/Berlin')::date))`
+export const personLeads = sql`exists (select 1 from public.memberships m join public.tenant_roles r on r.tenant_id = m.tenant_id and r.key = any (m.roles) and r.leads where m.tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid and m.user_id = nullif(current_setting('app.user_id', true), '') and m.blocked_at is null and (m.last_day is null or m.last_day >= (now() at time zone 'Europe/Berlin')::date))`
 
 /**
  * The protocol of the deletion concept (#317): one line per record that went,

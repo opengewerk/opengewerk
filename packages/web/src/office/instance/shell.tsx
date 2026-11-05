@@ -1,15 +1,17 @@
 import { InstanceFrame } from '@opengewerk/platform-web/instance'
 import type { InstanceEntry } from '@opengewerk/platform-web/instance'
-import { History, House, Settings, Shield } from 'lucide-react'
+import { History, House, Settings, Shield, ShieldCheck } from 'lucide-react'
 
 /**
  * The screens of the area of the instance (#188), `INSTANCE_NAV` of the
- * canvas, by this application's words: the businesses on it, and the
- * operators for whoever runs it.
+ * canvas, by this application's words: the businesses on it, part B of the
+ * measures, and the operators for whoever runs it.
  */
 const navigation: readonly InstanceEntry[] = [
   { to: '/instanz', label: 'Betriebe', icon: House },
   { to: '/instanz/einstellungen', label: 'Einstellungen', icon: Settings },
+  // Part B of the measures and the subprocessors (#319).
+  { to: '/instanz/massnahmen', label: 'Maßnahmen', icon: ShieldCheck },
   { to: '/instanz/betreiber', label: 'Betreiber', icon: Shield },
   { to: '/instanz/protokoll', label: 'Protokoll', icon: History },
 ]
