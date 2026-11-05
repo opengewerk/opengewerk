@@ -66,6 +66,7 @@ const kindCounted: Readonly<Record<ErasureKind, readonly [string, string]>> = {
   sickness: ['eine Krankheit', 'Krankheiten'],
   staff_year: ['ein Jahr', 'Jahre'],
   person: ['eine Akte', 'Akten'],
+  site: ['ein Objekt', 'Objekte'],
 }
 
 /**
@@ -112,6 +113,10 @@ export const withYear =
 /** What goes with the file of somebody who left (#846), and what stays a while. */
 export const withPerson =
   'Mit einer Akte gehen die vereinbarte Arbeitszeit, die Qualifikationen mit ihren Zertifikaten und der Zugang; werden von der Person noch Arbeitszeiten aufbewahrt, bleibt ihr Name, bis das letzte Jahr geht.'
+
+/** What goes with the site of a deleted customer (#848), and what stays of it. */
+export const withSite =
+  'Mit einem Objekt gehen seine Anlagen samt Struktur, die Geräte, Protokolle, Etiketten, Mängel, Zugänge, Dateien und Fristen; Aufträge und Belege dort bleiben als leere Hülle.'
 
 /** What stays of whatever went: a line without a name. */
 const protocolSentence =
@@ -181,7 +186,7 @@ function DueTable({
   const [problem, setProblem] = useState<string | null>(null)
   const chosen = due.filter((entry) => !unselected.has(entry.recordId))
   const note =
-    'Ein Lead, der nie Kunde wurde, kommt nach dem letzten Kontakt hierher, vorgegeben nach zwölf Monaten; ein Kunde, wenn mit ihm nichts mehr läuft, vorgegeben drei Jahre nach dem letzten Kontakt, oder auf seine Löschanfrage. Die Dauer steht unter Fristen bei „Lead löschen“ und „Kunde löschen“. Eine Krankheit kommt zwölf Monate nach ihrem letzten Tag, Arbeitszeiten und Urlaub eines Jahres sechs Jahre nach dessen Ende und die Akte einer Person drei Jahre nach dem Ende ihres Austrittsjahres, sobald ihr Zugang geendet hat.'
+    'Ein Lead, der nie Kunde wurde, kommt nach dem letzten Kontakt hierher, vorgegeben nach zwölf Monaten; ein Kunde, wenn mit ihm nichts mehr läuft, vorgegeben drei Jahre nach dem letzten Kontakt, oder auf seine Löschanfrage. Die Dauer steht unter Fristen bei „Lead löschen“ und „Kunde löschen“. Eine Krankheit kommt zwölf Monate nach ihrem letzten Tag, Arbeitszeiten und Urlaub eines Jahres sechs Jahre nach dessen Ende und die Akte einer Person drei Jahre nach dem Ende ihres Austrittsjahres, sobald ihr Zugang geendet hat. Das Objekt eines gelöschten Kunden kommt zehn Jahre nach dem letzten unterschriebenen Protokoll daran, ohne Protokoll nach dem letzten Auftrag dort.'
   const counts = Object.fromEntries(
     erasureKinds.map((kind) => [kind, chosen.filter((entry) => entry.kind === kind).length]),
   ) as Readonly<Record<ErasureKind, number>>
@@ -327,6 +332,7 @@ function DueTable({
           counts.customer > 0 ? withCustomer : null,
           counts.staff_year > 0 ? withYear : null,
           counts.person > 0 ? withPerson : null,
+          counts.site > 0 ? withSite : null,
           protocolSentence,
         ]
           .filter((part) => part !== null)
@@ -347,6 +353,7 @@ const automaticWords: Readonly<Record<ErasureKind, string>> = {
     'Eingeschaltet löscht der Lauf die Arbeitszeiten, die Rufbereitschaft, den Urlaub und den Urlaubsanspruch eines Jahres von selbst, sobald sie als Lohnunterlage nicht mehr aufzubewahren sind.',
   person:
     'Eingeschaltet löscht der Lauf die Akte einer ausgetretenen Person von selbst, mit ihrer Arbeitszeit, ihren Qualifikationen und ihrem Zugang.',
+  site: 'Eingeschaltet löscht der Lauf das Objekt eines gelöschten Kunden zehn Jahre nach dem letzten Protokoll von selbst, mit seinen Anlagen, Geräten, Protokollen, Mängeln und Dateien.',
 }
 
 /**

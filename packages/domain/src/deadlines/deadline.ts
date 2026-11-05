@@ -133,9 +133,14 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  *   after the end of the year (#846, `staffYearErasureDueOn`).
  * - `person`: the file of somebody who left, three years after the end of the
  *   year they left (#846, `personErasureDueOn`). Coming back lets it drop.
+ * - `site`: the site of a deleted customer, ten years after its youngest
+ *   signed protocol or, without one, its last job closed (#848,
+ *   `siteErasureDueOn`). A maintenance contract there that has not ended
+ *   lets it drop.
  *
- * The three of the staff come only once they are due: a deadline years ahead
- * for every sickness and every year would fill the list and say nothing.
+ * The three of the staff and the sites come only once they are due: a
+ * deadline years ahead for every sickness, every year and every site would
+ * fill the list and say nothing.
  */
 export const deadlineSources = [
   'quote',
@@ -155,6 +160,7 @@ export const deadlineSources = [
   'sickness',
   'staff_year',
   'person',
+  'site',
 ] as const
 
 export type DeadlineSource = (typeof deadlineSources)[number]
@@ -481,6 +487,15 @@ export const sourceWords: Readonly<
       hint: 'Fällig drei Jahre nach dem Ende des Jahres, in dem die Person ausgetreten ist.',
     },
     anchor: 'dem Ende des Austrittsjahres',
+  },
+  // Due from the rule package, ten years after the last protocol (#848).
+  site: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig zehn Jahre nach dem letzten unterschriebenen Protokoll am Objekt, ohne Protokoll nach dem letzten Auftrag dort.',
+    },
+    anchor: 'dem letzten Protokoll',
   },
 }
 

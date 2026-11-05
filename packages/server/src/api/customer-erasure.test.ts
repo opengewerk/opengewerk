@@ -855,7 +855,8 @@ describe('deleting a customer (#845)', () => {
     const { family, customer } = await vossberg()
 
     await http().put('/privacy/automations/customer').set('x-test-identity', owner).expect(200)
-    await runDeadlinesOf({ database }, north, new Date())
+    // What a deadline does waits for the morning of its day: the pass runs at noon.
+    await runDeadlinesOf({ database }, north, new Date(`${today}T10:00:00Z`))
 
     const { rows } = await admin.query<{ automatic: boolean; created_by: string }>(
       "select automatic, created_by from erasures where kind = 'customer' and record_id = $1",

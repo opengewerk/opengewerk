@@ -612,7 +612,8 @@ describe('the file of somebody who left', () => {
        insert into erasure_automations (tenant_id, kind, created_by) values ('${north}', 'sickness', 'lena');
        commit;`,
     )
-    await pass()
+    // What a deadline does waits for the morning of its day: the pass runs at noon.
+    await runDeadlinesOf({ database }, north, new Date(`${berlinClock(new Date()).day}T10:00:00Z`))
 
     expect(
       await count(`select count(*) as n from absences where id = $1`, [dennis.dueSickness]),

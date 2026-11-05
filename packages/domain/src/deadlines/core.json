@@ -171,6 +171,18 @@
       "responsible": "lead",
       "actions": ["erasure"],
       "taskTitle": "Akte löschen: {quelle}"
+    },
+    {
+      "key": "privacy.site_erasure",
+      "trade": null,
+      "title": "Objekt löschen",
+      "about": "Das Objekt eines gelöschten Kunden ist zehn Jahre nach dem letzten unterschriebenen Protokoll daran zum Löschen fällig (Löschkonzept), mit seinen Anlagen samt Struktur, den Geräten, Protokollen, Etiketten, Mängeln, Zugängen, Dateien und Fristen; gibt es kein Protokoll, zählen die zehn Jahre ab dem letzten abgeschlossenen Auftrag dort. Ein Wartungsvertrag am Objekt, der nicht beendet ist, hält es. Es steht dann unter Einstellungen, Datenschutz, wo das Löschen bestätigt wird; steht die Art dort auf automatisch, löscht der Lauf es von selbst. Die Frist sieht nur, wer Objekte ansehen darf.",
+      "source": "site",
+      "intervalDays": null,
+      "leadDays": 0,
+      "responsible": "lead",
+      "actions": ["erasure"],
+      "taskTitle": "Objekt löschen: {quelle}"
     }
   ]
 }

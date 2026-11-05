@@ -537,6 +537,48 @@ describe('the staff that are due (#846)', () => {
   })
 })
 
+describe('the site of a deleted customer that is due (#848)', () => {
+  it('goes on its own, with what goes along with it', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+
+    signedInAs('owner')
+    overview(
+      true,
+      [],
+      [],
+      [],
+      [
+        {
+          deadlineId: 'd-7',
+          kind: 'site',
+          recordId: 's-3',
+          name: 'Ferienhaus Winkler',
+          detail: 'Strandweg 12, 25999 Kampen · Objekt, letztes Protokoll 20.04.2015',
+          dueOn: '2025-04-20',
+        },
+      ],
+    )
+    render(inQueries(<PrivacyScreen />))
+
+    const table = await screen.findByRole('table', { name: 'Zum Löschen fällig' })
+
+    expect(within(table).getByText('Ferienhaus Winkler').closest('tr')?.textContent).toContain(
+      'Objekt, letztes Protokoll 20.04.2015',
+    )
+    await user.click(screen.getByRole('button', { name: 'Ausgewählte löschen' }))
+
+    const dialog = await screen.findByRole('alertdialog', { name: 'Ein Objekt löschen?' })
+
+    expect(dialog.textContent).toContain('Mit einem Objekt gehen seine Anlagen samt Struktur')
+    await user.click(within(dialog).getByRole('button', { name: 'Endgültig löschen' }))
+    await waitFor(() => {
+      expect(
+        calls.filter((call) => call.path === '/privacy/erasures').map((call) => call.body),
+      ).toEqual([{ kind: 'site', ids: ['s-3'] }])
+    })
+  })
+})
+
 describe('the words of the question', () => {
   it('count and name who goes', () => {
     expect(erasureQuestion({ prospect: 1 })).toBe('Einen Lead löschen?')

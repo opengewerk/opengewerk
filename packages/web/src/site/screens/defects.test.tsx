@@ -62,7 +62,8 @@ function defect(over: Partial<RecordState> = {}): RecordState {
     jobId: 'j-1',
     installationId: 'i-1',
     description: 'Abdeckung links verkratzt.',
-    reportedAt: '2026-11-05T14:20:00.000Z',
+    // Days that are past, so that none is ever today, which a note shows as "heute".
+    reportedAt: '2026-10-05T14:20:00.000Z',
     createdBy: 'u-2',
     remedyDueOn: null,
     status: 'reported',
@@ -175,7 +176,7 @@ describe('the card "Mängel" at a job on site (#311)', () => {
         defect({
           id: 'd-2',
           description: 'Halter locker.',
-          reportedAt: '2026-11-10T09:42:00.000Z',
+          reportedAt: '2026-10-10T09:42:00.000Z',
         }),
       ],
       defect_steps: [
@@ -183,7 +184,7 @@ describe('the card "Mängel" at a job on site (#311)', () => {
           id: 'st-1',
           defectId: 'd-1',
           step: 'in_progress',
-          takenAt: '2026-11-07T07:30:00.000Z',
+          takenAt: '2026-10-07T07:30:00.000Z',
           createdBy: 'u-2',
           signerName: null,
           signaturePath: null,
@@ -200,9 +201,9 @@ describe('the card "Mängel" at a job on site (#311)', () => {
           .getAllByRole('listitem')
           .map((item) => item.textContent),
       ).toEqual([
-        expect.stringMatching(/^Halter locker\.Jonas Brandt, 10\.11\.2026, \d\d:42Gemeldet$/),
+        expect.stringMatching(/^Halter locker\.Jonas Brandt, 10\.10\.2026, \d\d:42Gemeldet$/),
         expect.stringMatching(
-          /^Abdeckung links verkratzt\.Jonas Brandt, 05\.11\.2026, \d\d:20In Bearbeitung$/,
+          /^Abdeckung links verkratzt\.Jonas Brandt, 05\.10\.2026, \d\d:20In Bearbeitung$/,
         ),
       ])
     })
@@ -290,7 +291,7 @@ describe('a defect on site (#311)', () => {
           id: 'st-1',
           defectId: 'd-1',
           step: 'resolved',
-          takenAt: '2026-11-07T07:30:00.000Z',
+          takenAt: '2026-10-07T07:30:00.000Z',
           createdBy: 'u-2',
           signerName: null,
           signaturePath: null,
@@ -322,7 +323,7 @@ describe('a defect on site (#311)', () => {
           id: 'st-1',
           defectId: 'd-1',
           step: 'resolved',
-          takenAt: '2026-11-07T07:30:00.000Z',
+          takenAt: '2026-10-07T07:30:00.000Z',
           createdBy: 'u-2',
           signerName: null,
           signaturePath: null,
@@ -331,7 +332,7 @@ describe('a defect on site (#311)', () => {
           id: 'st-2',
           defectId: 'd-1',
           step: 'accepted',
-          takenAt: '2026-11-07T08:30:00.000Z',
+          takenAt: '2026-10-07T08:30:00.000Z',
           createdBy: 'u-2',
           signerName: 'Petra Weber',
           signaturePath: 'M10,20L30,40',
