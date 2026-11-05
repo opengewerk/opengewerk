@@ -24,6 +24,7 @@ Die Dokumente folgen dem [MADR-Format](https://adr.github.io/madr/), auf Deutsch
 | [0014](0014-elektro-struktur-im-fundament.md) | Elektro-Struktur und PV-Struktur im Fundament | angenommen |
 | [0015](0015-suchtabelle-fuer-artikel.md) | Eine Suchtabelle für Artikel außerhalb von FORCE | angenommen |
 | [0016](0016-personen-im-fundament.md) | Personen im Fundament | angenommen |
+| [0017](0017-demo-als-eigenes-abbild.md) | Die Demo als eigenes Abbild im selben Repository | angenommen |
 
 ## Der Tech-Stack auf einen Blick
 
@@ -44,6 +45,7 @@ Die ADRs 0002 bis 0008 wurden am 18.09.2026 gemeinsam entschieden, nachdem sie e
 | 0012 | Qualifikationen als Regeln in `platform-domain` und Tabellenfabrik in `platform-server`; eine Qualifikation nennt genau eine Art, ihr Nachweis bleibt an ihr |
 | 0014 | Elektro-Struktur und PV-Struktur als Regeln, Tabellenfabriken, Prüfungen, Stromkreisverzeichnis und Formulare im Fundament; woran sie hängen, sagt die Anwendung, die Tabellen behalten ihre Namen |
 | 0016 | Personen mit Arbeitszeit ab einem Tag als Regeln, Tabellenfabrik, Routen und Akte im Fundament, mit Konto oder ohne; die Qualifikationen hängen an der Person |
+| 0017 | Die Demo als eigenes Abbild aus demselben Repository, mit einem Paket im Fundament und einem je Anwendung; das Abbild einer Instanz enthält beide nicht, und die CI prüft das |
 
 Drei Punkte, an denen die Entscheidung von der ursprünglichen Vorlage abweicht:
 
