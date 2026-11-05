@@ -542,7 +542,7 @@ function ActivityDialog({
         />
         <TextArea
           label="Zweck"
-          rows={2}
+          rows={3}
           required
           starred
           value={purpose}
@@ -553,7 +553,7 @@ function ActivityDialog({
         />
         <TextArea
           label="Rechtsgrundlage"
-          rows={2}
+          rows={3}
           required
           starred
           value={legalBasis}
@@ -567,7 +567,7 @@ function ActivityDialog({
         />
         <TextArea
           label="Empfänger"
-          rows={2}
+          rows={3}
           value={recipients}
           hint="Leer heißt: keine Empfänger außerhalb des Betriebs. Die Empfänger stehen auch in jeder Auskunft an eine betroffene Person."
           onChange={(event) => {
