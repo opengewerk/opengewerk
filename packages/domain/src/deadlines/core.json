@@ -137,6 +137,18 @@
       "taskTitle": "Löschanfrage beantworten: {quelle}"
     },
     {
+      "key": "privacy.access_request",
+      "trade": null,
+      "title": "Auskunft beantworten",
+      "about": "Fragt jemand, welche Daten der Betrieb über ihn hat, ist die Antwort einen Monat nach Eingang fällig (Art. 12 Abs. 3 DSGVO). Beantwortet wird unter Einstellungen, Datenschutz, mit einem ZIP aus PDF, JSON-Datei und den gespeicherten Dateien. Rechtzeitig davor entsteht eine Aufgabe; mit der Antwort entfällt die Frist. Die Frist sieht nur, wer Auskünfte geben darf.",
+      "source": "access_request",
+      "intervalDays": null,
+      "leadDays": 7,
+      "responsible": "lead",
+      "actions": ["task"],
+      "taskTitle": "Auskunft beantworten: {quelle}"
+    },
+    {
       "key": "privacy.sickness_erasure",
       "trade": null,
       "title": "Krankheit löschen",

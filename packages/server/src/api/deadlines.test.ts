@@ -527,6 +527,15 @@ describe('the settings of each kind', () => {
         responsible: 'lead',
         actions: ['task'],
       }),
+      // The answer to a request for access (#318), a month after it came in.
+      expect.objectContaining({
+        key: 'privacy.access_request',
+        title: 'Auskunft beantworten',
+        intervalDays: null,
+        leadDays: 7,
+        responsible: 'lead',
+        actions: ['task'],
+      }),
       // The staff (#846): a sickness, a year of a person, the file of somebody who left;
       // and the site of a deleted customer (#848).
       ...[

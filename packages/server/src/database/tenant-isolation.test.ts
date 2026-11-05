@@ -528,6 +528,21 @@ const crossings: readonly {
           insert into erasure_requests (tenant_id, customer_id, received_on, channel, answer_due_on, created_by)
           select ${own.tenant}, ${other.customer}, '2026-11-02', 'email', '2026-12-02', 'lena' from person`,
   },
+  // A request for access (#318), recorded once as well: about a customer, a
+  // lead or a file of another business.
+  ...(
+    [
+      ['access_requests_customer_in_tenant', 'customer', 'customer_id'],
+      ['access_requests_prospect_in_tenant', 'prospect', 'prospect_id'],
+      ['access_requests_person_in_tenant', 'person', 'person_id'],
+    ] as const
+  ).map(([key, subject, column]) => ({
+    key,
+    write: (own: Planted, other: Planted) =>
+      sql`with person as (select set_config('app.user_id', 'lena', true))
+          insert into access_requests (tenant_id, subject, ${sql.identifier(column)}, received_on, channel, answer_due_on, created_by)
+          select ${own.tenant}, ${subject}, ${other[subject]}, '2026-11-02', 'email', '2026-12-02', 'lena' from person`,
+  })),
   {
     key: 'offer_declines_document_in_tenant',
     write: (own, other) =>

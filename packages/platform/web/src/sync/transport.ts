@@ -189,10 +189,16 @@ export interface RequestedFile {
  * A file from a route that makes one: a table of a list, say. Fetched like
  * every other request, with the session and the tenant the page works in,
  * and refused with the sentence of the server, where a link followed in the
- * browser would show the raw answer in a tab.
+ * browser would show the raw answer in a tab. `POST` for a file whose making
+ * the server records as something done.
  */
-export async function requestFile(path: string, accept: string): Promise<RequestedFile> {
+export async function requestFile(
+  path: string,
+  accept: string,
+  method: 'GET' | 'POST' = 'GET',
+): Promise<RequestedFile> {
   const response = await fetch(path, {
+    method,
     credentials: 'include',
     // Past the HTTP cache, as every request (`request`).
     cache: 'no-store',

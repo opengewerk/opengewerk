@@ -2526,10 +2526,12 @@ describe('the rollback of the leads', () => {
       'Die Rücknahme von 0126 löscht sie nicht',
     )
 
-    // Taken out by hand, as the sentence says, the rollback goes through.
+    // Taken out by hand, as the sentence says, the rollback goes through, after
+    // that of 0133, whose requests for access point at a lead (#318).
     await admin.query(
       `begin; set local session_replication_role = replica; delete from prospects; commit;`,
     )
+    await revertMigration(admin, '0133_access_requests')
     await revertMigration(admin, '0126_prospects')
 
     expect(await tableNames(admin)).not.toContain('prospects')
@@ -2774,6 +2776,56 @@ describe('the rollback of deleting customers', () => {
     ])
     expect(
       (await admin.query("select 1 from pg_proc where proname = 'site_erasing'")).rowCount,
+    ).toBe(0)
+  })
+})
+
+/**
+ * The rollback of 0133 (#318): a request for access is a record that
+ * somebody asked and was answered. The rollback deletes none; while there is
+ * one, it stops and changes nothing. Taken out by hand, it goes through and
+ * takes the right `privacy.access` from every role.
+ */
+describe('the rollback of the requests for access', () => {
+  it('deletes no request, and stops while there is one (0133)', async () => {
+    const customer = newId<'customer'>()
+
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `insert into tenant_roles (tenant_id, key, label, rights, leads, second_factor)
+         values ($1, 'owner', 'Inhaber', '{customer.read,privacy.access}', true, false)`,
+      [tenant.id],
+    )
+    await admin.query(
+      `begin; set local app.user_id = 'lena';
+       insert into customers (id, tenant_id, kind, name) values ('${customer}', '${tenant.id}', 'private', 'Familie Weber');
+       insert into access_requests (tenant_id, subject, customer_id, received_on, channel, answer_due_on, created_by)
+       values ('${tenant.id}', 'customer', '${customer}', '2026-11-02', 'email', '2026-12-02', 'lena');
+       commit;`,
+    )
+
+    await expect(revertMigration(admin, '0133_access_requests')).rejects.toThrow(
+      'Die Rücknahme von 0133 löscht sie nicht',
+    )
+    expect((await admin.query('select 1 from access_requests')).rowCount).toBe(1)
+
+    await admin.query(
+      'begin; set local session_replication_role = replica; delete from access_requests; commit;',
+    )
+    await revertMigration(admin, '0133_access_requests')
+
+    expect(await tableNames(admin)).not.toContain('access_requests')
+    expect(
+      (await admin.query<{ rights: string[] }>('select rights from tenant_roles')).rows,
+    ).toEqual([{ rights: ['customer.read'] }])
+    expect(
+      (
+        await admin.query(
+          "select 1 from pg_type where typname in ('personal_subject', 'access_request_status')",
+        )
+      ).rowCount,
     ).toBe(0)
   })
 })

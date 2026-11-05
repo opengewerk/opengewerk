@@ -1,4 +1,4 @@
-import type { DocumentStatus } from '@opengewerk/domain'
+import { type DocumentStatus, documentStatusLabel } from '@opengewerk/domain'
 import { Status, statusIcons, useEntry } from '@opengewerk/platform-web'
 import type { StatusTone } from '@opengewerk/platform-web'
 import clsx from 'clsx'
@@ -17,12 +17,7 @@ import clsx from 'clsx'
  * `domain`, so a state added there turns this into a type error instead of a
  * blank badge.
  */
-export const documentStateLabel: Readonly<Record<DocumentStatus, string>> = {
-  draft: 'Entwurf',
-  signed: 'Unterschrieben',
-  issued: 'Festgeschrieben',
-  cancelled: 'Storniert',
-}
+export const documentStateLabel: Readonly<Record<DocumentStatus, string>> = documentStatusLabel
 
 const officeMarkers: Readonly<
   Record<DocumentStatus, { readonly tone: StatusTone; readonly icon?: typeof statusIcons.sign }>

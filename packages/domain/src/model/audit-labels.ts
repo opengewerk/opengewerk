@@ -295,6 +295,25 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       created_by: 'Erfasst von',
     },
   },
+  // A request for access, from the request to its answer (#318).
+  access_requests: {
+    label: 'Auskunftsanfrage',
+    fields: {
+      subject: 'Person ist',
+      customer_id: 'Kunde',
+      contact_id: 'Ansprechpartner',
+      prospect_id: 'Lead',
+      person_id: 'Mitarbeiter',
+      received_on: 'Eingegangen am',
+      channel: 'Weg',
+      status: 'Stand',
+      answer_due_on: 'Antwort fällig am',
+      produced_at: 'Auskunft erstellt am',
+      produced_by: 'Auskunft erstellt von',
+      answered_at: 'Beantwortet am',
+      created_by: 'Erfasst von',
+    },
+  },
   // The leads of the office (#312).
   prospects: {
     label: 'Lead',

@@ -69,5 +69,8 @@ await checkWidths({
     // questions before a customer is restricted or deleted on it (#845).
     'Löschanfrage erfassen',
     'Sperren',
+    // A request for access recorded under "Datenschutz", with the search for
+    // the person (#318).
+    'Anfrage erfassen',
   ],
 })

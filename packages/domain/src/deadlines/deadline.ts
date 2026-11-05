@@ -127,6 +127,8 @@ export type DeadlineAction = (typeof deadlineActions)[number]
  *   lets it drop, a later contact moves it.
  * - `erasure_request`: a request for deletion not answered yet (#845), due a
  *   month after it came in (Art. 12 (3) DSGVO). The answer lets it drop.
+ * - `access_request`: a request for access not answered yet (#318), due a
+ *   month after it came in (Art. 12 (3) DSGVO). The answer lets it drop.
  * - `sickness`: a sickness a year after its last day (#846,
  *   `sicknessErasureDueOn`); deleting it lets it drop.
  * - `staff_year`: the time and leave of one year of one person, six years
@@ -157,6 +159,7 @@ export const deadlineSources = [
   'prospect',
   'customer',
   'erasure_request',
+  'access_request',
   'sickness',
   'staff_year',
   'person',
@@ -456,6 +459,15 @@ export const sourceWords: Readonly<
   },
   // Due a month after the request came in (#845), without an interval.
   erasure_request: {
+    person: 'Der Inhaber',
+    interval: {
+      label: 'Fällig nach',
+      hint: 'Fällig einen Monat nach dem Eingang der Anfrage.',
+    },
+    anchor: 'dem Eingang der Anfrage',
+  },
+  // The same for a request for access (#318).
+  access_request: {
     person: 'Der Inhaber',
     interval: {
       label: 'Fällig nach',
