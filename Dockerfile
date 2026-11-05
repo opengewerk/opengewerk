@@ -24,6 +24,9 @@ COPY packages/domain/package.json packages/domain/
 COPY packages/gewerke/elektro/package.json packages/gewerke/elektro/
 COPY packages/server/package.json packages/server/
 COPY packages/web/package.json packages/web/
+# The patches pnpm applies while installing, see patchedDependencies in
+# pnpm-workspace.yaml. Without them the frozen install fails.
+COPY patches/ patches/
 RUN pnpm install --frozen-lockfile
 
 COPY . .

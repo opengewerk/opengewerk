@@ -24,3 +24,24 @@ packages:
 # drizzle-kit generates migrations without it. Checked on 18.09.2026.
 allowBuilds:
   esbuild: false
+
+# Overrides that move a transitive dependency off a version with a published
+# advisory, as long as the package that pulls it in has not moved itself.
+# Each one is bounded to the affected versions, so that it neither lowers a
+# version that is already fixed nor touches the untouched majors (minimatch
+# 5 under filelist). Remove an entry once its parent requires a fixed version.
+overrides:
+  # GHSA-g3hv-75wg-m249, under @eslint/config-array and typescript-estree.
+  'minimatch@>=7.0.0 <11.0.1': 11.0.4
+  # GHSA-3g3m-2fjr-6pw4, under workbox-build 7.4.1, which still asks for ^11.
+  'glob@>=9.0.0 <14.0.2': 14.0.3
+  # GHSA-67mh-4wv8-2f99, under @esbuild-kit/core-utils of drizzle-kit. 0.25 is
+  # the line drizzle-kit itself requires, so both resolve to one esbuild.
+  'esbuild@<0.25.0': 0.25.12
+  # GHSA-gcqx-w48m-w2h4 has no fixed version. @rollup/plugin-node-resolve only
+  # copies its own defaults with it; the patch below does that with
+  # structuredClone, and this entry drops deepmerge from the tree.
+  '@rollup/plugin-node-resolve>deepmerge': '-'
+
+patchedDependencies:
+  '@rollup/plugin-node-resolve@16.0.3': patches/@rollup__plugin-node-resolve@16.0.3.patch
