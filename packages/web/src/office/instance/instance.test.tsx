@@ -9,6 +9,7 @@ import type {
 } from '@opengewerk/domain'
 import {
   InstanceLogScreen,
+  InstanceMeasuresScreen,
   InstanceOperatorsScreen,
   InstanceSettingsScreen,
   InstanceTenantsScreen,
@@ -99,6 +100,11 @@ async function mount(path: string) {
         }),
         createRoute({
           getParentRoute: () => instance,
+          path: '/massnahmen',
+          component: InstanceMeasuresScreen,
+        }),
+        createRoute({
+          getParentRoute: () => instance,
           path: '/betreiber',
           component: InstanceOperatorsScreen,
         }),
@@ -178,7 +184,7 @@ afterEach(() => {
 })
 
 describe('the area of the instance in this application', () => {
-  it('lists the businesses, the settings, the operators and the log, and the way back to the office', async () => {
+  it('lists the businesses, the settings, the measures, the operators and the log, and the way back to the office', async () => {
     answer('GET', '/instance/tenants', [])
     await mount('/instanz')
 
@@ -191,6 +197,7 @@ describe('the area of the instance in this application', () => {
     ).toEqual([
       ['Betriebe', '/instanz'],
       ['Einstellungen', '/instanz/einstellungen'],
+      ['Maßnahmen', '/instanz/massnahmen'],
       ['Betreiber', '/instanz/betreiber'],
       ['Protokoll', '/instanz/protokoll'],
       ['Zurück zum Büro', '/'],
@@ -307,6 +314,24 @@ describe('the settings of the instance in this application', () => {
       ),
     ).toBeTruthy()
     expect(screen.getByText('Was für alle Betriebe auf dieser Instanz gilt.')).toBeTruthy()
+  })
+})
+
+describe('the measures of the instance in this application', () => {
+  it("are the screen of the foundation in this application's words (#319)", async () => {
+    answer('GET', '/instance/measures', {
+      measures: {},
+      subprocessors: [],
+      changedAt: null,
+      changedBy: null,
+    })
+    await mount('/instanz/massnahmen')
+
+    expect(
+      await screen.findByText(
+        'Was der Betreiber beim Betrieb dieser Instanz sicherstellt. Es gilt für alle Betriebe auf ihr.',
+      ),
+    ).toBeTruthy()
   })
 })
 

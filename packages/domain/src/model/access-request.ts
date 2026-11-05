@@ -201,17 +201,29 @@ export const accessStorage: Readonly<Record<PersonalSubject, string>> = {
 
 /**
  * Who got data (Art. 15 (1) c DSGVO), as far as the application knows: the
- * grid operators an installation of the person is registered with, and the
- * mails sent. What the business hands on outside of it, it says itself.
+ * recipients the owner named in the record of the processing for what
+ * concerns the person (#319), the grid operators an installation of the
+ * person is registered with, and the mails sent. What the business hands on
+ * outside of it, it says itself.
  */
-export function accessRecipients(gridOperators: readonly string[], mails: number): string {
+export function accessRecipients(
+  gridOperators: readonly string[],
+  mails: number,
+  recorded: readonly string[],
+): string {
+  // What the owner wrote in the record of the processing for the activities
+  // that concern the person (#319).
+  const named =
+    recorded.length === 0
+      ? ''
+      : `Nach dem Verzeichnis der Verarbeitungstätigkeiten des Betriebs gehen Daten an: ${recorded.join('; ')}. `
   const operators =
     gridOperators.length === 0
       ? ''
       : `Daten bekommen ${gridOperators.length === 1 ? 'hat der Netzbetreiber' : 'haben die Netzbetreiber'} ${gridOperators.join(', ')}, bei ${gridOperators.length === 1 ? 'dem' : 'denen'} eine Anlage angemeldet ist. `
   const sent = mails === 0 ? '' : 'Die E-Mails, die an Sie gingen, stehen unter „E-Mails“. '
 
-  return `${operators}${sent}Was der Betrieb außerhalb dieser Anwendung weitergibt, etwa an seine Steuerberatung, nennt er Ihnen selbst.`
+  return `${named}${operators}${sent}Was der Betrieb außerhalb dieser Anwendung weitergibt, etwa an seine Steuerberatung, nennt er Ihnen selbst.`
 }
 
 /** The rights of the person (Art. 15 (1) e and f DSGVO). */

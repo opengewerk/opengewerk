@@ -2829,3 +2829,28 @@ describe('the rollback of the requests for access', () => {
     ).toBe(0)
   })
 })
+
+/**
+ * The rollback of 0134 (#319): what whoever leads wrote for the record of the
+ * processing goes with its two tables, rows and all.
+ */
+describe('the rollback of the record of the processing', () => {
+  it('takes both tables with what was written (0134)', async () => {
+    await resetSchema(admin)
+    await runMigrations(ownerDatabaseUrl(), migrationsFolder)
+    await admin.query('insert into tenants (id, name) values ($1, $2)', [tenant.id, tenant.name])
+    await admin.query(
+      `insert into processing_record_settings (tenant_id, controller) values ($1, 'Elektro Kohm GmbH')`,
+      [tenant.id],
+    )
+    await admin.query(
+      `insert into processing_record_activities (tenant_id, activity, recipients) values ($1, 'mail', 'Mailo GmbH')`,
+      [tenant.id],
+    )
+
+    await revertMigration(admin, '0134_processing_record')
+
+    expect(await tableNames(admin)).not.toContain('processing_record_settings')
+    expect(await tableNames(admin)).not.toContain('processing_record_activities')
+  })
+})

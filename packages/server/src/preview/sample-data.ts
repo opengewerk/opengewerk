@@ -1491,6 +1491,42 @@ async function plantStaffDue(
     receivedOn: addDays(today, -8),
     channel: 'in_person',
   })
+
+  // The record of the processing (#319), as the canvas draws it: the owner
+  // confirmed the letterhead as who is responsible, names no data protection
+  // officer, processes wages and books outside, and confirmed the first nine
+  // activities in use as the application proposed them. The rest stand as
+  // proposals; a provider receives the mails.
+  const record = (await send(base, 'GET', '/privacy/record')) as {
+    proposedController: string
+    activities: {
+      key: string
+      proposedPurpose: string
+      proposedLegalBasis: string
+      unused: string | null
+    }[]
+  }
+
+  await send(base, 'PUT', '/privacy/record', {
+    controller: record.proposedController,
+    officer: '',
+    outside:
+      'Lohnabrechnung über das Lohnbüro Weber, Ladenburg\nBuchhaltung über die Steuerkanzlei Reiß, Mannheim',
+  })
+
+  for (const activity of record.activities.filter((entry) => entry.unused === null).slice(0, 9)) {
+    await send(base, 'PUT', `/privacy/record/activities/${activity.key}`, {
+      purpose: activity.proposedPurpose,
+      legalBasis: activity.proposedLegalBasis,
+      recipients: '',
+    })
+  }
+
+  await send(base, 'PUT', '/privacy/record/activities/mail', {
+    purpose: '',
+    legalBasis: '',
+    recipients: 'Mailo GmbH, Frankfurt, als Anbieter des Mailservers des Betriebs',
+  })
 }
 
 /**

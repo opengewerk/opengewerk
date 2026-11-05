@@ -72,5 +72,8 @@ await checkWidths({
     // A request for access recorded under "Datenschutz", with the search for
     // the person (#318).
     'Anfrage erfassen',
+    // What the owner writes for an activity of the record of the processing
+    // (#319), on the first, which every business uses.
+    'Konten, Anmeldung und Zugänge bearbeiten',
   ],
 })

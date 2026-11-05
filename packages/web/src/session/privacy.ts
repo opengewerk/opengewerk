@@ -9,6 +9,10 @@ import type {
   ErasureRequestChannel,
   ErasureRequestView,
   IsoDate,
+  PrivacyDocumentKind,
+  PrivacyDocumentsSummary,
+  ProcessingActivityKey,
+  ProcessingRecordView,
 } from '@opengewerk/domain'
 import { request, type RequestedFile, requestFile } from '@opengewerk/platform-web/sync'
 
@@ -125,5 +129,46 @@ export function drawAccessAnswer(requestId: string): Promise<RequestedFile> {
 export function answerAccessRequest(requestId: string): Promise<AccessRequestView> {
   return request<AccessRequestView>(`/privacy/access-requests/${requestId}/answer`, {
     method: 'POST',
+  })
+}
+
+/** The three documents on data protection (#319): their cards, the record, and each as a PDF. */
+export const privacyDocumentsKey = [...privacyKey, 'documents'] as const
+
+export const processingRecordKey = [...privacyKey, 'record'] as const
+
+export function privacyDocumentsSummary(): Promise<PrivacyDocumentsSummary> {
+  return request<PrivacyDocumentsSummary>('/privacy/documents')
+}
+
+/** A document made now, as a PDF to save. */
+export function privacyDocument(kind: PrivacyDocumentKind): Promise<RequestedFile> {
+  return requestFile(`/privacy/documents/${kind}`, 'application/pdf')
+}
+
+export function processingRecord(): Promise<ProcessingRecordView> {
+  return request<ProcessingRecordView>('/privacy/record')
+}
+
+/** Who is responsible, the data protection officer and what is processed outside; empty is none. */
+export function keepProcessingRecord(values: {
+  readonly controller: string
+  readonly officer: string
+  readonly outside: string
+}): Promise<ProcessingRecordView> {
+  return request<ProcessingRecordView>('/privacy/record', {
+    method: 'PUT',
+    body: JSON.stringify(values),
+  })
+}
+
+/** Purpose and legal basis together, or both empty for the proposal, and the recipients. */
+export function keepProcessingActivity(
+  key: ProcessingActivityKey,
+  values: { readonly purpose: string; readonly legalBasis: string; readonly recipients: string },
+): Promise<ProcessingRecordView> {
+  return request<ProcessingRecordView>(`/privacy/record/activities/${key}`, {
+    method: 'PUT',
+    body: JSON.stringify(values),
   })
 }

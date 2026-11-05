@@ -314,6 +314,24 @@ export const auditTables: Readonly<Record<string, AuditTableWords>> = {
       created_by: 'Erfasst von',
     },
   },
+  // What whoever leads wrote for the record of the processing (#319).
+  processing_record_settings: {
+    label: 'Verzeichnis der Verarbeitungstätigkeiten',
+    fields: {
+      controller: 'Verantwortlicher',
+      officer: 'Datenschutzbeauftragter',
+      outside: 'Verarbeitungen außerhalb von OpenGewerk',
+    },
+  },
+  processing_record_activities: {
+    label: 'Tätigkeit im Verzeichnis',
+    fields: {
+      activity: 'Tätigkeit',
+      purpose: 'Zweck',
+      legal_basis: 'Rechtsgrundlage',
+      recipients: 'Empfänger',
+    },
+  },
   // The leads of the office (#312).
   prospects: {
     label: 'Lead',

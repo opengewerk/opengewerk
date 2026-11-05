@@ -24,6 +24,7 @@ import {
   type AccessSubjectHit,
   answerDueOf,
   berlinClock,
+  recipientsFor,
 } from '@opengewerk/domain'
 import {
   accountsOf,
@@ -48,6 +49,7 @@ import {
   findSubjects,
   subjectOf,
 } from '../privacy/access-requests.js'
+import { recordInputsOf, usedActivitiesOf } from '../privacy/documents.js'
 import { dosMoment, zipPieces } from '../privacy/zip.js'
 import { todayInGermany } from '../today.js'
 import { RequiresPermission } from './authorization.js'
@@ -248,6 +250,11 @@ export class AccessRequestsController {
         report,
         former,
         gridOperators: await gridOperatorsOf(tx, report),
+        recipients: recipientsFor(
+          found.request.subject,
+          await recordInputsOf(tx),
+          await usedActivitiesOf(tx),
+        ),
         keeper: {
           name: present(letterhead?.companyName) ? letterhead.companyName : (tenant?.name ?? ''),
           address: letterhead ? addressLines(letterhead, 'DE').join(', ') : '',
@@ -270,6 +277,7 @@ export class AccessRequestsController {
       report: gathered.report,
       names,
       gridOperators: gathered.gridOperators,
+      recipients: gathered.recipients,
       account: account === undefined ? null : { name: account.name, email: account.email },
     }
 

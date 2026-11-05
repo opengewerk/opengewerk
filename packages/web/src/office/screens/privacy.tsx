@@ -8,9 +8,9 @@ import {
   erasureRequestSentence,
   type ErasureRequestView,
   type IsoDate,
-  type RuleRecord,
   retentionKinds,
   retentionKindWords,
+  retentionPeriodWords,
   shippedRules,
 } from '@opengewerk/domain'
 import {
@@ -43,6 +43,7 @@ import {
 } from '../../session/privacy.js'
 import { AccessSection } from './access-requests.js'
 import { holdsSentence } from './customer-privacy.js'
+import { DocumentCards } from './privacy-documents.js'
 
 function saidWhy(error: unknown, fallback: string): string {
   return error instanceof RequestRefused ? error.message : fallback
@@ -166,6 +167,7 @@ export function PrivacyScreen() {
         </>
       )}
       <RetentionSection />
+      <DocumentCards />
     </SettingsPage>
   )
 }
@@ -690,28 +692,6 @@ function ErasedSection({ erasures }: { readonly erasures: readonly Erasure[] }) 
   )
 }
 
-const yearWords: Readonly<Record<number, string>> = { 2: 'zwei', 6: 'sechs', 8: 'acht', 10: 'zehn' }
-
-/** "8 Jahre, bis 2024 zehn": the period now, and the one before where the law changed it. */
-export function periodWords(key: string, on: IsoDate): string {
-  const now = shippedRules.at(key, on)
-
-  if (now === null) {
-    return ''
-  }
-
-  const before = shippedRules
-    .all()
-    .filter((record: RuleRecord) => record.key === key && record.validUntil !== null)
-    .filter((record) => (record.validUntil ?? '') < now.validFrom)
-    .sort((a, b) => (a.validFrom < b.validFrom ? 1 : -1))[0]
-  const years = now.value === 1 ? '1 Jahr' : `${String(now.value)} Jahre`
-
-  return before && before.value !== now.value
-    ? `${years}, bis ${(before.validUntil ?? '').slice(0, 4)} ${yearWords[before.value] ?? String(before.value)}`
-    : years
-}
-
 function RetentionSection() {
   const day = today() as IsoDate
   const rows = retentionKinds.map((kind) => {
@@ -720,7 +700,7 @@ function RetentionSection() {
     return {
       kind,
       label: words.label,
-      period: periodWords(words.rule, day),
+      period: retentionPeriodWords(words.rule, day),
       starts: words.begins,
       source: shippedRules.at(words.rule, day)?.source ?? '',
     }

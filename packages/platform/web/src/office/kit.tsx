@@ -168,6 +168,8 @@ const keyWidths = {
   120: 'grid-cols-[120px_minmax(0,1fr)]',
   130: 'grid-cols-[130px_minmax(0,1fr)]',
   140: 'grid-cols-[140px_minmax(0,1fr)]',
+  // On a phone the name stands over its value: 200 pixels leave the value too little.
+  200: 'grid-cols-[200px_minmax(0,1fr)] max-sm:grid-cols-1 max-sm:[&>dd]:mb-1.5',
 } as const
 
 export interface Fact {

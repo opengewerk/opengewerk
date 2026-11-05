@@ -361,7 +361,10 @@ describe('the tables', () => {
       // The requests for deletion (#845), recorded and answered at the desk.
       name === 'erasure_requests' ||
       // The requests for access (#318) as well.
-      name === 'access_requests'
+      name === 'access_requests' ||
+      // What the record of the processing says (#319), written at the desk.
+      name === 'processing_record_settings' ||
+      name === 'processing_record_activities'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

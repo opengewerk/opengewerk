@@ -1,5 +1,6 @@
 import {
   InstanceLogScreen,
+  InstanceMeasuresScreen,
   InstanceOperatorsScreen,
   InstanceSettingsScreen,
   InstanceTenantsScreen,
@@ -68,6 +69,7 @@ const screens = {
   absences: () => import('./screens/absences.js'),
   holidays: () => import('./screens/holidays.js'),
   privacy: () => import('./screens/privacy.js'),
+  privacyDocuments: () => import('./screens/privacy-documents.js'),
   mailSettings: () => import('./screens/mail-settings.js'),
   taxes: () => import('./screens/taxes.js'),
   textSnippets: () => import('./screens/text-snippets.js'),
@@ -138,6 +140,10 @@ const AbsencePersonScreen = lazyRouteComponent(screens.absences, 'AbsencePersonS
 const AbsencesScreen = lazyRouteComponent(screens.absences, 'AbsencesScreen')
 const HolidaysScreen = lazyRouteComponent(screens.holidays, 'HolidaysScreen')
 const PrivacyScreen = lazyRouteComponent(screens.privacy, 'PrivacyScreen')
+const ProcessingRecordScreen = lazyRouteComponent(
+  screens.privacyDocuments,
+  'ProcessingRecordScreen',
+)
 const MailSettingsScreen = lazyRouteComponent(screens.mailSettings, 'MailSettingsScreen')
 const TaxScreen = lazyRouteComponent(screens.taxes, 'TaxScreen')
 const TextSnippetScreen = lazyRouteComponent(screens.textSnippets, 'TextSnippetScreen')
@@ -208,6 +214,11 @@ const instanceRoutes = [
     getParentRoute: () => instance,
     path: '/einstellungen',
     component: InstanceSettingsScreen,
+  }),
+  createRoute({
+    getParentRoute: () => instance,
+    path: '/massnahmen',
+    component: InstanceMeasuresScreen,
   }),
   createRoute({
     getParentRoute: () => instance,
@@ -525,6 +536,11 @@ const routes = [
     getParentRoute: () => office,
     path: '/einstellungen/datenschutz',
     component: PrivacyScreen,
+  }),
+  createRoute({
+    getParentRoute: () => office,
+    path: '/einstellungen/datenschutz/verzeichnis',
+    component: ProcessingRecordScreen,
   }),
   createRoute({
     getParentRoute: () => office,
