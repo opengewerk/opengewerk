@@ -74,6 +74,7 @@ import { GridDocumentsController } from './grid-documents.controller.js'
 import { GridOperatorsController } from './grid-operators.controller.js'
 import { FundingPapersController } from './funding-papers.controller.js'
 import { AcceptanceRequestController } from './acceptance-request.controller.js'
+import { AccessRequestsController } from './access-requests.controller.js'
 import { DefectReportController } from './defect-report.controller.js'
 import { CallInstructionsController } from './call-instructions.controller.js'
 import { OnCallController } from './on-call.controller.js'
@@ -328,6 +329,7 @@ export class ApiModule {
         PrivacyController,
         FundingPapersController,
         AcceptanceRequestController,
+        AccessRequestsController,
         DefectReportController,
         CallInstructionsController,
         OnCallController,

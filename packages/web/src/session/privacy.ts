@@ -1,4 +1,7 @@
 import type {
+  AccessRequestInput,
+  AccessRequestView,
+  AccessSubjectHit,
   DueErasure,
   Erasure,
   ErasureAutomation,
@@ -7,7 +10,7 @@ import type {
   ErasureRequestView,
   IsoDate,
 } from '@opengewerk/domain'
-import { request } from '@opengewerk/platform-web/sync'
+import { request, type RequestedFile, requestFile } from '@opengewerk/platform-web/sync'
 
 /**
  * The deletion concept (#317, #845) as the server keeps it: nothing of it
@@ -80,6 +83,47 @@ export function recordErasureRequest(values: {
 /** Answers an open request by restricting its customer (#845). */
 export function restrictOnRequest(requestId: string): Promise<ErasureRequestView> {
   return request<ErasureRequestView>(`/privacy/requests/${requestId}/restriction`, {
+    method: 'POST',
+  })
+}
+
+/** The requests for access (#318) are kept under `privacyKey` as well. */
+export const accessRequestsKey = [...privacyKey, 'access'] as const
+
+/** The requests for access that run, and those answered in the last twelve months. */
+export async function accessRequests(): Promise<readonly AccessRequestView[]> {
+  const answer = await request<{ readonly requests: readonly AccessRequestView[] }>(
+    '/privacy/access-requests',
+  )
+
+  return answer.requests
+}
+
+/** The customers, contacts, leads and files a name finds, from two letters on. */
+export async function findAccessSubjects(typed: string): Promise<readonly AccessSubjectHit[]> {
+  const answer = await request<{ readonly hits: readonly AccessSubjectHit[] }>(
+    `/privacy/access-requests/subjects?q=${encodeURIComponent(typed)}`,
+  )
+
+  return answer.hits
+}
+
+/** Records a request for access (#318). */
+export function recordAccessRequest(values: AccessRequestInput): Promise<AccessRequestView> {
+  return request<AccessRequestView>('/privacy/access-requests', {
+    method: 'POST',
+    body: JSON.stringify(values),
+  })
+}
+
+/** Draws the answer to a request as one ZIP; the server records who drew it and when. */
+export function drawAccessAnswer(requestId: string): Promise<RequestedFile> {
+  return requestFile(`/privacy/access-requests/${requestId}/report`, 'application/zip', 'POST')
+}
+
+/** Marks a request answered, once its answer was drawn. */
+export function answerAccessRequest(requestId: string): Promise<AccessRequestView> {
+  return request<AccessRequestView>(`/privacy/access-requests/${requestId}/answer`, {
     method: 'POST',
   })
 }

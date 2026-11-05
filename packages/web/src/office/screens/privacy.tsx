@@ -13,7 +13,17 @@ import {
   retentionKindWords,
   shippedRules,
 } from '@opengewerk/domain'
-import { Button, Cell, Column, Confirm, Panel, Status, TablePanel } from '@opengewerk/platform-web'
+import {
+  Button,
+  Cell,
+  cardLink,
+  Column,
+  Confirm,
+  Panel,
+  Status,
+  type TableCard,
+  TablePanel,
+} from '@opengewerk/platform-web'
 import { date, moment, today } from '@opengewerk/platform-web/format'
 import { SettingsPage, SettingsText } from '@opengewerk/platform-web/office'
 import { RequestRefused } from '@opengewerk/platform-web/sync'
@@ -31,6 +41,7 @@ import {
   restrictOnRequest,
   switchAutomation,
 } from '../../session/privacy.js'
+import { AccessSection } from './access-requests.js'
 import { holdsSentence } from './customer-privacy.js'
 
 function saidWhy(error: unknown, fallback: string): string {
@@ -124,8 +135,9 @@ const protocolSentence =
 
 /**
  * The deletion concept in the office (#317), as the boards "Datenschutz"
- * draw it: what is due with a confirmation before it goes, the kinds that go
- * by themselves, what went, and how long papers are kept. Whoever reads the
+ * draw it: the requests for access on top (#318), what is due with a
+ * confirmation before it goes, the kinds that go by themselves, what went,
+ * and how long papers are kept. Whoever reads the
  * settings sees it; deleting and switching are offered to whoever leads the
  * business, which the server says and checks again.
  */
@@ -138,6 +150,7 @@ export function PrivacyScreen() {
       title="Datenschutz"
       sub="Was nach dem Löschkonzept fällig ist, was gelöscht wurde und wie lange Unterlagen bleiben."
     >
+      <AccessSection />
       {overview.isPending ? (
         <SettingsText muted>Wird geladen.</SettingsText>
       ) : overview.isError ? (
@@ -464,11 +477,38 @@ function RequestsSection({ overview }: { readonly overview: PrivacyOverview }) {
     return <span className="text-ink-faint">{waits(view)}</span>
   }
 
+  const nameOf = (view: ErasureRequestView, className?: string) =>
+    view.request.status === 'restricted' ? (
+      <span>{view.customerName}</span>
+    ) : (
+      <Link
+        to="/kunden/$customerId"
+        params={{ customerId: view.request.customerId }}
+        className={className ?? 'text-copper-text underline underline-offset-2'}
+      >
+        {view.customerName}
+      </Link>
+    )
+  const statusOf = (view: ErasureRequestView) => (
+    <Status tone={view.request.status === 'restricted' ? 'locked' : 'waiting'}>
+      {view.request.status === 'restricted' ? 'Gesperrt' : 'Offen'}
+    </Status>
+  )
+  // On a phone a box for each request, as every table there (#845, found with #318).
+  const cards: TableCard[] = overview.requests.map((view) => ({
+    key: view.request.id,
+    title: nameOf(view, cardLink),
+    sub: `${erasureRequestSentence(view.request)} · ${holdsSentence(view)} · ${due(view)}`,
+    right: statusOf(view),
+    actions: actionOf(view),
+  }))
+
   return (
     <>
       <TablePanel
         title="Löschanfragen"
         caption="Löschanfragen"
+        cards={cards}
         note={
           <>
             {problem ? (
@@ -495,27 +535,13 @@ function RequestsSection({ overview }: { readonly overview: PrivacyOverview }) {
             <tr key={view.request.id}>
               <Cell>
                 <span className="flex flex-col gap-px">
-                  {view.request.status === 'restricted' ? (
-                    <span>{view.customerName}</span>
-                  ) : (
-                    <Link
-                      to="/kunden/$customerId"
-                      params={{ customerId: view.request.customerId }}
-                      className="text-copper-text underline underline-offset-2"
-                    >
-                      {view.customerName}
-                    </Link>
-                  )}
+                  {nameOf(view)}
                   <span className="text-[12px] text-ink-faint">
                     {`${erasureRequestSentence(view.request)} · ${holdsSentence(view)}`}
                   </span>
                 </span>
               </Cell>
-              <Cell>
-                <Status tone={view.request.status === 'restricted' ? 'locked' : 'waiting'}>
-                  {view.request.status === 'restricted' ? 'Gesperrt' : 'Offen'}
-                </Status>
-              </Cell>
+              <Cell>{statusOf(view)}</Cell>
               <Cell>{due(view)}</Cell>
               <Cell className="text-right">{actionOf(view)}</Cell>
             </tr>

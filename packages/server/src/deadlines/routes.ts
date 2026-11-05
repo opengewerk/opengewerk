@@ -134,12 +134,17 @@ export const deadlineRules: DeadlineRules<DeadlineKind, ApplicationDeadlineColum
   // A deadline of the deletion concept says what falls due to whoever may read
   // its kind and to nobody else (#846): a sickness due is a health datum, and
   // the file and the years of a person are for whoever reads the files.
-  hiddenFrom: (identity) =>
-    erasureKinds
+  // A request for access is for whoever may give access (#318).
+  hiddenFrom: (identity) => [
+    ...erasureKinds
       .filter(
         (kind) => !isAllowed(identity as Pick<Identity, 'rights'>, erasureKindWords[kind].read),
       )
       .map((kind) => erasureKindWords[kind].deadline),
+    ...(isAllowed(identity as Pick<Identity, 'rights'>, 'privacy.access')
+      ? []
+      : ['privacy.access_request']),
+  ],
   afterResponsible: handTaskOn,
   afterDone: async (tx, row) => {
     const task = taskOfTheDay(row)

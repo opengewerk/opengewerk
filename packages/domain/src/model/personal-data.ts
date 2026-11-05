@@ -41,6 +41,11 @@ const business = (...notPersonal: string[]): PersonalData => ({
 const ofPerson = (...columns: string[]): PersonalData => ({ about: ['person'], columns })
 
 export const personalDataCatalogue: Readonly<Record<string, PersonalData>> = {
+  // Whom a request for access is about, and who recorded and drew it (#318).
+  access_requests: {
+    about: ['customer', 'contact', 'prospect', 'person'],
+    columns: ['customer_id', 'contact_id', 'prospect_id', 'person_id', 'created_by', 'produced_by'],
+  },
   absences: ofPerson('person_id', 'kind', 'first_day', 'last_day', 'note', 'answer', 'decided_by'),
   account_corrections: ofPerson(
     'user_id',

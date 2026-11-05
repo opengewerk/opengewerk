@@ -359,7 +359,9 @@ describe('the tables', () => {
       name === 'erasures' ||
       name === 'erasure_automations' ||
       // The requests for deletion (#845), recorded and answered at the desk.
-      name === 'erasure_requests'
+      name === 'erasure_requests' ||
+      // The requests for access (#318) as well.
+      name === 'access_requests'
 
     const declared = new Set<string>(syncEntities)
     const unaccounted = rows

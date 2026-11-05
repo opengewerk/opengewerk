@@ -1,33 +1,12 @@
 import {
-  applianceMobilityLabel,
   auditVocabulary,
-  cableInstallationMethodLabel,
-  distributionBoardKindLabel,
-  metalNames,
+  documentKindLabel,
   type NumberRangeKey,
-  overcurrentDeviceLabel,
-  prospectSourceLabel,
-  prospectStageLabel,
-  rcdTypeLabel,
-  tripCharacteristicLabel,
+  valueWords,
 } from '@opengewerk/domain'
 import type { AuditScreenWords } from '@opengewerk/platform-web/office'
 
-import { documentStateLabel } from '../app/document-state.js'
 import { protocolRegistry } from '../app/protocols.js'
-import {
-  customerKindLabel,
-  documentKindLabel,
-  installationKindLabel,
-  jobKindLabel,
-  jobStatusLabel,
-  lineUnitLabel,
-  snippetPurposeLabel,
-  taskStatusLabel,
-  taxTreatmentLabel,
-  vatRateLabel,
-} from '../app/labels.js'
-import { timeEntryKindLabel } from '../app/time.js'
 
 /**
  * The change log of the business in the words of the office (#285): what the
@@ -105,35 +84,12 @@ const documentSteps: Words = {
 
 export const auditScreenWords: AuditScreenWords = {
   vocabulary: auditVocabulary,
+  // The words of the values are the domain's since #318; what only the office
+  // knows, the ranges of numbers and the forms of its protocols, comes here.
   values: {
-    customers: { kind: customerKindLabel, source: prospectSourceLabel },
-    // The leads (#312).
-    prospects: { kind: customerKindLabel, source: prospectSourceLabel, stage: prospectStageLabel },
-    installations: { kind: installationKindLabel },
-    // The register of appliances (#303).
-    appliances: { mobility: applianceMobilityLabel },
-    jobs: { kind: jobKindLabel, status: jobStatusLabel },
-    tasks: { status: taskStatusLabel },
-    documents: {
-      kind: documentKindLabel,
-      status: documentStateLabel,
-      tax_treatment: taxTreatmentLabel,
-    },
-    document_lines: { unit: lineUnitLabel, vat_rate: vatRateLabel },
-    text_snippets: { purpose: snippetPurposeLabel },
-    distribution_boards: { kind: distributionBoardKindLabel },
-    circuits: {
-      overcurrent_device: overcurrentDeviceLabel,
-      trip_characteristic: tripCharacteristicLabel,
-      rcd_type: rcdTypeLabel,
-      cable_installation_method: cableInstallationMethodLabel,
-    },
-    time_entries: { kind: timeEntryKindLabel },
+    ...valueWords,
     number_ranges: { key: numberRangeWords },
     form_records: { definition_key: formWords },
-    // Copper and aluminium by name (#462).
-    supplier_article_metals: { metal: metalNames },
-    supplier_metal_prices: { metal: metalNames },
   },
   lists: { kinds: documentKindLabel },
   fingerprints: ['sha256', 'preview_sha256', 'content_fingerprint'],

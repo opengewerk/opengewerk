@@ -10,7 +10,6 @@ import type {
   PriceBase,
   RecordState,
   RoleKey,
-  SnippetPurpose,
   TaskStatus,
   TaxTreatment,
   VatRate,
@@ -40,32 +39,21 @@ import { oneOf } from '@opengewerk/platform-web/sync'
  * renders it in production.
  */
 
-export const customerKindLabel: Readonly<Record<CustomerKind, string>> = {
-  private: 'Privat',
-  business: 'Gewerbe',
-  property_management: 'Hausverwaltung',
-  general_contractor: 'Generalunternehmer',
-}
-
-// The report of a site prints the same words (#302).
-export { installationKindLabel } from '@opengewerk/domain'
-
-export const jobKindLabel: Readonly<Record<JobKind, string>> = {
-  project: 'Projekt',
-  service: 'Serviceeinsatz',
-}
-
-export const jobStatusLabel: Readonly<Record<JobStatus, string>> = {
-  draft: 'Entwurf',
-  active: 'Laufend',
-  completed: 'Abgeschlossen',
-  cancelled: 'Abgebrochen',
-}
-
-export const taskStatusLabel: Readonly<Record<TaskStatus, string>> = {
-  open: 'Offen',
-  done: 'Erledigt',
-}
+// The report of a site prints the same words (#302); the words of the values
+// live in the domain since #318, where the answer to a request for access
+// prints them as well.
+export {
+  customerKindLabel,
+  documentKindLabel,
+  installationKindLabel,
+  jobKindLabel,
+  jobStatusLabel,
+  lineUnitLabel,
+  snippetPurposeLabel,
+  taskStatusLabel,
+  taxTreatmentLabel,
+  vatRateLabel,
+} from '@opengewerk/domain'
 
 /**
  * The three roles a business starts with, by key, for the one place that has
@@ -76,45 +64,6 @@ export const roleLabel: Readonly<Record<RoleKey, string>> = {
   owner: 'Inhaber',
   office: 'Büro',
   technician: 'Monteur',
-}
-
-export const documentKindLabel: Readonly<Record<DocumentKind, string>> = {
-  cost_estimate: 'Kostenvoranschlag',
-  quote: 'Angebot',
-  order_confirmation: 'Auftragsbestätigung',
-  delivery_note: 'Lieferschein',
-  time_and_material_report: 'Regiebericht',
-  progress_invoice: 'Abschlagsrechnung',
-  partial_invoice: 'Teilrechnung',
-  // What makes one a Schlussrechnung is in the document, not in its kind (#132).
-  final_invoice: 'Rechnung',
-  credit_note: 'Gutschrift',
-  cancellation_invoice: 'Stornorechnung',
-  recurring_invoice: 'Dauerrechnung',
-}
-
-/**
- * How a document is taxed, in the words the office uses. The two exceptions
- * name their paragraph, because choosing one is a statement about the law.
- */
-export const taxTreatmentLabel: Readonly<Record<TaxTreatment, string>> = {
-  standard: 'Mit Umsatzsteuer',
-  small_business: 'Kleinunternehmer, § 19 UStG',
-  reverse_charge: 'Steuerschuld beim Empfänger, § 13b UStG',
-}
-
-/** The unit in a choice list, written out. */
-export const lineUnitLabel: Readonly<Record<LineUnit, string>> = {
-  piece: 'Stück',
-  hour: 'Stunden',
-  day: 'Tage',
-  metre: 'Meter',
-  square_metre: 'Quadratmeter',
-  cubic_metre: 'Kubikmeter',
-  kilogram: 'Kilogramm',
-  litre: 'Liter',
-  package: 'Pakete',
-  flat_rate: 'Pauschal',
 }
 
 /**
@@ -148,23 +97,6 @@ export function priceBaseLabel(base: PriceBase, unit: LineUnit): string {
  */
 export function priceBaseText(base: PriceBase, unit: LineUnit): string | null {
   return base > 1 ? `je ${priceBaseLabel(base, unit)}` : null
-}
-
-/**
- * The rate by name and not by figure. The figure depends on the date of the
- * document, and the totals below the lines show it for that date.
- */
-export const vatRateLabel: Readonly<Record<VatRate, string>> = {
-  standard: 'Regelsatz',
-  reduced: 'Ermäßigt',
-  zero: 'Nullsatz, Photovoltaik',
-}
-
-export const snippetPurposeLabel: Readonly<Record<SnippetPurpose, string>> = {
-  line: 'Position',
-  intro: 'Text über den Positionen',
-  closing: 'Text unter den Positionen',
-  mail: 'E-Mail',
 }
 
 /**

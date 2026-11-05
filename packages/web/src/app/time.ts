@@ -483,11 +483,7 @@ export function shiftDay(on: string, days: number): IsoDate {
   return at.toISOString().slice(0, 10) as IsoDate
 }
 
-export const timeEntryKindLabel: Readonly<Record<TimeEntryKind, string>> = {
-  work: 'Arbeit',
-  travel: 'Fahrt',
-  break: 'Pause',
-}
+export { timeEntryKindLabel } from '@opengewerk/domain'
 
 export function timeEntryKindOf(entry: RecordState): TimeEntryKind {
   return kindOf(entry['kind']) ?? 'work'

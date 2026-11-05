@@ -1223,6 +1223,16 @@ export async function plantSampleData(base: string, today: IsoDate): Promise<voi
   await post('/privacy/requests', { customerId: lorenz, receivedOn: before(40), channel: 'email' })
   await post('/privacy/erasures', { kind: 'customer', ids: [lorenz] })
 
+  // A request for access (#318): the Bergs asked by mail what the business
+  // holds about them. "Datenschutz" lists it beside the one of the staff
+  // below; the answer is drawn there.
+  await post('/privacy/access-requests', {
+    subject: 'customer',
+    subjectId: berg,
+    receivedOn: before(3),
+    channel: 'email',
+  })
+
   // A report of today still in draft, with material taken from an article
   // (#296): the walk of the check of widths opens "Material eintragen" on it
   // on site, and its article counts as used lately on every device.
@@ -1472,6 +1482,14 @@ async function plantStaffDue(
   await send(base, 'PUT', `/absences/people/${kraft.id}/entitlements/${String(year - 7)}`, {
     entitledHalfDays: 60,
     carriedHalfDays: 0,
+  })
+
+  // A request for access of somebody of the staff (#318), made in person.
+  await post('/privacy/access-requests', {
+    subject: 'person',
+    subjectId: ids.get('Jonas Brandt') ?? '',
+    receivedOn: addDays(today, -8),
+    channel: 'in_person',
   })
 }
 

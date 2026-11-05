@@ -252,6 +252,15 @@ export const permissions = [
    */
   'audit.read',
   /**
+   * Giving somebody access to what the business holds about them (#318,
+   * Art. 15 and 20 DSGVO): recording the request, drawing the ZIP with
+   * everything about a customer, a contact, a lead or somebody of the staff,
+   * and marking it answered. Only the owner has it, for the reason of
+   * `audit.read`: the answer holds every value about a person, the old ones
+   * from the change log included, and it leaves the business as a file.
+   */
+  'privacy.access',
+  /**
    * Creating a further business and becoming its owner (#142), under "Konto".
    * Only the owner has it: somebody who works in the office of one business
    * does not open another on the same instance on its behalf. For somebody
@@ -337,6 +346,7 @@ export const permissionLabel: Readonly<Record<Permission, string>> = {
   'mail.read': 'E-Mail-Einstellungen ansehen',
   'mail.write': 'E-Mail-Einstellungen ändern',
   'audit.read': 'Das Änderungsprotokoll einsehen',
+  'privacy.access': 'Auskünfte über Personen geben',
   'tenant.create': 'Weitere Betriebe anlegen',
   'push.write': 'Push-Nachrichten auf eigenen Geräten einschalten',
 }

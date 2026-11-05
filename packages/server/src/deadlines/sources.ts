@@ -1,4 +1,5 @@
 import {
+  accessRequestLabel,
   acceptanceFormKey,
   addDays,
   acceptanceOf,
@@ -37,6 +38,7 @@ import { type SourceQuery, stockLevels } from '@opengewerk/platform-server'
 import { and, desc, eq, inArray, isNotNull, isNull, type SQL, sql } from 'drizzle-orm'
 
 import {
+  accessRequests,
   defects,
   documents,
   erasureRequests,
@@ -960,6 +962,34 @@ const aboutNoCustomer: DeadlineValues = {
 }
 
 /**
+ * The requests for access not answered yet (#318), each due a month after it
+ * came in (Art. 12 (3) DSGVO). Named by the day it came in and nothing else:
+ * whom it is about is for whoever may give access, on the screen
+ * "Datenschutz", and the deadline hangs on nothing of a customer, since it
+ * may be about a contact, a lead or somebody of the staff. The answer lets it
+ * drop.
+ */
+export const openAccessRequests: SourceQuery<DeadlineValues> = async (tx) => {
+  const rows = await tx
+    .select({
+      id: accessRequests.id,
+      receivedOn: accessRequests.receivedOn,
+      answerDueOn: accessRequests.answerDueOn,
+    })
+    .from(accessRequests)
+    .where(eq(accessRequests.status, 'open'))
+
+  return rows.map((row) => ({
+    sourceId: row.id,
+    sourceLabel: accessRequestLabel(row.receivedOn as IsoDate),
+    anchorOn: row.receivedOn as IsoDate,
+    namedDueOn: row.answerDueOn as IsoDate,
+    naturalUserId: null,
+    values: aboutNoCustomer,
+  }))
+}
+
+/**
  * The sicknesses a year after their last day (#846), only once they are due:
  * named by that day and not by the person, since the list of deadlines is
  * read by people who may not see which kind an absence is, and the routes
@@ -1050,6 +1080,7 @@ export const deadlineSourceQueries: Readonly<Record<DeadlineSource, SourceQuery<
     prospect: erasableProspects,
     customer: erasableCustomers,
     erasure_request: openErasureRequests,
+    access_request: openAccessRequests,
     sickness: erasableSicknesses,
     staff_year: erasableStaffYears,
     person: erasablePeople,
