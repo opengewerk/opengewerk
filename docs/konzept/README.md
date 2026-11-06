@@ -6,7 +6,7 @@ Hier liegen die Planungsdokumente von OpenGewerk. Sie sind die verbindliche Quel
 | --- | --- |
 | [`Feature-Gliederung.md`](Feature-Gliederung.md) | Vollständige Feature-Gliederung der Handwerkersoftware: Leitentscheidungen, Architektur-Bausteine, CRM, ERP, Gewerke-Module, Schnittstellen, rechtliche Anforderungen, Roadmap |
 
-Das Konzept des Kanzlei-Hubs liegt im Repository [`opengewerk-kanzlei`](https://github.com/opengewerk/opengewerk-kanzlei) unter `docs/konzept/`.
+Das Konzept des Kanzlei-Hubs liegt im Repository [`opengewerk-kanzlei`](https://github.com/OpenGewerk/opengewerk-kanzlei) unter `docs/konzept/`.
 
 ## Wie diese Dokumente geändert werden
 
@@ -19,4 +19,4 @@ Für einen Pull Request an diesen Dokumenten gilt:
 - Betrifft die Änderung auch den Kanzlei-Hub oder den API-Vertrag, im Pull Request darauf hinweisen, damit die anderen Repositories nachziehen können.
 - Eine Änderung, die eine Architekturentscheidung umstößt, gehört zusätzlich als Architecture Decision Record nach [`../adr/`](../adr/).
 
-Wer erst einmal nur eine Frage oder eine Idee hat, ist in den [Discussions](https://github.com/opengewerk/opengewerk/discussions) besser aufgehoben als in einem Pull Request.
+Wer erst einmal nur eine Frage oder eine Idee hat, ist in den [Discussions](https://github.com/OpenGewerk/opengewerk/discussions) besser aufgehoben als in einem Pull Request.

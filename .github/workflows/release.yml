@@ -101,7 +101,7 @@ jobs:
           push: true
           tags: ghcr.io/opengewerk/opengewerk:${{ steps.version.outputs.version }}
           labels: |
-            org.opencontainers.image.source=https://github.com/opengewerk/opengewerk
+            org.opencontainers.image.source=https://github.com/OpenGewerk/opengewerk
             org.opencontainers.image.version=${{ steps.version.outputs.version }}
             org.opencontainers.image.licenses=AGPL-3.0-only
 
@@ -114,7 +114,7 @@ jobs:
           push: true
           tags: ghcr.io/opengewerk/backup:${{ steps.version.outputs.version }}
           labels: |
-            org.opencontainers.image.source=https://github.com/opengewerk/opengewerk
+            org.opencontainers.image.source=https://github.com/OpenGewerk/opengewerk
             org.opencontainers.image.version=${{ steps.version.outputs.version }}
             org.opencontainers.image.licenses=AGPL-3.0-only
 
@@ -252,7 +252,7 @@ jobs:
               hint = (
                   "> **Diese Fassung enthält eine Sicherheitskorrektur.** Was betroffen war, "
                   "steht im Abschnitt „Sicherheit“ und im "
-                  "[Advisory](https://github.com/opengewerk/opengewerk/security/advisories). "
+                  "[Advisory](https://github.com/OpenGewerk/opengewerk/security/advisories). "
                   "Wer OpenGewerk betreibt, aktualisiert bitte bald.\n\n"
               )
 
@@ -265,7 +265,7 @@ jobs:
           if len(body) > 120_000:
               body = (
                   "Was diese Fassung bringt, ist für eine Release-Seite zu lang und steht im "
-                  f"[CHANGELOG](https://github.com/opengewerk/opengewerk/blob/v{version}/CHANGELOG.md)."
+                  f"[CHANGELOG](https://github.com/OpenGewerk/opengewerk/blob/v{version}/CHANGELOG.md)."
               )
 
           # Docker Hub carries the same images, copied with their signatures by
@@ -298,7 +298,7 @@ jobs:
 
           ```bash
           cosign verify ghcr.io/opengewerk/opengewerk:{version} \\
-            --certificate-identity https://github.com/opengewerk/opengewerk/.github/workflows/release.yml@refs/tags/v{version} \\
+            --certificate-identity https://github.com/OpenGewerk/opengewerk/.github/workflows/release.yml@refs/tags/v{version} \\
             --certificate-oidc-issuer https://token.actions.githubusercontent.com
           ```
 
@@ -307,7 +307,7 @@ jobs:
           ```bash
           cosign verify-blob opengewerk-{version}.tar.gz \\
             --bundle opengewerk-{version}.tar.gz.sigstore.json \\
-            --certificate-identity https://github.com/opengewerk/opengewerk/.github/workflows/release.yml@refs/tags/v{version} \\
+            --certificate-identity https://github.com/OpenGewerk/opengewerk/.github/workflows/release.yml@refs/tags/v{version} \\
             --certificate-oidc-issuer https://token.actions.githubusercontent.com
           ```
           """

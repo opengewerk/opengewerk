@@ -97,6 +97,12 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Die Organisation auf GitHub heißt jetzt OpenGewerk statt opengewerk. Links, Release-Notizen und die
+  Beschreibungen auf Docker Hub nennen den neuen Namen. `start.sh` prüft die Signatur einer Fassung gegen
+  `OpenGewerk/opengewerk`, weil GitHub den Namen genau so in die Identität des Release-Workflows schreibt;
+  Fassungen bis 0.7.0 sind noch unter dem alten Namen signiert und bringen ihre eigene `application.env`
+  mit. Die Namen der Abbilder auf ghcr.io und Docker Hub bleiben klein geschrieben, dort sind
+  Großbuchstaben nicht erlaubt.
 - Büro und Baustelle laden einen Bildschirm erst, wenn ihn jemand öffnet (#831). Das erste Bündel hält nur die Hülle
   und die erste Seite, im Büro die Liste der Kunden, auf der Baustelle die offenen Aufträge; der einzelne Auftrag der
   Baustelle ist dafür ein eigenes Modul geworden. Der Service Worker hält jeden Teil vom ersten Besuch an, sodass ein
@@ -3708,7 +3714,7 @@ Grenzwerte des Prüfprotokolls (#31) und der Praxistest der E-Rechnung (#133).
   nennen jetzt die genaue Identität des Laufs für den Tag der Fassung; sie kommt ohne Backslash aus
   und ist strenger, denn sie nimmt nur die Signatur genau dieses Tags an. Die Seite von 0.1.0
   bleibt, wie sie ist; wer deren Abbilder in Git Bash prüft, setzt statt des Musters
-  `--certificate-identity https://github.com/opengewerk/opengewerk/.github/workflows/release.yml@refs/tags/v0.1.0`
+  `--certificate-identity https://github.com/OpenGewerk/opengewerk/.github/workflows/release.yml@refs/tags/v0.1.0`
   ein.
 - Die Protokolle der Container wachsen nicht mehr ohne Grenze (#211). `docker/compose.yaml` setzte
   für keinen Dienst eine, und ohne eigene Vorgabe in der Docker-Konfiguration der Maschine schrieb

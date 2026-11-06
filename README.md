@@ -1,15 +1,15 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/opengewerk/.github/main/brand/opengewerk-logo-dark.svg">
-    <img alt="OpenGewerk" src="https://raw.githubusercontent.com/opengewerk/.github/main/brand/opengewerk-logo.svg" width="420">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/OpenGewerk/.github/main/brand/opengewerk-logo-dark.svg">
+    <img alt="OpenGewerk" src="https://raw.githubusercontent.com/OpenGewerk/.github/main/brand/opengewerk-logo.svg" width="420">
   </picture>
 </p>
 
 <p align="center"><strong>Open-Source-Handwerkersoftware: self-hosted CRM &amp; ERP für Handwerksbetriebe</strong></p>
 
 <p align="center">
-  <a href="https://github.com/opengewerk/opengewerk/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/opengewerk/opengewerk/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://github.com/opengewerk/opengewerk/releases"><img alt="Neueste Fassung" src="https://img.shields.io/github/v/release/opengewerk/opengewerk"></a>
+  <a href="https://github.com/OpenGewerk/opengewerk/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/OpenGewerk/opengewerk/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/OpenGewerk/opengewerk/releases"><img alt="Neueste Fassung" src="https://img.shields.io/github/v/release/opengewerk/opengewerk"></a>
   <a href="LICENSE"><img alt="Lizenz AGPL-3.0" src="https://img.shields.io/github/license/opengewerk/opengewerk"></a>
 </p>
 
@@ -21,13 +21,13 @@ Wie es sich von anderer Handwerkersoftware unterscheidet und was es einmal könn
 
 ## Stand
 
-Das Fundament (Phase 0) und das MVP für den Pilotbetrieb (Phase 1) sind gebaut, die neueste Fassung steht unter [Releases](https://github.com/opengewerk/opengewerk/releases). Ein Betrieb schreibt damit Angebote, Auftragsbestätigungen und Rechnungen, an Unternehmen auch als E-Rechnung im Format XRechnung oder ZUGFeRD. Auf der Baustelle entstehen Regiebericht und Zeiterfassung, der Kunde unterschreibt auf dem Gerät; für Elektro gibt es das Stromkreisverzeichnis und das Prüfprotokoll der Erstprüfung nach DIN VDE 0100-600. An Phase 2, dem Kern für Elektro und PV, wird gearbeitet, im [Meilenstein Phase 2](https://github.com/opengewerk/opengewerk/milestone/3); mit 0.7.0 ist der größte Teil davon erschienen, von den Prüfprotokollen nach DIN VDE 0105-100 und DGUV Vorschrift 3 über PV, Netzbetreiber, Lager und Plantafel bis zu Abnahme und Mängeln. Die Buchhaltung kommt mit Phase 3.
+Das Fundament (Phase 0) und das MVP für den Pilotbetrieb (Phase 1) sind gebaut, die neueste Fassung steht unter [Releases](https://github.com/OpenGewerk/opengewerk/releases). Ein Betrieb schreibt damit Angebote, Auftragsbestätigungen und Rechnungen, an Unternehmen auch als E-Rechnung im Format XRechnung oder ZUGFeRD. Auf der Baustelle entstehen Regiebericht und Zeiterfassung, der Kunde unterschreibt auf dem Gerät; für Elektro gibt es das Stromkreisverzeichnis und das Prüfprotokoll der Erstprüfung nach DIN VDE 0100-600. An Phase 2, dem Kern für Elektro und PV, wird gearbeitet, im [Meilenstein Phase 2](https://github.com/OpenGewerk/opengewerk/milestone/3); mit 0.7.0 ist der größte Teil davon erschienen, von den Prüfprotokollen nach DIN VDE 0105-100 und DGUV Vorschrift 3 über PV, Netzbetreiber, Lager und Plantafel bis zu Abnahme und Mängeln. Die Buchhaltung kommt mit Phase 3.
 
-> **Noch nicht für den produktiven Einsatz.** Vorher stehen die fachliche Abnahme der Regelpakete und Grenzwerte ([#31](https://github.com/opengewerk/opengewerk/issues/31)) und ein Praxistest der E-Rechnung bei einem echten Empfänger ([#133](https://github.com/opengewerk/opengewerk/issues/133)) aus.
+> **Noch nicht für den produktiven Einsatz.** Vorher stehen die fachliche Abnahme der Regelpakete und Grenzwerte ([#31](https://github.com/OpenGewerk/opengewerk/issues/31)) und ein Praxistest der E-Rechnung bei einem echten Empfänger ([#133](https://github.com/OpenGewerk/opengewerk/issues/133)) aus.
 
 ## Schnellstart
 
-Gebraucht werden Docker und Docker Compose ab 2.22. Aus dem entpackten Paket einer [Fassung](https://github.com/opengewerk/opengewerk/releases) oder aus einem Checkout des Repositorys, unter Windows in Git Bash:
+Gebraucht werden Docker und Docker Compose ab 2.22. Aus dem entpackten Paket einer [Fassung](https://github.com/OpenGewerk/opengewerk/releases) oder aus einem Checkout des Repositorys, unter Windows in Git Bash:
 
 ```bash
 sh docker/start.sh
@@ -54,20 +54,20 @@ Alles Weitere, vom ersten Zugang über E-Mail, Sicherung und Rückspielen bis zu
 
 ## Projektfamilie
 
-- [`opengewerk`](https://github.com/opengewerk/opengewerk): diese Handwerkersoftware, dazu das Fundament, auf dem jede Anwendung der Familie steht.
-- [`opengewerk-haustechnik`](https://github.com/opengewerk/opengewerk-haustechnik): Open-Source-CAFM für Betreiber von Gebäuden und ihre Haustechnik, auf demselben Fundament.
-- [`opengewerk-kanzlei`](https://github.com/opengewerk/opengewerk-kanzlei): der Kanzlei-Hub, mit dem ein Steuerberater seine Mandanten bearbeitet, ohne dass die Daten den Betrieb verlassen.
-- [`opengewerk-api-spec`](https://github.com/opengewerk/opengewerk-api-spec): der API-Vertrag zwischen Handwerkersoftware und Kanzlei-Hub.
+- [`opengewerk`](https://github.com/OpenGewerk/opengewerk): diese Handwerkersoftware, dazu das Fundament, auf dem jede Anwendung der Familie steht.
+- [`opengewerk-haustechnik`](https://github.com/OpenGewerk/opengewerk-haustechnik): Open-Source-CAFM für Betreiber von Gebäuden und ihre Haustechnik, auf demselben Fundament.
+- [`opengewerk-kanzlei`](https://github.com/OpenGewerk/opengewerk-kanzlei): der Kanzlei-Hub, mit dem ein Steuerberater seine Mandanten bearbeitet, ohne dass die Daten den Betrieb verlassen.
+- [`opengewerk-api-spec`](https://github.com/OpenGewerk/opengewerk-api-spec): der API-Vertrag zwischen Handwerkersoftware und Kanzlei-Hub.
 - [opengewerk.de](https://opengewerk.de): die Website des Projekts.
 
 ## Hilfe und Mitmachen
 
 Gerade jetzt zählt jede fachliche Rückmeldung aus dem Betriebsalltag mehr als Code.
 
-- Fragen und Ideen gehören in die [Discussions](https://github.com/opengewerk/opengewerk/discussions), kurze Fragen auch auf den [Discord-Server](https://discord.gg/NRrEvbQdxz). Zum Austausch unter Betrieben gibt es [r/OpenGewerk](https://www.reddit.com/r/OpenGewerk/).
-- Fehler und Wünsche laufen über die [Issue-Vorlagen](https://github.com/opengewerk/opengewerk/issues/new/choose).
-- Eine Sicherheitslücke bitte nicht öffentlich melden, sondern wie in der [SECURITY.md](https://github.com/opengewerk/.github/blob/main/SECURITY.md) beschrieben.
-- Wer Code beitragen will, liest die [CONTRIBUTING.md](https://github.com/opengewerk/.github/blob/main/CONTRIBUTING.md) und die [Entwicklung](docs/entwicklung.md); es gilt der [Verhaltenskodex](https://github.com/opengewerk/.github/blob/main/CODE_OF_CONDUCT.md).
+- Fragen und Ideen gehören in die [Discussions](https://github.com/OpenGewerk/opengewerk/discussions), kurze Fragen auch auf den [Discord-Server](https://discord.gg/NRrEvbQdxz). Zum Austausch unter Betrieben gibt es [r/OpenGewerk](https://www.reddit.com/r/OpenGewerk/).
+- Fehler und Wünsche laufen über die [Issue-Vorlagen](https://github.com/OpenGewerk/opengewerk/issues/new/choose).
+- Eine Sicherheitslücke bitte nicht öffentlich melden, sondern wie in der [SECURITY.md](https://github.com/OpenGewerk/.github/blob/main/SECURITY.md) beschrieben.
+- Wer Code beitragen will, liest die [CONTRIBUTING.md](https://github.com/OpenGewerk/.github/blob/main/CONTRIBUTING.md) und die [Entwicklung](docs/entwicklung.md); es gilt der [Verhaltenskodex](https://github.com/OpenGewerk/.github/blob/main/CODE_OF_CONDUCT.md).
 
 ## Lizenz
 

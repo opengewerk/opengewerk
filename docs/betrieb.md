@@ -13,7 +13,7 @@ sh docker/start.sh
 **Aus einem Release oder aus dem Quelltext** (#155). Ein Release bringt ein
 Paket `opengewerk-<fassung>.tar.gz` mit dem Ordner `opengewerk/docker` und
 veröffentlichte, signierte Abbilder für x86_64 und ARM64; die Pakete stehen
-unter [Releases](https://github.com/opengewerk/opengewerk/releases). Entpackt und mit
+unter [Releases](https://github.com/OpenGewerk/opengewerk/releases). Entpackt und mit
 demselben Befehl gestartet, baut eine solche Installation nichts, sondern holt
 die Abbilder ihrer Fassung aus `ghcr.io/opengewerk`. Die Fassung steht in
 `docker/compose.yaml` an jedem Abbild, und so nimmt jeder `docker
@@ -854,7 +854,7 @@ Eine Fassung, die eine Sicherheitslücke schließt, trägt in ihrem Abschnitt de
 CHANGELOG den Unterabschnitt `### Sicherheit`, und ihre Release-Seite beginnt
 dann mit einem Hinweis darauf. Welche Fassungen eine Korrektur bekommen, nämlich
 nur die jeweils neueste, und wie sie ausgeliefert wird, steht in der
-[SECURITY.md](https://github.com/opengewerk/.github/blob/main/SECURITY.md) der
+[SECURITY.md](https://github.com/OpenGewerk/.github/blob/main/SECURITY.md) der
 Organisation.
 
 ## Reverse Proxy
