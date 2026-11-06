@@ -1,4 +1,4 @@
-![OpenGewerk](https://raw.githubusercontent.com/opengewerk/.github/main/brand/opengewerk-logo@2x.png)
+![OpenGewerk](https://raw.githubusercontent.com/OpenGewerk/.github/main/brand/opengewerk-logo@2x.png)
 
 **Self-hosted CRM und ERP für Handwerksbetriebe**, mit Elektro und Photovoltaik als erstem Gewerk. Büro und Baustelle arbeiten in einer Anwendung, die Baustelle auch ohne Netz, und die Daten bleiben beim Betrieb. Open Source unter AGPL-3.0, durchgehend auf Deutsch.
 
@@ -13,7 +13,7 @@
 
 ## Installieren
 
-Dieses Abbild allein ist noch keine Installation. Dazu gehören PostgreSQL, der Lauf der Migrationen, die nächtliche Sicherung und ein Renderer für die PDFs, und all das bringt das Paket von der [Release-Seite](https://github.com/opengewerk/opengewerk/releases) mit:
+Dieses Abbild allein ist noch keine Installation. Dazu gehören PostgreSQL, der Lauf der Migrationen, die nächtliche Sicherung und ein Renderer für die PDFs, und all das bringt das Paket von der [Release-Seite](https://github.com/OpenGewerk/opengewerk/releases) mit:
 
 ```bash
 tar --no-same-owner -xzf opengewerk-<fassung>.tar.gz
@@ -32,13 +32,13 @@ Jedes Abbild ist ohne Schlüssel über Sigstore signiert, vom Release-Workflow d
 
 ```bash
 cosign verify opengewerk/opengewerk:<fassung> \
-  --certificate-identity https://github.com/opengewerk/opengewerk/.github/workflows/release.yml@refs/tags/v<fassung> \
+  --certificate-identity https://github.com/OpenGewerk/opengewerk/.github/workflows/release.yml@refs/tags/v<fassung> \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
 ## Mehr
 
-- Quelltext, Releases und Konzept: [github.com/opengewerk/opengewerk](https://github.com/opengewerk/opengewerk)
+- Quelltext, Releases und Konzept: [github.com/OpenGewerk/opengewerk](https://github.com/OpenGewerk/opengewerk)
 - Website: [opengewerk.de](https://opengewerk.de/)
-- Fragen und Rückmeldungen: [Discussions](https://github.com/opengewerk/opengewerk/discussions)
+- Fragen und Rückmeldungen: [Discussions](https://github.com/OpenGewerk/opengewerk/discussions)
 - Lizenz: AGPL-3.0

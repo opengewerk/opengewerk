@@ -221,7 +221,7 @@ said() {
   OPENGEWERK_ADDRESS=http://127.0.0.1:23700 sh "$work/docker/start.sh" < /dev/null 2>&1
 }
 
-identity='https://github.com/opengewerk/opengewerk/.github/workflows/release.yml@refs/tags/v0.6.0'
+identity='https://github.com/OpenGewerk/opengewerk/.github/workflows/release.yml@refs/tags/v0.6.0'
 pin 0.2.1
 out=$(said)
 for image in "ghcr.io/opengewerk/opengewerk:0.6.0@$app_digest" "ghcr.io/opengewerk/backup:0.6.0@$backup_digest"; do
