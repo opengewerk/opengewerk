@@ -1,6 +1,6 @@
 name: Security-Review
 
-# The security review of the organisation (opengewerk/.github,
+# The security review of the organisation (OpenGewerk/.github,
 # .github/workflows/security-review.yml) for every pull request: with a shell
 # in a sandbox on pull_request for a branch of this repository by a member, by
 # reading alone on pull_request_target for anything else. A new push cancels
@@ -23,7 +23,7 @@ permissions: {}
 jobs:
   security-review:
     name: Security-Review
-    uses: opengewerk/.github/.github/workflows/security-review.yml@731e3522cb6282e4a6ff46fe7be7dc83c30a7687 # main
+    uses: OpenGewerk/.github/.github/workflows/security-review.yml@e53047a5077f1e7bd1589d12d0fc849c872a2eeb # main
     # The test database of this repository, as its tests expect it. The
     # review starts a PostgreSQL of its own for it, inside its sandbox.
     with:
