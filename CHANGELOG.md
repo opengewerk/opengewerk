@@ -97,6 +97,9 @@ die Versionsnummern folgen der [Semantischen Versionierung](https://semver.org/l
 
 ### Geändert
 
+- Das Security-Review steht auf `e53047a` von OpenGewerk/.github (OpenGewerk/.github#50) und wird
+  unter dem neuen Namen der Organisation aufgerufen. Der Stand nimmt den Namen im Pin und in einer
+  Submodul-Adresse in beiden Schreibweisen an.
 - Die Organisation auf GitHub heißt jetzt OpenGewerk statt opengewerk. Links, Release-Notizen und die
   Beschreibungen auf Docker Hub nennen den neuen Namen. `start.sh` prüft die Signatur einer Fassung gegen
   `OpenGewerk/opengewerk`, weil GitHub den Namen genau so in die Identität des Release-Workflows schreibt;
