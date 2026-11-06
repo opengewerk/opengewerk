@@ -1,0 +1,91 @@
+# Mirror to Codeberg (codeberg.org/OpenGewerk). GitHub stays the source of
+# truth.
+#
+# Destructive by design: --prune removes branches and tags on Codeberg that no
+# longer exist on GitHub, and --force overwrites commits pushed there directly.
+#
+# Access is a deploy key registered for THIS repository only, not an account
+# token and not a user SSH key. Both of those carry account-wide write access,
+# so a single compromised repository would reach every Codeberg repository.
+#
+# Setup: generate the key with `pass-cli item create ssh-key generate`, add the
+# public half under Repository -> Settings -> Deploy Keys with "Enable Write
+# Access" ticked, and pipe the private half into the CODEBERG_SSH_KEY secret
+# with `pass-cli item view ... --field private_key | gh secret set`.
+
+name: Spiegel nach Codeberg
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["**"]
+  delete:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serial, and a running job is not cancelled: two parallel runs could leave an
+# older state as the last write.
+concurrency:
+  group: mirror-codeberg
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: Nach Codeberg pushen
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'OpenGewerk'
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Branches und Tags nach Codeberg pushen
+        env:
+          CODEBERG_SSH_KEY: ${{ secrets.CODEBERG_SSH_KEY }}
+          CODEBERG_REPO: ${{ secrets.CODEBERG_REPO }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CODEBERG_SSH_KEY:-}" ] || [ -z "${CODEBERG_REPO:-}" ]; then
+            echo "::error::Die Secrets CODEBERG_SSH_KEY und CODEBERG_REPO fehlen."
+            exit 1
+          fi
+
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$CODEBERG_SSH_KEY" > "$HOME/.ssh/codeberg"
+          chmod 600 "$HOME/.ssh/codeberg"
+
+          # Pinned rather than obtained with ssh-keyscan, which trusts whatever
+          # answers and would make StrictHostKeyChecking pointless. Verified
+          # against docs.codeberg.org/security/ssh-fingerprint/ on 2026-09-03.
+          # A rotation on their side breaks the push, which is the correct
+          # reaction: verify the fingerprints again and replace these lines.
+          {
+            printf '%s\n' 'codeberg.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIVIC02vnjFyL+I4RHfvIGNtOgJMe769VTF1VR4EB3ZB'
+            printf '%s\n' 'codeberg.org ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC8hZi7K1/2E2uBX8gwPRJAHvRAob+3Sn+y2hxiEhN0buv1igjYFTgFO2qQD8vLfU/HT/P/rqvEeTvaDfY1y/vcvQ8+YuUYyTwE2UaVU5aJv89y6PEZBYycaJCPdGIfZlLMmjilh/Sk8IWSEK6dQr+g686lu5cSWrFW60ixWpHpEVB26eRWin3lKYWSQGMwwKv4LwmW3ouqqs4Z4vsqRFqXJ/eCi3yhpT+nOjljXvZKiYTpYajqUC48IHAxTWugrKe1vXWOPxVXXMQEPsaIRc2hpK+v1LmfB7GnEGvF1UAKnEZbUuiD9PBEeD5a1MZQIzcoPWCrTxipEpuXQ5Tni4mN'
+          } > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/codeberg -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
+
+          git fetch --prune --prune-tags --tags origin
+
+          # Without this, the symbolic ref refs/remotes/origin/HEAD matches the
+          # refspec below and lands on Codeberg as a branch literally named
+          # "HEAD", which makes every ref name ambiguous there. Not
+          # `git update-ref -d`: that dereferences and would delete the default
+          # branch itself.
+          git remote set-head origin --delete || true
+
+          # refs/remotes/origin/* and not refs/heads/*: the checkout creates one
+          # local branch, every other branch exists only as a tracking ref.
+          git push --force --prune "git@codeberg.org:${CODEBERG_REPO}.git" \
+            "refs/remotes/origin/*:refs/heads/*" \
+            "refs/tags/*:refs/tags/*"
+
+          echo "Spiegel aktualisiert: codeberg.org/${CODEBERG_REPO}"
